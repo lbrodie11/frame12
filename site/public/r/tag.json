@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tag",
+  "title": "Tag",
+  "description": "Flat marker-yellow tag with ink text.",
+  "files": [
+    {
+      "path": "ui/tag.tsx",
+      "content": "'use client';\n\nimport * as React from 'react';\n\nexport interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {\n  children?: React.ReactNode;\n}\n\nexport function Tag({ className = '', children, ...rest }: TagProps) {\n  return (\n    <span className={`tag${className ? ` ${className}` : ''}`} {...rest}>\n      {children}\n    </span>\n  );\n}\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

@@ -1,0 +1,412 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "frame12",
+  "homepage": "https://github.com/MaskStarmoney/frame12",
+  "items": [
+    {
+      "name": "frame12-styles",
+      "type": "registry:style",
+      "title": "FRAME/12 Styles & Tokens",
+      "description": "FRAME/12 CSS custom properties, panel grammar, screentone fills, and motion on twos.",
+      "files": [
+        {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
+          "path": "styles/frame12-tailwind.css",
+          "type": "registry:file",
+          "target": "styles/frame12-tailwind.css"
+        }
+      ]
+    },
+    {
+      "name": "use-on-twos",
+      "type": "registry:hook",
+      "title": "useOnTwos & Motion Hooks",
+      "description": "12fps stepped motion hook (83.33ms poses), count-up tween, ResizeObserver size hook, and reduced-motion detection.",
+      "files": [
+        {
+          "path": "hooks/use-on-twos.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "sheet",
+      "type": "registry:ui",
+      "title": "Sheet",
+      "description": "Top-level FRAME/12 storyboard sheet with registration pegs, theme scope, and motion grammar.",
+      "files": [
+        {
+          "path": "ui/sheet.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "hooks/use-on-twos.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "scene",
+      "type": "registry:ui",
+      "title": "Scene",
+      "description": "Panel grammar layout container enforcing 12px (pair), 20px (scene), and 32px (change) gutters.",
+      "files": [
+        {
+          "path": "ui/scene.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "panel",
+      "type": "registry:ui",
+      "title": "Panel",
+      "description": "Ink-framed panel with SVG mitered polygon border, optional slanted gutter edge, and cut number in reading order.",
+      "files": [
+        {
+          "path": "ui/panel.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "hooks/use-on-twos.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "panel-pair",
+      "type": "registry:ui",
+      "title": "PanelPair",
+      "description": "Pairs two related panels across a shared 12px slanted gutter (slant-bottom over slant-top).",
+      "files": [
+        {
+          "path": "ui/panel-pair.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/panel.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "hooks/use-on-twos.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "segmented-control",
+      "type": "registry:ui",
+      "title": "SegmentedControl",
+      "description": "Exposure-sheet cell selector with mix-blend-mode: difference indicator and stepped 12fps motion.",
+      "files": [
+        {
+          "path": "ui/segmented-control.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "button",
+      "type": "registry:ui",
+      "title": "Button",
+      "description": "Ink-framed button with primary, secondary, and marker-yellow variants.",
+      "files": [
+        {
+          "path": "ui/button.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "type": "registry:ui",
+      "title": "Input",
+      "description": "Ink-framed text input with accessible label, hint, and marker-flagged error message.",
+      "files": [
+        {
+          "path": "ui/input.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "badge",
+      "type": "registry:ui",
+      "title": "Badge",
+      "description": "Marker-yellow badge with ink text and optional two-frame SVG impact burst.",
+      "files": [
+        {
+          "path": "ui/badge.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "tag",
+      "type": "registry:ui",
+      "title": "Tag",
+      "description": "Flat marker-yellow tag with ink text.",
+      "files": [
+        {
+          "path": "ui/tag.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "metric",
+      "type": "registry:ui",
+      "title": "Metric & Delta",
+      "description": "Display KPI with count-up on twos, directional marker delta badge, note, and optional ToneSpark.",
+      "files": [
+        {
+          "path": "ui/metric.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "hooks/use-on-twos.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "balloon",
+      "type": "registry:ui",
+      "title": "Balloon",
+      "description": "Speech-balloon callout annotation with mitered tail and marker target dot.",
+      "files": [
+        {
+          "path": "ui/balloon.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "tone-area-chart",
+      "type": "registry:ui",
+      "title": "ToneAreaChart",
+      "description": "Area chart with rotated SVG screentone halftone fill, luminance mask, speech-balloon peak callout, keyboard navigation, and accessible data table.",
+      "files": [
+        {
+          "path": "ui/tone-area-chart.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "hooks/use-on-twos.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "tone-bar-list",
+      "type": "registry:ui",
+      "title": "ToneBarList",
+      "description": "Interactive ranked list with screentone progress bars, share percentages, and impact-burst leader badge.",
+      "files": [
+        {
+          "path": "ui/tone-bar-list.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/badge.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "hooks/use-on-twos.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "tone-spark",
+      "type": "registry:ui",
+      "title": "ToneSpark",
+      "description": "Compact daily bar sparkline filled with 45-degree SVG screentone dots.",
+      "files": [
+        {
+          "path": "ui/tone-spark.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "hooks/use-on-twos.ts",
+          "type": "registry:hook"
+        }
+      ]
+    },
+    {
+      "name": "dialog",
+      "type": "registry:ui",
+      "title": "Dialog (FRAME/12 Adapter)",
+      "description": "FRAME/12 skin for modal dialogs using native <dialog>, ink frame, cut number, and screentone backdrop.",
+      "registryDependencies": ["dialog"],
+      "files": [
+        {
+          "path": "ui/dialog.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/button.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "select",
+      "type": "registry:ui",
+      "title": "Select (FRAME/12 Adapter)",
+      "description": "FRAME/12 skin for accessible select menus with ink frame and marker-yellow caret.",
+      "registryDependencies": ["select"],
+      "files": [
+        {
+          "path": "ui/select.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "tooltip",
+      "type": "registry:ui",
+      "title": "Tooltip (FRAME/12 Adapter)",
+      "description": "FRAME/12 skin for accessible tooltips with hard ink shadow.",
+      "registryDependencies": ["tooltip"],
+      "files": [
+        {
+          "path": "ui/tooltip.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "dropdown-menu",
+      "type": "registry:ui",
+      "title": "DropdownMenu (FRAME/12 Adapter)",
+      "description": "FRAME/12 skin for action menus with ink inversion on focus and hover.",
+      "registryDependencies": ["dropdown-menu"],
+      "files": [
+        {
+          "path": "ui/dropdown-menu.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/button.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "registry:ui",
+      "title": "Table (FRAME/12 Adapter)",
+      "description": "FRAME/12 skin for semantic data tables with monospace headers, tabular numerals, and heavy ink rules.",
+      "registryDependencies": ["table"],
+      "files": [
+        {
+          "path": "ui/table.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    },
+    {
+      "name": "frame12",
+      "type": "registry:block",
+      "title": "FRAME/12 Complete Kit",
+      "description": "All FRAME/12 styles, hooks, components, and primitive adapters.",
+      "files": [
+        {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
+          "path": "styles/frame12-tailwind.css",
+          "type": "registry:file",
+          "target": "styles/frame12-tailwind.css"
+        },
+        {
+          "path": "hooks/use-on-twos.ts",
+          "type": "registry:hook"
+        },
+        {
+          "path": "ui/sheet.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/scene.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/panel.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/panel-pair.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/segmented-control.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/button.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/input.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/badge.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/tag.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/metric.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/balloon.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/tone-area-chart.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/tone-bar-list.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/tone-spark.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/dialog.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/select.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/tooltip.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/dropdown-menu.tsx",
+          "type": "registry:ui"
+        },
+        {
+          "path": "ui/table.tsx",
+          "type": "registry:ui"
+        }
+      ]
+    }
+  ]
+}

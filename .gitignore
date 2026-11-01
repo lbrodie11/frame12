@@ -1,8 +1,11 @@
 node_modules/
 dist/
 lab/dist/
+registry/dist/
 test-results/
 lab/test-results/
+registry/test-results/
 .f12-run/
 lab/.f12-run/
+registry/.f12-run/
 .DS_Store

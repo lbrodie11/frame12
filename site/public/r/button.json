@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "button",
+  "title": "Button",
+  "description": "Ink-framed button with primary, secondary, and marker-yellow variants.",
+  "files": [
+    {
+      "path": "ui/button.tsx",
+      "content": "'use client';\n\nimport * as React from 'react';\n\nexport type ButtonVariant = 'primary' | 'secondary' | 'marker';\nexport type ButtonSize = 'sm' | 'md' | 'lg';\n\nexport interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {\n  variant?: ButtonVariant;\n  size?: ButtonSize;\n}\n\nexport const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(\n  { variant = 'secondary', size = 'md', type = 'button', className = '', children, ...rest },\n  ref,\n) {\n  const classes = `f12-btn f12-btn-${variant} f12-btn-${size}${className ? ` ${className}` : ''}`;\n  return (\n    <button ref={ref} type={type} className={classes} {...rest}>\n      {children}\n    </button>\n  );\n});\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

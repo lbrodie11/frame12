@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "scene",
+  "title": "Scene",
+  "description": "Panel grammar layout container enforcing 12px (pair), 20px (scene), and 32px (change) gutters.",
+  "files": [
+    {
+      "path": "ui/scene.tsx",
+      "content": "'use client';\n\nimport * as React from 'react';\n\nexport type SceneGutter = 'pair' | 'scene' | 'change';\nexport type SceneLayout = 'split' | 'stack' | 'equal' | 'three';\n\nexport const GUTTERS: Record<SceneGutter, number> = {\n  pair: 12,\n  scene: 20,\n  change: 32,\n};\n\nexport interface SceneProps extends React.HTMLAttributes<HTMLDivElement> {\n  gutter?: SceneGutter;\n  layout?: SceneLayout;\n  children?: React.ReactNode;\n}\n\nexport function Scene({\n  gutter = 'scene',\n  layout = 'split',\n  className = '',\n  children,\n  ...rest\n}: SceneProps) {\n  const safeGutter: SceneGutter =\n    gutter === 'pair' || gutter === 'scene' || gutter === 'change' ? gutter : 'scene';\n  const safeLayout: SceneLayout =\n    layout === 'split' || layout === 'stack' || layout === 'equal' || layout === 'three'\n      ? layout\n      : 'split';\n\n  const classes = `scene scene-${safeLayout} scene-${safeGutter}${className ? ` ${className}` : ''}`;\n\n  return (\n    <div className={classes} data-gutter={GUTTERS[safeGutter]} data-layout={safeLayout} {...rest}>\n      {children}\n    </div>\n  );\n}\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

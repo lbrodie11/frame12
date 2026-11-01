@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "input",
+  "title": "Input",
+  "description": "Ink-framed text input with accessible label, hint, and marker-flagged error message.",
+  "files": [
+    {
+      "path": "ui/input.tsx",
+      "content": "'use client';\n\nimport * as React from 'react';\n\nexport interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {\n  label: string;\n  hint?: string;\n  error?: string;\n  fieldClassName?: string;\n}\n\nexport const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input(\n  { id, label, hint, error, className = '', fieldClassName = '', ...rest },\n  ref,\n) {\n  const autoId = React.useId();\n  const inputId = id || `f12-input-${autoId.replace(/:/g, '')}`;\n  const hintId = hint ? `${inputId}-hint` : undefined;\n  const errorId = error ? `${inputId}-error` : undefined;\n  const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;\n\n  return (\n    <div className={`f12-field${fieldClassName ? ` ${fieldClassName}` : ''}`}>\n      <label htmlFor={inputId} className=\"f12-label\">\n        {label}\n      </label>\n      <input\n        ref={ref}\n        id={inputId}\n        className={`f12-input${className ? ` ${className}` : ''}`}\n        aria-describedby={describedBy}\n        aria-invalid={error ? true : undefined}\n        {...rest}\n      />\n      {hint && (\n        <p id={hintId} className=\"f12-hint\">\n          {hint}\n        </p>\n      )}\n      {error && (\n        <p id={errorId} className=\"f12-error\" role=\"alert\">\n          <span className=\"f12-error-flag\" aria-hidden=\"true\">\n            !\n          </span>\n          <span>{error}</span>\n        </p>\n      )}\n    </div>\n  );\n});\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

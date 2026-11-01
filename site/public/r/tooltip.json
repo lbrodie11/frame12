@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "tooltip",
+  "title": "Tooltip (FRAME/12 Adapter)",
+  "description": "FRAME/12 skin for accessible tooltips with hard ink shadow.",
+  "registryDependencies": [
+    "tooltip"
+  ],
+  "files": [
+    {
+      "path": "ui/tooltip.tsx",
+      "content": "'use client';\n\nimport * as React from 'react';\n\ninterface TooltipContextValue {\n  open: boolean;\n  setOpen: (next: boolean) => void;\n  tooltipId: string;\n}\n\nconst TooltipContext = React.createContext<TooltipContextValue | null>(null);\n\nfunction useTooltipContext() {\n  const ctx = React.useContext(TooltipContext);\n  if (!ctx) throw new Error('Tooltip subcomponents must be used within <Tooltip>');\n  return ctx;\n}\n\nexport function TooltipProvider({ children }: { children?: React.ReactNode }) {\n  return <>{children}</>;\n}\n\nexport interface TooltipProps {\n  open?: boolean;\n  defaultOpen?: boolean;\n  onOpenChange?: (open: boolean) => void;\n  children?: React.ReactNode;\n}\n\nexport function Tooltip({\n  open: controlledOpen,\n  defaultOpen = false,\n  onOpenChange,\n  children,\n}: TooltipProps) {\n  const [uncontrolledOpen, setUncontrolledOpen] = React.useState<boolean>(defaultOpen);\n  const isControlled = controlledOpen !== undefined;\n  const open = isControlled ? controlledOpen : uncontrolledOpen;\n  const rawId = React.useId().replace(/:/g, '');\n  const tooltipId = `f12-tip-${rawId}`;\n\n  const setOpen = React.useCallback(\n    (next: boolean) => {\n      if (!isControlled) setUncontrolledOpen(next);\n      onOpenChange?.(next);\n    },\n    [isControlled, onOpenChange],\n  );\n\n  return (\n    <TooltipContext.Provider value={{ open, setOpen, tooltipId }}>\n      <span\n        className=\"f12-tooltip-wrap\"\n        onPointerEnter={() => setOpen(true)}\n        onPointerLeave={() => setOpen(false)}\n        onFocus={() => setOpen(true)}\n        onBlur={() => setOpen(false)}\n        onKeyDown={(e) => {\n          if (e.key === 'Escape') setOpen(false);\n        }}\n      >\n        {children}\n      </span>\n    </TooltipContext.Provider>\n  );\n}\n\nexport interface TooltipTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {\n  asChild?: boolean;\n}\n\nexport function TooltipTrigger({\n  asChild = false,\n  className = '',\n  children,\n  ...rest\n}: TooltipTriggerProps) {\n  const { open, tooltipId } = useTooltipContext();\n  if (asChild && React.isValidElement(children)) {\n    return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {\n      'aria-describedby': open ? tooltipId : undefined,\n    });\n  }\n  return (\n    <button\n      type=\"button\"\n      className={`f12-btn f12-btn-secondary f12-btn-sm${className ? ` ${className}` : ''}`}\n      aria-describedby={open ? tooltipId : undefined}\n      {...rest}\n    >\n      {children}\n    </button>\n  );\n}\n\nexport function TooltipContent({\n  className = '',\n  children,\n  ...rest\n}: React.HTMLAttributes<HTMLSpanElement>) {\n  const { open, tooltipId } = useTooltipContext();\n  if (!open) return null;\n  return (\n    <span\n      id={tooltipId}\n      role=\"tooltip\"\n      className={`f12-tooltip${className ? ` ${className}` : ''}`}\n      {...rest}\n    >\n      {children}\n    </span>\n  );\n}\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

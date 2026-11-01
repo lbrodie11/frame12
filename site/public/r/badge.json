@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "badge",
+  "title": "Badge",
+  "description": "Marker-yellow badge with ink text and optional two-frame SVG impact burst.",
+  "files": [
+    {
+      "path": "ui/badge.tsx",
+      "content": "'use client';\n\nimport * as React from 'react';\n\nexport interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {\n  pop?: boolean;\n  burst?: boolean;\n  children?: React.ReactNode;\n}\n\nexport function Burst() {\n  const lines: React.ReactElement[] = [];\n  for (let i = 0; i < 14; i++) {\n    const a = (i / 14) * Math.PI * 2;\n    const r1 = 15 + (i % 2) * 3;\n    const r2 = 25 + (i % 3) * 3;\n    lines.push(\n      <line\n        key={i}\n        x1={30 + Math.cos(a) * r1 * 1.9}\n        y1={14 + Math.sin(a) * r1 * 0.75}\n        x2={30 + Math.cos(a) * r2 * 1.9}\n        y2={14 + Math.sin(a) * r2 * 0.75}\n      />,\n    );\n  }\n  return (\n    <svg className=\"burst\" viewBox=\"-20 -12 100 52\" aria-hidden=\"true\">\n      {lines}\n    </svg>\n  );\n}\n\nexport function Badge({\n  pop = false,\n  burst = true,\n  className = '',\n  children,\n  ...rest\n}: BadgeProps) {\n  return (\n    <span className={`badge${pop ? ' pop' : ''}${className ? ` ${className}` : ''}`} {...rest}>\n      {burst && <Burst />}\n      <span className=\"badge-t\">{children}</span>\n    </span>\n  );\n}\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

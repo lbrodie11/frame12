@@ -1,0 +1,14 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "segmented-control",
+  "title": "SegmentedControl",
+  "description": "Exposure-sheet cell selector with mix-blend-mode: difference indicator and stepped 12fps motion.",
+  "files": [
+    {
+      "path": "ui/segmented-control.tsx",
+      "content": "'use client';\n\nimport * as React from 'react';\n\nexport interface SegmentedOption<T extends string | number = string | number> {\n  value: T;\n  label: string;\n  unit?: string;\n}\n\nexport interface SegmentedControlProps<T extends string | number = string | number> {\n  options: Array<SegmentedOption<T>>;\n  value: T;\n  onChange: (value: T) => void;\n  ariaLabel?: string;\n  idPrefix?: string;\n  className?: string;\n}\n\nconst useIsoLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;\n\nexport function SegmentedControl<T extends string | number = string | number>({\n  options,\n  value,\n  onChange,\n  ariaLabel = 'Options',\n  idPrefix = 'seg',\n  className = '',\n}: SegmentedControlProps<T>) {\n  const wrap = React.useRef<HTMLDivElement | null>(null);\n  const [ind, setInd] = React.useState<{ x: number; w: number } | null>(null);\n\n  useIsoLayoutEffect(() => {\n    const el = wrap.current?.querySelector<HTMLElement>('[aria-pressed=\"true\"]');\n    if (!el) return;\n    const x = el.offsetLeft + el.clientLeft;\n    const w = el.clientWidth;\n    setInd((s) => (s && s.x === x && s.w === w ? s : { x, w }));\n  });\n\n  // Re-measure when fonts finish loading or the control resizes.\n  const [, bump] = React.useState(0);\n  React.useEffect(() => {\n    const el = wrap.current;\n    if (!el || typeof ResizeObserver === 'undefined') return;\n    const ro = new ResizeObserver(() => bump((n) => n + 1));\n    ro.observe(el);\n    return () => ro.disconnect();\n  }, []);\n\n  return (\n    <div\n      className={`rng${className ? ` ${className}` : ''}`}\n      ref={wrap}\n      role=\"group\"\n      aria-label={ariaLabel}\n    >\n      {ind && (\n        <span\n          className=\"rng-ind\"\n          aria-hidden=\"true\"\n          style={{ transform: `translateX(${ind.x}px)`, width: ind.w }}\n        />\n      )}\n      {options.map((opt) => (\n        <button\n          key={String(opt.value)}\n          id={`${idPrefix}-${opt.value}`}\n          type=\"button\"\n          className=\"rng-btn\"\n          aria-pressed={value === opt.value}\n          onClick={() => onChange(opt.value)}\n        >\n          <span className=\"rng-n\">{opt.label}</span>\n          {opt.unit && <span className=\"rng-u\">{opt.unit}</span>}\n        </button>\n      ))}\n    </div>\n  );\n}\n",
+      "type": "registry:ui"
+    }
+  ],
+  "type": "registry:ui"
+}

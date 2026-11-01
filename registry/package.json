@@ -5,5 +5,12 @@
   "description": "FRAME/12 component source and shadcn registry.",
   "license": "MIT",
   "type": "module",
-  "scripts": {}
+  "scripts": {
+    "build:gallery": "node scripts/build.mjs",
+    "build:registry": "npx shadcn build registry.json -o ../site/public/r",
+    "build": "npm run build:gallery && npm run build:registry",
+    "test:unit": "node tests/unit.mjs",
+    "test:a11y": "node tests/a11y.mjs",
+    "test": "npm run build:gallery && npm run test:unit && npm run test:a11y"
+  }
 }
