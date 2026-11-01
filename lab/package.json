@@ -1,0 +1,15 @@
+{
+  "name": "@frame12/lab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FRAME/12 Phase 1 lab: prototype, blind design study and style sheet.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test:screens": "node tests/screens.mjs",
+    "test:study": "node tests/study-flow.mjs",
+    "test:a11y": "node tests/a11y.mjs",
+    "test": "npm run build && npm run test:study && npm run test:a11y"
+  }
+}

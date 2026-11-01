@@ -1,5 +1,4 @@
-// Shared Playwright harness. Wraps a built page the way the artifact host does,
-// then opens it from disk.
+// Shared Playwright harness. Opens the standalone built pages from disk.
 //
 // Offline mode (no CDN access): set F12_REACT_UMD to a JS file that defines
 // window.React and window.ReactDOM; requests to cdnjs are answered from it and
@@ -13,11 +12,6 @@ const RUN = resolve('.f12-run');
 const OUT = resolve('test-results');
 mkdirSync(RUN, { recursive: true });
 mkdirSync(OUT, { recursive: true });
-
-const SKELETON_HEAD =
-  '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
-  '<style>:root{color-scheme:light;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>' +
-  '</head><body>';
 
 const shim = process.env.F12_REACT_UMD ? readFileSync(process.env.F12_REACT_UMD, 'utf8') : null;
 
@@ -42,12 +36,17 @@ export async function openPage(browser, file, { w = 1280, h = 900, scheme = 'lig
       return route.abort();
     });
   }
-  const html = readFileSync(resolve('dist', file), 'utf8');
-  const extra = css ? `<style>${css}</style>` : '';
-  const wrapped = resolve(RUN, `${scheme}-${w}-${file}`);
-  writeFileSync(wrapped, SKELETON_HEAD + html + extra + '</body></html>');
-  await page.goto(pathToFileURL(wrapped).href);
+  const standalonePath = resolve('dist/standalone', file);
+  let targetPath = standalonePath;
+  if (css) {
+    const html = readFileSync(standalonePath, 'utf8');
+    const custom = resolve(RUN, `${scheme}-${w}-${file}`);
+    writeFileSync(custom, html.replace('</head>', `<style>${css}</style></head>`));
+    targetPath = custom;
+  }
+  await page.goto(pathToFileURL(targetPath).href);
   await page.waitForSelector('#root > *', { timeout: 15000 });
+  await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
   await page.waitForTimeout(400);
   return { ctx, page, errors };
 }

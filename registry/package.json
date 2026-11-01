@@ -1,0 +1,9 @@
+{
+  "name": "@frame12/registry",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FRAME/12 component source and shadcn registry.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {}
+}
