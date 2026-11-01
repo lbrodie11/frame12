@@ -2,10 +2,13 @@ node_modules/
 dist/
 lab/dist/
 registry/dist/
+eval/dist/
 test-results/
 lab/test-results/
 registry/test-results/
+eval/test-results/
 .f12-run/
 lab/.f12-run/
 registry/.f12-run/
+eval/.f12-run/
 .DS_Store

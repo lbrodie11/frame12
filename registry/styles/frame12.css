@@ -324,6 +324,7 @@ button {
 .panel-body,
 .frame .panel-body {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -1287,6 +1288,12 @@ dialog.f12-dialog::backdrop {
 }
 
 /* ===================================================================== Responsive Container Rules */
+@media (max-width: 760px) {
+  .frame {
+    padding: 6px;
+  }
+}
+
 @container (max-width: 760px) {
   .frame {
     padding: 6px;
@@ -1299,9 +1306,17 @@ dialog.f12-dialog::backdrop {
   .scene,
   .frame .scene,
   .scene.scene-split,
+  .frame .scene.scene-split,
   .scene.scene-equal,
-  .scene.scene-three {
+  .frame .scene.scene-equal,
+  .scene.scene-three,
+  .frame .scene.scene-three {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .rng-btn,
+  .frame .rng-btn {
+    padding: 6px 10px 5px;
+    min-width: 52px;
   }
   .panel-body,
   .frame .panel-body {

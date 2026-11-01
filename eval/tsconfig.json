@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": false,
+    "paths": {
+      "@frame12/registry": ["../registry/index.ts"],
+      "@/hooks/*": ["../registry/hooks/*"],
+      "@/components/ui/*": ["../registry/ui/*"]
+    }
+  },
+  "include": [
+    "screens/**/*.ts",
+    "screens/**/*.tsx",
+    "next-app/**/*.ts",
+    "next-app/**/*.tsx",
+    "../registry/index.ts",
+    "../registry/hooks/**/*.ts",
+    "../registry/ui/**/*.tsx"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

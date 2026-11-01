@@ -118,7 +118,7 @@ export function DialogContent({
 
   return (
     <dialog
-      ref={dialogRef}
+      ref={dialogRef as React.RefObject<HTMLDialogElement>}
       className={`f12-dialog${className ? ` ${className}` : ''}`}
       aria-labelledby={titleId}
       aria-describedby={descId}
