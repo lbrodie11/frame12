@@ -1,0 +1,170 @@
+'use client';
+
+import * as React from 'react';
+import Link from 'next/link';
+import {
+  Sheet,
+  Scene,
+  Panel,
+  Tag,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableCaption,
+} from '@frame12/registry';
+import type { CatalogEntry } from '@/lib/catalog';
+import { useSiteSettings } from '@/components/site-shell';
+import { ComponentPreview } from '@/components/component-preview';
+import { CopyCommand } from '@/components/copy-command';
+
+export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
+  const { theme, motion } = useSiteSettings();
+  const installCmd = `npx shadcn@latest add ${entry.registryUrl}`;
+
+  return (
+    <Sheet pegs motion={motion} theme={theme}>
+      <header className="hd">
+        <div className="hd-text">
+          <p className="eyebrow">
+            {entry.category}
+            <Tag>{entry.sourceFile}</Tag>
+            <span>/r/{entry.slug}.json</span>
+          </p>
+          <h1 className="title">{entry.title}</h1>
+          <p className="f12-muted-copy">{entry.summary}</p>
+        </div>
+        <div className="f12-row-pair">
+          <Link href="/components" className="f12-link-btn" id="detail-back-components">
+            ← All Components
+          </Link>
+        </div>
+      </header>
+
+      <Scene gutter="scene" layout="equal">
+        <Panel cut="C-01" label={`${entry.title} light theme preview`}>
+          <div className="f12-stack-pair">
+            <div className="f12-row-between">
+              <div className="f12-row-pair">
+                <Tag>Light · Paper</Tag>
+                <span className="f12-mono-note">.theme-light</span>
+              </div>
+              <span className="f12-mono-note">Interactive preview</span>
+            </div>
+            <ComponentPreview slug={entry.slug} previewTheme="light" motion={motion} />
+          </div>
+        </Panel>
+
+        <Panel cut="C-02" label={`${entry.title} dark theme preview`}>
+          <div className="f12-stack-pair">
+            <div className="f12-row-between">
+              <div className="f12-row-pair">
+                <Tag>Dark · Flashback</Tag>
+                <span className="f12-mono-note">.theme-dark</span>
+              </div>
+              <span className="f12-mono-note">Interactive preview</span>
+            </div>
+            <ComponentPreview slug={entry.slug} previewTheme="dark" motion={motion} />
+          </div>
+        </Panel>
+      </Scene>
+
+      <Scene gutter="scene" layout="split">
+        <Panel cut="C-03" label={`${entry.title} installation and usage`}>
+          <div className="f12-stack-scene">
+            <div className="f12-stack-pair">
+              <h2 className="f12-section-title">Install & copy-in source</h2>
+              <CopyCommand
+                id={`copy-install-${entry.slug}`}
+                label={`shadcn CLI (${entry.slug}.json)`}
+                command={installCmd}
+              />
+            </div>
+
+            <div className="f12-cmd-box">
+              <div className="f12-cmd-head">
+                <span className="f12-cmd-label">Usage example ({entry.title})</span>
+              </div>
+              <pre className="f12-cmd-pre">
+                <code>{entry.usageTemplate}</code>
+              </pre>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel cut="C-04" label={`${entry.title} accessibility and grammar notes`}>
+          <div className="f12-stack-scene">
+            <div className="f12-stack-pair">
+              <div className="f12-row-pair">
+                <Tag>WCAG AA</Tag>
+                <span className="f12-mono-note">Accessibility guarantees</span>
+              </div>
+              <h2 className="f12-section-title">Accessibility notes</h2>
+              <ul className="f12-stack-pair" role="list">
+                {entry.a11yNotes.map((note, i) => (
+                  <li key={i} className="f12-body-copy">
+                    {note}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="f12-stack-pair">
+              <div className="f12-row-pair">
+                <Tag>Grammar</Tag>
+                <span className="f12-mono-note">FRAME/12 rules</span>
+              </div>
+              <h2 className="f12-section-title">Design grammar</h2>
+              <ul className="f12-stack-pair" role="list">
+                {entry.grammarNotes.map((note, i) => (
+                  <li key={i} className="f12-body-copy">
+                    {note}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Panel>
+      </Scene>
+
+      <Scene gutter="scene" layout="stack">
+        <Panel cut="C-05" label={`${entry.title} props reference`}>
+          <div className="f12-stack-pair">
+            <h2 className="f12-section-title">Props & TypeScript API</h2>
+            <Table>
+              <TableCaption>
+                Exported from @frame12/registry ({entry.sourceFile})
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Prop</TableHead>
+                  <TableHead scope="col">Type</TableHead>
+                  <TableHead scope="col">Default</TableHead>
+                  <TableHead scope="col">Description</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entry.props.map((p) => (
+                  <TableRow key={p.name}>
+                    <TableCell>
+                      <code className="f12-code-inline">{p.name}</code>
+                    </TableCell>
+                    <TableCell>
+                      <code className="f12-code-inline">{p.type}</code>
+                    </TableCell>
+                    <TableCell>
+                      <code className="f12-code-inline">{p.defaultValue}</code>
+                    </TableCell>
+                    <TableCell>{p.description}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Panel>
+      </Scene>
+    </Sheet>
+  );
+}

@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "lint:frame12": "node scripts/check-frame12.mjs registry/ui eval/screens",
+    "lint:frame12": "node scripts/check-frame12.mjs registry/ui eval/screens site/src site/app",
     "test": "npm run lint:frame12 && npm run test --workspaces --if-present",
     "dev": "npm run dev --workspaces --if-present"
   },

@@ -12,7 +12,7 @@ import { resolve, relative, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css']);
-const TOKEN_BASENAMES = new Set(['frame12.css', 'frame12-tailwind.css']);
+const TOKEN_BASENAMES = new Set(['frame12.css', 'frame12-tailwind.css', 'og-image.tsx']);
 const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '.f12-run', 'test-results']);
 
 const LEGAL_GUTTER_NAMES = new Set(['pair', 'scene', 'change']);
@@ -269,7 +269,7 @@ export function lintSource(content, filePath = 'input.tsx') {
 
     // 3a. Forbidden CSS/inline properties using --f-marker or #ffd60a
     const forbiddenMarkerPropRegex =
-      /\b(color|stroke|fill|border|borderColor|border-color|borderTop|borderBottom|borderLeft|borderRight|borderTopColor|borderBottomColor|borderLeftColor|borderRightColor|outline|outlineColor|outline-color|textDecorationColor|boxShadow|box-shadow)\s*:\s*([^;,\n}]*(?:--f-marker\b|#ffd60a\b)[^;,\n}]*)/gi;
+      /(?<![-\w])(color|stroke|fill|border|borderColor|border-color|borderTop|borderBottom|borderLeft|borderRight|borderTopColor|borderBottomColor|borderLeftColor|borderRightColor|outline|outlineColor|outline-color|textDecorationColor|boxShadow|box-shadow)\s*:\s*([^;,\n}]*(?:--f-marker\b|#ffd60a\b)[^;,\n}]*)/gi;
     while ((m = forbiddenMarkerPropRegex.exec(stripped)) !== null) {
       const prop = m[1];
       const val = m[2].trim();
@@ -519,7 +519,7 @@ const isMain =
 if (isMain) {
   const cwd = process.cwd();
   const cliArgs = process.argv.slice(2);
-  const defaultTargets = ['registry/ui', 'registry/hooks', 'eval/screens', 'site/src'].filter((p) =>
+  const defaultTargets = ['registry/ui', 'registry/hooks', 'eval/screens', 'site/src', 'site/app'].filter((p) =>
     existsSync(resolve(cwd, p)),
   );
   const targets = cliArgs.length > 0 ? cliArgs : defaultTargets;

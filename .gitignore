@@ -11,4 +11,8 @@ eval/test-results/
 lab/.f12-run/
 registry/.f12-run/
 eval/.f12-run/
+.next/
+site/.next/
+*.tsbuildinfo
+next-env.d.ts
 .DS_Store

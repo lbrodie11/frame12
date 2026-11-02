@@ -786,7 +786,8 @@ button {
   stroke-linejoin: miter;
 }
 .peak-dot,
-.frame .peak-dot {
+.frame .peak-dot,
+.g-tag {
   fill: var(--f-marker);
   stroke: var(--f-rule);
   stroke-width: 2;

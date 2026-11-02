@@ -4,6 +4,22 @@
   "private": true,
   "description": "FRAME/12 documentation and showcase site.",
   "license": "MIT",
-  "type": "module",
-  "scripts": {}
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && npm run typecheck && node ../scripts/check-frame12.mjs src app && node tests/site-verify.mjs"
+  },
+  "dependencies": {
+    "next": "^14.2.25",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "typescript": "^5.8.2"
+  }
 }
