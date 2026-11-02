@@ -22,31 +22,12 @@ const TRACK_OPTIONS: Array<{ value: SetupTrack; label: string; unit: string }> =
   { value: 'existing', label: 'Existing', unit: 'project' },
 ];
 
-const LAYOUT_FONT_SNIPPET = `import {
-  Dela_Gothic_One,
-  Zen_Kaku_Gothic_New,
-  M_PLUS_1_Code,
-} from 'next/font/google';
+const LAYOUT_FONT_SNIPPET = `import { Dela_Gothic_One, Zen_Kaku_Gothic_New, M_PLUS_1_Code } from 'next/font/google';
 import '@/styles/frame12.css';
 
-const displayFont = Dela_Gothic_One({
-  weight: '400',
-  subsets: ['latin'],
-  variable: '--font-f-display',
-  display: 'swap',
-});
-const bodyFont = Zen_Kaku_Gothic_New({
-  weight: ['400', '500', '700'],
-  subsets: ['latin'],
-  variable: '--font-f-body',
-  display: 'swap',
-});
-const monoFont = M_PLUS_1_Code({
-  weight: ['400', '500', '700'],
-  subsets: ['latin'],
-  variable: '--font-f-mono',
-  display: 'swap',
-});
+const displayFont = Dela_Gothic_One({ weight: '400', subsets: ['latin'], variable: '--font-f-display', display: 'swap' });
+const bodyFont = Zen_Kaku_Gothic_New({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-f-body', display: 'swap' });
+const monoFont = M_PLUS_1_Code({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-f-mono', display: 'swap' });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -56,7 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }`;
 
-const FIRST_SHEET_SNIPPET = `import {
+const FIRST_SHEET_SNIPPET = `'use client';
+
+import {
   Sheet,
   Scene,
   Panel,
@@ -78,7 +61,7 @@ export default function RecoveryPage() {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel ${'cut'}="C-01" label="Recovered revenue over time">
+        <Panel cut="C-01" label="Recovered revenue over time">
           <Metric label="Recovered revenue" value={120054} format={fmtCurrency} big />
           <ToneAreaChart
             data={[
@@ -92,8 +75,8 @@ export default function RecoveryPage() {
           />
         </Panel>
         <PanelPair
-          top={{ ${'cut'}: 'C-02', label: 'Incremental profit', children: <Metric label="Incremental profit" value={38420} format={fmtCurrency} /> }}
-          bottom={{ ${'cut'}: 'C-03', label: 'Conversion lift', children: <Metric label="Conversion lift" value={55} format={(v) => \`+\${v} bps\`} /> }}
+          top={{ cut: 'C-02', label: 'Incremental profit', children: <Metric label="Incremental profit" value={38420} format={fmtCurrency} /> }}
+          bottom={{ cut: 'C-03', label: 'Conversion lift', children: <Metric label="Conversion lift" value={55} format={(v) => \`+\${Math.round(v)} bps\`} /> }}
         />
       </Scene>
     </Sheet>

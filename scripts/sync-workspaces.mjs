@@ -81,6 +81,14 @@ FILE_MAPPINGS.push({
   dest: path.join(ROOT, 'site/public/r/registry.json'),
 });
 
+// 8. site/app/icon.svg -> templates/next-starter/app/icon.svg
+if (fs.existsSync(path.join(ROOT, 'site/app/icon.svg'))) {
+  FILE_MAPPINGS.push({
+    src: path.join(ROOT, 'site/app/icon.svg'),
+    dest: path.join(ROOT, 'templates/next-starter/app/icon.svg'),
+  });
+}
+
 const legacyDir = path.join(ROOT, 'templates/next-starter/src/registry');
 
 if (checkOnly) {

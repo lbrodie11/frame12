@@ -12,7 +12,7 @@ import { resolve, relative, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css']);
-const TOKEN_BASENAMES = new Set(['frame12.css', 'frame12-tailwind.css', 'og-image.tsx']);
+const TOKEN_BASENAMES = new Set(['frame12.css', 'frame12-tailwind.css', 'og-image.tsx', 'apple-icon.tsx']);
 const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '.f12-run', 'test-results']);
 
 const LEGAL_GUTTER_NAMES = new Set(['pair', 'scene', 'change']);
@@ -510,12 +510,17 @@ export function lintSource(content, filePath = 'input.tsx') {
   // 4. cut-order (Sequential C-01, C-02, C-03... in DOM order without gaps/dups)
   // =========================================================================
   if (ext !== '.css') {
+    // Blank out multi-line template literals (e.g. documentation code snippets)
+    // while preserving line numbers so example strings are not treated as live JSX cuts.
+    const cutScan = stripped.replace(/`[\s\S]*?`/g, (match) =>
+      match.includes('\n') ? match.replace(/[^\n]/g, ' ') : match,
+    );
     const cutMatches = [];
     // Match JSX attributes cut="...", topCut="...", bottomCut="..." or object properties cut: '...'
     const cutPropRegex =
       /\b(?:cut|topCut|bottomCut)\s*(?:=\s*(?:['"]([^'"]+)['"]|\{\s*['"`]([^'"`]+)['"`]\s*\})|:\s*['"`]([^'"`]+)['"`])/g;
     let m;
-    while ((m = cutPropRegex.exec(stripped)) !== null) {
+    while ((m = cutPropRegex.exec(cutScan)) !== null) {
       const rawCut = m[1] ?? m[2] ?? m[3] ?? '';
       const line = lineNumberAt(content, m.index);
       const parsed = rawCut.match(/^C-(\d{2,})$/);

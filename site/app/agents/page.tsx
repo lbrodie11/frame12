@@ -256,7 +256,7 @@ export default function AgentsPage() {
             <div className="f12-row-pair">
               <Tag>Enforced Grammar</Tag>
               <span className="f12-mono-note">
-                Static AST/regex linter + Playwright DOM verification
+                Static source &amp; regex linter + Playwright DOM verification
               </span>
             </div>
             <h2 className="f12-section-title">The 8 non-negotiable rules</h2>

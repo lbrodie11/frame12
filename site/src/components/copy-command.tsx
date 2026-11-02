@@ -20,7 +20,10 @@ export function CopyCommand({ command, label = 'Install command', id }: CopyComm
   }, []);
 
   const onCopy = async () => {
-    if (timerRef.current !== null) clearTimeout(timerRef.current);
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(command);
@@ -31,7 +34,13 @@ export function CopyCommand({ command, label = 'Install command', id }: CopyComm
     } else {
       setStatus('failed');
     }
-    timerRef.current = setTimeout(() => setStatus('idle'), 1800);
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      setStatus('idle');
+    }, 1800);
   };
 
   return (

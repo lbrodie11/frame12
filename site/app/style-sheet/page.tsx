@@ -387,7 +387,7 @@ export default function StyleSheetPage() {
                 </div>
                 <h3 className="f12-section-title">5. Marker</h3>
                 <p className="f12-muted-copy">
-                  One flat yellow, always under ink text. It flags; it never colours a line or a
+                  One flat yellow, always under ink text. It flags; it never colors a line or a
                   chart.
                 </p>
               </div>
@@ -519,8 +519,10 @@ export default function StyleSheetPage() {
                 {PALETTE.map((item) => (
                   <TableRow key={item.name}>
                     <TableCell>
-                      <strong>{item.name}</strong>{' '}
-                      <code className="f12-code-inline">{item.token}</code>
+                      <div className="f12-comp-cell">
+                        <strong>{item.name}</strong>
+                        <code className="f12-code-inline f12-nowrap">{item.token}</code>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span

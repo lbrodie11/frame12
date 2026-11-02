@@ -336,6 +336,21 @@ body {
   color: var(--f-ink);
 }
 
+.f12-comp-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.f12-comp-cell > .f12-code-inline {
+  margin-top: 4px;
+}
+
+.f12-nowrap {
+  white-space: nowrap;
+}
+
 /* Preview surfaces */
 .f12-preview-frame {
   padding: 16px;
@@ -521,6 +536,7 @@ body {
   vertical-align: -4px;
   margin-right: 8px;
   border: 2px solid var(--f-rule);
+  box-shadow: 0 0 0 1px var(--f-panel);
 }
 
 .sp-phone-box {

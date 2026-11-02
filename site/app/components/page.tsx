@@ -34,9 +34,8 @@ function CategoryTable({
       <TableCaption>{caption}</TableCaption>
       <TableHeader>
         <TableRow>
-          <TableHead scope="col">Component</TableHead>
+          <TableHead scope="col">Component &amp; Registry</TableHead>
           <TableHead scope="col">Summary</TableHead>
-          <TableHead scope="col">Registry Slug</TableHead>
           <TableHead scope="col">Inspect</TableHead>
         </TableRow>
       </TableHeader>
@@ -44,19 +43,20 @@ function CategoryTable({
         {entries.map((entry) => (
           <TableRow key={entry.slug}>
             <TableCell>
-              <strong>{entry.title}</strong>
+              <div className="f12-comp-cell">
+                <strong>{entry.title}</strong>
+                <code className="f12-code-inline f12-nowrap">/r/{entry.slug}.json</code>
+              </div>
             </TableCell>
             <TableCell>{entry.summary}</TableCell>
-            <TableCell>
-              <code className="f12-code-inline">/r/{entry.slug}.json</code>
-            </TableCell>
             <TableCell>
               <Link
                 href={`/components/${entry.slug}`}
                 id={`comp-link-${entry.slug}`}
-                className="f12-link-btn"
+                className="f12-link-btn f12-nowrap"
+                aria-label={`Open ${entry.title}`}
               >
-                Open {entry.title}
+                Inspect →
               </Link>
             </TableCell>
           </TableRow>
@@ -68,6 +68,7 @@ function CategoryTable({
 
 export default function ComponentsIndexPage() {
   const { theme, motion } = useSiteSettings();
+  const componentCount = CATALOG.filter((c) => c.category !== 'Motion Hooks').length;
   const hookAndAdapterEntries = CATALOG.filter(
     (c) => c.category === 'Motion Hooks' || c.category === 'Primitive Adapters',
   );
@@ -78,7 +79,7 @@ export default function ComponentsIndexPage() {
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
             @/components/frame12 · shadcn-compatible JSON
-            <Tag>20 Registry Items</Tag>
+            <Tag>{componentCount} Components · 22 Registry Payloads</Tag>
           </p>
           <h1 className="f12-title">Components & adapters</h1>
           <p className="f12-muted-copy">
@@ -179,10 +180,9 @@ export default function ComponentsIndexPage() {
               </TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col">Item</TableHead>
+                  <TableHead scope="col">Item &amp; Registry</TableHead>
                   <TableHead scope="col">Category</TableHead>
                   <TableHead scope="col">Summary</TableHead>
-                  <TableHead scope="col">Registry Slug</TableHead>
                   <TableHead scope="col">Inspect</TableHead>
                 </TableRow>
               </TableHeader>
@@ -190,22 +190,23 @@ export default function ComponentsIndexPage() {
                 {hookAndAdapterEntries.map((entry) => (
                   <TableRow key={entry.slug}>
                     <TableCell>
-                      <strong>{entry.title}</strong>
+                      <div className="f12-comp-cell">
+                        <strong>{entry.title}</strong>
+                        <code className="f12-code-inline f12-nowrap">/r/{entry.slug}.json</code>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Tag>{entry.category}</Tag>
                     </TableCell>
                     <TableCell>{entry.summary}</TableCell>
                     <TableCell>
-                      <code className="f12-code-inline">/r/{entry.slug}.json</code>
-                    </TableCell>
-                    <TableCell>
                       <Link
                         href={`/components/${entry.slug}`}
                         id={`comp-link-${entry.slug}`}
-                        className="f12-link-btn"
+                        className="f12-link-btn f12-nowrap"
+                        aria-label={`Open ${entry.title}`}
                       >
-                        Open {entry.title}
+                        Inspect →
                       </Link>
                     </TableCell>
                   </TableRow>

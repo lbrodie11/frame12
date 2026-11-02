@@ -51,6 +51,20 @@ function ensureDialogObserver() {
   }
 }
 
+function isModalDialog(d: HTMLDialogElement): boolean {
+  if (!d.isConnected || !d.open) return false;
+  try {
+    if (d.matches(':modal')) return true;
+    // In environments where showModal() is supported, non-modal .show() dialogs do not match :modal
+    if (typeof d.showModal === 'function' && document.querySelector('dialog:modal')) {
+      return false;
+    }
+  } catch {
+    // Fallback if :modal selector is unsupported
+  }
+  return true;
+}
+
 function getTopmostOpenDialog(): HTMLDialogElement | undefined {
   ensureDialogObserver();
   if (dialogObserver) {
@@ -58,11 +72,16 @@ function getTopmostOpenDialog(): HTMLDialogElement | undefined {
   }
   for (let i = openDialogStack.length - 1; i >= 0; i--) {
     const d = openDialogStack[i];
-    if (d.isConnected && d.open) return d;
-    openDialogStack.splice(i, 1);
+    if (isModalDialog(d)) return d;
+    if (!d.isConnected || !d.open) {
+      openDialogStack.splice(i, 1);
+    }
   }
   const fallback = document.querySelectorAll<HTMLDialogElement>('dialog[open]');
-  return fallback[fallback.length - 1];
+  for (let i = fallback.length - 1; i >= 0; i--) {
+    if (isModalDialog(fallback[i])) return fallback[i];
+  }
+  return undefined;
 }
 
 function mergeRefs<T>(

@@ -262,6 +262,24 @@ try {
     );
   }
 
+  // 1b. Verify branded SVG favicon and Apple touch icon endpoints
+  {
+    const iconRes = await fetch(`${baseUrl}/icon.svg`);
+    const iconCt = iconRes.headers.get('content-type') || '';
+    const iconText = await iconRes.text();
+    check(
+      iconRes.status === 200 && iconCt.includes('image/svg+xml') && iconText.includes('#ffd60a'),
+      'site favicon /icon.svg returns HTTP 200 image/svg+xml with FRAME/12 marker yellow',
+    );
+    const appleRes = await fetch(`${baseUrl}/apple-icon`);
+    const appleCt = appleRes.headers.get('content-type') || '';
+    const appleBuf = await appleRes.arrayBuffer();
+    check(
+      appleRes.status === 200 && appleCt.includes('image/png') && appleBuf.byteLength > 500,
+      `site Apple touch icon /apple-icon returns HTTP 200 image/png (${appleBuf.byteLength} bytes)`,
+    );
+  }
+
   // 2. Verify Open Graph image routes return HTTP 200 image/png
   for (const ogPath of [
     '/opengraph-image',
