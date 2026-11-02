@@ -50,14 +50,14 @@ export function WorkspaceSettingsScreen() {
 
   return (
     <Sheet motion={motion}>
-      <header className="hd">
-        <div>
-          <p className="eyebrow">
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">
             Workspace configuration
             <Tag>{env.toUpperCase()}</Tag>
             <Badge pop={changed} burst>Active sheet</Badge>
           </p>
-          <h1 className="title">Dispatch &amp; Alert Settings</h1>
+          <h1 className="f12-title">Dispatch &amp; Alert Settings</h1>
         </div>
         <SegmentedControl
           options={ENV_OPTIONS}
@@ -124,8 +124,8 @@ export function WorkspaceSettingsScreen() {
             label: 'Danger zone',
             children: (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--f-gutter-pair)' }}>
-                <h3 className="m-label">Danger Zone</h3>
-                <p className="m-note">Revoking the signing key immediately halts all webhooks.</p>
+                <h3 className="f12-m-label">Danger Zone</h3>
+                <p className="f12-m-note">Revoking the signing key immediately halts all webhooks.</p>
                 <Dialog>
                   <DialogTrigger id="revoke-open" variant="marker">
                     Rotate signing key
@@ -186,15 +186,15 @@ export function ProductLandingHero({ series, features }: {
 
   return (
     <Sheet>
-      <header className="hd">
-        <div>
-          <p className="eyebrow">
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">
             FRAME/12 Production Engine
             <Tag>12 FPS</Tag>
             <Badge pop={changed} burst>On Twos</Badge>
           </p>
-          <h1 className="title">Revenue Recovery Drawn in Ink</h1>
-          <p className="sub">Deterministic checkout interventions with zero layout shift.</p>
+          <h1 className="f12-title">Revenue Recovery Drawn in Ink</h1>
+          <p className="f12-sub">Deterministic checkout interventions with zero layout shift.</p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--f-gutter-pair)', alignItems: 'center' }}>
           <SegmentedControl
@@ -305,10 +305,10 @@ export function LedgerTableScreen({ rows }: {
 
   return (
     <Sheet>
-      <header className="hd">
-        <div>
-          <p className="eyebrow">Recovery Ledger <Tag>{filtered.length} rows</Tag></p>
-          <h1 className="title">Intervention Dispatch Log</h1>
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">Recovery Ledger <Tag>{filtered.length} rows</Tag></p>
+          <h1 className="f12-title">Intervention Dispatch Log</h1>
         </div>
         <SegmentedControl
           options={[
@@ -406,7 +406,7 @@ export function LedgerTableScreen({ rows }: {
 | Using `color: 'var(--f-marker)'` or `borderColor: 'var(--f-marker)'` | Violates Rule 4 (`marker-misuse`). Marker yellow (`#ffd60a`) has `1.4:1` contrast against white paper and is illegible as text or line art. | Only use `background: 'var(--f-marker)'` paired with `color: 'var(--f-marker-ink)'`, or use `<Tag>`, `<Badge>`, or `<Button variant="marker">`. |
 | Numbering panels `C-01`, `C-03`, `C-02` or starting a second section at `C-01` | Violates Rule 3 (`cut-order`). Storyboard cuts must increment sequentially across the entire screen in DOM order. | Number panels `C-01`, `C-02`, `C-03`, `C-04`… top-to-bottom, left-to-right. |
 | Importing `Tabs` or `Card` from `@/components/ui/...` | Violates Rule 5 (`raw-shadcn-import`). Raw shadcn primitives lack `2.5px` mitered polygon frames and 12fps stepped motion. | Replace `Card` with `<Panel cut="C-0X">` and `Tabs` with `<SegmentedControl>`. |
-| Animating hover states with `steps(3)` or running `.enter` on initial mount | Violates Rule 5 (Motion on twos). Hover/focus must be instant; initial mount must render at rest. | Keep hover instant (`0ms`) and gate entrance animations with `const changed = useChanged(key)`. |
+| Animating hover states with `steps(3)` or running `.f12-enter` on initial mount | Violates Rule 5 (Motion on twos). Hover/focus must be instant; initial mount must render at rest. | Keep hover instant (`0ms`) and gate entrance animations with `const changed = useChanged(key)`. |
 
 ---
 

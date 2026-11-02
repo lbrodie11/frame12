@@ -54,7 +54,7 @@ function CategoryTable({
                 href={`/components/${entry.slug}`}
                 id={`comp-link-${entry.slug}`}
                 className="f12-link-btn f12-nowrap"
-                aria-label={`Open ${entry.title}`}
+                aria-label={`Inspect ${entry.title}`}
               >
                 Inspect →
               </Link>
@@ -204,7 +204,7 @@ export default function ComponentsIndexPage() {
                         href={`/components/${entry.slug}`}
                         id={`comp-link-${entry.slug}`}
                         className="f12-link-btn f12-nowrap"
-                        aria-label={`Open ${entry.title}`}
+                        aria-label={`Inspect ${entry.title}`}
                       >
                         Inspect →
                       </Link>
