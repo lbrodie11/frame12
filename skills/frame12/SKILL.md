@@ -1,6 +1,6 @@
 ---
 name: frame12
-description: Build interfaces, dashboards, settings screens, landing pages, and data tables in the FRAME/12 design language using ink-framed panels, rotated SVG screentone fills, strict 12px/20px/32px gutter grammar, sequential cut numbers (C-01, C-02…), marker-yellow highlights, and 12fps stepped motion ("on twos"). Use whenever creating or modifying UI with @frame12/registry components.
+description: Build interfaces, dashboards, settings screens, landing pages, and data tables in the FRAME/12 design language using ink-framed panels, rotated SVG screentone fills, strict 12px/20px/32px gutter grammar, sequential cut numbers (C-01, C-02…), marker-yellow highlights, and 12fps stepped motion ("on twos"). Use whenever creating or modifying UI with @/components/frame12 components.
 ---
 
 # FRAME/12 Design System Skill
@@ -55,22 +55,22 @@ Every screen, component, and stylesheet MUST pass these 8 rules (`node scripts/c
    - Number every `Panel` (and modal `DialogContent` cut) sequentially in reading order starting at `C-01` (`C-01`, `C-02`, `C-03`, `C-04`…).
    - Visual order, reading order (top-to-bottom, left-to-right), and DOM order MUST match. Never skip, duplicate, or reverse cut numbers.
 4. **Marker yellow discipline (`marker-misuse`):**
-   - `--f-marker` (`#ffd60a`) is a highlighter. It may **only** be used as a `background` / `background-color` paired with `--f-marker-ink` (`#121212`) text, or as an inked target dot (`.peak-dot`, `.cross-dot`) with a `2px` `--f-rule` stroke.
+   - `--f-marker` (`#ffd60a`) is a highlighter. It may **only** be used as a `background` / `background-color` paired with `--f-marker-ink` (`#121212`) text, or as an inked target dot (`.f12-peak-dot`, `.f12-cross-dot`) with a `2px` `--f-rule` stroke.
    - Never use `--f-marker` as a text color, line stroke, chart series color, or standalone border.
 5. **Motion on twos:**
    - Default motion mode is `'stepped'`: discrete state changes (switching time ranges, filtering rows, counting metrics) sample an ease-out curve at `12fps` (`83.33ms` per pose).
    - Continuous pointer interactions—hover states, scrolling, dragging, typing in inputs, and chart crosshairs—MUST stay immediate (`0ms`).
    - `prefers-reduced-motion: reduce` automatically switches all transitions to instant hard cuts (`'cut'`).
-   - Use `useChanged(key)` so entrance animations (`.enter`, `<Badge pop={changed}>`) never fire on initial page load; the sheet is complete at rest.
+   - Use `useChanged(key)` so entrance animations (`.f12-enter`, `<Badge pop={changed}>`) never fire on initial page load; the sheet is complete at rest.
 6. **Accessibility (WCAG AA):**
    - Text contrast must meet WCAG AA (`4.5:1` body, `3:1` large display) in both `light` and `dark` themes.
    - Every interactive control must have an accessible name (`label`, `aria-label`, or visible text), unique `id`, and visible `:focus-visible` outline (`3px solid var(--f-ink)`).
-   - Every chart must provide keyboard inspection (`tabIndex={0}`, `ArrowLeft`/`ArrowRight`/`Escape`) and a collapsible `<details className="tbl">` semantic data table (`showTable`).
+   - Every chart must provide keyboard inspection (`tabIndex={0}`, `ArrowLeft`/`ArrowRight`/`Escape`) and a collapsible `<details className="f12-tbl">` semantic data table (`showTable`).
    - All decorative SVG frames, bursts, pegs, and tails must carry `aria-hidden="true"`.
 7. **Describe the craft, never name people or franchises:**
    - Never mention specific artists, studios, comics, anime titles, or franchises in code, comments, copy, or documentation. Refer strictly to the production craft: *panels, mitered ink frames, screentone, registration pegs, exposure sheets, cut numbers, and animating on twos*.
 8. **Zero external animation, drawing, or charting libraries:**
-   - Do not import `framer-motion`, `gsap`, `recharts`, `chart.js`, `d3`, or `lucide-react`. Use `@frame12/registry` components (`ToneAreaChart`, `ToneBarList`, `ToneSpark`, `Balloon`) and hooks (`useOnTwos`, `useCountUp`, `useChanged`).
+   - Do not import `framer-motion`, `gsap`, `recharts`, `chart.js`, `d3`, or `lucide-react`. Use `@/components/frame12` components (`ToneAreaChart`, `ToneBarList`, `ToneSpark`, `Balloon`) and `@/hooks/use-on-twos` hooks (`useOnTwos`, `useCountUp`, `useChanged`).
 
 ---
 
@@ -79,7 +79,7 @@ Every screen, component, and stylesheet MUST pass these 8 rules (`node scripts/c
 Compose every screen like a production storyboard sheet:
 
 1. **Wrap the page in `<Sheet>`:**
-   - `<Sheet pegs motion={motion} theme={theme}>` renders the registration pegs at the top edge and establishes a `32px` vertical rhythm between `<header className="hd">` and each `<Scene>`.
+   - `<Sheet pegs motion={motion} theme={theme}>` renders the registration pegs at the top edge and establishes a `32px` vertical rhythm between `<header className="f12-hd">` and each `<Scene>`.
 2. **Establish the scene in `C-01`:**
    - The first panel (`cut="C-01"`) is the establishing shot. Give it dominant visual weight using `<Scene gutter="scene" layout="split">` (`2fr 1fr` on desktop, single-column stack under `760px`) or a full-width `<Scene gutter="scene" layout="stack">`.
 3. **Pair secondary KPIs or coupled controls with `<PanelPair>`:**
@@ -92,7 +92,7 @@ Compose every screen like a production storyboard sheet:
 
 ## 4. Component Selection & Adapter Policy
 
-Always import from `@frame12/registry` (or your local FRAME/12 registry paths). Never import raw `@/components/ui/*` or `@radix-ui/*` primitives when a FRAME/12 component or adapter exists.
+Always import components from `@/components/frame12` and hooks from `@/hooks/use-on-twos`. Never import raw `@/components/ui/*` or `@radix-ui/*` primitives in application screens when a FRAME/12 component or adapter exists.
 
 | UI Need | FRAME/12 Component | Forbidden Raw Alternative |
 | --- | --- | --- |

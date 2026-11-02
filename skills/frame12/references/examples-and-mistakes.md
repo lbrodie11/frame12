@@ -9,8 +9,6 @@ Uses `Sheet`, `Scene`, `Panel`, `PanelPair`, `SegmentedControl`, `Input`, `Selec
 ```tsx
 import * as React from 'react';
 import {
-  type MotionMode,
-  useChanged,
   Sheet,
   Scene,
   Panel,
@@ -34,7 +32,8 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-} from '@frame12/registry';
+} from '@/components/frame12';
+import { type MotionMode, useChanged } from '@/hooks/use-on-twos';
 
 const ENV_OPTIONS = [
   { value: 'prod', label: 'PROD', unit: 'live' },
@@ -175,8 +174,8 @@ import {
   ToneAreaChart,
   ToneBarList,
   ToneSpark,
-  useChanged,
-} from '@frame12/registry';
+} from '@/components/frame12';
+import { useChanged } from '@/hooks/use-on-twos';
 
 export function ProductLandingHero({ series, features }: {
   series: Array<{ label: string; value: number }>;
@@ -287,7 +286,7 @@ import {
   TableHead,
   TableCell,
   TableCaption,
-} from '@frame12/registry';
+} from '@/components/frame12';
 
 export function LedgerTableScreen({ rows }: {
   rows: Array<{ id: string; orderId: string; channel: string; status: string; amount: number }>;
