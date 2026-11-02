@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "tool": "repo-archaeology",
+  "toolVersion": "0.3.0",
+  "repoName": "payments-service-archaeology",
+  "generatedAt": "2026-10-28T16:45:00.000Z",
+  "windowCommits": 80,
+  "commitsAnalyzed": 74,
+  "filesAnalyzed": 28,
+  "totalCoupledPairs": 19,
+  "cochangePairs": [
+    {
+      "rank": 1,
+      "fileA": "src/settlement/payout-runner.ts",
+      "fileB": "src/settlement/reconcile-ledger.ts",
+      "sharedCommits": 9,
+      "fileACommits": 10,
+      "fileBCommits": 11,
+      "jaccardOrCoupling": 0.9,
+      "commitShas": ["a19f02b", "b48c11e", "c77d30a", "d02e91f", "e83a44c", "f91b72d"],
+      "sampleMessages": [
+        "fix(settlement): sync payout batch status with ledger reconciliation",
+        "feat(settlement): add retry guard across payout runner and ledger"
+      ],
+      "note": "High historical lockstep: 9 of 10 payout-runner commits also modified reconcile-ledger."
+    },
+    {
+      "rank": 2,
+      "fileA": "src/api/routes/webhooks.ts",
+      "fileB": "src/domain/events/schema.ts",
+      "sharedCommits": 6,
+      "fileACommits": 8,
+      "fileBCommits": 7,
+      "jaccardOrCoupling": 0.86,
+      "commitShas": ["104a88c", "298b71d", "331e09a", "472f19b", "589c33e", "610d42f"],
+      "sampleMessages": [
+        "feat(webhooks): update event schema and route validator for v2 payloads"
+      ],
+      "note": "Webhook route handlers and event schema definitions evolve together."
+    },
+    {
+      "rank": 3,
+      "fileA": "src/db/migrations/004_balances.sql",
+      "fileB": "src/db/queries/balances.ts",
+      "sharedCommits": 4,
+      "fileACommits": 4,
+      "fileBCommits": 5,
+      "jaccardOrCoupling": 1.0,
+      "commitShas": ["712a90e", "845b11f", "903c44a", "998d01b"],
+      "sampleMessages": [
+        "feat(db): add available_balance index and query projection"
+      ],
+      "note": "SQL schema changes require matching query projection updates."
+    }
+  ],
+  "hotspots": [
+    { "path": "src/settlement/reconcile-ledger.ts", "touches": 11 },
+    { "path": "src/settlement/payout-runner.ts", "touches": 10 },
+    { "path": "src/api/routes/webhooks.ts", "touches": 8 }
+  ],
+  "warnings": [
+    "Excluded 2 automated lockfile-only commits from co-change counts."
+  ]
+}

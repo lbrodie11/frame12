@@ -1,0 +1,350 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import {
+  SCHEMA_VERSION,
+  validateEventStream,
+  type CochangeFinding,
+  type ResultSnapshot,
+  type StoryboardEvent,
+} from './model/index.js';
+import {
+  PlainStreamPrinter,
+  renderBaseline,
+  renderPlainSummary,
+  type PlainRenderOptions,
+} from './render-plain/index.js';
+import { runGitHistoryWorkload } from './workload/git-history.js';
+import { convertRepoArchaeologySnapshot } from './workload/repo-archaeology-adapter.js';
+
+export interface CliIo {
+  stdout: (chunk: string) => void;
+  stderr: (chunk: string) => void;
+  isTTY?: boolean;
+  columns?: number;
+  env?: Record<string, string | undefined>;
+  signal?: AbortSignal;
+}
+
+interface ParsedCliArgs {
+  command: 'run' | 'import-archaeology' | 'help';
+  targetPath: string | null;
+  maxCommits: number;
+  topN: number;
+  mode: 'storyboard' | 'baseline' | 'json' | 'events';
+  reportPath: string | null;
+  theme: 'light' | 'dark';
+  replayPath: string | null;
+  columns?: number;
+  noColor: boolean;
+  error?: string;
+}
+
+function parseArgs(argv: string[]): ParsedCliArgs {
+  const res: ParsedCliArgs = {
+    command: 'run',
+    targetPath: null,
+    maxCommits: 60,
+    topN: 5,
+    mode: 'storyboard',
+    reportPath: null,
+    theme: 'light',
+    replayPath: null,
+    noColor: false,
+  };
+
+  const modesSelected: Array<'baseline' | 'json' | 'events'> = [];
+  const args = [...argv];
+
+  if (args[0] === '--help' || args[0] === '-h' || args[0] === 'help') {
+    res.command = 'help';
+    return res;
+  }
+
+  if (args[0] === 'run' || args[0] === 'import-archaeology') {
+    res.command = args.shift() as 'run' | 'import-archaeology';
+  }
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!;
+    if (arg === '--help' || arg === '-h') {
+      res.command = 'help';
+      return res;
+    } else if (arg === '--json') {
+      modesSelected.push('json');
+      res.mode = 'json';
+    } else if (arg === '--events') {
+      modesSelected.push('events');
+      res.mode = 'events';
+    } else if (arg === '--baseline') {
+      modesSelected.push('baseline');
+      res.mode = 'baseline';
+    } else if (arg === '--no-color') {
+      res.noColor = true;
+    } else if (arg === '--max-commits') {
+      const next = args[++i];
+      const n = Number(next);
+      if (!next || !Number.isInteger(n) || n < 1) {
+        res.error = `Invalid value for --max-commits: "${String(next)}". Must be a positive integer.`;
+        return res;
+      }
+      res.maxCommits = n;
+    } else if (arg === '--top') {
+      const next = args[++i];
+      const n = Number(next);
+      if (!next || !Number.isInteger(n) || n < 1) {
+        res.error = `Invalid value for --top: "${String(next)}". Must be a positive integer.`;
+        return res;
+      }
+      res.topN = n;
+    } else if (arg === '--columns') {
+      const next = args[++i];
+      const n = Number(next);
+      if (!next || !Number.isInteger(n) || n < 1) {
+        res.error = `Invalid value for --columns: "${String(next)}".`;
+        return res;
+      }
+      res.columns = n;
+    } else if (arg === '--report') {
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        res.error = 'Flag --report requires an output HTML file path.';
+        return res;
+      }
+      res.reportPath = next;
+    } else if (arg === '--theme') {
+      const next = args[++i];
+      if (next !== 'light' && next !== 'dark') {
+        res.error = `Invalid --theme "${String(next)}". Expected "light" or "dark".`;
+        return res;
+      }
+      res.theme = next;
+    } else if (arg === '--replay') {
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        res.error = 'Flag --replay requires a path to an NDJSON event log file.';
+        return res;
+      }
+      res.replayPath = next;
+    } else if (arg.startsWith('-')) {
+      res.error = `Unknown CLI flag: "${arg}".`;
+      return res;
+    } else if (!res.targetPath) {
+      res.targetPath = arg;
+    } else {
+      res.error = `Unexpected positional argument: "${arg}".`;
+      return res;
+    }
+  }
+
+  if (modesSelected.length > 1) {
+    res.error = `Flags ${modesSelected.map((m) => `--${m}`).join(' and ')} are mutually exclusive. Choose at most one output mode.`;
+    return res;
+  }
+
+  if (!res.targetPath && !res.replayPath) {
+    res.error =
+      res.command === 'import-archaeology'
+        ? 'Missing <json-path> for import-archaeology.'
+        : 'Missing <repo-path> (or --replay <events.ndjson>).';
+  }
+
+  return res;
+}
+
+function reconstructSnapshotFromEvents(events: StoryboardEvent[]): ResultSnapshot {
+  const first = events[0]!;
+  const last = events[events.length - 1]!;
+  const repoLabel = String(first.payload.repoLabel ?? 'replayed-repo');
+  const maxCommits = typeof first.payload.maxCommits === 'number' ? first.payload.maxCommits : 60;
+  let commitsExamined = 0;
+  let uniqueFilesObserved = 0;
+  let totalPairsObserved = 0;
+  const findings: CochangeFinding[] = [];
+  const warnings: string[] = [];
+
+  for (const ev of events) {
+    if (ev.type === 'metric') {
+      if (ev.payload.name === 'commitsExamined' && typeof ev.payload.value === 'number') {
+        commitsExamined = ev.payload.value;
+      } else if (ev.payload.name === 'uniqueFilesObserved' && typeof ev.payload.value === 'number') {
+        uniqueFilesObserved = ev.payload.value;
+      } else if (ev.payload.name === 'totalPairsObserved' && typeof ev.payload.value === 'number') {
+        totalPairsObserved = ev.payload.value;
+      }
+    } else if (ev.type === 'finding' && ev.payload.finding) {
+      findings.push(ev.payload.finding as CochangeFinding);
+    } else if (ev.type === 'warning' && typeof ev.payload.message === 'string') {
+      warnings.push(ev.payload.message);
+    }
+  }
+
+  const status = (last.payload.status as ResultSnapshot['status']) ?? 'completed';
+  const error = typeof last.payload.error === 'string' ? last.payload.error : undefined;
+
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    runId: first.runId,
+    status,
+    repoLabel,
+    startedAt: first.ts,
+    finishedAt: last.ts,
+    maxCommits,
+    commitsExamined,
+    uniqueFilesObserved,
+    totalPairsObserved,
+    findings,
+    hotFiles: [],
+    warnings,
+    ...(error ? { error } : {}),
+  };
+}
+
+const HELP_TEXT = [
+  'FRAME/12 Terminal Storyboard CLI (0-experimental)',
+  '',
+  'Usage:',
+  '  storyboard run <repo-path> [--max-commits N] [--top N] [--events | --json | --baseline] [--report <out.html>] [--theme light|dark] [--replay <events.ndjson>]',
+  '  storyboard import-archaeology <json-path> [--report <out.html>] [--json | --baseline] [--theme light|dark]',
+].join('\n');
+
+export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<number> {
+  const stdout = io?.stdout ?? ((s: string) => process.stdout.write(s));
+  const stderr = io?.stderr ?? ((s: string) => process.stderr.write(s));
+  const isTTY = io?.isTTY ?? Boolean(process.stdout.isTTY);
+  const columns = io?.columns ?? process.stdout.columns ?? 80;
+  const env = io?.env ?? process.env;
+
+  const parsed = parseArgs(argv);
+  if (parsed.error) {
+    stderr(`Error: ${parsed.error}\n`);
+    return 2;
+  }
+
+  if (parsed.command === 'help') {
+    stdout(`${HELP_TEXT}\n`);
+    return 0;
+  }
+
+  const plainOpts: PlainRenderOptions = {
+    columns: parsed.columns ?? columns,
+    isTTY,
+    noColor: parsed.noColor,
+    isReplay: Boolean(parsed.replayPath),
+    env,
+  };
+
+  let snapshot: ResultSnapshot;
+  let events: StoryboardEvent[];
+
+  if (parsed.command === 'import-archaeology') {
+    const filePath = resolve(parsed.targetPath!);
+    if (!existsSync(filePath)) {
+      stderr(`Error: Archaeology JSON file not found: ${filePath}\n`);
+      return 1;
+    }
+    try {
+      const rawJson = JSON.parse(readFileSync(filePath, 'utf8'));
+      const converted = convertRepoArchaeologySnapshot(rawJson);
+      snapshot = converted.snapshot;
+      events = converted.events;
+    } catch (err) {
+      stderr(`Error converting Repo Archaeology JSON: ${(err as Error).message}\n`);
+      return 2;
+    }
+
+    if (parsed.mode === 'storyboard') {
+      const printer = new PlainStreamPrinter((l) => stderr(`${l}\n`), plainOpts);
+      for (const ev of events) printer.onEvent(ev);
+    }
+  } else if (parsed.replayPath) {
+    const filePath = resolve(parsed.replayPath);
+    if (!existsSync(filePath)) {
+      stderr(`Error: Replay NDJSON file not found: ${filePath}\n`);
+      return 1;
+    }
+    try {
+      const lines = readFileSync(filePath, 'utf8')
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      const rawEvents = lines.map((l) => JSON.parse(l));
+      const validated = validateEventStream(rawEvents);
+      if (!validated.ok) {
+        stderr(`Error validating replay stream: ${validated.error}\n`);
+        return 2;
+      }
+      events = validated.events;
+      snapshot = reconstructSnapshotFromEvents(events);
+    } catch (err) {
+      stderr(`Error reading replay file: ${(err as Error).message}\n`);
+      return 2;
+    }
+
+    if (parsed.mode === 'storyboard') {
+      const printer = new PlainStreamPrinter((l) => stderr(`${l}\n`), plainOpts);
+      for (const ev of events) printer.onEvent(ev);
+    }
+  } else {
+    const ac = new AbortController();
+    const onSigint = () => ac.abort();
+    process.once('SIGINT', onSigint);
+    if (io?.signal) {
+      if (io.signal.aborted) ac.abort();
+      else io.signal.addEventListener('abort', onSigint, { once: true });
+    }
+
+    const printer =
+      parsed.mode === 'storyboard'
+        ? new PlainStreamPrinter((l) => stderr(`${l}\n`), plainOpts)
+        : null;
+
+    try {
+      const result = await runGitHistoryWorkload({
+        repoPath: parsed.targetPath!,
+        maxCommits: parsed.maxCommits,
+        topN: parsed.topN,
+        signal: ac.signal,
+        onEvent: (ev) => {
+          if (parsed.mode === 'events') {
+            stdout(`${JSON.stringify(ev)}\n`);
+          } else if (printer) {
+            printer.onEvent(ev);
+          }
+        },
+      });
+      snapshot = result.snapshot;
+      events = result.events;
+    } finally {
+      process.removeListener('SIGINT', onSigint);
+    }
+  }
+
+  // Write HTML report if requested
+  if (parsed.reportPath) {
+    const outPath = resolve(parsed.reportPath);
+    mkdirSync(dirname(outPath), { recursive: true });
+    const { renderWebReportHtml } = await import('./render-web/index.js');
+    const html = renderWebReportHtml(snapshot, events, { theme: parsed.theme });
+    writeFileSync(outPath, html, 'utf8');
+    stderr(`Wrote FRAME/12 HTML report: ${outPath}\n`);
+  }
+
+  // Output to stdout based on mode
+  if (parsed.mode === 'json') {
+    stdout(`${JSON.stringify(snapshot, null, 2)}\n`);
+  } else if (parsed.mode === 'baseline') {
+    stdout(`${renderBaseline(snapshot, plainOpts)}\n`);
+  } else if (parsed.mode === 'storyboard') {
+    stdout(`${renderPlainSummary(snapshot, plainOpts)}\n`);
+  }
+
+  if (snapshot.status === 'canceled') {
+    stderr('Run canceled (SIGINT).\n');
+    return 130;
+  }
+  if (snapshot.status === 'failed') {
+    stderr(`Run failed: ${snapshot.error ?? 'Unknown error'}\n`);
+    return 1;
+  }
+  return 0;
+}

@@ -1,0 +1,18 @@
+{
+  "name": "@frame12/experiment-terminal-storyboard",
+  "version": "0.0.0-experimental",
+  "private": true,
+  "description": "Isolated proof of concept: terminal storyboard narration + offline FRAME/12 HTML report from a single structured event stream.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "storyboard": "./dist/bin/storyboard.js"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "../../node_modules/.bin/tsc --noEmit",
+    "lint:frame12": "node ../../scripts/check-frame12.mjs src",
+    "test": "npm run build && npm run typecheck && npm run lint:frame12 && node --test tests/storyboard.test.mjs",
+    "demo": "npm run build && node dist/bin/storyboard.js run ../.. --max-commits 40 --report dist/sample-report.html"
+  }
+}
