@@ -404,6 +404,10 @@
 .f12-rng-btn + .f12-rng-btn {
   border-left: 2px solid var(--f-rule);
 }
+.f12-rng:not(:has(.f12-rng-ind)) .f12-rng-btn[aria-pressed="true"] {
+  background: var(--f-ink);
+  color: var(--f-panel);
+}
 .f12-rng-n {
   font-family: var(--font-f-display);
   font-size: 18px;
@@ -605,6 +609,7 @@
 }
 .f12-spark svg {
   display: block;
+  width: 100%;
   border-bottom: 2px solid var(--f-rule);
   overflow: visible;
 }
@@ -675,6 +680,7 @@
 }
 .f12-chart-svg {
   display: block;
+  width: 100%;
   overflow: visible;
 }
 .f12-chart-svg:focus-visible {
@@ -1286,12 +1292,6 @@ dialog.f12-dialog::backdrop {
 }
 .f12-m-stepped .f12-rng-ind {
   transition: transform 250ms steps(3, end), width 250ms steps(3, end);
-}
-.f12-m-smooth .f12-rng-btn {
-  transition: color 180ms ease 60ms;
-}
-.f12-m-stepped .f12-rng-btn {
-  transition: color 0ms linear 166ms;
 }
 
 .f12-m-smooth .f12-enter {
