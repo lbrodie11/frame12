@@ -341,6 +341,108 @@ export function ConsumerSmokeTest() {
     'tsc --noEmit succeeds in temporary consumer project with installed FRAME/12 components',
     tscRes.status !== 0 ? `${tscRes.stdout}\n${tscRes.stderr}` : '',
   );
+
+  // 6. Verify React 19 element.props.ref runtime compatibility & SSR execution
+  writeFileSync(
+    join(tempDir, 'src/app/r19-runtime-entry.tsx'),
+    `import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { ConsumerSmokeTest } from './consumer-check';
+import { Dialog, DialogTrigger, TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/frame12';
+
+let dlgPropsRefRead = 0;
+let tipPropsRefRead = 0;
+function makeReact19Element(onPropsRefRead: () => void) {
+  const base = React.createElement('button', { type: 'button' }, 'R19 Child');
+  const propsWithRef: Record<string, unknown> = { ...base.props };
+  Object.defineProperty(propsWithRef, 'ref', {
+    get() {
+      onPropsRefRead();
+      return () => {};
+    },
+    enumerable: true,
+    configurable: true,
+  });
+  const r19El = Object.assign({}, base, { props: propsWithRef, ref: null });
+  let dialogOrTooltipAccessedLegacyRef = false;
+  Object.defineProperty(r19El, 'ref', {
+    get() {
+      const stack = new Error().stack || '';
+      if (stack.includes('getElementRef') || stack.includes('DialogTrigger') || stack.includes('TooltipTrigger')) {
+        if (!stack.includes('cloneElement')) {
+          dialogOrTooltipAccessedLegacyRef = true;
+        }
+      }
+      return null;
+    },
+    configurable: true,
+  });
+  return {
+    el: r19El as unknown as React.ReactElement,
+    didAccessLegacyRef: () => dialogOrTooltipAccessedLegacyRef,
+  };
+}
+
+const dlgR19 = makeReact19Element(() => { dlgPropsRefRead++; });
+const tipR19 = makeReact19Element(() => { tipPropsRefRead++; });
+
+const html = renderToStaticMarkup(
+  React.createElement(
+    React.Fragment,
+    null,
+    React.createElement(ConsumerSmokeTest),
+    React.createElement(
+      Dialog,
+      null,
+      React.createElement(DialogTrigger, { asChild: true }, dlgR19.el),
+    ),
+    React.createElement(
+      TooltipProvider,
+      null,
+      React.createElement(
+        Tooltip,
+        null,
+        React.createElement(TooltipTrigger, { asChild: true }, tipR19.el),
+        React.createElement(TooltipContent, null, 'Tip'),
+      ),
+    ),
+  ),
+);
+if (dlgPropsRefRead === 0 || tipPropsRefRead === 0 || dlgR19.didAccessLegacyRef() || tipR19.didAccessLegacyRef()) {
+  throw new Error(
+    \`React 19 props.ref check failed: dlgPropsRefRead=\${dlgPropsRefRead} tipPropsRefRead=\${tipPropsRefRead} dlgLegacy=\${dlgR19.didAccessLegacyRef()} tipLegacy=\${tipR19.didAccessLegacyRef()}\`,
+  );
+}
+if (!html.includes('C-01') || !html.includes('R19 Child')) {
+  throw new Error('Unexpected SSR output: ' + html.slice(0, 200));
+}
+console.log('R19_RUNTIME_OK:' + html.length);
+`,
+  );
+
+  const esbuildBin = resolve(REPO_ROOT, 'node_modules/.bin/esbuild');
+  const bundleOut = join(tempDir, 'r19-runtime.cjs');
+  const buildRes = spawnSync(
+    esbuildBin,
+    [
+      join(tempDir, 'src/app/r19-runtime-entry.tsx'),
+      '--bundle',
+      '--platform=node',
+      '--format=cjs',
+      '--loader:.css=empty',
+      `--outfile=${bundleOut}`,
+    ],
+    { cwd: tempDir, encoding: 'utf8' },
+  );
+  const runRes =
+    buildRes.status === 0
+      ? spawnSync(process.execPath, [bundleOut], { cwd: tempDir, encoding: 'utf8' })
+      : buildRes;
+  check(
+    runRes.status === 0 && (runRes.stdout || '').includes('R19_RUNTIME_OK:'),
+    'React 19 runtime execution: renders installed components and resolves element.props.ref without triggering element.ref deprecation getter',
+    runRes.status !== 0 ? `${runRes.stdout}\n${runRes.stderr}` : runRes.stdout.trim(),
+  );
 } finally {
   server.close();
   rmSync(tempDir, { recursive: true, force: true });

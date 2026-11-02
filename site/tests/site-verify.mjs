@@ -456,7 +456,32 @@ try {
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 920 } });
     const page = await ctx.newPage();
+    const titles = new Map();
+    for (const r of ROUTES) {
+      await page.goto(`${baseUrl}${r}`, { waitUntil: 'networkidle' });
+      titles.set(r, await page.title());
+    }
+    const uniqueTitles = new Set(titles.values());
+    check(
+      uniqueTitles.size === ROUTES.length,
+      `site route metadata: all ${ROUTES.length} routes have distinct document.title values`,
+      JSON.stringify(Object.fromEntries(titles)),
+    );
+
     await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' });
+
+    // Toggle site theme via 't' keyboard shortcut and cycle motion via 'm' shortcut
+    await page.keyboard.press('t');
+    const isDarkViaShortcut = await page.evaluate(
+      () => document.documentElement.getAttribute('data-theme') === 'dark',
+    );
+    await page.keyboard.press('t');
+    await page.keyboard.press('m');
+    const isSmoothViaShortcut = await page.evaluate(() =>
+      Boolean(document.querySelector('.site-root.f12-m-smooth')),
+    );
+    await page.keyboard.press('m');
+    await page.keyboard.press('m');
 
     // Toggle site theme to dark via header control
     await page.click('#site-theme-dark');
@@ -475,8 +500,8 @@ try {
     );
 
     check(
-      isDarkAttr && hasCompareLine,
-      'site / interactive flow: header theme toggle and recovery dashboard range + intervention overlay',
+      isDarkViaShortcut && isSmoothViaShortcut && isDarkAttr && hasCompareLine,
+      'site / interactive flow: header & keyboard (T/M) toggles and recovery dashboard range + intervention overlay',
     );
 
     await page.goto(`${baseUrl}/motion`, { waitUntil: 'networkidle' });

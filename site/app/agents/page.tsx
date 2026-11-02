@@ -138,8 +138,8 @@ export default function AgentsPage() {
             Most design systems degrade into generic cards and arbitrary spacing after two prompts.
             FRAME/12 pairs a compact agent skill (<code className="f12-code-inline">SKILL.md</code>)
             with a deterministic static rule checker (
-            <code className="f12-code-inline">check-frame12.mjs</code>) so AI agents produce
-            on-grammar storyboard screens on the first pass.
+            <code className="f12-code-inline">check-frame12.mjs</code>) so AI agents can catch and
+            fix layout, token, and motion drift automatically.
           </p>
         </div>
       </header>

@@ -87,6 +87,26 @@ function mergeRefs<T>(
   };
 }
 
+function getElementRef(element: React.ReactElement): React.Ref<unknown> | undefined {
+  const propsObj = (element.props || {}) as Record<string, unknown>;
+  let getter = Object.getOwnPropertyDescriptor(propsObj, 'ref')?.get;
+  let mayWarn =
+    getter && 'isReactWarning' in getter && (getter as { isReactWarning?: boolean }).isReactWarning;
+  if (mayWarn) {
+    return (element as unknown as { ref?: React.Ref<unknown> }).ref;
+  }
+  getter = Object.getOwnPropertyDescriptor(element, 'ref')?.get;
+  mayWarn =
+    getter && 'isReactWarning' in getter && (getter as { isReactWarning?: boolean }).isReactWarning;
+  if (mayWarn) {
+    return (propsObj as { ref?: React.Ref<unknown> }).ref;
+  }
+  return (
+    (propsObj as { ref?: React.Ref<unknown> }).ref ||
+    (element as unknown as { ref?: React.Ref<unknown> }).ref
+  );
+}
+
 export const TooltipTrigger = React.forwardRef<HTMLButtonElement, TooltipTriggerProps>(
   function TooltipTrigger(
     {
@@ -99,17 +119,13 @@ export const TooltipTrigger = React.forwardRef<HTMLButtonElement, TooltipTrigger
     forwardedRef,
   ) {
     const { open, tooltipId } = useTooltipContext();
-    const childRef = React.isValidElement(children)
-      ? (children as React.ReactElement<Record<string, unknown>> & { ref?: React.Ref<unknown> }).ref
-      : undefined;
+    const childRef = React.isValidElement(children) ? getElementRef(children) : undefined;
     const composedRef = React.useMemo(
       () => mergeRefs(forwardedRef, childRef),
       [forwardedRef, childRef],
     );
     if (asChild && React.isValidElement(children)) {
-      const child = children as React.ReactElement<Record<string, unknown>> & {
-        ref?: React.Ref<unknown>;
-      };
+      const child = children as React.ReactElement<Record<string, unknown>>;
       const childProps = child.props || {};
       const mergedClassName = [childProps.className, className].filter(Boolean).join(' ') || undefined;
       const mergedDescribedBy =

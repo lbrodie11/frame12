@@ -7,7 +7,7 @@ export const alt = 'Components & Primitive Adapters — FRAME/12';
 export default function OgImage() {
   return renderFrame12OgImage({
     cutLabel: 'CUT 03',
-    tag: '20 Registry Items',
+    tag: '19 Components · 22 Payloads',
     title: 'Components & Adapters',
     subtitle:
       'Copy-in React + TypeScript components, motion hooks, and accessible primitive adapters via shadcn CLI.',

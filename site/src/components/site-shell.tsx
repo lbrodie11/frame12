@@ -137,6 +137,35 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
     [theme, setTheme, motion],
   );
 
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (document.querySelector('[role="listbox"], [role="menu"], dialog[open]')) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable ||
+          Boolean(
+            target.closest(
+              'input, textarea, select, [contenteditable="true"], [role="combobox"], [role="textbox"], [role="listbox"], [role="menu"]',
+            ),
+          ))
+      ) {
+        return;
+      }
+      if (e.key === 't' || e.key === 'T') {
+        setTheme(theme === 'light' ? 'dark' : 'light');
+      } else if (e.key === 'm' || e.key === 'M') {
+        setMotion((prev) => (prev === 'stepped' ? 'smooth' : prev === 'smooth' ? 'cut' : 'stepped'));
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [theme, setTheme]);
+
   return (
     <SiteSettingsContext.Provider value={ctxValue}>
       <div className={`site-root f12-theme-${theme} f12-m-${motion}`}>
