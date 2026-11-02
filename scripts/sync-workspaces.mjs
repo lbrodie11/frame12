@@ -49,9 +49,10 @@ FILE_MAPPINGS.push({
   dest: path.join(ROOT, 'templates/next-starter/scripts/check-frame12.mjs'),
 });
 
-// 5. skills/frame12/{SKILL.md,references/*} -> templates/next-starter/.claude/skills/frame12/*
+// 5. skills/frame12/{SKILL.md,eslint.frame12.mjs,references/*} -> templates/next-starter/.claude/skills/frame12/*
 for (const relSkill of [
   'SKILL.md',
+  'eslint.frame12.mjs',
   'references/components-and-adapters.md',
   'references/examples-and-mistakes.md',
 ]) {
@@ -111,6 +112,20 @@ if (checkOnly) {
     if (builtItem.type !== item.type) {
       drifts.push(
         `Registry item type mismatch in site/public/r/${item.name}.json: expected ${item.type}, got ${builtItem.type}`,
+      );
+    }
+    const expectedDeps = JSON.stringify(item.dependencies || []);
+    const actualDeps = JSON.stringify(builtItem.dependencies || []);
+    if (expectedDeps !== actualDeps) {
+      drifts.push(
+        `Dependencies mismatch in site/public/r/${item.name}.json: expected ${expectedDeps}, got ${actualDeps}`,
+      );
+    }
+    const expectedRegDeps = JSON.stringify(item.registryDependencies || []);
+    const actualRegDeps = JSON.stringify(builtItem.registryDependencies || []);
+    if (expectedRegDeps !== actualRegDeps) {
+      drifts.push(
+        `registryDependencies mismatch in site/public/r/${item.name}.json: expected ${expectedRegDeps}, got ${actualRegDeps}`,
       );
     }
     for (const fileSpec of item.files) {

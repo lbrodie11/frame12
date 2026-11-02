@@ -149,7 +149,7 @@ try {
       document.body.appendChild(banner);
 
       // Scroll straight to the two comparison panels (C-01 and C-02)
-      const firstScene = document.querySelector('.scene');
+      const firstScene = document.querySelector('.f12-scene');
       if (firstScene) {
         const rect = firstScene.getBoundingClientRect();
         window.scrollTo({ top: Math.max(0, window.scrollY + rect.top - 72), behavior: 'instant' });
@@ -167,9 +167,9 @@ try {
           if (tEl) tEl.textContent = t;
           if (sEl) sEl.textContent = s;
 
-          const panels = document.querySelectorAll('.scene:first-of-type > .panel');
+          const panels = document.querySelectorAll('.f12-scene:first-of-type > .f12-panel');
           panels.forEach((panel) => {
-            const cutText = panel.querySelector('.cut')?.textContent?.trim();
+            const cutText = panel.querySelector('.f12-cut')?.textContent?.trim();
             panel.classList.remove('f12-panel-dim', 'f12-panel-spotlight');
             if (cut === 'BOTH') return;
             if (cutText === cut) {
@@ -301,64 +301,64 @@ try {
     document.body.style.background = 'var(--f-desk)';
 
     document.body.innerHTML = `
-      <div class="dash frame theme-light m-stepped" style="width: 1200px; height: 630px; padding: 14px; overflow: hidden;">
-        <div class="sheet" style="height: 100%; padding: 30px 24px 18px; gap: 16px; justify-content: space-between;">
-          <div class="pegs" aria-hidden="true" style="top: 10px;">
-            <span class="peg round"></span>
-            <span class="peg slot"></span>
-            <span class="peg round"></span>
+      <div class="f12-dash f12-frame f12-theme-light f12-m-stepped" style="width: 1200px; height: 630px; padding: 14px; overflow: hidden;">
+        <div class="f12-sheet" style="height: 100%; padding: 30px 24px 18px; gap: 16px; justify-content: space-between;">
+          <div class="f12-pegs" aria-hidden="true" style="top: 10px;">
+            <span class="f12-peg round"></span>
+            <span class="f12-peg slot"></span>
+            <span class="f12-peg round"></span>
           </div>
 
-          <header class="hd" style="gap: 12px; align-items: center;">
+          <header class="f12-hd" style="gap: 12px; align-items: center;">
             <div>
-              <p class="eyebrow">
+              <p class="f12-eyebrow">
                 INTERFACE DESIGN LANGUAGE · SHADCN REGISTRY · AGENT SKILL
-                <span class="tag">MIT OPEN SOURCE</span>
+                <span class="f12-tag">MIT OPEN SOURCE</span>
               </p>
-              <h1 class="title" style="font-size: 30px; margin-top: 4px;">FRAME/12 — DESIGNING INTERFACES ON TWOS</h1>
+              <h1 class="f12-title" style="font-size: 30px; margin-top: 4px;">FRAME/12 — DESIGNING INTERFACES ON TWOS</h1>
             </div>
-            <span class="badge" style="font-size: 11px; padding: 5px 10px;">
-              <span class="badge-t">npx shadcn@latest add https://frame12.dev/r/frame12.json</span>
+            <span class="f12-badge" style="font-size: 11px; padding: 5px 10px;">
+              <span class="f12-badge-t">npx shadcn@latest add https://frame12.dev/r/frame12.json</span>
             </span>
           </header>
 
-          <div class="scene scene-split scene-scene" style="grid-template-columns: 1.38fr 1fr; gap: 20px; flex: 1; min-height: 0;">
+          <div class="f12-scene f12-scene-split f12-scene-scene" style="grid-template-columns: 1.38fr 1fr; gap: 20px; flex: 1; min-height: 0;">
             <!-- C-01: Screentone Area Chart + Speech Balloon -->
-            <section class="panel">
-              <svg class="panel-frame" viewBox="0 0 640 310" preserveAspectRatio="none" aria-hidden="true">
+            <section class="f12-panel f12-rect">
+              <svg class="f12-panel-frame" viewBox="0 0 640 310" preserveAspectRatio="none" aria-hidden="true">
                 <polygon points="1.25,1.25 638.75,1.25 638.75,308.75 1.25,308.75" />
               </svg>
-              <span class="cut">C-01</span>
-              <div class="panel-body" style="padding: 16px 18px 14px; justify-content: space-between;">
+              <span class="f12-cut">C-01</span>
+              <div class="f12-panel-body" style="padding: 16px 18px 14px; justify-content: space-between;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                   <div>
-                    <p class="m-label">RECOVERED REVENUE · 45° HALFTONE SCREENTONE</p>
+                    <p class="f12-m-label">RECOVERED REVENUE · 45° HALFTONE SCREENTONE</p>
                     <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 4px;">
-                      <span class="m-value" style="font-size: 32px; margin: 0;">$142,840</span>
-                      <span class="delta up" style="margin: 0;">
-                        <span class="delta-sym">▲</span>
+                      <span class="f12-m-value" style="font-size: 32px; margin: 0;">$142,840</span>
+                      <span class="f12-delta up" style="margin: 0;">
+                        <span class="f12-delta-sym">▲</span>
                         <span>+18.4%</span>
-                        <span class="delta-ref">vs prior 30d</span>
+                        <span class="f12-delta-ref">vs prior 30d</span>
                       </span>
                     </div>
                   </div>
-                  <span class="tag">NO GRADIENTS · NO BLUR</span>
+                  <span class="f12-tag">NO GRADIENTS · NO BLUR</span>
                 </div>
 
-                <div class="chart" style="margin-top: 6px;">
-                  <svg class="chart-svg" viewBox="0 0 580 175" width="100%" height="175" aria-hidden="true">
+                <div class="f12-chart" style="margin-top: 6px;">
+                  <svg class="f12-chart-svg" viewBox="0 0 580 175" width="100%" height="175" aria-hidden="true">
                     <defs>
                       <pattern id="hero-tone" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                        <circle cx="3" cy="3" r="1.45" class="tone-dot" />
+                        <circle cx="3" cy="3" r="1.45" class="f12-tone-dot" />
                       </pattern>
                     </defs>
-                    <line x1="0" y1="36" x2="580" y2="36" class="grid" stroke-dasharray="3 3" />
-                    <line x1="0" y1="86" x2="580" y2="86" class="grid" stroke-dasharray="3 3" />
-                    <line x1="0" y1="136" x2="580" y2="136" class="grid" stroke-dasharray="3 3" />
+                    <line x1="0" y1="36" x2="580" y2="36" class="f12-grid" stroke-dasharray="3 3" />
+                    <line x1="0" y1="86" x2="580" y2="86" class="f12-grid" stroke-dasharray="3 3" />
+                    <line x1="0" y1="136" x2="580" y2="136" class="f12-grid" stroke-dasharray="3 3" />
                     <path d="M 0 138 L 64 120 L 128 126 L 192 94 L 256 102 L 320 68 L 384 76 L 448 30 L 512 52 L 580 38 L 580 156 L 0 156 Z" fill="url(#hero-tone)" />
-                    <path d="M 0 138 L 64 120 L 128 126 L 192 94 L 256 102 L 320 68 L 384 76 L 448 30 L 512 52 L 580 38" fill="none" class="l-total" />
-                    <line x1="0" y1="156" x2="580" y2="156" class="baseline" />
-                    <circle cx="448" cy="30" r="6" class="peak-dot" />
+                    <path d="M 0 138 L 64 120 L 128 126 L 192 94 L 256 102 L 320 68 L 384 76 L 448 30 L 512 52 L 580 38" fill="none" class="f12-l-total" />
+                    <line x1="0" y1="156" x2="580" y2="156" class="f12-baseline" />
+                    <circle cx="448" cy="30" r="6" class="f12-peak-dot" />
                     <!-- Speech balloon annotation pointing to peak -->
                     <g transform="translate(256, 8)">
                       <rect x="0" y="0" width="172" height="30" fill="var(--f-marker)" stroke="var(--f-rule)" stroke-width="2.2" />
@@ -374,14 +374,14 @@ try {
             </section>
 
             <!-- C-02 & C-03: Diagonal PanelPair across 12px pair gutter -->
-            <div class="pair" style="gap: 12px;">
-              <section class="panel slant-bottom">
-                <svg class="panel-frame" viewBox="0 0 460 150" preserveAspectRatio="none" aria-hidden="true">
+            <div class="f12-pair" style="gap: 12px;">
+              <section class="f12-panel f12-slant-bottom">
+                <svg class="f12-panel-frame" viewBox="0 0 460 150" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="1.25,1.25 458.75,1.25 458.75,133 1.25,148.75" />
                 </svg>
-                <span class="cut">C-02</span>
-                <div class="panel-body" style="padding: 14px 16px 26px;">
-                  <p class="m-label">DIAGONAL PANEL PAIR · GUTTER GRAMMAR</p>
+                <span class="f12-cut">C-02</span>
+                <div class="f12-panel-body" style="padding: 14px 16px 26px;">
+                  <p class="f12-m-label">DIAGONAL PANEL PAIR · GUTTER GRAMMAR</p>
                   <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 10px;">
                     <div style="border: 2px solid var(--f-rule); padding: 7px 9px; background: var(--f-panel);">
                       <div style="font-family: var(--font-f-display); font-size: 15px;">12px PAIR</div>
@@ -399,19 +399,19 @@ try {
                 </div>
               </section>
 
-              <section class="panel slant-top">
-                <svg class="panel-frame" viewBox="0 0 460 150" preserveAspectRatio="none" aria-hidden="true">
+              <section class="f12-panel f12-slant-top">
+                <svg class="f12-panel-frame" viewBox="0 0 460 150" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="1.25,17 458.75,1.25 458.75,148.75 1.25,148.75" />
                 </svg>
-                <span class="cut">C-03</span>
-                <div class="panel-body" style="padding: 24px 16px 14px; justify-content: center;">
+                <span class="f12-cut">C-03</span>
+                <div class="f12-panel-body" style="padding: 24px 16px 14px; justify-content: center;">
                   <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                     <div>
-                      <p class="m-label">AI AGENT SKILL + STATIC GRAMMAR LINTER</p>
-                      <div style="font-family: var(--font-f-display); font-size: 18px; margin-top: 4px;">19 REGISTRY ITEMS · 0 DRIFT VIOLATIONS</div>
+                      <p class="f12-m-label">AI AGENT SKILL + STATIC GRAMMAR LINTER</p>
+                      <div style="font-family: var(--font-f-display); font-size: 18px; margin-top: 4px;">22 REGISTRY ITEMS · GRAMMAR LINTER</div>
                       <p style="font-family: var(--font-f-mono); font-size: 11px; color: var(--f-ink-2); margin-top: 3px;">Tokens · Gutters · Cut order · Marker contrast</p>
                     </div>
-                    <span class="badge"><span class="badge-t">WCAG AA</span></span>
+                    <span class="f12-badge"><span class="f12-badge-t">WCAG AA</span></span>
                   </div>
                 </div>
               </section>
@@ -419,14 +419,14 @@ try {
           </div>
 
           <!-- C-04: Exposure Sheet Film Strip (On Twos · 12fps · 83.33ms per held pose) -->
-          <section class="panel">
-            <svg class="panel-frame" viewBox="0 0 1120 96" preserveAspectRatio="none" aria-hidden="true">
+          <section class="f12-panel f12-rect">
+            <svg class="f12-panel-frame" viewBox="0 0 1120 96" preserveAspectRatio="none" aria-hidden="true">
               <polygon points="1.25,1.25 1118.75,1.25 1118.75,94.75 1.25,94.75" />
             </svg>
-            <span class="cut">C-04</span>
-            <div class="panel-body" style="padding: 12px 18px; flex-direction: row; align-items: center; justify-content: space-between; gap: 20px;">
+            <span class="f12-cut">C-04</span>
+            <div class="f12-panel-body" style="padding: 12px 18px; flex-direction: row; align-items: center; justify-content: space-between; gap: 20px;">
               <div style="min-width: 245px;">
-                <p class="m-label">EXPOSURE SHEET · MOTION ON TWOS</p>
+                <p class="f12-m-label">EXPOSURE SHEET · MOTION ON TWOS</p>
                 <div style="font-family: var(--font-f-display); font-size: 17px; margin-top: 3px;">12 FPS · 83.33 MS HELD POSES</div>
                 <div style="font-family: var(--font-f-mono); font-size: 11px; color: var(--f-ink-2); margin-top: 2px;">mix-blend-mode: difference</div>
               </div>

@@ -74,7 +74,7 @@ export function Select({
 }
 
 export interface SelectTriggerProps
-  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> {
+  extends Omit<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>, 'asChild'> {
   ariaLabel?: string;
 }
 
@@ -85,13 +85,15 @@ export const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerPr
   ) {
     const field = React.useContext(SelectFieldContext);
     const resolvedId = id ?? field?.triggerId;
+    const { asChild: _asChild, ...triggerProps } =
+      rest as React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>;
     return (
       <SelectPrimitive.Trigger
         ref={forwardedRef}
         id={resolvedId}
         aria-label={ariaLabel}
         className={`f12-select-trigger${className ? ` ${className}` : ''}`}
-        {...rest}
+        {...triggerProps}
       >
         {children}
         <SelectPrimitive.Icon className="f12-select-caret" aria-hidden="true">
@@ -147,15 +149,20 @@ export const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps
   },
 );
 
-export type SelectItemProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>;
+export type SelectItemProps = Omit<
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>,
+  'asChild'
+>;
 
 export const SelectItem = React.forwardRef<HTMLDivElement, SelectItemProps>(
   function SelectItem({ className = '', children, ...rest }, forwardedRef) {
+    const { asChild: _asChild, ...itemProps } =
+      rest as React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>;
     return (
       <SelectPrimitive.Item
         ref={forwardedRef}
         className={`f12-select-item${className ? ` ${className}` : ''}`}
-        {...rest}
+        {...itemProps}
       >
         <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
         <SelectPrimitive.ItemIndicator className="f12-select-check" aria-hidden="true">

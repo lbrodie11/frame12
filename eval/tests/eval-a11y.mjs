@@ -156,35 +156,46 @@ const GRAMMAR_DOM = () => {
 
 async function focusMissesAll(page) {
   const misses = [];
-  const seenKeys = new Set();
+  let totalStops = 0;
+  let cycled = false;
+  let consecutiveBody = 0;
   await page.evaluate(() => {
+    window.__f12SeenFocus = new Set();
     if (document.activeElement && document.activeElement !== document.body) {
       document.activeElement.blur();
     }
   });
-  for (let i = 0; i < 120; i++) {
+  for (let i = 0; i < 200; i++) {
     await page.keyboard.press('Tab');
     const info = await page.evaluate(() => {
       const e = document.activeElement;
-      if (!e || e === document.body) return null;
+      if (!e || e === document.body) return { status: 'body' };
+      const seen = window.__f12SeenFocus;
+      if (seen.has(e)) return { status: 'cycled' };
+      seen.add(e);
       const cs = getComputedStyle(e);
-      const key =
-        e.id ||
-        `${e.tagName}:${(e.getAttribute('aria-label') || e.textContent || '').trim().slice(0, 30)}:${Math.round(e.getBoundingClientRect().top)}`;
       return {
-        key,
+        status: 'visited',
         id: e.id || e.tagName,
         vis:
           (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) ||
           cs.boxShadow !== 'none',
       };
     });
-    if (!info) break;
-    if (seenKeys.has(info.key)) break;
-    seenKeys.add(info.key);
+    if (info.status === 'cycled') {
+      cycled = true;
+      break;
+    }
+    if (info.status === 'body') {
+      consecutiveBody++;
+      if (consecutiveBody >= 2) break;
+      continue;
+    }
+    consecutiveBody = 0;
+    totalStops++;
     if (!info.vis) misses.push(info.id);
   }
-  return { misses, totalStops: seenKeys.size };
+  return { misses, totalStops, cycled };
 }
 
 async function openScreen(
@@ -281,9 +292,9 @@ for (const screen of SCREENS) {
       JSON.stringify(g),
     );
     check(
-      f.misses.length === 0 && f.totalStops > 0,
+      f.misses.length === 0 && f.totalStops > 0 && f.cycled,
       `eval/${screen} (${scheme}, 1280px): visible keyboard focus across all ${f.totalStops} tab stops`,
-      f.misses.slice(0, 3).join(', '),
+      `cycled=${f.cycled} misses=${f.misses.slice(0, 3).join(', ')}`,
     );
     check(
       sw <= 1280 && errors.length === 0,
