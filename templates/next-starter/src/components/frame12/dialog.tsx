@@ -5,6 +5,29 @@ import { Button, type ButtonProps } from './button';
 
 const useIsoLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
 
+const openDialogStack: HTMLDialogElement[] = [];
+
+function pushOpenDialog(el: HTMLDialogElement) {
+  const idx = openDialogStack.indexOf(el);
+  if (idx !== -1) openDialogStack.splice(idx, 1);
+  openDialogStack.push(el);
+}
+
+function removeOpenDialog(el: HTMLDialogElement) {
+  const idx = openDialogStack.indexOf(el);
+  if (idx !== -1) openDialogStack.splice(idx, 1);
+}
+
+function getTopmostOpenDialog(): HTMLDialogElement | undefined {
+  for (let i = openDialogStack.length - 1; i >= 0; i--) {
+    const d = openDialogStack[i];
+    if (d.isConnected && d.open) return d;
+    openDialogStack.splice(i, 1);
+  }
+  const fallback = document.querySelectorAll<HTMLDialogElement>('dialog[open]');
+  return fallback[fallback.length - 1];
+}
+
 function mergeRefs<T>(
   ...refs: Array<React.Ref<T> | undefined>
 ): React.RefCallback<T> {
@@ -78,9 +101,15 @@ export function Dialog({
     if (open && !el.open) {
       if (typeof el.showModal === 'function') el.showModal();
       else el.setAttribute('open', '');
+      pushOpenDialog(el);
+    } else if (open && el.open) {
+      pushOpenDialog(el);
     } else if (!open && el.open) {
+      removeOpenDialog(el);
       if (typeof el.close === 'function') el.close();
       else el.removeAttribute('open');
+    } else {
+      removeOpenDialog(el);
     }
   }, [open]);
 
@@ -178,7 +207,10 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
     React.useEffect(() => {
       const el = dialogRef.current;
       if (!el) return;
-      const onClose = () => setOpen(false);
+      const onClose = () => {
+        removeOpenDialog(el);
+        setOpen(false);
+      };
       // Capture Escape keydown at document capture phase BEFORE Radix DismissableLayer
       // unmounts the open listbox/menu, so we know whether Escape was consumed by a child popup.
       const onDocKeyDownCapture = (e: KeyboardEvent) => {
@@ -192,8 +224,7 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
       };
       const onDocKeyDown = (e: KeyboardEvent) => {
         if (e.key !== 'Escape' || !el.open) return;
-        const openDialogs = document.querySelectorAll('dialog[open]');
-        if (openDialogs.length > 0 && openDialogs[openDialogs.length - 1] !== el) {
+        if (getTopmostOpenDialog() !== el) {
           return;
         }
         if (
@@ -209,6 +240,7 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
         if (!shouldClose || cancelEvent.defaultPrevented) {
           return;
         }
+        removeOpenDialog(el);
         el.close();
         setOpen(false);
       };
@@ -216,6 +248,7 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
       document.addEventListener('keydown', onDocKeyDownCapture, true);
       document.addEventListener('keydown', onDocKeyDown);
       return () => {
+        removeOpenDialog(el);
         el.removeEventListener('close', onClose);
         document.removeEventListener('keydown', onDocKeyDownCapture, true);
         document.removeEventListener('keydown', onDocKeyDown);

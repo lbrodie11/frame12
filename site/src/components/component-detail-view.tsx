@@ -140,7 +140,9 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
             <h2 className="f12-section-title">Props & TypeScript API</h2>
             <Table>
               <TableCaption>
-                Exported from @/components/frame12 ({entry.sourceFile})
+                Exported from{' '}
+                {entry.slug === 'use-on-twos' ? '@/hooks/use-on-twos' : '@/components/frame12'} (
+                {entry.sourceFile})
               </TableCaption>
               <TableHeader>
                 <TableRow>

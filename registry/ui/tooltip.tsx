@@ -122,22 +122,19 @@ export const TooltipTrigger = React.forwardRef<HTMLButtonElement, TooltipTrigger
         ref: mergeRefs(forwardedRef, child.ref),
       };
 
-      const eventNames = [
-        'onFocus',
-        'onBlur',
-        'onPointerEnter',
-        'onPointerLeave',
-        'onClick',
-        'onKeyDown',
-      ] as const;
-      for (const evt of eventNames) {
+      for (const evt of new Set([...Object.keys(rest), ...Object.keys(childProps)])) {
+        if (!/^on[A-Z]/.test(evt)) continue;
         const parentHandler = (rest as Record<string, unknown>)[evt];
         const childHandler = childProps[evt];
-        if (typeof parentHandler === 'function' || typeof childHandler === 'function') {
-          mergedProps[evt] = (e: unknown) => {
-            if (typeof parentHandler === 'function') (parentHandler as (ev: unknown) => void)(e);
-            if (typeof childHandler === 'function') (childHandler as (ev: unknown) => void)(e);
+        if (typeof parentHandler === 'function' && typeof childHandler === 'function') {
+          mergedProps[evt] = (...args: unknown[]) => {
+            (parentHandler as (...a: unknown[]) => void)(...args);
+            (childHandler as (...a: unknown[]) => void)(...args);
           };
+        } else if (typeof parentHandler === 'function') {
+          mergedProps[evt] = parentHandler;
+        } else if (typeof childHandler === 'function') {
+          mergedProps[evt] = childHandler;
         }
       }
 

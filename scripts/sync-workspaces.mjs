@@ -62,11 +62,11 @@ for (const relSkill of [
   });
 }
 
-// 6. site/src/fonts/*.woff2 -> templates/next-starter/src/fonts/*.woff2
+// 6. site/src/fonts/{*.woff2,OFL.txt} -> templates/next-starter/src/fonts/{*.woff2,OFL.txt}
 const fontsDir = path.join(ROOT, 'site/src/fonts');
 if (fs.existsSync(fontsDir)) {
   for (const fontFile of fs.readdirSync(fontsDir)) {
-    if (fontFile.endsWith('.woff2')) {
+    if (fontFile.endsWith('.woff2') || fontFile === 'OFL.txt') {
       FILE_MAPPINGS.push({
         src: path.join(fontsDir, fontFile),
         dest: path.join(ROOT, 'templates/next-starter/src/fonts', fontFile),
@@ -128,6 +128,17 @@ if (checkOnly) {
         `registryDependencies mismatch in site/public/r/${item.name}.json: expected ${expectedRegDeps}, got ${actualRegDeps}`,
       );
     }
+    const expectedSpecs = JSON.stringify(
+      (item.files || []).map((f) => ({ path: f.path, type: f.type, target: f.target })),
+    );
+    const actualSpecs = JSON.stringify(
+      (builtItem.files || []).map((f) => ({ path: f.path, type: f.type, target: f.target })),
+    );
+    if (expectedSpecs !== actualSpecs) {
+      drifts.push(
+        `File specifications mismatch in site/public/r/${item.name}.json: expected ${expectedSpecs}, got ${actualSpecs}`,
+      );
+    }
     for (const fileSpec of item.files) {
       const srcFileContent = fs.readFileSync(
         path.join(ROOT, 'registry', fileSpec.path),
@@ -137,6 +148,11 @@ if (checkOnly) {
       if (!builtFile) {
         drifts.push(`Missing file ${fileSpec.path} in site/public/r/${item.name}.json`);
       } else {
+        if (builtFile.type !== fileSpec.type) {
+          drifts.push(
+            `Type mismatch for ${fileSpec.path} in site/public/r/${item.name}.json: expected ${fileSpec.type}, got ${builtFile.type}`,
+          );
+        }
         if (builtFile.target !== fileSpec.target) {
           drifts.push(
             `Target mismatch for ${fileSpec.path} in site/public/r/${item.name}.json: expected ${fileSpec.target}, got ${builtFile.target}`,

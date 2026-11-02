@@ -429,22 +429,39 @@ await page.waitForSelector('#unit-test-fixtures');
     JSON.stringify(vetoState),
   );
 
-  // Stacked sibling Dialogs: Escape closes only the topmost dialog
+  // Stacked sibling Dialogs: Escape closes only the topmost dialog (both forward and reversed DOM opening order)
   await page.click('#test-dlg-under-open');
   await page.waitForSelector('#test-dlg-under[open]');
   await page.click('#test-dlg-top-open');
   await page.waitForSelector('#test-dlg-top[open]');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(80);
-  const stackState = await page.evaluate(() => ({
+  const stackForward = await page.evaluate(() => ({
     underOpen: document.querySelector('#test-dlg-under').open,
     topOpen: document.querySelector('#test-dlg-top').open,
   }));
   await page.click('#test-dlg-under-close');
+  await page.waitForSelector('#test-dlg-under:not([open])', { state: 'attached' });
+
+  // Reversed opening order: open #test-dlg-top (later in DOM) first, then #test-dlg-under (earlier in DOM) second
+  await page.evaluate(() => document.querySelector('#test-dlg-top-open').click());
+  await page.waitForSelector('#test-dlg-top[open]');
+  await page.evaluate(() => document.querySelector('#test-dlg-under-open').click());
+  await page.waitForSelector('#test-dlg-under[open]');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(80);
+  const stackReversed = await page.evaluate(() => ({
+    underOpen: document.querySelector('#test-dlg-under').open,
+    topOpen: document.querySelector('#test-dlg-top').open,
+  }));
+  await page.click('#test-dlg-top-close');
   check(
-    stackState.underOpen && !stackState.topOpen,
-    'Dialog stack: Escape dismisses only the topmost open modal and leaves underlying modal open',
-    JSON.stringify(stackState),
+    stackForward.underOpen &&
+      !stackForward.topOpen &&
+      !stackReversed.underOpen &&
+      stackReversed.topOpen,
+    'Dialog stack: Escape dismisses only the topmost open modal by opening order (forward and reversed DOM order)',
+    JSON.stringify({ stackForward, stackReversed }),
   );
 }
 
