@@ -61,9 +61,12 @@ export async function openGallery(
     writeFileSync(custom, html.replace('</head>', `<style>${css}</style></head>`));
     targetPath = custom;
   }
-  await page.goto(pathToFileURL(targetPath).href);
+  await page.goto(pathToFileURL(targetPath).href, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#root > *', { timeout: 15000 });
-  await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+  await Promise.race([
+    page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve())),
+    page.waitForTimeout(3000),
+  ]);
   await page.waitForTimeout(350);
   return { ctx, page, errors };
 }

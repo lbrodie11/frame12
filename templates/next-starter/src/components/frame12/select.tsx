@@ -125,9 +125,9 @@ export const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps
   ) {
     const field = React.useContext(SelectFieldContext);
     const portalContainer =
-      (field?.containerEl?.closest('dialog') as HTMLElement | null) ??
-      (field?.containerEl?.closest('.f12-frame') as HTMLElement | null) ??
-      undefined;
+      (field?.containerEl?.closest(
+        'dialog, .f12-frame, .f12-sheet, .f12-theme-dark, .f12-theme-light, [data-theme]',
+      ) as HTMLElement | null) ?? undefined;
 
     return (
       <SelectPrimitive.Portal container={portalContainer}>

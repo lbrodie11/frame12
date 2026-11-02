@@ -29,6 +29,8 @@ npx shadcn@latest add https://frame12.dev/r/panel-pair.json
 npx shadcn@latest add https://frame12.dev/r/tone-area-chart.json
 ```
 
+> **Local / Self-Hosted Registry:** `https://frame12.dev` is the default production registry origin (`NEXT_PUBLIC_SITE_URL`). When working locally before public domain deployment, serve `site/public/r/` (`npm --workspace=@frame12/site run dev`) and pass `http://localhost:3000/r/frame12.json` to `npx shadcn@latest add`, or start from `templates/next-starter/`.
+
 Import `styles/frame12.css` (or `styles/frame12-tailwind.css` for Tailwind CSS v4 `@theme` mappings) once at the root of your application. Every component works standalone with `frame12.css` without requiring Tailwind.
 
 ---

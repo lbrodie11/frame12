@@ -6,7 +6,7 @@ This report documents the Milestone 3 reproduction test for `skills/frame12/SKIL
 
 ## 1. Benchmark Setup
 
-Three product archetypes not present in the original Phase 1 prototype were specified as plain prompts in `eval/prompts/` and implemented in `eval/screens/` using only `skills/frame12/SKILL.md` and `@frame12/registry`:
+Three product archetypes not present in the original Phase 1 prototype were specified as plain prompts in `eval/prompts/` and implemented in-repo in `eval/screens/` following `skills/frame12/SKILL.md` and importing from `@/components/frame12` and `@/hooks/use-on-twos` (note: this is an in-repo rule-conformance and visual-family evaluation rather than an external multi-rater blind human study):
 
 | Screen | Prompt | Implementation | Next.js App Router Page | Standalone Bundle |
 | --- | --- | --- | --- | --- |

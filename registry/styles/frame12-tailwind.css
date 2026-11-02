@@ -19,9 +19,6 @@
   --font-display: var(--font-f-display);
   --font-sans: var(--font-f-body);
   --font-mono: var(--font-f-mono);
-  --font-f-display: var(--font-f-display);
-  --font-f-body: var(--font-f-body);
-  --font-f-mono: var(--font-f-mono);
 
   --spacing-gutter-pair: var(--f-gutter-pair);
   --spacing-gutter-scene: var(--f-gutter-scene);

@@ -23,6 +23,8 @@ npx shadcn@latest add https://frame12.dev/r/panel.json
 npx shadcn@latest add https://frame12.dev/r/tone-area-chart.json
 ```
 
+> **Note:** `https://frame12.dev` is the canonical production registry origin (pending public deployment in `launch/LAUNCH-CHECKLIST.md`). For local or pre-launch installation, run `npm --workspace=@frame12/site run dev` and install from `http://localhost:3000/r/frame12.json` (verified automatically by `node scripts/smoke-install.mjs`).
+
 Import `styles/frame12.css` (or `styles/frame12-tailwind.css` when using Tailwind v4) in your root layout. Every component works standalone with `frame12.css` without requiring Tailwind.
 
 ## Component Reference

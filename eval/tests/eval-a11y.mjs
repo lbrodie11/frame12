@@ -219,9 +219,12 @@ async function openScreen(
     });
   }
   const target = resolve(DIST_DIR, `${name}.html`);
-  await page.goto(pathToFileURL(target).href);
+  await page.goto(pathToFileURL(target).href, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#root > *', { timeout: 15000 });
-  await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+  await Promise.race([
+    page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve())),
+    page.waitForTimeout(3000),
+  ]);
   await page.waitForTimeout(350);
   return { ctx, page, errors };
 }
