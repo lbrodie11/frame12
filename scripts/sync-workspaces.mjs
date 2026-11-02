@@ -61,6 +61,19 @@ for (const relSkill of [
   });
 }
 
+// 6. site/src/fonts/*.woff2 -> templates/next-starter/src/fonts/*.woff2
+const fontsDir = path.join(ROOT, 'site/src/fonts');
+if (fs.existsSync(fontsDir)) {
+  for (const fontFile of fs.readdirSync(fontsDir)) {
+    if (fontFile.endsWith('.woff2')) {
+      FILE_MAPPINGS.push({
+        src: path.join(fontsDir, fontFile),
+        dest: path.join(ROOT, 'templates/next-starter/src/fonts', fontFile),
+      });
+    }
+  }
+}
+
 const legacyDir = path.join(ROOT, 'templates/next-starter/src/registry');
 
 if (checkOnly) {
@@ -75,9 +88,9 @@ if (checkOnly) {
       drifts.push(`Missing synced file: ${path.relative(ROOT, dest)}`);
       continue;
     }
-    const srcContent = fs.readFileSync(src, 'utf8');
-    const destContent = fs.readFileSync(dest, 'utf8');
-    if (srcContent !== destContent) {
+    const srcBuf = fs.readFileSync(src);
+    const destBuf = fs.readFileSync(dest);
+    if (!srcBuf.equals(destBuf)) {
       drifts.push(
         `Drift between ${path.relative(ROOT, src)} and ${path.relative(ROOT, dest)}`,
       );

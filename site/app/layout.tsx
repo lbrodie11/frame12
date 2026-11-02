@@ -1,30 +1,32 @@
 import type { Metadata } from 'next';
-import {
-  Dela_Gothic_One,
-  Zen_Kaku_Gothic_New,
-  M_PLUS_1_Code,
-} from 'next/font/google';
+import localFont from 'next/font/local';
 import '@/styles/frame12.css';
 import './site.css';
 import { SiteShell } from '@/components/site-shell';
 
-const delaGothicOne = Dela_Gothic_One({
+const delaGothicOne = localFont({
+  src: '../src/fonts/dela-gothic-one-400.woff2',
   weight: '400',
-  subsets: ['latin'],
   variable: '--font-f-display',
   display: 'swap',
 });
 
-const zenKakuGothicNew = Zen_Kaku_Gothic_New({
-  weight: ['400', '500', '700'],
-  subsets: ['latin'],
+const zenKakuGothicNew = localFont({
+  src: [
+    { path: '../src/fonts/zen-kaku-gothic-new-400.woff2', weight: '400', style: 'normal' },
+    { path: '../src/fonts/zen-kaku-gothic-new-500.woff2', weight: '500', style: 'normal' },
+    { path: '../src/fonts/zen-kaku-gothic-new-700.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-f-body',
   display: 'swap',
 });
 
-const mPlus1Code = M_PLUS_1_Code({
-  weight: ['400', '500', '700'],
-  subsets: ['latin'],
+const mPlus1Code = localFont({
+  src: [
+    { path: '../src/fonts/m-plus-1-code-400.woff2', weight: '400', style: 'normal' },
+    { path: '../src/fonts/m-plus-1-code-500.woff2', weight: '500', style: 'normal' },
+    { path: '../src/fonts/m-plus-1-code-700.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-f-mono',
   display: 'swap',
 });
