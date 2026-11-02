@@ -16,9 +16,10 @@ import {
   TableHead,
   TableCell,
   TableCaption,
-} from '@frame12/registry';
+} from '@/components/frame12';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
+import { REGISTRY_BASE_URL } from '@/lib/config';
 
 type PromptKey = 'settings' | 'landing' | 'table';
 
@@ -37,7 +38,7 @@ const EXAMPLE_PROMPTS: Record<
     file: 'eval/prompts/01-settings.md',
     summary:
       'Environment switcher, validated threshold input with marker alert, paired delivery health KPIs (12px slanted gutter), API keys table, and revocation modal.',
-    promptText: `Build a workspace and notification settings page for a checkout recovery SaaS product using @frame12/registry and following skills/frame12/SKILL.md.
+    promptText: `Build a workspace and notification settings page for a checkout recovery SaaS product using @/components/frame12 and following skills/frame12/SKILL.md.
 1. Sheet Header: registration pegs, eyebrow tags, title "Workspace & Dispatch Settings", and SegmentedControl for Production / Staging / Sandbox.
 2. Scene 1 (gutter="scene", layout="split"):
    - Panel 1 (establishing): Input fields for Workspace display name, Alert lift threshold (%) with validation alert when < 10, Webhook endpoint URL, Select for Primary delivery channel, and Save/Reset buttons with a Tooltip.
@@ -51,7 +52,7 @@ const EXAMPLE_PROMPTS: Record<
     file: 'eval/prompts/02-landing-hero.md',
     summary:
       'Display headline, 7/30/90-day live interactive recovery showcase, paired margin & lift KPIs, capability comparison ToneBarList, and trial onboarding modal.',
-    promptText: `Build a product landing page hero, live interactive metric/chart showcase, and feature breakdown using @frame12/registry and following skills/frame12/SKILL.md.
+    promptText: `Build a product landing page hero, live interactive metric/chart showcase, and feature breakdown using @/components/frame12 and following skills/frame12/SKILL.md.
 1. Sheet Header: registration pegs, Tag ("Release 2.4"), Badge ("On Twos · 12fps"), headline "Checkout Recovery Drawn in Ink", and 7/30/90-day SegmentedControl.
 2. Scene 1 (gutter="scene", layout="split"):
    - Panel 1: big Metric ("Recovered checkout revenue") + ToneAreaChart with 45° screentone fill, speech-balloon peak callout, and collapsible data table.
@@ -65,7 +66,7 @@ const EXAMPLE_PROMPTS: Record<
     file: 'eval/prompts/03-data-table.md',
     summary:
       'Multi-criteria filter bar, semantic order recovery table, stepped count-up summary KPIs, channel share ToneBarList, and webhook replay dialog.',
-    promptText: `Build an order recovery ledger data table screen with multi-criteria filtering, summary KPIs, and row inspection using @frame12/registry and following skills/frame12/SKILL.md.
+    promptText: `Build an order recovery ledger data table screen with multi-criteria filtering, summary KPIs, and row inspection using @/components/frame12 and following skills/frame12/SKILL.md.
 1. Sheet Header: registration pegs, title "Order Recovery Ledger", and SegmentedControl to filter by All / Recovered / Pending / Holdout.
 2. Scene 1 (gutter="scene", layout="split"):
    - Panel 1: Filter bar (Search Input, Channel Select, Export DropdownMenu, Reset Button) + semantic Table of order dispatches.
@@ -105,7 +106,7 @@ const EIGHT_RULES = [
   {
     num: '06',
     rule: 'Accessibility (WCAG AA)',
-    spec: '4.5:1 body / 3:1 large text contrast in light & dark themes, visible :focus-visible outline, named controls, and a <details className="tbl"> table for every chart.',
+    spec: '4.5:1 body / 3:1 large text contrast in light & dark themes, visible :focus-visible outline, named controls, and a <details className="f12-tbl"> table for every chart.',
   },
   {
     num: '07',
@@ -115,7 +116,7 @@ const EIGHT_RULES = [
   {
     num: '08',
     rule: 'Zero external chart or motion libraries',
-    spec: 'Do not import recharts, chart.js, d3, framer-motion, or gsap. Use @frame12/registry components and hooks.',
+    spec: 'Do not import recharts, chart.js, d3, framer-motion, or gsap. Use @/components/frame12 and @/hooks/use-on-twos.',
   },
 ];
 
@@ -126,13 +127,13 @@ export default function AgentsPage() {
 
   return (
     <Sheet pegs motion={motion} theme={theme}>
-      <header className="hd">
-        <div className="hd-text">
-          <p className="eyebrow">
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">
             AI Agent Skill · Static Rule Linter · Reproduction Eval
             <Tag>skills/frame12/SKILL.md</Tag>
           </p>
-          <h1 className="title">FRAME/12 for coding agents</h1>
+          <h1 className="f12-title">FRAME/12 for coding agents</h1>
           <p className="f12-muted-copy">
             Most design systems degrade into generic cards and arbitrary spacing after two prompts.
             FRAME/12 pairs a compact agent skill (<code className="f12-code-inline">SKILL.md</code>)
@@ -219,8 +220,8 @@ export default function AgentsPage() {
                 </p>
                 <CopyCommand
                   id="agents-copy-registry"
-                  label="Install @frame12/registry"
-                  command="npx shadcn@latest add https://frame12.dev/r/frame12.json"
+                  label="Install FRAME/12 registry"
+                  command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/frame12.json`}
                 />
               </div>
             ),
@@ -322,13 +323,13 @@ export default function AgentsPage() {
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Badge burst={false}>eval/RESULTS.md</Badge>
-              <span className="f12-mono-note">3 product archetypes · 14/14 linter unit tests</span>
+              <span className="f12-mono-note">3 product archetypes · 17/17 linter unit tests</span>
             </div>
             <h2 className="f12-section-title">Reproduction benchmark matrix</h2>
             <p className="f12-muted-copy">
               Three non-dashboard product archetypes were built from plain prompts using only{' '}
               <code className="f12-code-inline">SKILL.md</code> and{' '}
-              <code className="f12-code-inline">@frame12/registry</code>, then audited across
+              <code className="f12-code-inline">@/components/frame12</code>, then audited across
               desktop (1280px) and mobile (390px) viewports in light and dark themes.
             </p>
             <Table>
@@ -375,10 +376,10 @@ export default function AgentsPage() {
                   <TableCell>Pass</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell>Visible :focus-visible (18 stops)</TableCell>
-                  <TableCell>18/18</TableCell>
-                  <TableCell>18/18</TableCell>
-                  <TableCell>18/18</TableCell>
+                  <TableCell>Visible :focus-visible (all tab stops)</TableCell>
+                  <TableCell>100%</TableCell>
+                  <TableCell>100%</TableCell>
+                  <TableCell>100%</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>1280px & 390px zero overflow</TableCell>

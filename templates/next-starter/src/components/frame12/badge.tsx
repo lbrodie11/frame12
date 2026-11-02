@@ -25,23 +25,24 @@ export function Burst() {
     );
   }
   return (
-    <svg className="burst" viewBox="-20 -12 100 52" aria-hidden="true">
+    <svg className="f12-burst" viewBox="-20 -12 100 52" aria-hidden="true">
       {lines}
     </svg>
   );
 }
 
-export function Badge({
-  pop = false,
-  burst = true,
-  className = '',
-  children,
-  ...rest
-}: BadgeProps) {
+export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(function Badge(
+  { pop = false, burst = true, className = '', children, ...rest },
+  ref,
+) {
   return (
-    <span className={`badge${pop ? ' pop' : ''}${className ? ` ${className}` : ''}`} {...rest}>
+    <span
+      ref={ref}
+      className={`f12-badge${pop ? ' f12-pop pop' : ''}${className ? ` ${className}` : ''}`}
+      {...rest}
+    >
       {burst && <Burst />}
-      <span className="badge-t">{children}</span>
+      <span className="f12-badge-t">{children}</span>
     </span>
   );
-}
+});

@@ -29,7 +29,9 @@ body {
 }
 
 .theme-light,
-.theme-dark {
+.theme-dark,
+.f12-theme-light,
+.f12-theme-dark {
   background-color: var(--f-desk);
   color: var(--f-ink);
 }

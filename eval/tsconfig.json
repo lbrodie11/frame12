@@ -14,9 +14,10 @@
     "jsx": "preserve",
     "incremental": false,
     "paths": {
-      "@frame12/registry": ["../registry/index.ts"],
+      "@/components/frame12": ["../registry/ui/index.ts"],
+      "@/components/frame12/*": ["../registry/ui/*"],
       "@/hooks/*": ["../registry/hooks/*"],
-      "@/components/ui/*": ["../registry/ui/*"]
+      "@/styles/*": ["../registry/styles/*"]
     }
   },
   "include": [
@@ -25,6 +26,7 @@
     "next-app/**/*.ts",
     "next-app/**/*.tsx",
     "../registry/index.ts",
+    "../registry/ui/index.ts",
     "../registry/hooks/**/*.ts",
     "../registry/ui/**/*.tsx"
   ],

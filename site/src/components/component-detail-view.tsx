@@ -14,7 +14,7 @@ import {
   TableHead,
   TableCell,
   TableCaption,
-} from '@frame12/registry';
+} from '@/components/frame12';
 import type { CatalogEntry } from '@/lib/catalog';
 import { useSiteSettings } from '@/components/site-shell';
 import { ComponentPreview } from '@/components/component-preview';
@@ -26,14 +26,14 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
 
   return (
     <Sheet pegs motion={motion} theme={theme}>
-      <header className="hd">
-        <div className="hd-text">
-          <p className="eyebrow">
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">
             {entry.category}
             <Tag>{entry.sourceFile}</Tag>
             <span>/r/{entry.slug}.json</span>
           </p>
-          <h1 className="title">{entry.title}</h1>
+          <h1 className="f12-title">{entry.title}</h1>
           <p className="f12-muted-copy">{entry.summary}</p>
         </div>
         <div className="f12-row-pair">
@@ -49,7 +49,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
             <div className="f12-row-between">
               <div className="f12-row-pair">
                 <Tag>Light · Paper</Tag>
-                <span className="f12-mono-note">.theme-light</span>
+                <span className="f12-mono-note">.f12-theme-light</span>
               </div>
               <span className="f12-mono-note">Interactive preview</span>
             </div>
@@ -62,7 +62,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
             <div className="f12-row-between">
               <div className="f12-row-pair">
                 <Tag>Dark · Flashback</Tag>
-                <span className="f12-mono-note">.theme-dark</span>
+                <span className="f12-mono-note">.f12-theme-dark</span>
               </div>
               <span className="f12-mono-note">Interactive preview</span>
             </div>
@@ -87,7 +87,12 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
               <div className="f12-cmd-head">
                 <span className="f12-cmd-label">Usage example ({entry.title})</span>
               </div>
-              <pre className="f12-cmd-pre">
+              <pre
+                className="f12-cmd-pre"
+                tabIndex={0}
+                role="region"
+                aria-label={`Usage example (${entry.title})`}
+              >
                 <code>{entry.usageTemplate}</code>
               </pre>
             </div>
@@ -135,7 +140,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
             <h2 className="f12-section-title">Props & TypeScript API</h2>
             <Table>
               <TableCaption>
-                Exported from @frame12/registry ({entry.sourceFile})
+                Exported from @/components/frame12 ({entry.sourceFile})
               </TableCaption>
               <TableHeader>
                 <TableRow>

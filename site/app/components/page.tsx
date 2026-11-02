@@ -15,10 +15,11 @@ import {
   TableHead,
   TableCell,
   TableCaption,
-} from '@frame12/registry';
+} from '@/components/frame12';
 import { CATALOG, type ComponentCategory } from '@/lib/catalog';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
+import { REGISTRY_BASE_URL } from '@/lib/config';
 
 function CategoryTable({
   category,
@@ -73,13 +74,13 @@ export default function ComponentsIndexPage() {
 
   return (
     <Sheet pegs motion={motion} theme={theme}>
-      <header className="hd">
-        <div className="hd-text">
-          <p className="eyebrow">
-            @frame12/registry · shadcn-compatible JSON
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">
+            @/components/frame12 · shadcn-compatible JSON
             <Tag>20 Registry Items</Tag>
           </p>
-          <h1 className="title">Components & adapters</h1>
+          <h1 className="f12-title">Components & adapters</h1>
           <p className="f12-muted-copy">
             Copy-in React + TypeScript components, motion hooks, and accessible primitive adapters.
             Every component works standalone with <code className="f12-code-inline">frame12.css</code>{' '}
@@ -108,7 +109,7 @@ export default function ComponentsIndexPage() {
             <CopyCommand
               id="comp-copy-bundle"
               label="Install full FRAME/12 registry bundle"
-              command="npx shadcn@latest add https://frame12.dev/r/frame12.json"
+              command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/frame12.json`}
             />
           </div>
         </Panel>
@@ -174,8 +175,7 @@ export default function ComponentsIndexPage() {
             <h2 className="f12-section-title">12fps motion hooks & accessible primitive skins</h2>
             <Table>
               <TableCaption>
-                Motion hooks and thin adapters that declare shadcn registryDependencies while
-                enforcing FRAME/12 ink rules.
+                Motion hooks and accessible Radix/native primitive adapters styled with FRAME/12 ink rules.
               </TableCaption>
               <TableHeader>
                 <TableRow>

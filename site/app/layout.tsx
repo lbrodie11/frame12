@@ -4,7 +4,7 @@ import {
   Zen_Kaku_Gothic_New,
   M_PLUS_1_Code,
 } from 'next/font/google';
-import '../../registry/styles/frame12.css';
+import '@/styles/frame12.css';
 import './site.css';
 import { SiteShell } from '@/components/site-shell';
 

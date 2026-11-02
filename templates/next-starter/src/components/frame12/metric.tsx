@@ -23,16 +23,18 @@ export function Delta({ value, kind = 'pct', comparisonLabel, range }: DeltaProp
   const refLabel = comparisonLabel ?? (range != null ? `vs prior ${range} days` : undefined);
 
   return (
-    <p className={`delta ${dir}`}>
-      <span className="delta-sym" aria-hidden="true">
+    <p className={`f12-delta ${dir}`}>
+      <span className="f12-delta-sym" aria-hidden="true">
         {sym}
       </span>
-      <span className="sr-only">{flat ? '' : up ? 'Up ' : 'Down '}</span>
+      <span className="f12-sr-only">{flat ? '' : up ? 'Up ' : 'Down '}</span>
       {text}
-      {refLabel && <span className="delta-ref"> {refLabel}</span>}
+      {refLabel && <span className="f12-delta-ref"> {refLabel}</span>}
     </p>
   );
 }
+
+export type MetricHeadingLevel = 'h2' | 'h3' | 'h4' | 'div' | 'p';
 
 export interface MetricProps {
   label: string;
@@ -46,6 +48,7 @@ export interface MetricProps {
   big?: boolean;
   motion?: MotionMode;
   spark?: React.ReactNode;
+  headingLevel?: MetricHeadingLevel;
   className?: string;
 }
 
@@ -61,21 +64,22 @@ export function Metric({
   big = false,
   motion = 'stepped',
   spark,
+  headingLevel: HeadingTag = 'h2',
   className = '',
 }: MetricProps) {
   const shown = useCountUp(value, motion);
 
   return (
-    <div className={`metric${big ? ' big' : ''}${className ? ` ${className}` : ''}`}>
-      <h3 className="m-label">{label}</h3>
-      <p className="m-value" aria-live="polite">
-        <span className="sr-only">{format(value)}</span>
+    <div className={`f12-metric${big ? ' big' : ''}${className ? ` ${className}` : ''}`}>
+      <HeadingTag className="f12-m-label">{label}</HeadingTag>
+      <p className="f12-m-value" aria-live="polite">
+        <span className="f12-sr-only">{format(value)}</span>
         <span aria-hidden="true">{format(shown)}</span>
       </p>
       {delta != null && (
         <Delta value={delta} kind={deltaKind} comparisonLabel={comparisonLabel} range={range} />
       )}
-      {note && <p className="m-note">{note}</p>}
+      {note && <p className="f12-m-note">{note}</p>}
       {spark}
     </div>
   );

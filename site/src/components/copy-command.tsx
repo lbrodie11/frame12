@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Button } from '@frame12/registry';
+import { Button } from '@/components/frame12';
 
 export interface CopyCommandProps {
   command: string;
@@ -35,7 +35,7 @@ export function CopyCommand({ command, label = 'Install command', id }: CopyComm
           {copied ? 'Copied' : 'Copy'}
         </Button>
       </div>
-      <pre className="f12-cmd-pre">
+      <pre className="f12-cmd-pre" tabIndex={0} role="region" aria-label={`${label} code`}>
         <code>{command}</code>
       </pre>
     </div>

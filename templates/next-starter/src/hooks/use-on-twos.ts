@@ -32,32 +32,52 @@ export function useSize(ref: { readonly current: HTMLElement | null }): { w: num
   return size;
 }
 
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+function subscribeReducedMotion(onStoreChange: () => void): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return () => {};
+  }
+  const q = window.matchMedia(REDUCED_MOTION_QUERY);
+  if (q.addEventListener) {
+    q.addEventListener('change', onStoreChange);
+    return () => q.removeEventListener('change', onStoreChange);
+  }
+  q.addListener(onStoreChange);
+  return () => q.removeListener(onStoreChange);
+}
+
+function getReducedMotionSnapshot(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
+}
+
+function getReducedMotionServerSnapshot(): boolean {
+  return false;
+}
+
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = React.useState<boolean>(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  });
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const q = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduced(q.matches);
-    const on = () => setReduced(q.matches);
-    if (q.addEventListener) {
-      q.addEventListener('change', on);
-      return () => q.removeEventListener('change', on);
-    }
-    q.addListener(on);
-    return () => q.removeListener(on);
-  }, []);
-
-  return reduced;
+  return React.useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot,
+  );
 }
 
 /**
  * Progress 0..1 that replays whenever `key` changes.
- * Stepped mode samples the easing curve at 12 poses per second (83.33ms per pose),
- * like an animation spacing chart. Honors `prefers-reduced-motion: reduce`.
+ *
+ * Stepped mode samples the cubic-out easing curve at 12 poses per second
+ * (`FRAME_MS = 1000 / 12 = 83.33ms` per pose), like an animation exposure sheet
+ * ("on twos"). Pose 1 (`k = 1`, `t = 1 / frames`) is displayed immediately at
+ * `elapsed = 0` (`Math.floor(el / FRAME_MS) + 1`) so the element visibly steps
+ * on the exact interaction frame rather than sitting at 0 for 83.33ms, and each
+ * subsequent pose is held for a full 83.33ms interval until `frames` poses complete.
+ *
+ * Only changes to `key` trigger a new tween; changing `duration` or `motion`
+ * alone keeps the current resting state. Honors `prefers-reduced-motion: reduce`.
  */
 export function useOnTwos(
   key: unknown,
@@ -67,27 +87,31 @@ export function useOnTwos(
   const reduced = useReducedMotion();
   const effectiveMotion: MotionMode = reduced ? 'cut' : motion;
   const [p, setP] = React.useState<number>(1);
-  const first = React.useRef<boolean>(true);
+  const prevKeyRef = React.useRef<unknown>(key);
+  const frames = Math.max(2, Math.round(duration / FRAME_MS));
+  const initialP =
+    effectiveMotion === 'cut' ? 1 : effectiveMotion === 'stepped' ? easeOut(1 / frames) : 0;
 
   useIsoLayoutEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
     if (effectiveMotion === 'cut') {
+      prevKeyRef.current = key;
       setP(1);
       return;
     }
+    if (Object.is(prevKeyRef.current, key)) {
+      return;
+    }
+    prevKeyRef.current = key;
     const start = performance.now();
-    const frames = Math.max(2, Math.round(duration / FRAME_MS));
+    const totalFrames = Math.max(2, Math.round(duration / FRAME_MS));
     let raf = 0;
     let last = -1;
     const tick = (now: number) => {
       const el = now - start;
       let t: number;
       if (effectiveMotion === 'stepped') {
-        const k = Math.min(frames, Math.floor(el / FRAME_MS) + 1);
-        t = k / frames;
+        const k = Math.min(totalFrames, Math.floor(el / FRAME_MS) + 1);
+        t = k / totalFrames;
       } else {
         t = Math.min(1, el / duration);
       }
@@ -98,12 +122,13 @@ export function useOnTwos(
       }
       if (t < 1) raf = requestAnimationFrame(tick);
     };
-    setP(effectiveMotion === 'stepped' ? easeOut(1 / frames) : 0);
+    setP(effectiveMotion === 'stepped' ? easeOut(1 / totalFrames) : 0);
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [key, duration, effectiveMotion]);
 
-  return p;
+  const isNewKey = !Object.is(prevKeyRef.current, key);
+  return isNewKey ? initialP : p;
 }
 
 export const useTween = useOnTwos;
@@ -115,12 +140,15 @@ export function useCountUp(
 ): number {
   const prev = React.useRef<number>(value);
   const from = React.useRef<number>(value);
-  if (prev.current !== value) {
-    from.current = prev.current;
+  const displayedRef = React.useRef<number>(value);
+  if (!Object.is(prev.current, value)) {
+    from.current = displayedRef.current;
     prev.current = value;
   }
   const p = useOnTwos(value, duration, motion);
-  return from.current + (value - from.current) * p;
+  const current = from.current + (value - from.current) * p;
+  displayedRef.current = current;
+  return current;
 }
 
 /**

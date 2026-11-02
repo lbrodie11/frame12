@@ -1,3 +1,5 @@
+import { REGISTRY_BASE_URL } from '@/lib/config';
+
 export type ComponentCategory =
   | 'Layout'
   | 'Controls'
@@ -33,7 +35,7 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
   'Primitive Adapters',
 ];
 
-export const CATALOG: CatalogEntry[] = [
+const RAW_CATALOG: CatalogEntry[] = [
   {
     slug: 'sheet',
     title: 'Sheet',
@@ -53,19 +55,19 @@ export const CATALOG: CatalogEntry[] = [
         name: 'motion',
         type: "'stepped' | 'smooth' | 'cut'",
         defaultValue: "'stepped'",
-        description: 'Sets the active motion grammar class (.m-stepped, .m-smooth, or .m-cut).',
+        description: 'Sets the active motion grammar class (.f12-m-stepped, .f12-m-smooth, or .f12-m-cut).',
       },
       {
         name: 'theme',
         type: "'light' | 'dark' | undefined",
         defaultValue: 'undefined',
-        description: 'Optional explicit theme override (.theme-light or .theme-dark).',
+        description: 'Optional explicit theme override (.f12-theme-light or .f12-theme-dark).',
       },
       {
         name: 'sheetClassName',
         type: 'string',
         defaultValue: "''",
-        description: 'Additional class names applied to the inner .sheet surface.',
+        description: 'Additional class names applied to the inner .f12-sheet surface.',
       },
     ],
     a11yNotes: [
@@ -76,7 +78,7 @@ export const CATALOG: CatalogEntry[] = [
       'Establishes a 32px (--f-gutter-change) vertical gap between the header and each Scene.',
       'Frames the white paper sheet (--f-sheet) against the outer worktable desk (--f-desk).',
     ],
-    usageTemplate: `import { Sheet, Scene, Panel } from '@frame12/registry';
+    usageTemplate: `import { Sheet, Scene, Panel } from '@/components/frame12';
 
 export function OverviewSheet() {
   return (
@@ -120,7 +122,7 @@ export function OverviewSheet() {
       'Arbitrary gaps (8px, 16px, 24px) are forbidden by check-frame12.mjs; always use Scene gutter props.',
       'Use layout="split" (2fr 1fr) when pairing an establishing C-01 panel with a PanelPair.',
     ],
-    usageTemplate: `import { Scene, Panel } from '@frame12/registry';
+    usageTemplate: `import { Scene, Panel } from '@/components/frame12';
 
 export function SplitScene() {
   return (
@@ -167,12 +169,12 @@ export function SplitScene() {
       'Cut numbers must increment sequentially (C-01, C-02, C-03…) in reading and DOM order.',
       'Never replace Panel with a rounded card or drop-shadow box.',
     ],
-    usageTemplate: `import { Panel, Metric, fmtMoney } from '@frame12/registry';
+    usageTemplate: `import { Panel, Metric, fmtCurrency } from '@/components/frame12';
 
 export function RevenuePanel() {
   return (
     <Panel label="Recovered revenue">
-      <Metric label="Recovered revenue" value={120054} format={fmtMoney} big />
+      <Metric label="Recovered revenue" value={120054} format={fmtCurrency} big />
     </Panel>
   );
 }`,
@@ -213,12 +215,12 @@ export function RevenuePanel() {
       'Encodes "these two metrics belong together" via a 12px (--f-gutter-pair) slanted gutter.',
       'Always pairs slant-bottom on top with slant-top on the bottom.',
     ],
-    usageTemplate: `import { PanelPair, Metric, fmtMoney, fmtPP } from '@frame12/registry';
+    usageTemplate: `import { PanelPair, Metric, fmtCurrency, fmtPP } from '@/components/frame12';
 
 export function PairedMetrics() {
   return (
     <PanelPair
-      top={{ label: 'Profit', children: <Metric label="Incremental profit" value={38420} format={fmtMoney} /> }}
+      top={{ label: 'Profit', children: <Metric label="Incremental profit" value={38420} format={fmtCurrency} /> }}
       bottom={{ label: 'Lift', children: <Metric label="Conversion lift" value={0.51} format={fmtPP} /> }}
     />
   );
@@ -269,10 +271,10 @@ export function PairedMetrics() {
       'Provides a 3px solid --f-marker inset focus ring on :focus-visible.',
     ],
     grammarNotes: [
-      'In .m-stepped mode, the indicator transitions with steps(3, end) over 250ms (3 held poses at 83.33ms).',
+      'In .f12-m-stepped mode, the indicator transitions with steps(3, end) over 250ms (3 held poses at 83.33ms).',
       'Uses mix-blend-mode: difference so text covered by the indicator remains legible at every intermediate pose.',
     ],
-    usageTemplate: `import { SegmentedControl } from '@frame12/registry';
+    usageTemplate: `import { SegmentedControl } from '@/components/frame12';
 
 export function RangeSelector({ range, setRange }: { range: number; setRange: (r: number) => void }) {
   return (
@@ -319,7 +321,7 @@ export function RangeSelector({ range, setRange }: { range: number; setRange: (r
       'Hover state applies a hard 3px 3px 0 var(--f-rule) offset shadow immediately (0ms latency).',
       'Disabled buttons switch to a dashed ink border with --f-ink-2 text.',
     ],
-    usageTemplate: `import { Button } from '@frame12/registry';
+    usageTemplate: `import { Button } from '@/components/frame12';
 
 export function ActionRow() {
   return (
@@ -367,7 +369,7 @@ export function ActionRow() {
       'Uses a 2.5px solid --f-rule square border with zero border-radius.',
       'Error flags use --f-marker background under bold --f-marker-ink text.',
     ],
-    usageTemplate: `import { Input } from '@frame12/registry';
+    usageTemplate: `import { Input } from '@/components/frame12';
 
 export function WebhookField() {
   return (
@@ -408,7 +410,7 @@ export function WebhookField() {
     grammarNotes: [
       'Pair pop={changed} with useChanged(key) so the impact burst fires only on user-triggered changes, never on initial page load.',
     ],
-    usageTemplate: `import { Badge } from '@frame12/registry';
+    usageTemplate: `import { Badge } from '@/components/frame12';
 
 export function LeaderBadge() {
   return <Badge pop burst>Top performer</Badge>;
@@ -436,7 +438,7 @@ export function LeaderBadge() {
     grammarNotes: [
       'Marker yellow flags metadata and status callouts; it is never used as a text color or line stroke.',
     ],
-    usageTemplate: `import { Tag } from '@frame12/registry';
+    usageTemplate: `import { Tag } from '@/components/frame12';
 
 export function EyebrowTag() {
   return <Tag>Example data</Tag>;
@@ -455,7 +457,7 @@ export function EyebrowTag() {
         name: 'label',
         type: 'string',
         defaultValue: 'required',
-        description: 'Uppercase monospace metric heading (.m-label).',
+        description: 'Uppercase monospace metric heading (.f12-m-label).',
       },
       {
         name: 'value',
@@ -466,7 +468,7 @@ export function EyebrowTag() {
       {
         name: 'format',
         type: '(value: number) => string',
-        defaultValue: 'fmtMoney',
+        defaultValue: 'fmtCurrency',
         description: 'Formatter function converting numeric values to display strings.',
       },
       {
@@ -495,20 +497,20 @@ export function EyebrowTag() {
       },
     ],
     a11yNotes: [
-      'Exposes the final formatted value inside .sr-only while hiding intermediate count-up frames with aria-hidden="true" so screen readers announce the change once.',
+      'Exposes the final formatted value inside .f12-sr-only while hiding intermediate count-up frames with aria-hidden="true" so screen readers announce the change once.',
       'Includes "Up" or "Down" screen-reader text alongside the ▲ / ▼ delta symbol.',
     ],
     grammarNotes: [
       'Uses tabular-nums so numerals never jitter horizontally while counting on twos.',
     ],
-    usageTemplate: `import { Metric, fmtMoney } from '@frame12/registry';
+    usageTemplate: `import { Metric, fmtCurrency } from '@/components/frame12';
 
 export function HeroKpi() {
   return (
     <Metric
       label="Recovered revenue"
       value={120054}
-      format={fmtMoney}
+      format={fmtCurrency}
       delta={0.114}
       deltaKind="pct"
       range={30}
@@ -522,7 +524,7 @@ export function HeroKpi() {
     title: 'ToneAreaChart',
     category: 'Data & Charts',
     summary:
-      'Screentone halftone area chart with luminance fade mask, speech-balloon peak callout, keyboard/pointer crosshair, and collapsible data table.',
+      'Screentone halftone area chart with 4-band dot-density fade, speech-balloon peak callout, keyboard/pointer crosshair, and collapsible data table.',
     registryUrl: 'https://frame12.dev/r/tone-area-chart.json',
     sourceFile: 'registry/ui/tone-area-chart.tsx',
     props: [
@@ -535,7 +537,7 @@ export function HeroKpi() {
       {
         name: 'seriesLabel',
         type: 'string',
-        defaultValue: "'Total'",
+        defaultValue: "'Value'",
         description: 'Primary series label shown in the crosshair readout and table header.',
       },
       {
@@ -559,20 +561,20 @@ export function HeroKpi() {
     ],
     a11yNotes: [
       'Focusable SVG (tabIndex={0}) supports ArrowLeft, ArrowRight, and Escape for full keyboard inspection.',
-      'Always includes a collapsible <details className="tbl"> table with <th scope="col"> headers.',
+      'Always includes a collapsible <details className="f12-tbl"> table with <th scope="col"> headers.',
     ],
     grammarNotes: [
-      'Replaces CSS/SVG color gradients with a 45° rotated screentone dot pattern masked by a vertical luminance fade.',
+      'Replaces CSS/SVG color gradients with four vertical 45° rotated screentone dot-radius bands (1.25px to 0.62px).',
       'Peak annotation is a speech balloon with a mitered tail pointing to the marker-yellow peak dot.',
     ],
-    usageTemplate: `import { ToneAreaChart, fmtMoney } from '@frame12/registry';
+    usageTemplate: `import { ToneAreaChart, fmtCurrency } from '@/components/frame12';
 
 export function RecoveryTrend({ data }: { data: Array<{ label: string; value: number }> }) {
   return (
     <ToneAreaChart
       data={data}
       seriesLabel="Recovered revenue"
-      formatValue={fmtMoney}
+      formatValue={fmtCurrency}
       height={240}
     />
   );
@@ -609,7 +611,7 @@ export function RecoveryTrend({ data }: { data: Array<{ label: string; value: nu
         name: 'changed',
         type: 'boolean',
         defaultValue: 'false',
-        description: 'Triggers the 3-pose .enter list cascade and leader badge pop.',
+        description: 'Triggers the 3-pose .f12-enter list cascade and leader badge pop.',
       },
     ],
     a11yNotes: [
@@ -619,7 +621,7 @@ export function RecoveryTrend({ data }: { data: Array<{ label: string; value: nu
     grammarNotes: [
       'Unselected bars use a 5px × 5px halftone dot pattern (--f-tone) framed by a 2px ink rule.',
     ],
-    usageTemplate: `import { ToneBarList } from '@frame12/registry';
+    usageTemplate: `import { ToneBarList } from '@/components/frame12';
 
 export function ChannelBreakdown({ items }: { items: Array<{ id: string; name: string; value: number; share: number }> }) {
   return (
@@ -665,7 +667,7 @@ export function ChannelBreakdown({ items }: { items: Array<{ id: string; name: s
     grammarNotes: [
       'Uses a 4px × 4px rotated SVG pattern (#uid-st) with a 2px solid --f-rule baseline.',
     ],
-    usageTemplate: `import { ToneSpark } from '@frame12/registry';
+    usageTemplate: `import { ToneSpark } from '@/components/frame12';
 
 export function DailyProfitSpark() {
   return <ToneSpark label="Daily profit" values={[420, 510, 490, 610, 580, 640, 710]} rangeKey={7} />;
@@ -697,9 +699,9 @@ export function DailyProfitSpark() {
       'Keeps annotation text in the DOM while marking the decorative SVG tail aria-hidden="true".',
     ],
     grammarNotes: [
-      'Replaces floating shadow popovers with an inked speech balloon and seamless .balloon-gap bridge.',
+      'Replaces floating shadow popovers with an inked speech balloon and seamless .f12-balloon-gap bridge.',
     ],
-    usageTemplate: `import { Balloon } from '@frame12/registry';
+    usageTemplate: `import { Balloon } from '@/components/frame12';
 
 export function PeakCallout() {
   return <Balloon tailOffset={-8} showDot>Peak Oct 26 · $6,120</Balloon>;
@@ -740,7 +742,7 @@ export function PeakCallout() {
     grammarNotes: [
       'Quantizes elapsed time into FRAME_MS = 1000 / 12 (83.33ms) steps and applies cubic easeOut.',
     ],
-    usageTemplate: `import { useOnTwos, useCountUp, useChanged } from '@frame12/registry';
+    usageTemplate: `import { useOnTwos, useCountUp, useChanged } from '@/hooks/use-on-twos';
 
 export function AnimatedStat({ value }: { value: number }) {
   const shown = useCountUp(value, 'stepped', 600);
@@ -776,12 +778,12 @@ export function AnimatedStat({ value }: { value: number }) {
       'Links DialogTitle via aria-labelledby and supports Escape key + backdrop click dismissal.',
     ],
     grammarNotes: [
-      'Declares shadcn "dialog" in registryDependencies while styling the frame with 2.5px ink borders and a 6px × 6px screentone backdrop.',
+      'Installs into components/frame12/dialog.tsx with 2.5px ink borders and a 6px × 6px screentone backdrop without overwriting existing components/ui/ files.',
     ],
     usageTemplate: `import {
   Dialog, DialogTrigger, DialogContent, DialogHeader,
   DialogTitle, DialogDescription, DialogFooter, DialogClose,
-} from '@frame12/registry';
+} from '@/components/frame12';
 
 export function ConfirmModal() {
   return (
@@ -836,7 +838,7 @@ export function ConfirmModal() {
     grammarNotes: [
       'Uses a marker-yellow ▼ caret badge and a ✓ marker check on the selected option.',
     ],
-    usageTemplate: `import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@frame12/registry';
+    usageTemplate: `import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/frame12';
 
 export function ChannelSelect() {
   return (
@@ -880,7 +882,7 @@ export function ChannelSelect() {
     grammarNotes: [
       'Framed with a 2px solid --f-rule border and 3px 3px 0 var(--f-rule) offset shadow.',
     ],
-    usageTemplate: `import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent, Button } from '@frame12/registry';
+    usageTemplate: `import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent, Button } from '@/components/frame12';
 
 export function HoldoutHint() {
   return (
@@ -924,7 +926,7 @@ export function HoldoutHint() {
     usageTemplate: `import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem,
-} from '@frame12/registry';
+} from '@/components/frame12';
 
 export function RowActions() {
   return (
@@ -971,7 +973,7 @@ export function RowActions() {
     ],
     usageTemplate: `import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption, Tag,
-} from '@frame12/registry';
+} from '@/components/frame12';
 
 export function RecoveryTable() {
   return (
@@ -998,6 +1000,11 @@ export function RecoveryTable() {
 }`,
   },
 ];
+
+export const CATALOG: CatalogEntry[] = RAW_CATALOG.map((entry) => ({
+  ...entry,
+  registryUrl: `${REGISTRY_BASE_URL}/${entry.slug}.json`,
+}));
 
 export function getCatalogEntry(slug: string): CatalogEntry | undefined {
   return CATALOG.find((c) => c.slug === slug);

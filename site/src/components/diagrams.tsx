@@ -18,7 +18,7 @@ export function GrammarDiagram() {
   );
   const tag = (x: number, y: number, t: string) => (
     <g>
-      <rect x={x} y={y - 15} width={t.length * 7.4 + 16} height="22" className="g-tag" />
+      <rect x={x} y={y - 15} width={t.length * 7.4 + 16} height="22" className="f12-g-tag" />
       <text x={x + 8} y={y} className="g-tag-t">
         {t}
       </text>

@@ -32,9 +32,38 @@ const f12Plugin = {
       contents: 'module.exports = window.React;',
       loader: 'js',
     }));
-    b.onResolve({ filter: /^@frame12\/registry$/ }, () => ({
-      path: resolve(registryRoot, 'index.ts'),
+    b.onResolve({ filter: /^react-dom$/ }, () => ({
+      path: 'react-dom',
+      namespace: 'react-dom-global',
     }));
+    b.onLoad({ filter: /.*/, namespace: 'react-dom-global' }, () => ({
+      contents: 'module.exports = window.ReactDOM;',
+      loader: 'js',
+    }));
+    b.onResolve({ filter: /^react\/jsx-runtime$/ }, () => ({
+      path: 'react/jsx-runtime',
+      namespace: 'react-jsx-runtime-global',
+    }));
+    b.onLoad({ filter: /.*/, namespace: 'react-jsx-runtime-global' }, () => ({
+      contents: `
+        const React = window.React;
+        function jsx(type, config, maybeKey) {
+          if (maybeKey !== undefined) {
+            return React.createElement(type, Object.assign({}, config, { key: '' + maybeKey }));
+          }
+          return React.createElement(type, config);
+        }
+        module.exports = { jsx, jsxs: jsx, Fragment: React.Fragment };
+      `,
+      loader: 'js',
+    }));
+    b.onResolve({ filter: /^@\/components\/frame12$/ }, () => ({
+      path: resolve(registryRoot, 'ui/index.ts'),
+    }));
+    b.onResolve({ filter: /^@\/components\/frame12\/(.*)$/ }, (args) => {
+      const sub = args.path.replace(/^@\/components\/frame12\//, '');
+      return { path: resolve(registryRoot, 'ui', `${sub}.tsx`) };
+    });
     b.onResolve({ filter: /^@\/hooks\/(.*)$/ }, (args) => {
       const sub = args.path.replace(/^@\/hooks\//, '');
       return { path: resolve(registryRoot, 'hooks', `${sub}.ts`) };

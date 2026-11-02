@@ -12,6 +12,8 @@
     "test": "npm run build && npm run typecheck && node ../scripts/check-frame12.mjs src app && node tests/site-verify.mjs"
   },
   "dependencies": {
+    "@radix-ui/react-dropdown-menu": "^2.1.6",
+    "@radix-ui/react-select": "^2.1.6",
     "next": "^14.2.25",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

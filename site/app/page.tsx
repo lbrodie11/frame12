@@ -14,8 +14,9 @@ import {
   ToneSpark,
   Tag,
   Badge,
-  useChanged,
-} from '@frame12/registry';
+} from '@/components/frame12';
+import { useChanged } from '@/hooks/use-on-twos';
+import { REGISTRY_BASE_URL } from '@/lib/config';
 import {
   SUMMARIES,
   STORE,
@@ -75,14 +76,14 @@ export default function HomePage() {
 
   return (
     <Sheet pegs motion={motion} theme={theme}>
-      <header className="hd">
-        <div className="hd-text">
-          <p className="eyebrow">
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">
             {STORE}
             <Tag>Example data</Tag>
             <span>Through {END_LABEL}</span>
           </p>
-          <h1 className="title">Revenue recovery</h1>
+          <h1 className="f12-title">Revenue recovery</h1>
           <p className="f12-muted-copy">
             An interface language taken from page composition and cel-animation production:
             ink-framed panels, gutters whose width means something, screentone instead of gradients,
@@ -100,7 +101,7 @@ export default function HomePage() {
 
       <Scene gutter="scene" layout="split">
         <Panel cut="C-01" className="c01" label="Recovered revenue over time">
-          <div className="c01-hd">
+          <div className="f12-c01-hd">
             <Metric
               label="Recovered revenue"
               value={s.revenue}
@@ -112,18 +113,18 @@ export default function HomePage() {
               big
             />
             {focusItem ? (
-              <ul className="legend" aria-label="Chart legend" role="list">
+              <ul className="f12-legend" aria-label="Chart legend" role="list">
                 <li>
-                  <i className="sw sw-total" aria-hidden="true" />
+                  <i className="f12-sw f12-sw-total" aria-hidden="true" />
                   All interventions
                 </li>
                 <li>
-                  <i className="sw sw-focus" aria-hidden="true" />
+                  <i className="f12-sw f12-sw-focus" aria-hidden="true" />
                   {focusItem.name}
                 </li>
               </ul>
             ) : (
-              <p className="legend legend-hint">
+              <p className="f12-legend f12-legend-hint">
                 Select an intervention in C-04 to compare it with the total.
               </p>
             )}
@@ -131,6 +132,7 @@ export default function HomePage() {
           <ToneAreaChart
             data={chartData}
             seriesLabel="Recovered revenue"
+            labelColumnHeader="Date"
             compareLabel={focusItem?.name}
             formatValue={fmtMoney}
             formatShort={fmtMoneyShort}
@@ -280,7 +282,7 @@ export default function HomePage() {
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <div className="f12-stack-pair">
-                <p className="m-label">Ship FRAME/12 in your app or AI coding agent</p>
+                <p className="f12-m-label">Ship FRAME/12 in your app or AI coding agent</p>
                 <h2 className="f12-section-title">
                   Zero animation or chart dependencies. Pure copy-in source.
                 </h2>
@@ -297,7 +299,7 @@ export default function HomePage() {
             <CopyCommand
               id="home-copy-install"
               label="Full registry kit (shadcn CLI)"
-              command="npx shadcn@latest add https://frame12.dev/r/frame12.json"
+              command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/frame12.json`}
             />
           </div>
         </Panel>

@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
+import { type MotionMode, useChanged } from '@/hooks/use-on-twos';
 import {
-  type MotionMode,
-  useChanged,
   fmtMoney,
+  fmtCurrencyShort,
   Sheet,
   Scene,
   Panel,
@@ -40,7 +40,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from '@frame12/registry';
+} from '@/components/frame12';
 
 type WindowDays = 7 | 30 | 90;
 
@@ -191,17 +191,17 @@ export function LandingScreen({ initialTheme }: { initialTheme?: 'light' | 'dark
   return (
     <main className="eval-screen-root">
       <Sheet motion={motion} theme={theme} id="landing-sheet">
-        <header className="hd">
-          <div className="hd-text">
-            <p className="eyebrow">
+        <header className="f12-hd">
+          <div className="f12-hd-text">
+            <p className="f12-eyebrow">
               FRAME/12 Recovery Engine
               <Tag>Release 2.4</Tag>
               <Badge pop={changed} burst>
                 On Twos · 12fps
               </Badge>
             </p>
-            <h1 className="title">Checkout Recovery Drawn in Ink</h1>
-            <p className="sub" id="landing-status">
+            <h1 className="f12-title">Checkout Recovery Drawn in Ink</h1>
+            <p className="f12-sub" id="landing-status">
               Deterministic cart, exit-intent, and retry dispatches · {ctaStatus}
             </p>
           </div>
@@ -235,7 +235,7 @@ export function LandingScreen({ initialTheme }: { initialTheme?: 'light' | 'dark
 
         <Scene gutter="scene" layout="split" id="landing-scene-hero">
           <Panel cut="C-01" className="c01" label="Live checkout recovery showcase">
-            <div className="c01-hd">
+            <div className="f12-c01-hd">
               <Metric
                 label="Recovered checkout revenue"
                 value={dataset.revenue}
@@ -247,18 +247,18 @@ export function LandingScreen({ initialTheme }: { initialTheme?: 'light' | 'dark
                 big
               />
               {selectedCap ? (
-                <ul className="legend" aria-label="Chart series legend">
+                <ul className="f12-legend" aria-label="Chart series legend">
                   <li>
-                    <i className="sw sw-total" aria-hidden="true" />
+                    <i className="f12-sw f12-sw-total" aria-hidden="true" />
                     All capabilities
                   </li>
                   <li>
-                    <i className="sw sw-focus" aria-hidden="true" />
+                    <i className="f12-sw f12-sw-focus" aria-hidden="true" />
                     {selectedCap.name}
                   </li>
                 </ul>
               ) : (
-                <p className="legend legend-hint">
+                <p className="f12-legend f12-legend-hint">
                   Select a capability in C-04 to compare its daily trajectory.
                 </p>
               )}
@@ -266,8 +266,10 @@ export function LandingScreen({ initialTheme }: { initialTheme?: 'light' | 'dark
             <ToneAreaChart
               data={chartData}
               seriesLabel="Recovered revenue"
+              labelColumnHeader="Date"
               compareLabel={selectedCap?.name}
               formatValue={fmtMoney}
+              formatShort={fmtCurrencyShort}
               motion={motion}
               height={280}
             />
@@ -360,7 +362,7 @@ export function LandingScreen({ initialTheme }: { initialTheme?: 'light' | 'dark
                   gap: 'var(--f-gutter-pair)',
                 }}
               >
-                <h2 className="m-label">Production Craft &amp; SLA Guarantees</h2>
+                <h2 className="f12-m-label">Production Craft &amp; SLA Guarantees</h2>
                 <Balloon tailOffset={12}>Zero CLS · p99 &lt; 180ms</Balloon>
               </div>
 

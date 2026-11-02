@@ -4,7 +4,7 @@ import {
   Zen_Kaku_Gothic_New,
   M_PLUS_1_Code,
 } from 'next/font/google';
-import '../src/registry/styles/frame12.css';
+import '@/styles/frame12.css';
 
 const delaGothicOne = Dela_Gothic_One({
   weight: '400',

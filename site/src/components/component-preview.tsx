@@ -46,11 +46,13 @@ import {
   TableHead,
   TableCell,
   TableCaption,
+} from '@/components/frame12';
+import {
   useOnTwos,
   useCountUp,
   useChanged,
   type MotionMode,
-} from '@frame12/registry';
+} from '@/hooks/use-on-twos';
 import { SUMMARIES, fmtMoney, fmtMoneyShort, fmtPP, type RangeDays } from '@/lib/data';
 
 export interface ComponentPreviewProps {
@@ -84,7 +86,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
               </div>
             </div>
             <Scene gutter="scene" layout="stack">
-              <Panel label="Inside sheet panel">
+              <Panel label={`Inside sheet panel (${previewTheme})`}>
                 <p className="f12-body-copy">
                   A Sheet wraps scenes with top registration pegs and paper/flashback surfaces.
                 </p>
@@ -97,13 +99,13 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
         return (
           <div className="f12-preview-sheet">
             <Scene gutter="scene" layout="equal">
-              <Panel label="Left scene cell">
+              <Panel label={`Left scene cell (${previewTheme})`}>
                 <div className="f12-stack-pair">
                   <Tag>20px · scene</Tag>
                   <p className="f12-body-copy">Left cell in a same-scene grid.</p>
                 </div>
               </Panel>
-              <Panel label="Right scene cell">
+              <Panel label={`Right scene cell (${previewTheme})`}>
                 <div className="f12-stack-pair">
                   <Tag>20px · scene</Tag>
                   <p className="f12-body-copy">Right cell in a same-scene grid.</p>
@@ -116,7 +118,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
       case 'panel':
         return (
           <div className="f12-preview-sheet">
-            <Panel label="Mitered SVG ink panel">
+            <Panel label={`Mitered SVG ink panel (${previewTheme})`}>
               <div className="f12-stack-pair">
                 <div className="f12-row-pair">
                   <Tag>2.5px Ink Polygon</Tag>
@@ -141,7 +143,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
           <div className="f12-preview-sheet">
             <PanelPair
               top={{
-                label: 'Incremental profit',
+                label: `Incremental profit (${previewTheme})`,
                 children: (
                   <Metric
                     label="Incremental profit"
@@ -155,7 +157,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
                 ),
               }}
               bottom={{
-                label: 'Conversion lift',
+                label: `Conversion lift (${previewTheme})`,
                 children: (
                   <Metric
                     label="Conversion lift"
@@ -318,6 +320,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
                 value: d.total,
               }))}
               seriesLabel="Recovered revenue"
+              labelColumnHeader="Date"
               formatValue={fmtMoney}
               formatShort={fmtMoneyShort}
               motion={motion}
@@ -525,7 +528,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
   };
 
   return (
-    <div className={`f12-preview-frame theme-${previewTheme} m-${motion}`}>
+    <div className={`f12-preview-frame f12-theme-${previewTheme} f12-m-${motion}`}>
       {renderInner()}
     </div>
   );
