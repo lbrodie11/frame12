@@ -10,14 +10,25 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input(
-  { id, label, hint, error, className = '', fieldClassName = '', ...rest },
+  {
+    id,
+    label,
+    hint,
+    error,
+    className = '',
+    fieldClassName = '',
+    'aria-describedby': userDescribedBy,
+    'aria-invalid': userAriaInvalid,
+    ...rest
+  },
   ref,
 ) {
   const autoId = React.useId();
   const inputId = id || `f12-input-${autoId.replace(/:/g, '')}`;
   const hintId = hint ? `${inputId}-hint` : undefined;
   const errorId = error ? `${inputId}-error` : undefined;
-  const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
+  const describedBy =
+    [userDescribedBy, hintId, errorId].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className={`f12-field${fieldClassName ? ` ${fieldClassName}` : ''}`}>
@@ -29,7 +40,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
         id={inputId}
         className={`f12-input${className ? ` ${className}` : ''}`}
         aria-describedby={describedBy}
-        aria-invalid={error ? true : undefined}
+        aria-invalid={error ? true : userAriaInvalid}
         {...rest}
       />
       {hint && (

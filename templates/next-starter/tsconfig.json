@@ -19,9 +19,6 @@
       }
     ],
     "paths": {
-      "@frame12/registry": ["./src/registry/index.ts"],
-      "@/hooks/*": ["./src/registry/hooks/*"],
-      "@/components/ui/*": ["./src/registry/ui/*"],
       "@/*": ["./src/*"]
     }
   },

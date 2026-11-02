@@ -10,9 +10,10 @@ import {
   SegmentedControl,
   Tag,
   Badge,
-} from '@frame12/registry';
+} from '@/components/frame12';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
+import { REGISTRY_BASE_URL } from '@/lib/config';
 
 type SetupTrack = 'new' | 'existing';
 
@@ -21,31 +22,12 @@ const TRACK_OPTIONS: Array<{ value: SetupTrack; label: string; unit: string }> =
   { value: 'existing', label: 'Existing', unit: 'project' },
 ];
 
-const LAYOUT_FONT_SNIPPET = `import {
-  Dela_Gothic_One,
-  Zen_Kaku_Gothic_New,
-  M_PLUS_1_Code,
-} from 'next/font/google';
+const LAYOUT_FONT_SNIPPET = `import { Dela_Gothic_One, Zen_Kaku_Gothic_New, M_PLUS_1_Code } from 'next/font/google';
 import '@/styles/frame12.css';
 
-const displayFont = Dela_Gothic_One({
-  weight: '400',
-  subsets: ['latin'],
-  variable: '--font-f-display',
-  display: 'swap',
-});
-const bodyFont = Zen_Kaku_Gothic_New({
-  weight: ['400', '500', '700'],
-  subsets: ['latin'],
-  variable: '--font-f-body',
-  display: 'swap',
-});
-const monoFont = M_PLUS_1_Code({
-  weight: ['400', '500', '700'],
-  subsets: ['latin'],
-  variable: '--font-f-mono',
-  display: 'swap',
-});
+const displayFont = Dela_Gothic_One({ weight: '400', subsets: ['latin'], variable: '--font-f-display', display: 'swap' });
+const bodyFont = Zen_Kaku_Gothic_New({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-f-body', display: 'swap' });
+const monoFont = M_PLUS_1_Code({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-f-mono', display: 'swap' });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -55,7 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }`;
 
-const FIRST_SHEET_SNIPPET = `import {
+const FIRST_SHEET_SNIPPET = `'use client';
+
+import {
   Sheet,
   Scene,
   Panel,
@@ -63,22 +47,22 @@ const FIRST_SHEET_SNIPPET = `import {
   Metric,
   ToneAreaChart,
   Tag,
-  fmtMoney,
-} from '@frame12/registry';
+  fmtCurrency,
+} from '@/components/frame12';
 
 export default function RecoveryPage() {
   return (
     <Sheet pegs motion="stepped">
-      <header className="hd">
-        <div className="hd-text">
-          <p className="eyebrow">Fernwood Supply Co. <Tag>Live</Tag></p>
-          <h1 className="title">Revenue recovery</h1>
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">Fernwood Supply Co. <Tag>Live</Tag></p>
+          <h1 className="f12-title">Revenue recovery</h1>
         </div>
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel label="Recovered revenue over time">
-          <Metric label="Recovered revenue" value={120054} format={fmtMoney} big />
+        <Panel cut="C-01" label="Recovered revenue over time">
+          <Metric label="Recovered revenue" value={120054} format={fmtCurrency} big />
           <ToneAreaChart
             data={[
               { label: 'Oct 29', value: 3820 },
@@ -86,11 +70,13 @@ export default function RecoveryPage() {
               { label: 'Oct 31', value: 5190 },
             ]}
             seriesLabel="Recovered revenue"
+            labelColumnHeader="Date"
+            formatValue={fmtCurrency}
           />
         </Panel>
         <PanelPair
-          top={{ label: 'Incremental profit', children: <Metric label="Incremental profit" value={38420} format={fmtMoney} /> }}
-          bottom={{ label: 'Conversion lift', children: <Metric label="Conversion lift" value={51} /> }}
+          top={{ cut: 'C-02', label: 'Incremental profit', children: <Metric label="Incremental profit" value={38420} format={fmtCurrency} /> }}
+          bottom={{ cut: 'C-03', label: 'Conversion lift', children: <Metric label="Conversion lift" value={55} format={(v) => \`+\${Math.round(v)} bps\`} /> }}
         />
       </Scene>
     </Sheet>
@@ -98,10 +84,10 @@ export default function RecoveryPage() {
 }`;
 
 const ESLINT_SNIPPET = `// eslint.config.mjs
-import frame12Plugin from './skills/frame12/eslint.frame12.mjs';
+import frame12Rules from './skills/frame12/eslint.frame12.mjs';
 
 export default [
-  frame12Plugin.configs.recommended,
+  ...frame12Rules,
 ];`;
 
 export default function GetStartedPage() {
@@ -110,13 +96,13 @@ export default function GetStartedPage() {
 
   return (
     <Sheet pegs motion={motion} theme={theme}>
-      <header className="hd">
-        <div className="hd-text">
-          <p className="eyebrow">
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">
             Installation & Onboarding
             <Tag>Next.js App Router + TypeScript</Tag>
           </p>
-          <h1 className="title">Get started with FRAME/12</h1>
+          <h1 className="f12-title">Get started with FRAME/12</h1>
           <p className="f12-muted-copy">
             Go from zero to a verified FRAME/12 storyboard sheet in five steps. Switch between the{' '}
             <strong>New Next.js App</strong> and <strong>Existing Project</strong> tracks below.
@@ -189,12 +175,20 @@ export default function GetStartedPage() {
                 <h2 className="f12-section-title">Add the registry kit</h2>
                 <p className="f12-muted-copy">
                   Install the complete kit (<code className="f12-code-inline">frame12.json</code>) or
-                  pick individual components:
+                  pick individual components into <code className="f12-code-inline">components/frame12/</code>. Note:{' '}
+                  <code className="f12-code-inline">frame12.dev</code> is the canonical deployment
+                  domain; to install locally right now, run the site server and point the CLI at{' '}
+                  <code className="f12-code-inline">http://localhost:3000/r/frame12.json</code>:
                 </p>
                 <CopyCommand
                   id="start-copy-full-kit"
                   label="Full kit"
-                  command="npx shadcn@latest add https://frame12.dev/r/frame12.json"
+                  command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/frame12.json`}
+                />
+                <CopyCommand
+                  id="start-copy-local-kit"
+                  label="Local dev server install"
+                  command="npx shadcn@latest add http://localhost:3000/r/frame12.json"
                 />
               </div>
             ),
@@ -217,7 +211,7 @@ export default function GetStartedPage() {
                 <CopyCommand
                   id="start-copy-styles-only"
                   label="Stylesheet registry item"
-                  command="npx shadcn@latest add https://frame12.dev/r/frame12-styles.json"
+                  command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/frame12-styles.json`}
                 />
               </div>
             ),
@@ -246,7 +240,7 @@ export default function GetStartedPage() {
                 </p>
               </div>
               <Link href="/components" className="f12-link-btn" id="start-link-components">
-                Explore All 20 Items
+                Browse 19 Components
               </Link>
             </div>
 
@@ -266,7 +260,7 @@ export default function GetStartedPage() {
               <div className="f12-stack-pair">
                 <div className="f12-row-pair">
                   <Tag>Step 5 · Automated Guardrails</Tag>
-                  <span className="f12-mono-note">Zero drift in CI and AI agent loops</span>
+                  <span className="f12-mono-note">Automated grammar checks in CI and AI agent loops</span>
                 </div>
                 <h2 className="f12-section-title">
                   Wire check-frame12.mjs and ESLint into your test script

@@ -29,7 +29,9 @@ body {
 }
 
 .theme-light,
-.theme-dark {
+.theme-dark,
+.f12-theme-light,
+.f12-theme-dark {
   background-color: var(--f-desk);
   color: var(--f-ink);
 }
@@ -315,6 +317,9 @@ body {
   margin: 0;
   padding: 12px;
   overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font-family: var(--font-f-mono);
   font-size: 12.5px;
   line-height: 1.55;
@@ -329,6 +334,21 @@ body {
   border: 1px solid var(--f-grid);
   background-color: var(--f-sheet);
   color: var(--f-ink);
+}
+
+.f12-comp-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.f12-comp-cell > .f12-code-inline {
+  margin-top: 4px;
+}
+
+.f12-nowrap {
+  white-space: nowrap;
 }
 
 /* Preview surfaces */
@@ -516,6 +536,7 @@ body {
   vertical-align: -4px;
   margin-right: 8px;
   border: 2px solid var(--f-rule);
+  box-shadow: 0 0 0 1px var(--f-panel);
 }
 
 .sp-phone-box {

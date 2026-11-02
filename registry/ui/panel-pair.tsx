@@ -13,22 +13,25 @@ export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
 }
 
-export function PanelPair({
-  top,
-  bottom,
-  topCut,
-  bottomCut,
-  topLabel,
-  bottomLabel,
-  className = '',
-  children,
-  ...rest
-}: PanelPairProps) {
-  const classes = `pair${className ? ` ${className}` : ''}`;
+export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(function PanelPair(
+  {
+    top,
+    bottom,
+    topCut,
+    bottomCut,
+    topLabel,
+    bottomLabel,
+    className = '',
+    children,
+    ...rest
+  },
+  ref,
+) {
+  const classes = `f12-pair${className ? ` ${className}` : ''}`;
 
   if (top && bottom) {
     return (
-      <div className={classes} {...rest}>
+      <div ref={ref} className={classes} {...rest}>
         <Panel {...top} shape="slant-bottom" />
         <Panel {...bottom} shape="slant-top" />
       </div>
@@ -36,6 +39,11 @@ export function PanelPair({
   }
 
   const items = React.Children.toArray(children);
+  if (process.env.NODE_ENV !== 'production' && items.length > 2) {
+    console.warn(
+      `[FRAME/12 PanelPair] Expected at most 2 children (top and bottom panels), received ${items.length}. Extra children will not be rendered.`,
+    );
+  }
   const first = items[0];
   const second = items[1];
 
@@ -60,9 +68,9 @@ export function PanelPair({
   };
 
   return (
-    <div className={classes} {...rest}>
+    <div ref={ref} className={classes} {...rest}>
       {first !== undefined && renderSlot(first, 'slant-bottom', topCut, topLabel)}
       {second !== undefined && renderSlot(second, 'slant-top', bottomCut, bottomLabel)}
     </div>
   );
-}
+});

@@ -13,35 +13,38 @@ export interface SheetProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function Pegs() {
   return (
-    <div className="pegs" aria-hidden="true">
-      <span className="peg slot" />
-      <span className="peg round" />
-      <span className="peg slot" />
+    <div className="f12-pegs" aria-hidden="true">
+      <span className="f12-peg slot" />
+      <span className="f12-peg round" />
+      <span className="f12-peg slot" />
     </div>
   );
 }
 
-export function Sheet({
-  pegs = true,
-  motion = 'stepped',
-  theme,
-  className = '',
-  sheetClassName = '',
-  children,
-  ...rest
-}: SheetProps) {
+export const Sheet = React.forwardRef<HTMLDivElement, SheetProps>(function Sheet(
+  {
+    pegs = true,
+    motion = 'stepped',
+    theme,
+    className = '',
+    sheetClassName = '',
+    children,
+    ...rest
+  },
+  ref,
+) {
   const reduced = useReducedMotion();
   const effectiveMotion: MotionMode = reduced ? 'cut' : motion;
-  const themeClass = theme ? ` theme-${theme}` : '';
-  const outerClass = `dash frame m-${effectiveMotion}${themeClass}${className ? ` ${className}` : ''}`;
-  const innerClass = `sheet${sheetClassName ? ` ${sheetClassName}` : ''}`;
+  const themeClass = theme ? ` f12-theme-${theme}` : '';
+  const outerClass = `f12-dash f12-frame f12-m-${effectiveMotion}${themeClass}${className ? ` ${className}` : ''}`;
+  const innerClass = `f12-sheet${sheetClassName ? ` ${sheetClassName}` : ''}`;
 
   return (
-    <div className={outerClass} data-theme={theme} {...rest}>
+    <div ref={ref} className={outerClass} data-theme={theme} {...rest}>
       <div className={innerClass}>
         {pegs && <Pegs />}
         {children}
       </div>
     </div>
   );
-}
+});

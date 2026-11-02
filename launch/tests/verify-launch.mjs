@@ -181,22 +181,12 @@ check(
 // 5. Verify templates/next-starter Next.js Build & Playwright WCAG AA + Mobile
 // =========================================================================
 const STARTER_ROOT = resolve(REPO_ROOT, 'templates/next-starter');
-const starterBuildIdPath = resolve(STARTER_ROOT, '.next/BUILD_ID');
-if (!existsSync(starterBuildIdPath)) {
-  console.log('Building templates/next-starter...');
-  const buildRes = spawnSync('npm', ['--prefix', 'templates/next-starter', 'run', 'build'], {
-    cwd: REPO_ROOT,
-    stdio: 'inherit',
-  });
-  check(buildRes.status === 0, 'templates/next-starter production build succeeded');
-} else {
-  const buildId = readFileSync(starterBuildIdPath, 'utf8').trim();
-  check(
-    Boolean(buildId),
-    'templates/next-starter production build (.next/BUILD_ID) verified',
-    `BUILD_ID=${buildId}`,
-  );
-}
+console.log('Building templates/next-starter...');
+const buildRes = spawnSync('npm', ['--prefix', 'templates/next-starter', 'run', 'build'], {
+  cwd: REPO_ROOT,
+  stdio: 'inherit',
+});
+check(buildRes.status === 0, 'templates/next-starter production build succeeded');
 
 function getFreePort() {
   return new Promise((resolvePort, rejectPort) => {
@@ -254,11 +244,13 @@ try {
   await page.waitForTimeout(200);
 
   const domAudit = await page.evaluate(() => {
-    const cuts = [...document.querySelectorAll('.panel > .cut')].map((e) => e.textContent.trim());
-    const scenes = [...document.querySelectorAll('.scene')].map((s) =>
+    const cuts = [...document.querySelectorAll('.f12-panel > .f12-cut')].map((e) =>
+      e.textContent.trim(),
+    );
+    const scenes = [...document.querySelectorAll('.f12-scene')].map((s) =>
       parseFloat(getComputedStyle(s).gap || getComputedStyle(s).rowGap),
     );
-    const pairs = [...document.querySelectorAll('.pair')].map((p) =>
+    const pairs = [...document.querySelectorAll('.f12-pair')].map((p) =>
       parseFloat(getComputedStyle(p).gap),
     );
     return {
@@ -283,7 +275,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(200);
   const mobileAudit = await page.evaluate(() => ({
-    isDark: document.querySelector('.dash.frame')?.getAttribute('data-theme') === 'dark',
+    isDark: document.querySelector('.f12-dash.f12-frame')?.getAttribute('data-theme') === 'dark',
     scrollWidthMobile: document.documentElement.scrollWidth,
   }));
 

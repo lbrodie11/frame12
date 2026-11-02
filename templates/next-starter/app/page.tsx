@@ -23,9 +23,8 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-  useChanged,
-  type MotionMode,
-} from '@frame12/registry';
+} from '@/components/frame12';
+import { useChanged, type MotionMode } from '@/hooks/use-on-twos';
 
 type ThemeMode = 'light' | 'dark';
 type WindowDays = 7 | 30 | 90;
@@ -198,6 +197,13 @@ const THEME_OPTIONS: Array<{ value: ThemeMode; label: string; unit: string }> = 
 ];
 
 const fmtCurrency = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
+const fmtCurrencyShort = (n: number) => {
+  if (Math.abs(n) >= 1000) {
+    const k = n / 1000;
+    return '$' + (Number.isInteger(k) ? k.toFixed(0) : k.toFixed(1)) + 'k';
+  }
+  return '$' + Math.round(n);
+};
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
 export default function StarterWorkspacePage() {
@@ -213,14 +219,14 @@ export default function StarterWorkspacePage() {
   return (
     <main style={{ maxWidth: 1280, margin: '0 auto', padding: '20px' }}>
       <Sheet pegs motion={motion} theme={theme}>
-        <header className="hd">
+        <header className="f12-hd">
           <div>
-            <p className="eyebrow">
+            <p className="f12-eyebrow">
               FRAME/12 Next.js Starter · Fernwood Supply Co.
               <Tag>Example workspace</Tag>
             </p>
-            <h1 className="title">Checkout recovery storyboard</h1>
-            <p className="sub">
+            <h1 className="f12-title">Checkout recovery storyboard</h1>
+            <p className="f12-sub">
               Ink-framed panels (C-01..C-05) · 12/20/32px semantic gutters · 45° SVG screentone · 12fps motion on twos
             </p>
           </div>
@@ -263,7 +269,7 @@ export default function StarterWorkspacePage() {
         <Scene gutter="scene" layout="split">
           <Panel cut="C-01" label="Recovered revenue establishing shot">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--f-gutter-scene)' }}>
-              <div className="c01-hd">
+              <div className="f12-c01-hd">
                 <Metric
                   label="Recovered checkout revenue"
                   value={data.recovered}
@@ -282,7 +288,9 @@ export default function StarterWorkspacePage() {
               <ToneAreaChart
                 data={data.series}
                 seriesLabel="Recovered revenue"
+                labelColumnHeader="Date"
                 formatValue={fmtCurrency}
+                formatShort={fmtCurrencyShort}
                 motion={motion}
                 height={230}
                 tableSummary="Show daily recovered revenue table"

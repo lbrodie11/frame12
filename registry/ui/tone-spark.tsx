@@ -28,17 +28,21 @@ export function ToneSpark({
   const rawId = React.useId();
   const uid = React.useMemo(() => 's-' + rawId.replace(/:/g, ''), [rawId]);
 
+  const safeValues = React.useMemo(
+    () => values.map((v) => (Number.isFinite(v) ? Math.max(0, v) : 0)),
+    [values],
+  );
   const H = height;
-  const max = Math.max(1, ...values);
-  const n = values.length;
+  const max = Math.max(1, ...safeValues);
+  const n = safeValues.length;
   const gap = n > 40 ? 1 : 2;
   const bw = w && n > 0 ? Math.max(1, (w - gap * (n - 1)) / n) : 0;
   const shownCount = Math.ceil(n * p);
   const computedAriaLabel = ariaLabel ?? `${label}, last ${n} days, one bar per day`;
 
   return (
-    <div className={`spark${className ? ` ${className}` : ''}`} ref={ref}>
-      <p className="spark-l">{label}</p>
+    <div className={`f12-spark${className ? ` ${className}` : ''}`} ref={ref}>
+      <p className="f12-spark-l">{label}</p>
       {w > 0 && n > 0 && (
         <svg width={w} height={H} role="img" aria-label={computedAriaLabel}>
           <defs>
@@ -49,14 +53,14 @@ export function ToneSpark({
               patternUnits="userSpaceOnUse"
               patternTransform="rotate(45)"
             >
-              <circle cx="2" cy="2" r="1.05" className="tone-dot" />
+              <circle cx="2" cy="2" r="1.05" className="f12-tone-dot" />
             </pattern>
           </defs>
-          {values.map((v, i) =>
+          {safeValues.map((v, i) =>
             i < shownCount ? (
               <rect
                 key={i}
-                className="spark-bar"
+                className="f12-spark-bar"
                 fill={`url(#${uid}-st)`}
                 x={i * (bw + gap)}
                 y={H - (v / max) * H}

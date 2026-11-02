@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Build, Lint, Accessibility & Smoke Install
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify workspace file synchronization
+        run: npm run sync:check
+
+      - name: Build all workspaces (registry, eval, site)
+        run: npm run build
+
+      - name: Run full verification suite (unit, a11y, linter, eval, site, launch)
+        run: npm test
+
+      - name: Run shadcn registry smoke-install verification
+        run: node scripts/smoke-install.mjs

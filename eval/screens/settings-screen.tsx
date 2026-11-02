@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { type MotionMode, useChanged } from '@/hooks/use-on-twos';
 import {
-  type MotionMode,
-  useChanged,
   Sheet,
   Scene,
   Panel,
@@ -47,7 +46,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-} from '@frame12/registry';
+} from '@/components/frame12';
 
 type EnvKey = 'prod' | 'stage' | 'dev';
 
@@ -148,17 +147,17 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
   return (
     <main className="eval-screen-root">
       <Sheet motion={motion} theme={theme} id="settings-sheet">
-        <header className="hd">
-          <div className="hd-text">
-            <p className="eyebrow">
+        <header className="f12-hd">
+          <div className="f12-hd-text">
+            <p className="f12-eyebrow">
               {workspaceName}
               <Tag>{preset.label}</Tag>
               <Badge pop={changed} burst>
                 Cut Sheet 01
               </Badge>
             </p>
-            <h1 className="title">Workspace &amp; Dispatch Settings</h1>
-            <p className="sub" id="settings-status">
+            <h1 className="f12-title">Workspace &amp; Dispatch Settings</h1>
+            <p className="f12-sub" id="settings-status">
               Environment: {preset.label} · {statusMessage}
             </p>
           </div>
@@ -211,7 +210,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                   gap: 'var(--f-gutter-pair)',
                 }}
               >
-                <h2 className="m-label">General Profile &amp; Alert Routing</h2>
+                <h2 className="f12-m-label">General Profile &amp; Alert Routing</h2>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger id="settings-retry-tooltip">Retry policy</TooltipTrigger>
@@ -381,7 +380,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                   gap: 'var(--f-gutter-pair)',
                 }}
               >
-                <h2 className="m-label">API Signing Keys ({preset.label})</h2>
+                <h2 className="f12-m-label">API Signing Keys ({preset.label})</h2>
                 <DropdownMenu>
                   <DropdownMenuTrigger id="settings-key-menu" size="sm" variant="secondary">
                     Key actions
@@ -454,11 +453,11 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                   gap: 'var(--f-gutter-pair)',
                 }}
               >
-                <h2 className="m-label">Danger Zone · Secret Rotation</h2>
+                <h2 className="f12-m-label">Danger Zone · Secret Rotation</h2>
                 <Balloon tailOffset={-10}>Immediate cutoff · 0s grace</Balloon>
               </div>
 
-              <p className="m-note" style={{ maxWidth: '54ch' }}>
+              <p className="f12-m-note" style={{ maxWidth: '54ch' }}>
                 Revoking the active signing secret immediately invalidates in-flight webhook
                 headers for {preset.label}. Consumers must load the standby secret before rotation.
               </p>

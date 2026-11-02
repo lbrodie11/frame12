@@ -22,7 +22,7 @@ function check(ok, label, detail = '') {
 {
   const cleanCode = `
     import * as React from 'react';
-    import { Sheet, Scene, Panel, PanelPair, Button, Badge, Tag } from '@frame12/registry';
+    import { Sheet, Scene, Panel, PanelPair, Button, Badge, Tag } from '@/components/frame12';
 
     export function CleanScreen() {
       return (
@@ -68,6 +68,20 @@ function check(ok, label, detail = '') {
 
   const tokenRes = lintSource(`:root { --f-ink: #121212; }`, 'registry/styles/frame12.css');
   check(tokenRes.length === 0, 'linter [color-literal]: exempts token file frame12.css');
+
+  const urlThenHexCode = `const url = "https://example.com"; const bad = "#ff0000";`;
+  const resUrlHex = lintSource(urlThenHexCode, 'eval/screens/url-hex.tsx');
+  check(
+    resUrlHex.length === 1 && resUrlHex[0].rule === 'color-literal' && resUrlHex[0].snippet === '#ff0000',
+    'linter [color-literal]: preserves string literals containing "https://" and flags #ff0000 on the same line',
+  );
+
+  const namedGradientCode = `.grad { background: linear-gradient(to right, red, blue); }`;
+  const resGrad = lintSource(namedGradientCode, 'eval/screens/bad-grad.css');
+  check(
+    resGrad.length === 1 && resGrad[0].rule === 'color-literal',
+    'linter [color-literal]: flags named-color CSS linear-gradient(to right, red, blue)',
+  );
 }
 
 // 3. Rule 2: illegal-gutter
@@ -87,6 +101,13 @@ function check(ok, label, detail = '') {
   check(
     resTw.length === 2 && resTw.every((v) => v.rule === 'illegal-gutter'),
     'linter [illegal-gutter]: flags Tailwind gap-4 and gap-x-6 classes',
+  );
+
+  const badCnGap = `export const G2 = () => <div className={cn('grid gap-4', active && \`flex gap-2\`)} />;`;
+  const resCnTw = lintSource(badCnGap, 'eval/screens/bad-cn-gap.tsx');
+  check(
+    resCnTw.length === 2 && resCnTw.every((v) => v.rule === 'illegal-gutter'),
+    'linter [illegal-gutter]: flags Tailwind gap-4 inside className={cn(...)} and template literals',
   );
 
   const goodGutters = `

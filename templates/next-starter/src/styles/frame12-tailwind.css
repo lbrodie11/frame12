@@ -1,0 +1,26 @@
+/* Optional Tailwind v4 @theme mapping for FRAME/12 tokens and gutter grammar.
+   Import alongside frame12.css when using Tailwind CSS v4. */
+
+@import "./frame12.css";
+
+@theme inline {
+  --color-f-desk: var(--f-desk);
+  --color-f-sheet: var(--f-sheet);
+  --color-f-panel: var(--f-panel);
+  --color-f-ink: var(--f-ink);
+  --color-f-ink-2: var(--f-ink-2);
+  --color-f-rule: var(--f-rule);
+  --color-f-tone: var(--f-tone);
+  --color-f-grid: var(--f-grid);
+  --color-f-marker: var(--f-marker);
+  --color-f-marker-ink: var(--f-marker-ink);
+  --color-f-hole: var(--f-hole);
+
+  --font-f12-display: var(--font-f-display);
+  --font-f12-body: var(--font-f-body);
+  --font-f12-mono: var(--font-f-mono);
+
+  --spacing-gutter-pair: var(--f-gutter-pair);
+  --spacing-gutter-scene: var(--f-gutter-scene);
+  --spacing-gutter-change: var(--f-gutter-change);
+}

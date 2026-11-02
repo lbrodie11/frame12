@@ -17,13 +17,10 @@ export interface SceneProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
 }
 
-export function Scene({
-  gutter = 'scene',
-  layout = 'split',
-  className = '',
-  children,
-  ...rest
-}: SceneProps) {
+export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene(
+  { gutter = 'scene', layout = 'split', className = '', children, ...rest },
+  ref,
+) {
   const safeGutter: SceneGutter =
     gutter === 'pair' || gutter === 'scene' || gutter === 'change' ? gutter : 'scene';
   const safeLayout: SceneLayout =
@@ -31,11 +28,17 @@ export function Scene({
       ? layout
       : 'split';
 
-  const classes = `scene scene-${safeLayout} scene-${safeGutter}${className ? ` ${className}` : ''}`;
+  const classes = `f12-scene f12-scene-${safeLayout} f12-scene-${safeGutter}${className ? ` ${className}` : ''}`;
 
   return (
-    <div className={classes} data-gutter={GUTTERS[safeGutter]} data-layout={safeLayout} {...rest}>
+    <div
+      ref={ref}
+      className={classes}
+      data-gutter={GUTTERS[safeGutter]}
+      data-layout={safeLayout}
+      {...rest}
+    >
       {children}
     </div>
   );
-}
+});

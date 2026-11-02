@@ -15,10 +15,11 @@ import {
   TableHead,
   TableCell,
   TableCaption,
-} from '@frame12/registry';
+} from '@/components/frame12';
 import { CATALOG, type ComponentCategory } from '@/lib/catalog';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
+import { REGISTRY_BASE_URL } from '@/lib/config';
 
 function CategoryTable({
   category,
@@ -33,9 +34,8 @@ function CategoryTable({
       <TableCaption>{caption}</TableCaption>
       <TableHeader>
         <TableRow>
-          <TableHead scope="col">Component</TableHead>
+          <TableHead scope="col">Component &amp; Registry</TableHead>
           <TableHead scope="col">Summary</TableHead>
-          <TableHead scope="col">Registry Slug</TableHead>
           <TableHead scope="col">Inspect</TableHead>
         </TableRow>
       </TableHeader>
@@ -43,19 +43,20 @@ function CategoryTable({
         {entries.map((entry) => (
           <TableRow key={entry.slug}>
             <TableCell>
-              <strong>{entry.title}</strong>
+              <div className="f12-comp-cell">
+                <strong>{entry.title}</strong>
+                <code className="f12-code-inline f12-nowrap">/r/{entry.slug}.json</code>
+              </div>
             </TableCell>
             <TableCell>{entry.summary}</TableCell>
-            <TableCell>
-              <code className="f12-code-inline">/r/{entry.slug}.json</code>
-            </TableCell>
             <TableCell>
               <Link
                 href={`/components/${entry.slug}`}
                 id={`comp-link-${entry.slug}`}
-                className="f12-link-btn"
+                className="f12-link-btn f12-nowrap"
+                aria-label={`Inspect ${entry.title}`}
               >
-                Open {entry.title}
+                Inspect →
               </Link>
             </TableCell>
           </TableRow>
@@ -67,19 +68,20 @@ function CategoryTable({
 
 export default function ComponentsIndexPage() {
   const { theme, motion } = useSiteSettings();
+  const componentCount = CATALOG.filter((c) => c.category !== 'Motion Hooks').length;
   const hookAndAdapterEntries = CATALOG.filter(
     (c) => c.category === 'Motion Hooks' || c.category === 'Primitive Adapters',
   );
 
   return (
     <Sheet pegs motion={motion} theme={theme}>
-      <header className="hd">
-        <div className="hd-text">
-          <p className="eyebrow">
-            @frame12/registry · shadcn-compatible JSON
-            <Tag>20 Registry Items</Tag>
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">
+            @/components/frame12 · shadcn-compatible JSON
+            <Tag>{componentCount} Components · 22 Registry Payloads</Tag>
           </p>
-          <h1 className="title">Components & adapters</h1>
+          <h1 className="f12-title">Components & adapters</h1>
           <p className="f12-muted-copy">
             Copy-in React + TypeScript components, motion hooks, and accessible primitive adapters.
             Every component works standalone with <code className="f12-code-inline">frame12.css</code>{' '}
@@ -108,7 +110,7 @@ export default function ComponentsIndexPage() {
             <CopyCommand
               id="comp-copy-bundle"
               label="Install full FRAME/12 registry bundle"
-              command="npx shadcn@latest add https://frame12.dev/r/frame12.json"
+              command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/frame12.json`}
             />
           </div>
         </Panel>
@@ -174,15 +176,13 @@ export default function ComponentsIndexPage() {
             <h2 className="f12-section-title">12fps motion hooks & accessible primitive skins</h2>
             <Table>
               <TableCaption>
-                Motion hooks and thin adapters that declare shadcn registryDependencies while
-                enforcing FRAME/12 ink rules.
+                Motion hooks and accessible Radix/native primitive adapters styled with FRAME/12 ink rules.
               </TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col">Item</TableHead>
+                  <TableHead scope="col">Item &amp; Registry</TableHead>
                   <TableHead scope="col">Category</TableHead>
                   <TableHead scope="col">Summary</TableHead>
-                  <TableHead scope="col">Registry Slug</TableHead>
                   <TableHead scope="col">Inspect</TableHead>
                 </TableRow>
               </TableHeader>
@@ -190,22 +190,23 @@ export default function ComponentsIndexPage() {
                 {hookAndAdapterEntries.map((entry) => (
                   <TableRow key={entry.slug}>
                     <TableCell>
-                      <strong>{entry.title}</strong>
+                      <div className="f12-comp-cell">
+                        <strong>{entry.title}</strong>
+                        <code className="f12-code-inline f12-nowrap">/r/{entry.slug}.json</code>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Tag>{entry.category}</Tag>
                     </TableCell>
                     <TableCell>{entry.summary}</TableCell>
                     <TableCell>
-                      <code className="f12-code-inline">/r/{entry.slug}.json</code>
-                    </TableCell>
-                    <TableCell>
                       <Link
                         href={`/components/${entry.slug}`}
                         id={`comp-link-${entry.slug}`}
-                        className="f12-link-btn"
+                        className="f12-link-btn f12-nowrap"
+                        aria-label={`Inspect ${entry.title}`}
                       >
-                        Open {entry.title}
+                        Inspect →
                       </Link>
                     </TableCell>
                   </TableRow>

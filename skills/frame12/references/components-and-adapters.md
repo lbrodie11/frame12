@@ -1,13 +1,13 @@
 # FRAME/12 Components, Hooks & Primitive Adapters
 
-Complete API reference for `@frame12/registry`.
+Complete API reference for `@/components/frame12` and `@/hooks/use-on-twos`.
 
 ---
 
 ## 1. CSS Custom Properties (`styles/frame12.css`)
 
 ```css
-/* Color Tokens (automatically switch in .theme-dark / [data-theme="dark"] / prefers-color-scheme: dark) */
+/* Color Tokens (automatically switch in .f12-theme-dark / [data-theme="dark"] / prefers-color-scheme: dark) */
 --f-desk        /* Outer worktable background */
 --f-sheet       /* Storyboard sheet surface */
 --f-panel       /* Panel interior surface */
@@ -44,7 +44,7 @@ import {
   useChanged,
   useSize,
   useReducedMotion,
-} from '@frame12/registry';
+} from '@/hooks/use-on-twos';
 ```
 
 - `useOnTwos(key: unknown, duration = 600, motion: MotionMode = 'stepped'): number`
@@ -191,6 +191,7 @@ export interface MetricProps {
   range?: number | string;
   note?: string;
   big?: boolean;                      // fluid clamp(36px, 6cqi, 56px) for C-01 hero metrics
+  headingLevel?: 'h2' | 'h3' | 'h4' | 'div' | 'p'; // default: 'h2'
   motion?: MotionMode;
   spark?: React.ReactNode;            // pass <ToneSpark ... />
   className?: string;
@@ -199,7 +200,7 @@ export interface MetricProps {
 Helper formatters exported from `metric.tsx`: `fmtMoney(v)`, `fmtPct(v)`, `fmtPPAbs(v)`.
 
 ### `ToneAreaChart` (`ui/tone-area-chart.tsx`)
-Primary time-series chart with 45° SVG screentone area fill, vertical luminance fade mask, dashed comparison series, speech-balloon peak callout, keyboard crosshair navigation (`ArrowLeft`, `ArrowRight`, `Escape`), and collapsible `<details className="tbl">` data table.
+Primary time-series chart with 4-band 45° SVG screentone area fill, dashed comparison series, speech-balloon peak callout, keyboard crosshair navigation (`ArrowLeft`, `ArrowRight`, `Escape`), and collapsible `<details className="f12-tbl">` data table.
 
 ```tsx
 export interface ToneAreaDatum {
@@ -211,10 +212,11 @@ export interface ToneAreaDatum {
 
 export interface ToneAreaChartProps {
   data: ToneAreaDatum[];
-  seriesLabel?: string;
+  seriesLabel?: string;       // default: 'Value'
+  labelColumnHeader?: string; // default: 'Label'
   compareLabel?: string;
-  formatValue?: (v: number) => string;
-  formatShort?: (v: number) => string;
+  formatValue?: (v: number) => string; // default: plain number; export fmtCurrency for USD
+  formatShort?: (v: number) => string; // default: plain k/M; export fmtCurrencyShort for USD
   annotation?: { index: number; text: string } | null; // undefined = auto-detect peak
   motion?: MotionMode;
   height?: number;       // default: 260
@@ -259,20 +261,20 @@ export interface ToneBarListProps {
 
 ## 6. Primitive Adapters (`Dialog`, `Select`, `Tooltip`, `DropdownMenu`, `Table`)
 
-FRAME/12 wraps the five complex interactive primitives in thin adapters that declare their corresponding shadcn `registryDependencies` while enforcing FRAME/12 ink rules, tokens, and accessibility semantics:
+FRAME/12 wraps the five complex interactive primitives in accessible adapters that install into `components/frame12/*.tsx` (never colliding with stock `components/ui/*.tsx` shadcn primitives) while enforcing FRAME/12 ink rules, tokens, and WAI-ARIA semantics:
 
 1. **`Dialog` (`ui/dialog.tsx`):**
    - Exports: `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogClose`.
-   - Uses native `<dialog>` with `.showModal()`, `closedby="any"` + pointer light-dismiss fallback, `overscroll-behavior: contain`, screentone backdrop, and optional `cut="C-0X"` on `DialogContent`.
+   - Uses native `<dialog>` with `.showModal()`, `DialogTrigger asChild` support, conditional `aria-describedby` (omitted when `DialogDescription` is absent), single-fire `onOpenChange(false)`, `Escape` isolation with nested `Select`/`DropdownMenu` popups, pointer light-dismiss, `overscroll-behavior: contain`, screentone backdrop, and optional `cut="C-0X"` on `DialogContent`.
 2. **`Select` (`ui/select.tsx`):**
-   - Exports: `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`.
-   - Pass `label="Channel"` and `id="channel-select"` directly to `<Select>` for an automatically linked `<label>`. Renders a marker-yellow `▼` caret and `✓` selection badge.
+   - Exports: `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectGroup`, `SelectLabel`, `SelectSeparator`.
+   - Built on `@radix-ui/react-select` with full WAI-ARIA listbox keyboard navigation (`ArrowUp`/`ArrowDown`/`Home`/`End`/`Enter`/`Space`/`Escape`, typeahead, focus restoration), portal theme inheritance (`.f12-dash` / `dialog[open]`), and native `<form>` `FormData` participation via `name` and `required`. Pass `label="Channel"` and `id="channel-select"` directly to `<Select>` for an automatically linked `<label>`.
 3. **`Tooltip` (`ui/tooltip.tsx`):**
    - Exports: `TooltipProvider`, `Tooltip`, `TooltipTrigger`, `TooltipContent`.
-   - Opens on hover or keyboard focus, dismisses on `Escape`, and links trigger to content via `aria-describedby`.
+   - Opens on hover or keyboard focus, dismisses on `Escape`, links trigger to content via `aria-describedby`, and merges caller event handlers, `ref`, `className`, and `aria-describedby` when `asChild` is used.
 4. **`DropdownMenu` (`ui/dropdown-menu.tsx`):**
-   - Exports: `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuLabel`, `DropdownMenuSeparator`, `DropdownMenuItem`.
-   - Ink-framed menu with `4px 4px 0 var(--f-rule)` offset shadow and ink inversion on item hover/focus.
+   - Exports: `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuLabel`, `DropdownMenuSeparator`, `DropdownMenuItem`, `DropdownMenuGroup`.
+   - Built on `@radix-ui/react-dropdown-menu` with full WAI-ARIA menu keyboard navigation (`ArrowDown`/`ArrowUp`/`Home`/`End`/`Enter`/`Space`/`Escape`), focus restoration, and portal theme inheritance.
 5. **`Table` (`ui/table.tsx`):**
    - Exports: `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`.
    - Monospace uppercase headers with `2.5px` bottom ink rule, `scope="col"` by default on `TableHead`, and `tabular-nums` alignment.

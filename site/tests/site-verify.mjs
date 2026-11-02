@@ -1,7 +1,8 @@
 // Playwright production verification, WCAG AA accessibility, responsive overflow,
-// registry JSON endpoint, Open Graph image, and screenshot suite for @frame12/site.
+// registry JSON endpoint, Open Graph image, font binding, and screenshot suite for @frame12/site.
 
 import { chromium } from 'playwright';
+import AxeBuilder from '@axe-core/playwright';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -92,7 +93,7 @@ const CONTRAST = () => {
     if (
       !el ||
       !t.textContent.trim() ||
-      el.closest('svg, .sr-only, .rng, .skip-link, [inert], dialog:not([open])')
+      el.closest('svg, .f12-sr-only, .f12-rng, .skip-link, [inert], dialog:not([open])')
     )
       continue;
     const rc = el.getBoundingClientRect();
@@ -105,8 +106,8 @@ const CONTRAST = () => {
     const r = ratio(parse(cs.color), bgOf(el));
     if (r < need) out.push(`${t.textContent.trim().slice(0, 30)} (${r.toFixed(2)} < ${need})`);
   }
-  for (const tx of document.querySelectorAll('.chart svg text')) {
-    const r = ratio(parse(getComputedStyle(tx).fill), bgOf(tx.closest('.chart')));
+  for (const tx of document.querySelectorAll('.f12-chart svg text')) {
+    const r = ratio(parse(getComputedStyle(tx).fill), bgOf(tx.closest('.f12-chart')));
     if (r < 4.5) {
       out.push(`chart label ${tx.textContent} (${r.toFixed(2)})`);
       break;
@@ -118,9 +119,9 @@ const CONTRAST = () => {
 const NAMES = () => {
   const unnamed = [];
   for (const el of document.querySelectorAll(
-    'button, input, select, textarea, [tabindex="0"], a[href]',
+    'button, input:not([type="hidden"]), select:not([tabindex="-1"]):not([aria-hidden="true"]), textarea, [tabindex="0"], a[href]',
   )) {
-    if (el.closest('[inert], dialog:not([open])')) continue;
+    if (el.closest('[inert], dialog:not([open]), [aria-hidden="true"]')) continue;
     const name = (
       el.getAttribute('aria-label') ||
       el.textContent ||
@@ -135,14 +136,14 @@ const NAMES = () => {
 };
 
 const GRAMMAR_DOM = () => {
-  const scenes = [...document.querySelectorAll('.scene')];
+  const scenes = [...document.querySelectorAll('.f12-scene')];
   const sceneGaps = scenes.map((s) =>
     parseFloat(getComputedStyle(s).rowGap || getComputedStyle(s).gap),
   );
-  const pairs = [...document.querySelectorAll('.pair')];
+  const pairs = [...document.querySelectorAll('.f12-pair')];
   const pairGaps = pairs.map((p) => parseFloat(getComputedStyle(p).gap));
 
-  const cutEls = [...document.querySelectorAll('.panel > .cut')];
+  const cutEls = [...document.querySelectorAll('.f12-panel > .f12-cut')];
   const cuts = cutEls.map((e) => e.textContent.trim());
   const sequential =
     cuts.length > 0 &&
@@ -183,25 +184,48 @@ const GRAMMAR_DOM = () => {
   };
 };
 
-async function focusMisses(page, stops = 14) {
+async function focusMissesAll(page) {
   const misses = [];
-  await page.mouse.click(2, 2);
-  for (let i = 0; i < stops; i++) {
+  let totalStops = 0;
+  let cycled = false;
+  let consecutiveBody = 0;
+  await page.evaluate(() => {
+    window.__f12SeenFocus = new Set();
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
+  });
+  for (let i = 0; i < 200; i++) {
     await page.keyboard.press('Tab');
     const info = await page.evaluate(() => {
       const e = document.activeElement;
-      if (!e || e === document.body) return null;
+      if (!e || e === document.body) return { status: 'body' };
+      const seen = window.__f12SeenFocus;
+      if (seen.has(e)) return { status: 'cycled' };
+      seen.add(e);
       const cs = getComputedStyle(e);
       return {
+        status: 'visited',
         id: e.id || e.tagName,
         vis:
           (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) ||
           cs.boxShadow !== 'none',
       };
     });
-    if (info && !info.vis) misses.push(info.id);
+    if (info.status === 'cycled') {
+      cycled = true;
+      break;
+    }
+    if (info.status === 'body') {
+      consecutiveBody++;
+      if (consecutiveBody >= 2) break;
+      continue;
+    }
+    consecutiveBody = 0;
+    totalStops++;
+    if (!info.vis) misses.push(info.id);
   }
-  return misses;
+  return { misses, totalStops, cycled };
 }
 
 const ROUTES = [
@@ -235,6 +259,24 @@ try {
     check(
       res.status === 200 && Boolean(body.name || body.items),
       `site registry endpoint /r/${item} returns HTTP 200 valid JSON`,
+    );
+  }
+
+  // 1b. Verify branded SVG favicon and Apple touch icon endpoints
+  {
+    const iconRes = await fetch(`${baseUrl}/icon.svg`);
+    const iconCt = iconRes.headers.get('content-type') || '';
+    const iconText = await iconRes.text();
+    check(
+      iconRes.status === 200 && iconCt.includes('image/svg+xml') && iconText.includes('#ffd60a'),
+      'site favicon /icon.svg returns HTTP 200 image/svg+xml with FRAME/12 marker yellow',
+    );
+    const appleRes = await fetch(`${baseUrl}/apple-icon`);
+    const appleCt = appleRes.headers.get('content-type') || '';
+    const appleBuf = await appleRes.arrayBuffer();
+    check(
+      appleRes.status === 200 && appleCt.includes('image/png') && appleBuf.byteLength > 500,
+      `site Apple touch icon /apple-icon returns HTTP 200 image/png (${appleBuf.byteLength} bytes)`,
     );
   }
 
@@ -283,6 +325,39 @@ try {
       // Capture required screenshots
       if (route === '/' && scheme === 'light') {
         await page.screenshot({ path: resolve(DOCS_IMAGES, 'site-home-light.png'), fullPage: true });
+
+        // Verify next/font CSS variable bindings on <html> win over :where(:root) defaults
+        const fontBinding = await page.evaluate(() => {
+          const titleFont = getComputedStyle(document.querySelector('.f12-title')).fontFamily;
+          const bodyFont = getComputedStyle(document.body).fontFamily;
+          const monoFont = getComputedStyle(document.querySelector('.f12-cut')).fontFamily;
+          const rootStyle = getComputedStyle(document.documentElement);
+          const htmlVarDisplay = rootStyle.getPropertyValue('--font-f-display').trim();
+          const htmlVarBody = rootStyle.getPropertyValue('--font-f-body').trim();
+          const htmlVarMono = rootStyle.getPropertyValue('--font-f-mono').trim();
+          return {
+            titleFont,
+            bodyFont,
+            monoFont,
+            htmlVarDisplay,
+            htmlVarBody,
+            htmlVarMono,
+          };
+        });
+        const normFont = (s) => (s || '').replace(/["'\s]/g, '');
+        check(
+          Boolean(fontBinding.htmlVarDisplay) &&
+            Boolean(fontBinding.htmlVarBody) &&
+            Boolean(fontBinding.htmlVarMono) &&
+            !fontBinding.htmlVarDisplay.startsWith('"Dela Gothic One", "Arial Black"') &&
+            !fontBinding.htmlVarBody.startsWith('"Zen Kaku Gothic New", "Hiragino Sans"') &&
+            !fontBinding.htmlVarMono.startsWith('"M PLUS 1 Code", ui-monospace') &&
+            normFont(fontBinding.titleFont) === normFont(fontBinding.htmlVarDisplay) &&
+            normFont(fontBinding.bodyFont) === normFont(fontBinding.htmlVarBody) &&
+            normFont(fontBinding.monoFont) === normFont(fontBinding.htmlVarMono),
+          'site next/font binding: <html> next/font CSS variables override :where(:root) fallback stacks for display, body, and mono',
+          JSON.stringify(fontBinding),
+        );
       } else if (route === '/motion' && scheme === 'light') {
         await page.screenshot({
           path: resolve(DOCS_IMAGES, 'site-motion-light.png'),
@@ -306,15 +381,21 @@ try {
       }
 
       const c = await page.evaluate(CONTRAST);
+      const axe = await new AxeBuilder({ page }).analyze();
       const n = await page.evaluate(NAMES);
       const g = await page.evaluate(GRAMMAR_DOM);
-      const f = await focusMisses(page);
+      const f = await focusMissesAll(page);
       const sw = await page.evaluate(() => document.documentElement.scrollWidth);
 
       check(
         c.length === 0,
         `site ${route} (${scheme}, 1280px): WCAG AA text contrast`,
         c.slice(0, 3).join('; '),
+      );
+      check(
+        axe.violations.length === 0,
+        `site ${route} (${scheme}, 1280px): @axe-core/playwright zero violations`,
+        axe.violations.map((v) => `${v.id} (${v.nodes.length})`).join(', '),
       );
       check(
         n.unnamed.length === 0 && n.dup.length === 0,
@@ -327,9 +408,9 @@ try {
         JSON.stringify(g),
       );
       check(
-        f.length === 0,
-        `site ${route} (${scheme}, 1280px): visible keyboard focus`,
-        f.slice(0, 3).join(', '),
+        f.misses.length === 0 && f.totalStops > 0 && f.cycled,
+        `site ${route} (${scheme}, 1280px): visible keyboard focus across all ${f.totalStops} tab stops`,
+        `cycled=${f.cycled} misses=${f.misses.slice(0, 3).join(', ')}`,
       );
       check(
         sw <= 1280 && errors.length === 0,
@@ -390,7 +471,7 @@ try {
     await page.click('#int-home-exit');
     await page.waitForTimeout(200);
     const hasCompareLine = await page.evaluate(() =>
-      Boolean(document.querySelector('.chart .l-focus')),
+      Boolean(document.querySelector('.f12-chart .f12-l-focus')),
     );
 
     check(
@@ -403,7 +484,7 @@ try {
     await page.click('#motion-play-btn');
     await page.waitForTimeout(300);
     const hasCutClass = await page.evaluate(() =>
-      Boolean(document.querySelector('.m-cut')),
+      Boolean(document.querySelector('.f12-m-cut')),
     );
     check(
       hasCutClass,

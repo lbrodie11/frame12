@@ -10,9 +10,9 @@ A standalone, production-ready **Next.js (App Router) + TypeScript** starter pre
 
 | Path | Purpose |
 | --- | --- |
-| `app/layout.tsx` | Loads `Dela_Gothic_One`, `Zen_Kaku_Gothic_New`, and `M_PLUS_1_Code` via `next/font/google` and imports `src/registry/styles/frame12.css`. |
+| `app/layout.tsx` | Loads `Dela_Gothic_One`, `Zen_Kaku_Gothic_New`, and `M_PLUS_1_Code` via `next/font/google` and imports `src/styles/frame12.css`. |
 | `app/page.tsx` | Multi-scene FRAME/12 workspace (`C-01`..`C-05`) with live window (`7` / `30` / `90` days), motion (`12fps on twos` / `60fps smooth` / `0ms cut`), and theme (`Light paper` / `Dark flashback`) switchers, `ToneAreaChart`, `PanelPair`, `ToneBarList`, `ToneSpark`, and `Dialog`. |
-| `src/registry/` | Copy-in source for all 14 core FRAME/12 components, 5 accessible primitive adapters (`Dialog`, `Select`, `Tooltip`, `DropdownMenu`, `Table`), `useOnTwos` motion hooks, and standalone `frame12.css`. |
+| `src/components/frame12/`, `src/hooks/`, `src/styles/` | Copy-in source for all 14 core FRAME/12 components, 5 accessible primitive adapters (`Dialog`, `Select`, `Tooltip`, `DropdownMenu`, `Table`), `useOnTwos` motion hooks, and standalone `.f12-*` scoped `frame12.css`. |
 | `.claude/skills/frame12/` | Portable Agent Skill (`SKILL.md` + `references/`) so Claude Code, Cursor, and other AI coding agents build new screens without aesthetic drift. |
 | `scripts/check-frame12.mjs` | Zero-dependency static design-grammar linter enforcing CSS tokens, `12/20/32px` gutters, marker-yellow contrast discipline, sequential `C-01..C-0N` cut numbers, and zero forbidden imports. |
 

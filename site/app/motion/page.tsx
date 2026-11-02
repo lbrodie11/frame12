@@ -19,10 +19,13 @@ import {
   TableHead,
   TableCell,
   TableCaption,
+} from '@/components/frame12';
+import {
   useOnTwos,
   useChanged,
   type MotionMode,
-} from '@frame12/registry';
+} from '@/hooks/use-on-twos';
+import { REGISTRY_BASE_URL } from '@/lib/config';
 import {
   SUMMARIES,
   RANGES,
@@ -124,13 +127,13 @@ export default function MotionPage() {
 
   return (
     <Sheet pegs motion="stepped" theme={theme}>
-      <header className="hd">
-        <div className="hd-text">
-          <p className="eyebrow">
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">
             Motion Grammar · Exposure Sheet Timing
             <Tag>12fps · 83.33ms poses</Tag>
           </p>
-          <h1 className="title">Motion on twos</h1>
+          <h1 className="f12-title">Motion on twos</h1>
           <p className="f12-muted-copy">
             In hand-drawn animation, most action is shot &ldquo;on twos&rdquo;—each drawing is held
             for two frames at 24fps (12 poses per second, 83.33ms per pose). FRAME/12 applies the
@@ -159,7 +162,7 @@ export default function MotionPage() {
 
       <Scene gutter="scene" layout="equal">
         <Panel cut="C-01" label="Stepped on twos (12fps)">
-          <div className="f12-stack-scene m-stepped">
+          <div className="f12-stack-scene f12-m-stepped">
             <div className="f12-row-between">
               <div className="f12-stack-pair">
                 <div className="f12-row-pair">
@@ -209,6 +212,7 @@ export default function MotionPage() {
               <ToneAreaChart
                 data={chartData}
                 seriesLabel="Stepped revenue wipe"
+                labelColumnHeader="Date"
                 formatValue={fmtMoney}
                 formatShort={fmtMoneyShort}
                 motion="stepped"
@@ -231,7 +235,7 @@ export default function MotionPage() {
         </Panel>
 
         <Panel cut="C-02" label="Comparison stage: Smooth (60fps) or Cut (0ms)">
-          <div className={`f12-stack-scene m-${compareMotion}`}>
+          <div className={`f12-stack-scene f12-m-${compareMotion}`}>
             <div className="f12-row-between">
               <div className="f12-stack-pair">
                 <div className="f12-row-pair">
@@ -313,6 +317,7 @@ export default function MotionPage() {
               <ToneAreaChart
                 data={chartData}
                 seriesLabel="Comparison revenue wipe"
+                labelColumnHeader="Date"
                 formatValue={fmtMoney}
                 formatShort={fmtMoneyShort}
                 motion={compareMotion}
@@ -419,7 +424,7 @@ export default function MotionPage() {
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>Hook API</Tag>
-              <span className="f12-mono-note">@frame12/registry</span>
+              <span className="f12-mono-note">@/hooks/use-on-twos</span>
             </div>
             <h2 className="f12-section-title">Sampling an easing curve on twos</h2>
             <p className="f12-body-copy">
@@ -430,13 +435,18 @@ export default function MotionPage() {
             <CopyCommand
               id="motion-copy-hook"
               label="Install motion hooks"
-              command="npx shadcn@latest add https://frame12.dev/r/use-on-twos.json"
+              command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/use-on-twos.json`}
             />
             <div className="f12-cmd-box">
               <div className="f12-cmd-head">
                 <span className="f12-cmd-label">hooks/use-on-twos.ts</span>
               </div>
-              <pre className="f12-cmd-pre">
+              <pre
+                className="f12-cmd-pre"
+                tabIndex={0}
+                role="region"
+                aria-label="hooks/use-on-twos.ts code"
+              >
                 <code>{`export const FRAME_MS = 1000 / 12; // 83.33ms ("on twos")
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 

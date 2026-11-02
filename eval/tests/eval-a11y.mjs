@@ -2,6 +2,7 @@
 // for the three FRAME/12 skill evaluation screens (settings, landing, table) and family overview.
 
 import { chromium } from 'playwright';
+import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -64,7 +65,11 @@ const CONTRAST = () => {
   while (walker.nextNode()) {
     const t = walker.currentNode;
     const el = t.parentElement;
-    if (!el || !t.textContent.trim() || el.closest('svg, .sr-only, .rng, [inert], dialog:not([open])'))
+    if (
+      !el ||
+      !t.textContent.trim() ||
+      el.closest('svg, .f12-sr-only, .f12-rng, [inert], dialog:not([open])')
+    )
       continue;
     const rc = el.getBoundingClientRect();
     if (!rc.width || !rc.height) continue;
@@ -76,8 +81,8 @@ const CONTRAST = () => {
     const r = ratio(parse(cs.color), bgOf(el));
     if (r < need) out.push(`${t.textContent.trim().slice(0, 30)} (${r.toFixed(2)} < ${need})`);
   }
-  for (const tx of document.querySelectorAll('.chart svg text')) {
-    const r = ratio(parse(getComputedStyle(tx).fill), bgOf(tx.closest('.chart')));
+  for (const tx of document.querySelectorAll('.f12-chart svg text')) {
+    const r = ratio(parse(getComputedStyle(tx).fill), bgOf(tx.closest('.f12-chart')));
     if (r < 4.5) {
       out.push(`chart label ${tx.textContent} (${r.toFixed(2)})`);
       break;
@@ -89,9 +94,9 @@ const CONTRAST = () => {
 const NAMES = () => {
   const unnamed = [];
   for (const el of document.querySelectorAll(
-    'button, input, select, textarea, [tabindex="0"], a[href]',
+    'button, input:not([type="hidden"]), select:not([tabindex="-1"]):not([aria-hidden="true"]), textarea, [tabindex="0"], a[href]',
   )) {
-    if (el.closest('[inert], dialog:not([open])')) continue;
+    if (el.closest('[inert], dialog:not([open]), [aria-hidden="true"]')) continue;
     const name = (
       el.getAttribute('aria-label') ||
       el.textContent ||
@@ -106,14 +111,14 @@ const NAMES = () => {
 };
 
 const GRAMMAR_DOM = () => {
-  const scenes = [...document.querySelectorAll('.scene')];
+  const scenes = [...document.querySelectorAll('.f12-scene')];
   const sceneGaps = scenes.map((s) =>
     parseFloat(getComputedStyle(s).rowGap || getComputedStyle(s).gap),
   );
-  const pairs = [...document.querySelectorAll('.pair')];
+  const pairs = [...document.querySelectorAll('.f12-pair')];
   const pairGaps = pairs.map((p) => parseFloat(getComputedStyle(p).gap));
 
-  const cutEls = [...document.querySelectorAll('.panel > .cut')];
+  const cutEls = [...document.querySelectorAll('.f12-panel > .f12-cut')];
   const cuts = cutEls.map((e) => e.textContent.trim());
   const rects = cutEls.map((e) => {
     const r = e.getBoundingClientRect();
@@ -149,25 +154,48 @@ const GRAMMAR_DOM = () => {
   };
 };
 
-async function focusMisses(page, stops = 18) {
+async function focusMissesAll(page) {
   const misses = [];
-  await page.mouse.click(3, 300);
-  for (let i = 0; i < stops; i++) {
+  let totalStops = 0;
+  let cycled = false;
+  let consecutiveBody = 0;
+  await page.evaluate(() => {
+    window.__f12SeenFocus = new Set();
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
+  });
+  for (let i = 0; i < 200; i++) {
     await page.keyboard.press('Tab');
     const info = await page.evaluate(() => {
       const e = document.activeElement;
-      if (!e || e === document.body) return null;
+      if (!e || e === document.body) return { status: 'body' };
+      const seen = window.__f12SeenFocus;
+      if (seen.has(e)) return { status: 'cycled' };
+      seen.add(e);
       const cs = getComputedStyle(e);
       return {
+        status: 'visited',
         id: e.id || e.tagName,
         vis:
           (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) ||
           cs.boxShadow !== 'none',
       };
     });
-    if (info && !info.vis) misses.push(info.id);
+    if (info.status === 'cycled') {
+      cycled = true;
+      break;
+    }
+    if (info.status === 'body') {
+      consecutiveBody++;
+      if (consecutiveBody >= 2) break;
+      continue;
+    }
+    consecutiveBody = 0;
+    totalStops++;
+    if (!info.vis) misses.push(info.id);
   }
-  return misses;
+  return { misses, totalStops, cycled };
 }
 
 async function openScreen(
@@ -202,9 +230,12 @@ async function openScreen(
     });
   }
   const target = resolve(DIST_DIR, `${name}.html`);
-  await page.goto(pathToFileURL(target).href);
+  await page.goto(pathToFileURL(target).href, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#root > *', { timeout: 15000 });
-  await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+  await Promise.race([
+    page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve())),
+    page.waitForTimeout(3000),
+  ]);
   await page.waitForTimeout(350);
   return { ctx, page, errors };
 }
@@ -231,15 +262,21 @@ for (const screen of SCREENS) {
     });
 
     const c = await page.evaluate(CONTRAST);
+    const axe = await new AxeBuilder({ page }).analyze();
     const n = await page.evaluate(NAMES);
     const g = await page.evaluate(GRAMMAR_DOM);
-    const f = await focusMisses(page);
+    const f = await focusMissesAll(page);
     const sw = await page.evaluate(() => document.documentElement.scrollWidth);
 
     check(
       c.length === 0,
       `eval/${screen} (${scheme}, 1280px): WCAG AA text contrast`,
       c.slice(0, 3).join('; '),
+    );
+    check(
+      axe.violations.length === 0,
+      `eval/${screen} (${scheme}, 1280px): @axe-core/playwright zero violations`,
+      axe.violations.map((v) => `${v.id} (${v.nodes.length})`).join(', '),
     );
     check(
       n.unnamed.length === 0 && n.dup.length === 0,
@@ -255,9 +292,9 @@ for (const screen of SCREENS) {
       JSON.stringify(g),
     );
     check(
-      f.length === 0,
-      `eval/${screen} (${scheme}, 1280px): visible keyboard focus`,
-      f.slice(0, 3).join(', '),
+      f.misses.length === 0 && f.totalStops > 0 && f.cycled,
+      `eval/${screen} (${scheme}, 1280px): visible keyboard focus across all ${f.totalStops} tab stops`,
+      `cycled=${f.cycled} misses=${f.misses.slice(0, 3).join(', ')}`,
     );
     check(
       sw <= 1280 && errors.length === 0,
@@ -302,7 +339,7 @@ for (const screen of SCREENS) {
   await page.fill('#settings-threshold', '15');
   await page.click('#settings-revoke-open');
   const dlgCut = await page.evaluate(
-    () => document.querySelector('dialog.f12-dialog[open] .cut')?.textContent,
+    () => document.querySelector('dialog.f12-dialog[open] .f12-cut')?.textContent,
   );
   await page.click('#settings-revoke-confirm');
   const dlgClosed = await page.evaluate(() => !document.querySelector('dialog.f12-dialog').open);
@@ -321,11 +358,11 @@ for (const screen of SCREENS) {
   await page.click('#int-land-exit');
   await page.waitForTimeout(400);
   const hasCompareLine = await page.evaluate(() =>
-    Boolean(document.querySelector('.chart .l-focus')),
+    Boolean(document.querySelector('.f12-chart .f12-l-focus')),
   );
   await page.click('#landing-trial-open');
   const dlgCut = await page.evaluate(
-    () => document.querySelector('dialog.f12-dialog[open] .cut')?.textContent,
+    () => document.querySelector('dialog.f12-dialog[open] .f12-cut')?.textContent,
   );
   await page.click('#landing-trial-confirm');
   const statusText = await page.innerText('#landing-status');
@@ -351,7 +388,7 @@ for (const screen of SCREENS) {
   await page.click('#ledger-reset-btn');
   await page.click('#table-payload-open');
   const dlgCut = await page.evaluate(
-    () => document.querySelector('dialog.f12-dialog[open] .cut')?.textContent,
+    () => document.querySelector('dialog.f12-dialog[open] .f12-cut')?.textContent,
   );
   await page.click('#table-payload-replay');
   const statusText = await page.innerText('#table-status');

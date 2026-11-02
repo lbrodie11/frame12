@@ -3,7 +3,8 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SegmentedControl, Tag, type MotionMode } from '@frame12/registry';
+import { SegmentedControl, Tag } from '@/components/frame12';
+import { type MotionMode } from '@/hooks/use-on-twos';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -138,7 +139,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SiteSettingsContext.Provider value={ctxValue}>
-      <div className={`site-root theme-${theme} m-${motion}`}>
+      <div className={`site-root f12-theme-${theme} f12-m-${motion}`}>
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>

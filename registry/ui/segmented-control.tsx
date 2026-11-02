@@ -24,9 +24,11 @@ export function SegmentedControl<T extends string | number = string | number>({
   value,
   onChange,
   ariaLabel = 'Options',
-  idPrefix = 'seg',
+  idPrefix,
   className = '',
 }: SegmentedControlProps<T>) {
+  const autoId = React.useId().replace(/:/g, '');
+  const resolvedPrefix = idPrefix ?? `seg-${autoId}`;
   const wrap = React.useRef<HTMLDivElement | null>(null);
   const [ind, setInd] = React.useState<{ x: number; w: number } | null>(null);
 
@@ -50,14 +52,14 @@ export function SegmentedControl<T extends string | number = string | number>({
 
   return (
     <div
-      className={`rng${className ? ` ${className}` : ''}`}
+      className={`f12-rng${className ? ` ${className}` : ''}`}
       ref={wrap}
       role="group"
       aria-label={ariaLabel}
     >
       {ind && (
         <span
-          className="rng-ind"
+          className="f12-rng-ind"
           aria-hidden="true"
           style={{ transform: `translateX(${ind.x}px)`, width: ind.w }}
         />
@@ -65,14 +67,14 @@ export function SegmentedControl<T extends string | number = string | number>({
       {options.map((opt) => (
         <button
           key={String(opt.value)}
-          id={`${idPrefix}-${opt.value}`}
+          id={`${resolvedPrefix}-${opt.value}`}
           type="button"
-          className="rng-btn"
+          className="f12-rng-btn"
           aria-pressed={value === opt.value}
           onClick={() => onChange(opt.value)}
         >
-          <span className="rng-n">{opt.label}</span>
-          {opt.unit && <span className="rng-u">{opt.unit}</span>}
+          <span className="f12-rng-n">{opt.label}</span>
+          {opt.unit && <span className="f12-rng-u">{opt.unit}</span>}
         </button>
       ))}
     </div>

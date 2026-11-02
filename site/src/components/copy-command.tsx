@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Button } from '@frame12/registry';
+import { Button } from '@/components/frame12';
 
 export interface CopyCommandProps {
   command: string;
@@ -10,14 +10,37 @@ export interface CopyCommandProps {
 }
 
 export function CopyCommand({ command, label = 'Install command', id }: CopyCommandProps) {
-  const [copied, setCopied] = React.useState(false);
+  const [status, setStatus] = React.useState<'idle' | 'copied' | 'failed'>('idle');
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const onCopy = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(command).catch(() => {});
+  React.useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const onCopy = async () => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(command);
+        setStatus('copied');
+      } catch {
+        setStatus('failed');
+      }
+    } else {
+      setStatus('failed');
+    }
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      setStatus('idle');
+    }, 1800);
   };
 
   return (
@@ -27,15 +50,15 @@ export function CopyCommand({ command, label = 'Install command', id }: CopyComm
         <Button
           type="button"
           id={id}
-          variant={copied ? 'marker' : 'secondary'}
+          variant={status === 'copied' ? 'marker' : 'secondary'}
           size="sm"
           onClick={onCopy}
           aria-label={`Copy ${label}: ${command}`}
         >
-          {copied ? 'Copied' : 'Copy'}
+          {status === 'copied' ? 'Copied' : status === 'failed' ? 'Select below' : 'Copy'}
         </Button>
       </div>
-      <pre className="f12-cmd-pre">
+      <pre className="f12-cmd-pre" tabIndex={0} role="region" aria-label={`${label} code`}>
         <code>{command}</code>
       </pre>
     </div>

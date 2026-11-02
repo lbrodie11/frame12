@@ -16,11 +16,11 @@
   --color-f-marker-ink: var(--f-marker-ink);
   --color-f-hole: var(--f-hole);
 
-  --font-f-display: var(--font-f-display);
-  --font-f-body: var(--font-f-body);
-  --font-f-mono: var(--font-f-mono);
+  --font-f12-display: var(--font-f-display);
+  --font-f12-body: var(--font-f-body);
+  --font-f12-mono: var(--font-f-mono);
 
-  --spacing-gutter-pair: 12px;
-  --spacing-gutter-scene: 20px;
-  --spacing-gutter-change: 32px;
+  --spacing-gutter-pair: var(--f-gutter-pair);
+  --spacing-gutter-scene: var(--f-gutter-scene);
+  --spacing-gutter-change: var(--f-gutter-change);
 }

@@ -19,9 +19,10 @@
       }
     ],
     "paths": {
-      "@frame12/registry": ["../registry/index.ts"],
+      "@/components/frame12": ["../registry/ui/index.ts"],
+      "@/components/frame12/*": ["../registry/ui/*"],
       "@/hooks/*": ["../registry/hooks/*"],
-      "@/components/ui/*": ["../registry/ui/*"],
+      "@/styles/*": ["../registry/styles/*"],
       "@/*": ["./src/*"]
     }
   },
@@ -32,6 +33,7 @@
     "app/**/*.ts",
     "app/**/*.tsx",
     "../registry/index.ts",
+    "../registry/ui/index.ts",
     "../registry/hooks/**/*.ts",
     "../registry/ui/**/*.tsx",
     ".next/types/**/*.ts"

@@ -29,10 +29,10 @@ export function Balloon({
   const py = svgH - 5;
 
   return (
-    <div className={`balloon-standalone${className ? ` ${className}` : ''}`} {...rest}>
-      <div className="balloon">
+    <div className={`f12-balloon-standalone${className ? ` ${className}` : ''}`} {...rest}>
+      <div className="f12-balloon">
         <span
-          className="balloon-gap"
+          className="f12-balloon-gap"
           aria-hidden="true"
           style={{ left: `calc(50% + ${clamped * 0.4 - 5}px)` }}
         />
@@ -41,14 +41,14 @@ export function Balloon({
       <svg
         width={svgW}
         height={svgH}
-        className="balloon-standalone-svg"
+        className="f12-balloon-standalone-svg"
         aria-hidden="true"
       >
         <path
-          className="tail"
+          className="f12-tail"
           d={`M${tailX - 6},0 L${px - (px - tailX) * 0.15},${py - 7} L${tailX + 6},0`}
         />
-        {showDot && <circle className="peak-dot" cx={px} cy={py} r="4" />}
+        {showDot && <circle className="f12-peak-dot" cx={px} cy={py} r="4" />}
       </svg>
     </div>
   );

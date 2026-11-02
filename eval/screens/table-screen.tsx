@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { type MotionMode, useChanged } from '@/hooks/use-on-twos';
 import {
-  type MotionMode,
-  useChanged,
   fmtMoney,
   Sheet,
   Scene,
@@ -45,7 +44,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-} from '@frame12/registry';
+} from '@/components/frame12';
 
 type DispatchStatus = 'all' | 'recovered' | 'pending' | 'holdout';
 
@@ -246,17 +245,17 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
   return (
     <main className="eval-screen-root">
       <Sheet motion={motion} theme={theme} id="table-sheet">
-        <header className="hd">
-          <div className="hd-text">
-            <p className="eyebrow">
+        <header className="f12-hd">
+          <div className="f12-hd-text">
+            <p className="f12-eyebrow">
               Ledger Sheet · Live Dispatch Log
               <Tag>{filteredRows.length} rows</Tag>
               <Badge pop={changed} burst>
                 {fmtMoney(totalAmount)}
               </Badge>
             </p>
-            <h1 className="title">Order Recovery Ledger</h1>
-            <p className="sub" id="table-status">
+            <h1 className="f12-title">Order Recovery Ledger</h1>
+            <p className="f12-sub" id="table-status">
               {filteredRows.length} matching dispatches · {actionNote}
             </p>
           </div>
@@ -545,7 +544,7 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
                   gap: 'var(--f-gutter-pair)',
                 }}
               >
-                <h2 className="m-label">Dispatch Inspector · {inspectedRow.orderId}</h2>
+                <h2 className="f12-m-label">Dispatch Inspector · {inspectedRow.orderId}</h2>
                 <Tag>{inspectedRow.statusTag}</Tag>
               </div>
 

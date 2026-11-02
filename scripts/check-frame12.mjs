@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Automated design-grammar checker for FRAME/12.
 // Enforces:
-//   1. color-literal      — No hard-coded hex/rgb/hsl colors or font stacks outside token files
+//   1. color-literal      — No hard-coded hex/rgb/hsl colors, CSS gradients, or font stacks outside token files
 //   2. illegal-gutter     — Only 12px (pair), 20px (scene), and 32px (change) gutters
 //   3. marker-misuse      — --f-marker / #ffd60a only as background paired with --f-marker-ink
 //   4. cut-order          — Sequential C-01, C-02, C-03... in DOM/reading order without gaps or duplicates
@@ -12,7 +12,7 @@ import { resolve, relative, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css']);
-const TOKEN_BASENAMES = new Set(['frame12.css', 'frame12-tailwind.css', 'og-image.tsx']);
+const TOKEN_BASENAMES = new Set(['frame12.css', 'frame12-tailwind.css', 'og-image.tsx', 'apple-icon.tsx']);
 const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '.f12-run', 'test-results']);
 
 const LEGAL_GUTTER_NAMES = new Set(['pair', 'scene', 'change']);
@@ -71,12 +71,108 @@ const FORBIDDEN_EXTERNAL_PACKAGES = new Set([
 ]);
 
 /**
- * Replaces JS/CSS comments with spaces while preserving newlines so line numbers stay accurate.
+ * Replaces JS/CSS comments with spaces while preserving newlines and string literals
+ * so URLs like "https://example.com" inside strings are never treated as // comments.
  */
 function stripCommentsPreservingLines(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, (match) => match.replace(/[^\n]/g, ' '))
-    .replace(/\/\/[^\n]*/g, (match) => ' '.repeat(match.length));
+  let out = '';
+  let i = 0;
+  const len = src.length;
+  let state = 'code'; // 'code' | 'single' | 'double' | 'template' | 'line-comment' | 'block-comment'
+
+  while (i < len) {
+    const ch = src[i];
+    const next = i + 1 < len ? src[i + 1] : '';
+
+    if (state === 'code') {
+      if (ch === '/' && next === '/') {
+        state = 'line-comment';
+        out += '  ';
+        i += 2;
+        continue;
+      }
+      if (ch === '/' && next === '*') {
+        state = 'block-comment';
+        out += '  ';
+        i += 2;
+        continue;
+      }
+      const prev = i > 0 ? src[i - 1] : '';
+      const precededByWord = /[a-zA-Z0-9_$]/.test(prev);
+      if (ch === "'" && !precededByWord) {
+        state = 'single';
+        out += ch;
+        i++;
+        continue;
+      }
+      if (ch === '"' && !precededByWord) {
+        state = 'double';
+        out += ch;
+        i++;
+        continue;
+      }
+      if (ch === '`') {
+        state = 'template';
+        out += ch;
+        i++;
+        continue;
+      }
+      out += ch;
+      i++;
+    } else if (state === 'single') {
+      if (ch === '\\' && i + 1 < len) {
+        out += ch + next;
+        i += 2;
+        continue;
+      }
+      if (ch === "'" || ch === '\n') {
+        state = 'code';
+      }
+      out += ch;
+      i++;
+    } else if (state === 'double') {
+      if (ch === '\\' && i + 1 < len) {
+        out += ch + next;
+        i += 2;
+        continue;
+      }
+      if (ch === '"' || ch === '\n') {
+        state = 'code';
+      }
+      out += ch;
+      i++;
+    } else if (state === 'template') {
+      if (ch === '\\' && i + 1 < len) {
+        out += ch + next;
+        i += 2;
+        continue;
+      }
+      if (ch === '`') {
+        state = 'code';
+      }
+      out += ch;
+      i++;
+    } else if (state === 'line-comment') {
+      if (ch === '\n') {
+        state = 'code';
+        out += '\n';
+      } else {
+        out += ' ';
+      }
+      i++;
+    } else if (state === 'block-comment') {
+      if (ch === '*' && next === '/') {
+        state = 'code';
+        out += '  ';
+        i += 2;
+        continue;
+      }
+      out += ch === '\n' ? '\n' : ' ';
+      i++;
+    }
+  }
+
+  return out;
 }
 
 function lineNumberAt(src, index) {
@@ -104,6 +200,24 @@ function isLegalGapValue(rawVal) {
 }
 
 /**
+ * Extracts balanced {...} content starting at the opening '{' at openIdx.
+ */
+function extractBalancedBraces(src, openIdx) {
+  let depth = 0;
+  for (let i = openIdx; i < src.length; i++) {
+    const ch = src[i];
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        return src.slice(openIdx + 1, i);
+      }
+    }
+  }
+  return src.slice(openIdx + 1);
+}
+
+/**
  * Lints a single source string and returns an array of violation objects:
  * { rule, file, line, message, snippet }
  */
@@ -119,21 +233,19 @@ export function lintSource(content, filePath = 'input.tsx') {
     normalizedPath.includes('/registry/ui/') ||
     normalizedPath.startsWith('registry/ui/') ||
     normalizedPath.includes('/registry/hooks/') ||
-    normalizedPath.startsWith('registry/hooks/');
+    normalizedPath.startsWith('registry/hooks/') ||
+    normalizedPath.includes('/components/frame12/') ||
+    normalizedPath.startsWith('components/frame12/') ||
+    normalizedPath.includes('/hooks/use-on-twos') ||
+    normalizedPath.startsWith('hooks/use-on-twos');
 
   const stripped = stripCommentsPreservingLines(content);
 
   // =========================================================================
-  // 1. color-literal (Hard-coded colors & font stacks outside token files)
+  // 1. color-literal (Hard-coded colors, CSS gradients & font stacks outside token files)
   // =========================================================================
   if (!isTokenFile) {
-    let colorScan = stripped;
-    if (base === 'tone-area-chart.tsx') {
-      colorScan = colorScan.replace(
-        /stopColor="#fff"/g,
-        (m) => ' '.repeat(m.length),
-      );
-    }
+    const colorScan = stripped;
 
     // Hex colors (#rgb, #rgba, #rrggbb, #rrggbbaa) not preceded by url( or href=
     const hexRegex = /#[0-9a-fA-F]{3,8}\b/g;
@@ -161,6 +273,22 @@ export function lintSource(content, filePath = 'input.tsx') {
         line: lineNumberAt(content, m.index),
         message: `Hard-coded color function "${m[0]}" is forbidden outside token files. Use a var(--f-*) token.`,
         snippet: m[0],
+      });
+    }
+
+    // CSS gradients (linear-gradient, radial-gradient, conic-gradient)
+    // Exempts only the screentone dot pattern radial-gradient(circle, var(--f-tone)...)
+    const gradientRegex =
+      /\b(?:repeating-)?(?:linear|radial|conic)-gradient\s*\([^;}\n)]*\)/gi;
+    while ((m = gradientRegex.exec(colorScan)) !== null) {
+      const grad = m[0];
+      if (/^radial-gradient\(\s*circle\s*,\s*var\(--f-tone\)/i.test(grad)) continue;
+      violations.push({
+        rule: 'color-literal',
+        file: filePath,
+        line: lineNumberAt(content, m.index),
+        message: `CSS gradient "${grad}" is forbidden in FRAME/12. Use 45° SVG screentone patterns or flat var(--f-*) surfaces.`,
+        snippet: grad,
       });
     }
 
@@ -241,20 +369,41 @@ export function lintSource(content, filePath = 'input.tsx') {
         }
       }
 
-      // 2c. Tailwind gap-* classes in className
-      const classAttrRegex = /\bclassName\s*=\s*(?:['"]([^'"]*)['"]|\{\s*['"`]([^'"`]*)['"`]\s*\})/g;
-      while ((m = classAttrRegex.exec(stripped)) !== null) {
-        const clsStr = m[1] ?? m[2] ?? '';
-        const tokens = clsStr.split(/\s+/).filter(Boolean);
-        for (const tok of tokens) {
-          if (/^gap-(?:x-|y-)?/.test(tok) && !LEGAL_TAILWIND_GAP_CLASSES.has(tok)) {
-            violations.push({
-              rule: 'illegal-gutter',
-              file: filePath,
-              line: lineNumberAt(content, m.index),
-              message: `Illegal Tailwind gutter class "${tok}". Use Scene gutter="pair|scene|change" or 12px/20px/32px tokens.`,
-              snippet: tok,
-            });
+      // 2c. Tailwind gap-* classes in className (including string literals, template literals, cn(), clsx())
+      const classStartRegex = /\bclassName\s*=\s*/g;
+      while ((m = classStartRegex.exec(stripped)) !== null) {
+        const valStart = m.index + m[0].length;
+        const firstCh = stripped[valStart];
+        const stringFragments = [];
+
+        if (firstCh === '"' || firstCh === "'") {
+          const endIdx = stripped.indexOf(firstCh, valStart + 1);
+          if (endIdx !== -1) {
+            stringFragments.push(stripped.slice(valStart + 1, endIdx));
+          }
+        } else if (firstCh === '{') {
+          const expr = extractBalancedBraces(stripped, valStart);
+          const strLitRegex = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/g;
+          let sm;
+          while ((sm = strLitRegex.exec(expr)) !== null) {
+            // Strip ${...} interpolation blocks inside template literals while keeping static class tokens
+            const cleaned = sm[2].replace(/\$\{[^}]*\}/g, ' ');
+            stringFragments.push(cleaned);
+          }
+        }
+
+        for (const clsStr of stringFragments) {
+          const tokens = clsStr.split(/\s+/).filter(Boolean);
+          for (const tok of tokens) {
+            if (/^gap-(?:x-|y-)?/.test(tok) && !LEGAL_TAILWIND_GAP_CLASSES.has(tok)) {
+              violations.push({
+                rule: 'illegal-gutter',
+                file: filePath,
+                line: lineNumberAt(content, m.index),
+                message: `Illegal Tailwind gutter class "${tok}". Use Scene gutter="pair|scene|change" or 12px/20px/32px tokens.`,
+                snippet: tok,
+              });
+            }
           }
         }
       }
@@ -361,12 +510,17 @@ export function lintSource(content, filePath = 'input.tsx') {
   // 4. cut-order (Sequential C-01, C-02, C-03... in DOM order without gaps/dups)
   // =========================================================================
   if (ext !== '.css') {
+    // Blank out multi-line template literals (e.g. documentation code snippets)
+    // while preserving line numbers so example strings are not treated as live JSX cuts.
+    const cutScan = stripped.replace(/`[\s\S]*?`/g, (match) =>
+      match.includes('\n') ? match.replace(/[^\n]/g, ' ') : match,
+    );
     const cutMatches = [];
     // Match JSX attributes cut="...", topCut="...", bottomCut="..." or object properties cut: '...'
     const cutPropRegex =
       /\b(?:cut|topCut|bottomCut)\s*(?:=\s*(?:['"]([^'"]+)['"]|\{\s*['"`]([^'"`]+)['"`]\s*\})|:\s*['"`]([^'"`]+)['"`])/g;
     let m;
-    while ((m = cutPropRegex.exec(stripped)) !== null) {
+    while ((m = cutPropRegex.exec(cutScan)) !== null) {
       const rawCut = m[1] ?? m[2] ?? m[3] ?? '';
       const line = lineNumberAt(content, m.index);
       const parsed = rawCut.match(/^C-(\d{2,})$/);
@@ -441,7 +595,7 @@ export function lintSource(content, filePath = 'input.tsx') {
           rule: 'raw-shadcn-import',
           file: filePath,
           line,
-          message: `Raw Radix primitive import "${spec}" is forbidden. Import the FRAME/12 adapter from "@frame12/registry".`,
+          message: `Raw Radix primitive import "${spec}" is forbidden. Import the FRAME/12 adapter from "@/components/frame12".`,
           snippet: m[0].trim(),
         });
         continue;
@@ -452,7 +606,7 @@ export function lintSource(content, filePath = 'input.tsx') {
           rule: 'raw-shadcn-import',
           file: filePath,
           line,
-          message: `External library "${spec}" is forbidden in FRAME/12. Use ToneAreaChart, ToneBarList, ToneSpark, and useOnTwos from "@frame12/registry".`,
+          message: `External library "${spec}" is forbidden in FRAME/12. Use ToneAreaChart, ToneBarList, ToneSpark from "@/components/frame12" and useOnTwos from "@/hooks/use-on-twos".`,
           snippet: m[0].trim(),
         });
         continue;
@@ -466,7 +620,7 @@ export function lintSource(content, filePath = 'input.tsx') {
             rule: 'raw-shadcn-import',
             file: filePath,
             line,
-            message: `Raw shadcn import "${spec}" is forbidden where a FRAME/12 component or adapter exists. Import from "@frame12/registry".`,
+            message: `Raw shadcn import "${spec}" is forbidden where a FRAME/12 component or adapter exists. Import from "@/components/frame12".`,
             snippet: m[0].trim(),
           });
         }

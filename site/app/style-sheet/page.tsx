@@ -21,7 +21,7 @@ import {
   TableHead,
   TableCell,
   TableCaption,
-} from '@frame12/registry';
+} from '@/components/frame12';
 import {
   SUMMARIES,
   STORE,
@@ -72,13 +72,13 @@ export default function StyleSheetPage() {
 
   return (
     <Sheet pegs motion={motion} theme={theme}>
-      <header className="hd">
-        <div className="hd-text">
-          <p className="eyebrow">
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <p className="f12-eyebrow">
             Style sheet · Phase 1 Specimen
             <Tag>Example data</Tag>
           </p>
-          <h1 className="title">FRAME/12 Style Sheet</h1>
+          <h1 className="f12-title">FRAME/12 Style Sheet</h1>
           <p className="f12-muted-copy">
             An interface language taken from page composition and cel-animation production:
             ink-framed panels, gutters whose width means something, screentone instead of gradients,
@@ -100,7 +100,7 @@ export default function StyleSheetPage() {
               </div>
             </div>
 
-            <div className="f12-preview-frame theme-light m-cut">
+            <div className="f12-preview-frame f12-theme-light f12-m-cut">
               <div className="f12-preview-sheet">
                 <Scene gutter="scene" layout="split">
                   <Panel label="Specimen primary revenue chart">
@@ -121,6 +121,7 @@ export default function StyleSheetPage() {
                         value: d.total,
                       }))}
                       seriesLabel="Recovered revenue"
+                      labelColumnHeader="Date"
                       formatValue={fmtMoney}
                       formatShort={fmtMoneyShort}
                       motion="cut"
@@ -195,7 +196,7 @@ export default function StyleSheetPage() {
               Gutters turn black, the print convention for flashback pages. Shown on 7 days with one
               intervention selected.
             </p>
-            <div className="f12-preview-frame theme-dark m-cut">
+            <div className="f12-preview-frame f12-theme-dark f12-m-cut">
               <div className="f12-preview-sheet">
                 <Metric
                   label="Recovered revenue (7 days)"
@@ -214,6 +215,7 @@ export default function StyleSheetPage() {
                     compareValue: d.byId.exit,
                   }))}
                   seriesLabel="Recovered revenue"
+                  labelColumnHeader="Date"
                   compareLabel="Exit-intent offer"
                   formatValue={fmtMoney}
                   formatShort={fmtMoneyShort}
@@ -236,7 +238,7 @@ export default function StyleSheetPage() {
             <p className="f12-muted-copy">
               Panels stack in reading order below 760px; the gutters keep their meaning.
             </p>
-            <div className="sp-phone-box theme-light m-cut">
+            <div className="sp-phone-box f12-theme-light f12-m-cut">
               <div className="f12-preview-sheet">
                 <Metric
                   label="Recovered revenue (90 days)"
@@ -299,7 +301,7 @@ export default function StyleSheetPage() {
 
             <Scene gutter="scene" layout="three">
               <div className="f12-stack-pair">
-                <div className="f12-preview-frame theme-light m-cut">
+                <div className="f12-preview-frame f12-theme-light f12-m-cut">
                   <Panel label="Cut number example">
                     <p className="f12-body-copy">Panel content framed with 2.5px mitered ink.</p>
                   </Panel>
@@ -312,7 +314,7 @@ export default function StyleSheetPage() {
               </div>
 
               <div className="f12-stack-pair">
-                <div className="f12-preview-frame theme-light m-cut">
+                <div className="f12-preview-frame f12-theme-light f12-m-cut">
                   <PanelPair
                     top={{ label: 'Paired profit', children: <p className="f12-body-copy">Profit</p> }}
                     bottom={{
@@ -329,7 +331,7 @@ export default function StyleSheetPage() {
               </div>
 
               <div className="f12-stack-pair">
-                <div className="f12-preview-frame theme-light m-cut">
+                <div className="f12-preview-frame f12-theme-light f12-m-cut">
                   <div className="sp-tones" aria-hidden="true">
                     <span className="tone t1" />
                     <span className="tone t2" />
@@ -346,7 +348,7 @@ export default function StyleSheetPage() {
 
             <Scene gutter="scene" layout="three">
               <div className="f12-stack-pair">
-                <div className="f12-preview-frame theme-light m-cut">
+                <div className="f12-preview-frame f12-theme-light f12-m-cut">
                   <ToneAreaChart
                     data={s7.days.map((d) => ({
                       label: d.label,
@@ -354,6 +356,7 @@ export default function StyleSheetPage() {
                       value: d.total,
                     }))}
                     seriesLabel="Recovered revenue"
+                    labelColumnHeader="Date"
                     formatValue={fmtMoney}
                     formatShort={fmtMoneyShort}
                     motion="cut"
@@ -369,7 +372,7 @@ export default function StyleSheetPage() {
               </div>
 
               <div className="f12-stack-pair">
-                <div className="f12-preview-frame theme-light m-cut">
+                <div className="f12-preview-frame f12-theme-light f12-m-cut">
                   <div className="f12-preview-sheet">
                     <div className="f12-stack-pair">
                       <div>
@@ -384,13 +387,13 @@ export default function StyleSheetPage() {
                 </div>
                 <h3 className="f12-section-title">5. Marker</h3>
                 <p className="f12-muted-copy">
-                  One flat yellow, always under ink text. It flags; it never colours a line or a
+                  One flat yellow, always under ink text. It flags; it never colors a line or a
                   chart.
                 </p>
               </div>
 
               <div className="f12-stack-pair">
-                <div className="f12-preview-frame theme-light m-stepped">
+                <div className="f12-preview-frame f12-theme-light f12-m-stepped">
                   <div className="f12-preview-sheet">
                     <SegmentedControl
                       idPrefix="sp-detail-rng"
@@ -516,12 +519,14 @@ export default function StyleSheetPage() {
                 {PALETTE.map((item) => (
                   <TableRow key={item.name}>
                     <TableCell>
-                      <strong>{item.name}</strong>{' '}
-                      <code className="f12-code-inline">{item.token}</code>
+                      <div className="f12-comp-cell">
+                        <strong>{item.name}</strong>
+                        <code className="f12-code-inline f12-nowrap">{item.token}</code>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span
-                        className="sw-chip theme-light"
+                        className="sw-chip f12-theme-light"
                         style={
                           item.token === '--f-marker'
                             ? {
@@ -536,7 +541,7 @@ export default function StyleSheetPage() {
                     </TableCell>
                     <TableCell>
                       <span
-                        className="sw-chip theme-dark"
+                        className="sw-chip f12-theme-dark"
                         style={
                           item.token === '--f-marker'
                             ? {
