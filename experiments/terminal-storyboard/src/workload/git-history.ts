@@ -32,13 +32,62 @@ interface ParsedCommit {
 const COMMIT_MARKER = '__F12_COMMIT__\x00';
 const MAX_FILES_PER_COMMIT = 50;
 
+function unquoteGitPath(line: string): string {
+  const cleaned = line.replace(/\r$/, '');
+  if (cleaned.length >= 2 && cleaned.startsWith('"') && cleaned.endsWith('"')) {
+    const inner = cleaned.slice(1, -1);
+    const bytes: number[] = [];
+    for (let i = 0; i < inner.length; i++) {
+      const ch = inner[i]!;
+      if (ch === '\\' && i + 1 < inner.length) {
+        const next = inner[i + 1]!;
+        if (next >= '0' && next <= '7') {
+          let oct = next;
+          i += 1;
+          if (i + 1 < inner.length && inner[i + 1]! >= '0' && inner[i + 1]! <= '7') {
+            oct += inner[++i]!;
+            if (i + 1 < inner.length && inner[i + 1]! >= '0' && inner[i + 1]! <= '7') {
+              oct += inner[++i]!;
+            }
+          }
+          bytes.push(parseInt(oct, 8) & 0xff);
+          continue;
+        }
+        i += 1;
+        const escMap: Record<string, number> = {
+          a: 0x07,
+          b: 0x08,
+          t: 0x09,
+          n: 0x0a,
+          v: 0x0b,
+          f: 0x0c,
+          r: 0x0d,
+          '"': 0x22,
+          '\\': 0x5c,
+        };
+        if (escMap[next] !== undefined) {
+          bytes.push(escMap[next]!);
+        } else {
+          bytes.push(...Buffer.from(next, 'utf8'));
+        }
+      } else {
+        bytes.push(...Buffer.from(ch, 'utf8'));
+      }
+    }
+    return Buffer.from(bytes).toString('utf8');
+  }
+  return cleaned;
+}
+
 function parseCommitRecord(raw: string): ParsedCommit | null {
   const lines = raw.split(/\r?\n/);
   const header = lines.shift();
   if (!header) return null;
   const [sha = '', date = '', subject = ''] = header.split('\x00');
   if (!sha.trim()) return null;
-  const files = Array.from(new Set(lines.map((l) => l.trim()).filter(Boolean))).sort();
+  const files = Array.from(
+    new Set(lines.map((l) => unquoteGitPath(l)).filter((l) => l.length > 0)),
+  ).sort();
   return { sha: sha.trim(), date: date.trim(), subject: subject.trim(), files };
 }
 
@@ -104,7 +153,12 @@ export async function runGitHistoryWorkload(
   const runGit = (args: string[], onChunk?: (chunk: string) => void) =>
     new Promise<{ code: number; stdout: string; stderr: string; aborted: boolean }>((res) => {
       if (options.signal?.aborted) return res({ code: 130, stdout: '', stderr: 'Aborted', aborted: true });
-      const child = spawn('git', ['-C', resolvedPath, ...args], { shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn('git', ['-c', 'core.quotePath=false', '-C', resolvedPath, ...args], {
+        shell: false,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
       let stdout = '';
       let stderr = '';
       let aborted = false;
@@ -113,13 +167,12 @@ export async function runGitHistoryWorkload(
         child.kill('SIGTERM');
       };
       options.signal?.addEventListener('abort', onAbort, { once: true });
-      child.stdout.on('data', (d: Buffer) => {
-        const str = d.toString('utf8');
-        stdout += str;
+      child.stdout.on('data', (str: string) => {
+        if (!onChunk) stdout += str;
         onChunk?.(str);
       });
-      child.stderr.on('data', (d: Buffer) => {
-        stderr += d.toString('utf8');
+      child.stderr.on('data', (str: string) => {
+        stderr += str;
       });
       child.on('error', (err) => {
         options.signal?.removeEventListener('abort', onAbort);
@@ -173,14 +226,29 @@ export async function runGitHistoryWorkload(
       if (parsed) commits.push(parsed);
     }
   }
+  const isUnbornEmptyRepo =
+    logRes.code !== 0 &&
+    commits.length === 0 &&
+    /does not have any commits yet/i.test(logRes.stderr);
+  if (logRes.code !== 0 && !isUnbornEmptyRepo) {
+    const msg = `Failed to read git history (${resolvedPath}): ${logRes.stderr.trim() || `git log exited with code ${logRes.code}`}`;
+    return { snapshot: finishEarly('failed', 'error', msg), events };
+  }
   if (commits.length === 0) {
     const warn = 'Repository has no commits in the inspected history window.';
     warnings.push(warn);
     emit('warning', 'read-history', { message: warn });
   }
   const fileCommits = new Map<string, number>();
+  const nonBulkFileCommits = new Map<string, number>();
   for (const c of commits) {
-    for (const f of c.files) fileCommits.set(f, (fileCommits.get(f) ?? 0) + 1);
+    const isBulk = c.files.length > MAX_FILES_PER_COMMIT;
+    for (const f of c.files) {
+      fileCommits.set(f, (fileCommits.get(f) ?? 0) + 1);
+      if (!isBulk) {
+        nonBulkFileCommits.set(f, (nonBulkFileCommits.get(f) ?? 0) + 1);
+      }
+    }
   }
   emit('metric', 'read-history', { name: 'commitsExamined', value: commits.length });
   emit('metric', 'read-history', { name: 'uniqueFilesObserved', value: fileCommits.size });
@@ -218,8 +286,8 @@ export async function runGitHistoryWorkload(
   const candidates = Array.from(pairMap.values())
     .filter((p) => p.count >= minThreshold)
     .map((p) => {
-      const fileACommits = fileCommits.get(p.files[0]) ?? p.count;
-      const fileBCommits = fileCommits.get(p.files[1]) ?? p.count;
+      const fileACommits = nonBulkFileCommits.get(p.files[0]) ?? p.count;
+      const fileBCommits = nonBulkFileCommits.get(p.files[1]) ?? p.count;
       const minCommits = Math.max(1, Math.min(fileACommits, fileBCommits));
       const couplingRatio = Math.min(1, Math.round((p.count / minCommits) * 100) / 100);
       return { ...p, fileACommits, fileBCommits, couplingRatio };

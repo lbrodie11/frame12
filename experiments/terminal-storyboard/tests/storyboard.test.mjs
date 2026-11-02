@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { describe, it, before, after } from 'node:test';
@@ -266,6 +266,53 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         assert.equal(actual.evidence.commitShas.length, expCount);
       }
     });
+
+    it('[P1-01] unquotes filenames with quotes/spaces/non-ASCII and excludes skipped bulk commits from couplingRatio denominator', async () => {
+      const tmpRepo = mkdtempSync(join(tmpdir(), 'f12-quote-bulk-'));
+      const runGitSync = (args) => {
+        const p = spawn('git', args, { cwd: tmpRepo, stdio: 'ignore' });
+        return new Promise((res, rej) => p.on('close', (c) => (c === 0 ? res() : rej(new Error(`git ${args.join(' ')} failed`)))));
+      };
+      try {
+        await runGitSync(['init']);
+        await runGitSync(['config', 'user.name', 'Test']);
+        await runGitSync(['config', 'user.email', 'test@example.com']);
+        await runGitSync(['config', 'commit.gpgsign', 'false']);
+
+        const fileA = 'src/file with spaces & "quotes".ts';
+        const fileB = 'src/unicode-émojî-file.ts';
+        mkdirSync(join(tmpRepo, 'src'), { recursive: true });
+
+        // Commit 1: bulk commit touching 52 files including fileA and fileB
+        writeFileSync(join(tmpRepo, fileA), 'bulk\n');
+        writeFileSync(join(tmpRepo, fileB), 'bulk\n');
+        for (let k = 1; k <= 50; k++) {
+          writeFileSync(join(tmpRepo, `src/bulk-${k}.ts`), `export const b = ${k};\n`);
+        }
+        await runGitSync(['add', '.']);
+        await runGitSync(['commit', '-m', 'chore: initial bulk commit']);
+
+        // Commits 2 & 3: non-bulk lockstep edits to fileA + fileB
+        for (let c = 2; c <= 3; c++) {
+          writeFileSync(join(tmpRepo, fileA), `v${c}\n`);
+          writeFileSync(join(tmpRepo, fileB), `v${c}\n`);
+          await runGitSync(['add', '.']);
+          await runGitSync(['commit', '-m', `feat: lockstep ${c}`]);
+        }
+
+        const res = await runGitHistoryWorkload({ repoPath: tmpRepo, maxCommits: 20, topN: 5 });
+        assert.equal(res.snapshot.status, 'completed');
+        assert.equal(res.snapshot.findings.length, 1);
+        const top = res.snapshot.findings[0];
+        assert.deepEqual(top.files, [fileA, fileB]);
+        assert.equal(top.cochangeCount, 2);
+        assert.equal(top.fileACommits, 2);
+        assert.equal(top.fileBCommits, 2);
+        assert.equal(top.couplingRatio, 1);
+      } finally {
+        rmSync(tmpRepo, { recursive: true, force: true });
+      }
+    });
   });
 
   // ===========================================================================
@@ -461,6 +508,38 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         assert.match(html, /FAILED/);
       } finally {
         rmSync(nonGitDir, { recursive: true, force: true });
+      }
+    });
+
+    it('[P1-01] distinguishes an empty unborn git repo (completed with warning) from a corrupt HEAD git repo (failed, exit 1)', async () => {
+      const emptyRepo = mkdtempSync(join(tmpdir(), 'f12-empty-repo-'));
+      const corruptRepo = mkdtempSync(join(tmpdir(), 'f12-corrupt-repo-'));
+      const initGit = (cwd) =>
+        new Promise((res, rej) => {
+          const p = spawn('git', ['init'], { cwd, stdio: 'ignore' });
+          p.on('close', (c) => (c === 0 ? res() : rej(new Error('git init failed'))));
+        });
+      try {
+        await initGit(emptyRepo);
+        const emptyRes = await runGitHistoryWorkload({ repoPath: emptyRepo });
+        assert.equal(emptyRes.snapshot.status, 'completed');
+        assert.equal(emptyRes.snapshot.commitsExamined, 0);
+        assert.ok(emptyRes.snapshot.warnings.some((w) => /no commits/i.test(w)));
+
+        await initGit(corruptRepo);
+        writeFileSync(join(corruptRepo, '.git/HEAD'), '0000000000000000000000000000000000000000\n');
+        let errOut = '';
+        const corruptCode = await runCli(['run', corruptRepo], {
+          stdout: () => {},
+          stderr: (s) => {
+            errOut += s;
+          },
+        });
+        assert.equal(corruptCode, 1);
+        assert.match(errOut, /Failed to read git history/);
+      } finally {
+        rmSync(emptyRepo, { recursive: true, force: true });
+        rmSync(corruptRepo, { recursive: true, force: true });
       }
     });
 
