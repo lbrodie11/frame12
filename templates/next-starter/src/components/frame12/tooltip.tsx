@@ -88,7 +88,16 @@ function mergeRefs<T>(
 }
 
 export const TooltipTrigger = React.forwardRef<HTMLButtonElement, TooltipTriggerProps>(
-  function TooltipTrigger({ asChild = false, className = '', children, ...rest }, forwardedRef) {
+  function TooltipTrigger(
+    {
+      asChild = false,
+      className = '',
+      'aria-describedby': triggerDescribedBy,
+      children,
+      ...rest
+    },
+    forwardedRef,
+  ) {
     const { open, tooltipId } = useTooltipContext();
     if (asChild && React.isValidElement(children)) {
       const child = children as React.ReactElement<Record<string, unknown>> & {
@@ -97,7 +106,11 @@ export const TooltipTrigger = React.forwardRef<HTMLButtonElement, TooltipTrigger
       const childProps = child.props || {};
       const mergedClassName = [childProps.className, className].filter(Boolean).join(' ') || undefined;
       const mergedDescribedBy =
-        [childProps['aria-describedby'], open ? tooltipId : undefined]
+        [
+          triggerDescribedBy,
+          childProps['aria-describedby'] as string | undefined,
+          open ? tooltipId : undefined,
+        ]
           .filter(Boolean)
           .join(' ') || undefined;
 
@@ -130,12 +143,14 @@ export const TooltipTrigger = React.forwardRef<HTMLButtonElement, TooltipTrigger
 
       return React.cloneElement(child, mergedProps);
     }
+    const buttonDescribedBy =
+      [triggerDescribedBy, open ? tooltipId : undefined].filter(Boolean).join(' ') || undefined;
     return (
       <button
         ref={forwardedRef}
         type="button"
         className={`f12-btn f12-btn-secondary f12-btn-sm${className ? ` ${className}` : ''}`}
-        aria-describedby={open ? tooltipId : undefined}
+        aria-describedby={buttonDescribedBy}
         {...rest}
       >
         {children}

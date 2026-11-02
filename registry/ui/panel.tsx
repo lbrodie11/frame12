@@ -51,7 +51,7 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
   return (
     <section
       ref={setRefs}
-      className={`f12-panel f12-${shape} ${shape}${className ? ` ${className}` : ''}`}
+      className={`f12-panel f12-${shape}${className ? ` ${className}` : ''}`}
       aria-label={label}
       {...rest}
     >

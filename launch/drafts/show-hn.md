@@ -34,7 +34,7 @@ FRAME/12 replaces soft decoration with structural geometry and explicit timing r
 
 ### Zero External Animation or Charting Dependencies
 
-Every component is copy-in React + TypeScript + CSS (`registry/styles/frame12.css`) served as a `shadcn`-compatible registry (`19` registry items: 14 core components, 5 accessible primitive adapters for `Dialog`, `Select`, `Tooltip`, `DropdownMenu`, and `Table`, motion hooks, and CSS tokens). There is no `framer-motion`, `gsap`, `recharts`, `d3`, or `lucide-react`:
+Every component is copy-in React + TypeScript + CSS (`registry/styles/frame12.css`) served as a `shadcn`-compatible registry (`22` registry items: 14 core components, 5 accessible primitive adapters for `Dialog`, `Select`, `Tooltip`, `DropdownMenu`, and `Table`, motion hooks, and CSS tokens). There is no `framer-motion`, `gsap`, `recharts`, `d3`, or `lucide-react`:
 
 - Diagonal panel frames (`Panel`, `PanelPair`) use a `ResizeObserver` to measure pixel dimensions and compute mitered `<svg>` `<polygon>` coordinates so the `2.5px` ink border never warps along the `16px` diagonal cut.
 - The exposure-sheet segmented control (`SegmentedControl`) moves a solid ink bar across cells in 3 stepped poses (`steps(3, end)`) using `mix-blend-mode: difference`, cleanly inverting any numeral it crosses mid-step without sub-pixel blur.
@@ -53,7 +53,7 @@ Because every rule in FRAME/12 is structural, we packaged the design system into
 - `cut-order`: skipped, duplicate, or out-of-order `C-01..C-0N` panel cuts
 - `raw-shadcn-import`: raw unadapted UI primitives or external charting/animation packages
 
-In `eval/`, we tested three unassisted product prompts (SaaS Workspace Settings, Product Landing Hero, and an Order Recovery Ledger) built from `SKILL.md` and verified them with Playwright across desktop (`1280px`) and mobile (`390px`) in light and dark themes (WCAG AA contrast, keyboard focus rings, sequential cut order, and zero horizontal overflow). The repo also includes the Phase 1 counterbalanced blind study (`lab/`) comparing FRAME/12 against a conventional baseline on timed comprehension tasks.
+In `eval/`, we evaluated three product screen archetypes (SaaS Workspace Settings, Product Landing Hero, and an Order Recovery Ledger) built against `SKILL.md` and verified them with Playwright across desktop (`1280px`) and mobile (`390px`) in light and dark themes (WCAG AA contrast, `@axe-core/playwright`, keyboard focus rings, sequential cut order, and zero horizontal overflow). The repo also includes the Phase 1 interactive A/B comparison harness (`lab/`) for evaluating FRAME/12 against a conventional UI baseline.
 
 Live interactive motion studio, component gallery, and style sheet:
 - Motion on twos studio: `https://frame12.dev/motion`

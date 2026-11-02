@@ -412,14 +412,49 @@ await page.waitForSelector('#unit-test-fixtures');
     'Dialog without DialogDescription: omits aria-describedby instead of pointing to a non-existent ID',
     `aria-describedby=${noDescAttr}`,
   );
+
+  // Dialog onCancel={e => e.preventDefault()} vetoes Escape dismissal
+  await page.click('#test-dlg-veto-open');
+  await page.waitForSelector('#test-veto-dlg[open]');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(80);
+  const vetoState = await page.evaluate(() => ({
+    open: document.querySelector('#test-veto-dlg').open,
+    vetoCount: Number(document.querySelector('#test-dlg-veto-count').textContent),
+  }));
+  await page.click('#test-dlg-veto-close');
+  check(
+    vetoState.open && vetoState.vetoCount === 1,
+    'Dialog onCancel: Escape honors e.preventDefault() and keeps modal open',
+    JSON.stringify(vetoState),
+  );
+
+  // Stacked sibling Dialogs: Escape closes only the topmost dialog
+  await page.click('#test-dlg-under-open');
+  await page.waitForSelector('#test-dlg-under[open]');
+  await page.click('#test-dlg-top-open');
+  await page.waitForSelector('#test-dlg-top[open]');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(80);
+  const stackState = await page.evaluate(() => ({
+    underOpen: document.querySelector('#test-dlg-under').open,
+    topOpen: document.querySelector('#test-dlg-top').open,
+  }));
+  await page.click('#test-dlg-under-close');
+  check(
+    stackState.underOpen && !stackState.topOpen,
+    'Dialog stack: Escape dismisses only the topmost open modal and leaves underlying modal open',
+    JSON.stringify(stackState),
+  );
 }
 
-// 3b. TooltipTrigger asChild + Input aria-describedby merging
+// 3b. TooltipTrigger asChild + DropdownMenuTrigger asChild + Input aria-describedby merging
 {
   await page.focus('#test-tip-aschild-btn');
   await page.click('#test-tip-aschild-btn');
   const tipMerge = await page.evaluate(() => {
     const btn = document.querySelector('#test-tip-aschild-btn');
+    const menuBtn = document.querySelector('#test-menu-aschild-btn');
     const state = document.querySelector('#test-tip-state');
     const tip = document.querySelector('#test-tip-content');
     const desc = btn.getAttribute('aria-describedby') || '';
@@ -427,17 +462,23 @@ await page.waitForSelector('#unit-test-fixtures');
       clicks: Number(state.getAttribute('data-clicks')),
       focused: Number(state.getAttribute('data-focused')),
       refSet: state.getAttribute('data-ref') === 'true',
+      hasTriggerDesc: desc.includes('trigger-desc'),
       hasExtDesc: desc.includes('ext-desc'),
       hasTipId: Boolean(tip && desc.includes(tip.id)),
+      menuHasForwardedClass:
+        menuBtn.classList.contains('trigger-forwarded-class') &&
+        menuBtn.classList.contains('child-own-class'),
     };
   });
   check(
     tipMerge.clicks === 1 &&
       tipMerge.focused >= 1 &&
       tipMerge.refSet &&
+      tipMerge.hasTriggerDesc &&
       tipMerge.hasExtDesc &&
-      tipMerge.hasTipId,
-    'TooltipTrigger asChild: preserves child onClick, onFocus, ref, and merges aria-describedby',
+      tipMerge.hasTipId &&
+      tipMerge.menuHasForwardedClass,
+    'TooltipTrigger & DropdownMenuTrigger asChild: merges trigger/child aria-describedby, className, handlers, and ref',
     JSON.stringify(tipMerge),
   );
 
@@ -480,8 +521,21 @@ await page.waitForSelector('#unit-test-fixtures');
     document.querySelector('#test-tween-key').click();
     await new Promise((r) => setTimeout(r, 20));
     const pPose1 = Number(box.getAttribute('data-progress'));
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 700));
     const pSettled = Number(box.getAttribute('data-progress'));
+
+    // Changing motion or duration mid-animation settles progress to 1 instead of freezing < 1
+    document.querySelector('#test-tween-key').click();
+    await new Promise((r) => setTimeout(r, 120));
+    document.querySelector('#test-tween-motion').click();
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const pAfterMidMotionChange = Number(box.getAttribute('data-progress'));
+
+    document.querySelector('#test-tween-key').click();
+    await new Promise((r) => setTimeout(r, 120));
+    document.querySelector('#test-tween-dur').click();
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const pAfterMidDurChange = Number(box.getAttribute('data-progress'));
 
     // useCountUp mid-flight interruption: start 100 -> 1000, interrupt after 180ms to 500
     document.querySelector('#test-count-1000').click();
@@ -499,6 +553,8 @@ await page.waitForSelector('#unit-test-fixtures');
       pAfterMotion,
       pPose1,
       pSettled,
+      pAfterMidMotionChange,
+      pAfterMidDurChange,
       midVal,
       rightAfterInterrupt,
       finalCount,
@@ -510,8 +566,10 @@ await page.waitForSelector('#unit-test-fixtures');
       hookResults.pAfterMotion === 1 &&
       hookResults.pPose1 > 0 &&
       hookResults.pPose1 < 1 &&
-      hookResults.pSettled === 1,
-    'useOnTwos: steps poses on key change and does not re-trigger when only duration or motion changes',
+      hookResults.pSettled === 1 &&
+      hookResults.pAfterMidMotionChange === 1 &&
+      hookResults.pAfterMidDurChange === 1,
+    'useOnTwos: steps poses on key change, settles cleanly if motion/duration changes mid-tween, and does not replay at rest',
     JSON.stringify(hookResults),
   );
   check(

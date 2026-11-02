@@ -16,9 +16,9 @@
   --color-f-marker-ink: var(--f-marker-ink);
   --color-f-hole: var(--f-hole);
 
-  --font-display: var(--font-f-display);
-  --font-sans: var(--font-f-body);
-  --font-mono: var(--font-f-mono);
+  --font-f12-display: var(--font-f-display);
+  --font-f12-body: var(--font-f-body);
+  --font-f12-mono: var(--font-f-mono);
 
   --spacing-gutter-pair: var(--f-gutter-pair);
   --spacing-gutter-scene: var(--f-gutter-scene);

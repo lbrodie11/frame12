@@ -165,3 +165,49 @@ export const SelectItem = React.forwardRef<HTMLDivElement, SelectItemProps>(
     );
   },
 );
+
+export type SelectGroupProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Group>;
+
+export const SelectGroup = React.forwardRef<HTMLDivElement, SelectGroupProps>(
+  function SelectGroup({ className = '', children, ...rest }, forwardedRef) {
+    return (
+      <SelectPrimitive.Group
+        ref={forwardedRef}
+        className={`f12-select-group${className ? ` ${className}` : ''}`}
+        {...rest}
+      >
+        {children}
+      </SelectPrimitive.Group>
+    );
+  },
+);
+
+export type SelectLabelProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>;
+
+export const SelectLabel = React.forwardRef<HTMLDivElement, SelectLabelProps>(
+  function SelectLabel({ className = '', children, ...rest }, forwardedRef) {
+    return (
+      <SelectPrimitive.Label
+        ref={forwardedRef}
+        className={`f12-select-label${className ? ` ${className}` : ''}`}
+        {...rest}
+      >
+        {children}
+      </SelectPrimitive.Label>
+    );
+  },
+);
+
+export type SelectSeparatorProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>;
+
+export const SelectSeparator = React.forwardRef<HTMLDivElement, SelectSeparatorProps>(
+  function SelectSeparator({ className = '', ...rest }, forwardedRef) {
+    return (
+      <SelectPrimitive.Separator
+        ref={forwardedRef}
+        className={`f12-select-sep${className ? ` ${className}` : ''}`}
+        {...rest}
+      />
+    );
+  },
+);

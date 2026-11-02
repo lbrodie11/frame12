@@ -99,6 +99,7 @@ export function useOnTwos(
       return;
     }
     if (Object.is(prevKeyRef.current, key)) {
+      setP(1);
       return;
     }
     prevKeyRef.current = key;

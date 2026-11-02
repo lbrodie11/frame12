@@ -94,7 +94,7 @@ Compose every screen like a production storyboard sheet:
 
 ## 4. Component Selection & Adapter Policy
 
-Always import components from `@/components/frame12` and hooks from `@/hooks/use-on-twos`. Never import raw `@/components/ui/*` or `@radix-ui/*` primitives in application screens when a FRAME/12 component or adapter exists.
+When you installed the full kit (`frame12.json`) or started from `templates/next-starter`, import components from the barrel (`@/components/frame12`) or directly from their module (`@/components/frame12/<name>`). When you installed individual registry items (e.g., `button.json`, `panel.json`), import each component from its module path (`@/components/frame12/button`, `@/components/frame12/panel`) and hooks from `@/hooks/use-on-twos`. Never import raw `@/components/ui/*` or `@radix-ui/*` primitives in application screens when a FRAME/12 component or adapter exists.
 
 | UI Need | FRAME/12 Component | Forbidden Raw Alternative |
 | --- | --- | --- |

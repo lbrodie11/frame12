@@ -51,7 +51,12 @@ export const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownM
   ) {
     if (asChild && React.isValidElement(children)) {
       return (
-        <DropdownMenuPrimitive.Trigger ref={forwardedRef} asChild {...rest}>
+        <DropdownMenuPrimitive.Trigger
+          ref={forwardedRef}
+          asChild
+          className={className || undefined}
+          {...rest}
+        >
           {children}
         </DropdownMenuPrimitive.Trigger>
       );
@@ -145,6 +150,24 @@ export const DropdownMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuIte
       >
         {children}
       </DropdownMenuPrimitive.Item>
+    );
+  },
+);
+
+export type DropdownMenuGroupProps = React.ComponentPropsWithoutRef<
+  typeof DropdownMenuPrimitive.Group
+>;
+
+export const DropdownMenuGroup = React.forwardRef<HTMLDivElement, DropdownMenuGroupProps>(
+  function DropdownMenuGroup({ className = '', children, ...rest }, forwardedRef) {
+    return (
+      <DropdownMenuPrimitive.Group
+        ref={forwardedRef}
+        className={`f12-menu-group${className ? ` ${className}` : ''}`}
+        {...rest}
+      >
+        {children}
+      </DropdownMenuPrimitive.Group>
     );
   },
 );

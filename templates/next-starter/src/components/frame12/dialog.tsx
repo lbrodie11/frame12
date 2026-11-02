@@ -192,6 +192,10 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
       };
       const onDocKeyDown = (e: KeyboardEvent) => {
         if (e.key !== 'Escape' || !el.open) return;
+        const openDialogs = document.querySelectorAll('dialog[open]');
+        if (openDialogs.length > 0 && openDialogs[openDialogs.length - 1] !== el) {
+          return;
+        }
         if (
           e.defaultPrevented ||
           childPopupOpenOnEscapeRef.current ||
@@ -200,6 +204,11 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
           return;
         }
         e.preventDefault();
+        const cancelEvent = new Event('cancel', { bubbles: false, cancelable: true });
+        const shouldClose = el.dispatchEvent(cancelEvent);
+        if (!shouldClose || cancelEvent.defaultPrevented) {
+          return;
+        }
         el.close();
         setOpen(false);
       };

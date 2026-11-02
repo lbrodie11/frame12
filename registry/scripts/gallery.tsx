@@ -496,11 +496,14 @@ export function GalleryApp() {
 function UnitTestFixtures() {
   const [dlgOpen, setDlgOpen] = React.useState(false);
   const [closeCount, setCloseCount] = React.useState(0);
+  const [vetoCount, setVetoCount] = React.useState(0);
+  const [underOpen, setUnderOpen] = React.useState(false);
+  const [topOpen, setTopOpen] = React.useState(false);
   const [tipClicks, setTipClicks] = React.useState(0);
   const [tipFocused, setTipFocused] = React.useState(0);
   const [tipRefSet, setTipRefSet] = React.useState(false);
   const [tweenKey, setTweenKey] = React.useState(1);
-  const [tweenDuration, setTweenDuration] = React.useState(333);
+  const [tweenDuration, setTweenDuration] = React.useState(600);
   const [tweenMotion, setTweenMotion] = React.useState<MotionMode>('stepped');
   const [countTarget, setCountTarget] = React.useState(100);
 
@@ -563,11 +566,70 @@ function UnitTestFixtures() {
           </DialogContent>
         </Dialog>
 
-        {/* TooltipTrigger asChild preserving child props */}
+        {/* Dialog with onCancel preventDefault veto */}
+        <Dialog>
+          <DialogTrigger id="test-dlg-veto-open">Open Veto Dialog</DialogTrigger>
+          <DialogContent
+            id="test-veto-dlg"
+            onCancel={(e) => {
+              e.preventDefault();
+              setVetoCount((c) => c + 1);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Unsaved Form Dialog</DialogTitle>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose id="test-dlg-veto-close">Force Close</DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <output id="test-dlg-veto-count">{vetoCount}</output>
+
+        {/* Two sibling stacked Dialogs for topmost Escape dismissal */}
+        <Dialog open={underOpen} onOpenChange={setUnderOpen}>
+          <DialogTrigger id="test-dlg-under-open">Open Under Dialog</DialogTrigger>
+          <DialogContent id="test-dlg-under">
+            <DialogHeader>
+              <DialogTitle>Underlying Dialog</DialogTitle>
+            </DialogHeader>
+            <button id="test-dlg-top-open" type="button" onClick={() => setTopOpen(true)}>
+              Open Top Dialog
+            </button>
+            <DialogFooter>
+              <DialogClose id="test-dlg-under-close">Close Under</DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={topOpen} onOpenChange={setTopOpen}>
+          <DialogContent id="test-dlg-top">
+            <DialogHeader>
+              <DialogTitle>Topmost Dialog</DialogTitle>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose id="test-dlg-top-close">Close Top</DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* DropdownMenuTrigger asChild forwarding className */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild className="trigger-forwarded-class">
+            <button id="test-menu-aschild-btn" type="button" className="child-own-class">
+              Custom Menu Trigger
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem>Action</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* TooltipTrigger asChild preserving both trigger and child props */}
         <span id="ext-desc">External description</span>
+        <span id="trigger-desc">Trigger-level description</span>
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger asChild aria-describedby="trigger-desc">
               <button
                 id="test-tip-aschild-btn"
                 type="button"

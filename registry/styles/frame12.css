@@ -300,12 +300,10 @@
   position: relative;
   padding: 24px 22px 22px;
 }
-.f12-panel.f12-slant-bottom > .f12-panel-body,
-.f12-panel.slant-bottom > .f12-panel-body {
+.f12-panel.f12-slant-bottom > .f12-panel-body {
   padding-bottom: 36px;
 }
-.f12-panel.f12-slant-top > .f12-panel-body,
-.f12-panel.slant-top > .f12-panel-body {
+.f12-panel.f12-slant-top > .f12-panel-body {
   padding-top: 36px;
 }
 .f12-cut {
@@ -322,8 +320,7 @@
   background: var(--f-sheet);
   color: var(--f-ink);
 }
-.f12-panel.f12-slant-top > .f12-cut,
-.f12-panel.slant-top > .f12-cut {
+.f12-panel.f12-slant-top > .f12-cut {
   top: 8px;
 }
 
@@ -1091,6 +1088,20 @@ dialog.f12-dialog::backdrop {
   padding: 0 4px;
   font-size: 10px;
   font-weight: 700;
+}
+.f12-select-label {
+  padding: 6px 12px 4px;
+  font-family: var(--font-f-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--f-ink-2);
+}
+.f12-select-sep {
+  height: 1px;
+  background: var(--f-grid);
+  margin: 4px 0;
 }
 
 /* Tooltip */

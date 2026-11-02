@@ -57,11 +57,17 @@ export {
   SelectValue,
   SelectContent,
   SelectItem,
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
   type SelectProps,
   type SelectTriggerProps,
   type SelectValueProps,
   type SelectContentProps,
   type SelectItemProps,
+  type SelectGroupProps,
+  type SelectLabelProps,
+  type SelectSeparatorProps,
 } from './select';
 export {
   TooltipProvider,
@@ -78,12 +84,14 @@ export {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuItem,
+  DropdownMenuGroup,
   type DropdownMenuProps,
   type DropdownMenuTriggerProps,
   type DropdownMenuContentProps,
   type DropdownMenuLabelProps,
   type DropdownMenuSeparatorProps,
   type DropdownMenuItemProps,
+  type DropdownMenuGroupProps,
 } from './dropdown-menu';
 export {
   Table,
