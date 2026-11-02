@@ -29,7 +29,7 @@ npx shadcn@latest add https://frame12.dev/r/segmented-control.json
 npx shadcn@latest add https://frame12.dev/r/tone-area-chart.json
 ```
 
-> **Note on Registry Origin:** `https://frame12.dev` is the canonical production registry origin (pending domain registration and public deployment in [`launch/LAUNCH-CHECKLIST.md`](launch/LAUNCH-CHECKLIST.md); override via `NEXT_PUBLIC_SITE_URL`). While the repository is in private pre-launch, install from the local registry server (`npm --workspace=@frame12/site run dev` → `npx shadcn@latest add http://localhost:3000/r/frame12.json`), verify end-to-end with `node scripts/smoke-install.mjs`, or start directly from [`templates/next-starter/`](templates/next-starter/).
+> **Note on Registry Origin:** `https://frame12.dev` is the live production registry origin (override for self-hosted deployments via `NEXT_PUBLIC_SITE_URL`). For offline or local development, you can also serve the registry locally (`npm --workspace=@frame12/site run dev` → `npx shadcn@latest add http://localhost:3000/r/frame12.json`), verify end-to-end with `node scripts/smoke-install.mjs`, or start directly from [`templates/next-starter/`](templates/next-starter/).
 
 Install the portable AI Agent Skill (`skills/frame12/SKILL.md`) for Claude Code, Cursor, and compatible coding agents:
 

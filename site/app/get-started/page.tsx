@@ -175,10 +175,9 @@ export default function GetStartedPage() {
                 <h2 className="f12-section-title">Add the registry kit</h2>
                 <p className="f12-muted-copy">
                   Install the complete kit (<code className="f12-code-inline">frame12.json</code>) or
-                  pick individual components into <code className="f12-code-inline">components/frame12/</code>. Note:{' '}
-                  <code className="f12-code-inline">frame12.dev</code> is the canonical deployment
-                  domain; to install locally right now, run the site server and point the CLI at{' '}
-                  <code className="f12-code-inline">http://localhost:3000/r/frame12.json</code>:
+                  pick individual components into <code className="f12-code-inline">components/frame12/</code>{' '}
+                  from <code className="f12-code-inline">frame12.dev</code> (or from your local dev
+                  server at <code className="f12-code-inline">http://localhost:3000/r/frame12.json</code>):
                 </p>
                 <CopyCommand
                   id="start-copy-full-kit"
