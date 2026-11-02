@@ -313,17 +313,31 @@ try {
           const titleFont = getComputedStyle(document.querySelector('.f12-title')).fontFamily;
           const bodyFont = getComputedStyle(document.body).fontFamily;
           const monoFont = getComputedStyle(document.querySelector('.f12-cut')).fontFamily;
-          const htmlVarDisplay = getComputedStyle(document.documentElement)
-            .getPropertyValue('--font-f-display')
-            .trim();
-          return { titleFont, bodyFont, monoFont, htmlVarDisplay };
+          const rootStyle = getComputedStyle(document.documentElement);
+          const htmlVarDisplay = rootStyle.getPropertyValue('--font-f-display').trim();
+          const htmlVarBody = rootStyle.getPropertyValue('--font-f-body').trim();
+          const htmlVarMono = rootStyle.getPropertyValue('--font-f-mono').trim();
+          return {
+            titleFont,
+            bodyFont,
+            monoFont,
+            htmlVarDisplay,
+            htmlVarBody,
+            htmlVarMono,
+          };
         });
+        const normFont = (s) => (s || '').replace(/["'\s]/g, '');
         check(
-          Boolean(fontBinding.titleFont) &&
-            Boolean(fontBinding.bodyFont) &&
-            Boolean(fontBinding.monoFont) &&
-            !fontBinding.htmlVarDisplay.startsWith('"Dela Gothic One", "Arial Black"'),
-          'site next/font binding: <html> next/font CSS variables override :where(:root) fallback stacks',
+          Boolean(fontBinding.htmlVarDisplay) &&
+            Boolean(fontBinding.htmlVarBody) &&
+            Boolean(fontBinding.htmlVarMono) &&
+            !fontBinding.htmlVarDisplay.startsWith('"Dela Gothic One", "Arial Black"') &&
+            !fontBinding.htmlVarBody.startsWith('"Zen Kaku Gothic New", "Hiragino Sans"') &&
+            !fontBinding.htmlVarMono.startsWith('"M PLUS 1 Code", ui-monospace') &&
+            normFont(fontBinding.titleFont) === normFont(fontBinding.htmlVarDisplay) &&
+            normFont(fontBinding.bodyFont) === normFont(fontBinding.htmlVarBody) &&
+            normFont(fontBinding.monoFont) === normFont(fontBinding.htmlVarMono),
+          'site next/font binding: <html> next/font CSS variables override :where(:root) fallback stacks for display, body, and mono',
           JSON.stringify(fontBinding),
         );
       } else if (route === '/motion' && scheme === 'light') {

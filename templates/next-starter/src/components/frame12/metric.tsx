@@ -17,7 +17,13 @@ export interface DeltaProps {
 export function Delta({ value, kind = 'pct', comparisonLabel, range }: DeltaProps) {
   const flat = kind === 'pp' ? Math.abs(value) < 0.005 : Math.abs(value) < 0.0005;
   const up = value > 0;
-  const text = flat ? 'No change' : kind === 'pp' ? fmtPPAbs(value) : fmtPct(value);
+  const text = flat
+    ? kind === 'pp'
+      ? '0.00 pp change'
+      : '0.0% change'
+    : kind === 'pp'
+      ? fmtPPAbs(value)
+      : fmtPct(value);
   const dir = flat ? 'flat' : up ? 'up' : 'down';
   const sym = flat ? '=' : up ? '▲' : '▼';
   const refLabel = comparisonLabel ?? (range != null ? `vs prior ${range} days` : undefined);

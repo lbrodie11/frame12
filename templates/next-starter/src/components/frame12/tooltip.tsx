@@ -99,6 +99,13 @@ export const TooltipTrigger = React.forwardRef<HTMLButtonElement, TooltipTrigger
     forwardedRef,
   ) {
     const { open, tooltipId } = useTooltipContext();
+    const childRef = React.isValidElement(children)
+      ? (children as React.ReactElement<Record<string, unknown>> & { ref?: React.Ref<unknown> }).ref
+      : undefined;
+    const composedRef = React.useMemo(
+      () => mergeRefs(forwardedRef, childRef),
+      [forwardedRef, childRef],
+    );
     if (asChild && React.isValidElement(children)) {
       const child = children as React.ReactElement<Record<string, unknown>> & {
         ref?: React.Ref<unknown>;
@@ -119,7 +126,7 @@ export const TooltipTrigger = React.forwardRef<HTMLButtonElement, TooltipTrigger
         ...childProps,
         className: mergedClassName,
         'aria-describedby': mergedDescribedBy,
-        ref: mergeRefs(forwardedRef, child.ref),
+        ref: composedRef,
       };
 
       for (const evt of new Set([...Object.keys(rest), ...Object.keys(childProps)])) {

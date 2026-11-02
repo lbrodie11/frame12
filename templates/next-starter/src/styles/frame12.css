@@ -181,6 +181,7 @@
 .f12-peg {
   display: block;
   background: var(--f-hole);
+  border: 1px solid var(--f-grid);
   box-shadow: var(--f-shadow-peg);
 }
 .f12-peg.round {
@@ -552,7 +553,7 @@
   font-family: var(--font-f-display);
   font-weight: 400;
   font-size: 34px;
-  line-height: 1.05;
+  line-height: 1.16;
   margin: 10px 0 0;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
@@ -560,6 +561,7 @@
 }
 .f12-metric.big .f12-m-value {
   font-size: clamp(36px, 6cqi, 56px);
+  line-height: 1.08;
 }
 .f12-delta {
   display: flex;
@@ -569,7 +571,7 @@
   font-variant-numeric: tabular-nums;
   font-family: var(--font-f-mono);
   font-size: 12px;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   letter-spacing: 0.02em;
   color: var(--f-ink);
 }

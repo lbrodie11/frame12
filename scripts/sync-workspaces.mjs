@@ -75,6 +75,12 @@ if (fs.existsSync(fontsDir)) {
   }
 }
 
+// 7. registry/registry.json -> site/public/r/registry.json
+FILE_MAPPINGS.push({
+  src: path.join(ROOT, 'registry/registry.json'),
+  dest: path.join(ROOT, 'site/public/r/registry.json'),
+});
+
 const legacyDir = path.join(ROOT, 'templates/next-starter/src/registry');
 
 if (checkOnly) {
@@ -196,5 +202,9 @@ execFileSync('npx', ['--yes', 'shadcn', 'build', 'registry.json', '-o', '../site
   cwd: path.join(ROOT, 'registry'),
   stdio: 'inherit',
 });
+fs.copyFileSync(
+  path.join(ROOT, 'registry/registry.json'),
+  path.join(ROOT, 'site/public/r/registry.json'),
+);
 
 console.log(`Synchronized ${FILE_MAPPINGS.length} files and rebuilt site/public/r/*.json.`);

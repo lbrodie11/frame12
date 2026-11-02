@@ -1,22 +1,21 @@
-FRAME/12 Bundled Font Licenses
-==============================
+This directory contains self-hosted Latin subset (.woff2) files for the three
+SIL Open Font License 1.1 typefaces used by FRAME/12:
 
-The `.woff2` font files in this directory are licensed under the SIL Open Font
-License, Version 1.1 (reproduced in full below):
+- dela-gothic-one-400.woff2
+  Copyright 2020 The Dela Gothic Project Authors (https://github.com/syakuzen/DelaGothic)
 
-1. Dela Gothic One (`dela-gothic-one-400-latin.woff2`)
-   Copyright 2020 The Dela Gothic One Project Authors (https://github.com/artakana/DelaGothic),
-   with Reserved Font Name "Dela Gothic".
+- zen-kaku-gothic-new-400.woff2
+- zen-kaku-gothic-new-500.woff2
+- zen-kaku-gothic-new-700.woff2
+  Copyright 2022 The Zen Kaku Gothic Project Authors (https://github.com/googlefonts/zen-kakugothic)
 
-2. Zen Kaku Gothic New (`zen-kaku-gothic-new-400-latin.woff2`,
-   `zen-kaku-gothic-new-500-latin.woff2`, `zen-kaku-gothic-new-700-latin.woff2`,
-   `zen-kaku-gothic-new-900-latin.woff2`)
-   Copyright 2021 The Zen Kaku Gothic New Project Authors (https://github.com/googlefonts/zen-kakugothic),
-   with Reserved Font Name "Zen Kaku Gothic New".
+- m-plus-1-code-400.woff2
+- m-plus-1-code-500.woff2
+- m-plus-1-code-700.woff2
+  Copyright 2021 The M+ FONTS Project Authors (https://github.com/coz-m/MPLUS_FONTS)
 
-3. M PLUS 1 Code (`m-plus-1-code-500-latin.woff2`, `m-plus-1-code-700-latin.woff2`)
-   Copyright 2021 The M+ FONTS Project Authors (https://github.com/coz-m/MPLUS_FONTS),
-   with Reserved Font Name "M PLUS".
+Each family's upstream OFL.txt declares no Reserved Font Names and is licensed
+under the SIL Open Font License, Version 1.1, reproduced verbatim below.
 
 -------------------------------------------------------------------------------
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007

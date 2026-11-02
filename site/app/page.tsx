@@ -79,15 +79,18 @@ export default function HomePage() {
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
-            {STORE}
-            <Tag>Example data</Tag>
-            <span>Through {END_LABEL}</span>
+            <span>FRAME/12 React Design System</span>
+            <Tag>Live Storyboard Demo</Tag>
+            <span>
+              {STORE} · Through {END_LABEL}
+            </span>
           </p>
           <h1 className="f12-title">Revenue recovery</h1>
           <p className="f12-muted-copy">
-            An interface language taken from page composition and cel-animation production:
-            ink-framed panels, gutters whose width means something, screentone instead of gradients,
-            and motion held on twos.
+            <strong>FRAME/12</strong> is a copy-in React component registry and AI agent skill drawn
+            from comic page composition and cel-animation production: ink-framed panels, 12/20/32px
+            gutters, 45° SVG screentone, and motion held on twos (12fps). Explore the live
+            dashboard below.
           </p>
         </div>
         <SegmentedControl
@@ -284,7 +287,7 @@ export default function HomePage() {
               <div className="f12-stack-pair">
                 <p className="f12-m-label">Ship FRAME/12 in your app or AI coding agent</p>
                 <h2 className="f12-section-title">
-                  Zero animation or chart dependencies. Pure copy-in source.
+                  Zero chart or animation libraries. Copy-in React source.
                 </h2>
               </div>
               <div className="f12-row-pair">

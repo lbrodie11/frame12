@@ -6,6 +6,7 @@ import { Button, type ButtonProps } from './button';
 const useIsoLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
 
 const openDialogStack: HTMLDialogElement[] = [];
+let dialogObserver: MutationObserver | null = null;
 
 function pushOpenDialog(el: HTMLDialogElement) {
   const idx = openDialogStack.indexOf(el);
@@ -18,7 +19,43 @@ function removeOpenDialog(el: HTMLDialogElement) {
   if (idx !== -1) openDialogStack.splice(idx, 1);
 }
 
+function processDialogMutations(records: MutationRecord[]) {
+  for (const rec of records) {
+    if (rec.type === 'attributes' && rec.attributeName === 'open') {
+      const target = rec.target;
+      if (typeof HTMLDialogElement !== 'undefined' && target instanceof HTMLDialogElement) {
+        if (target.open && target.isConnected) {
+          pushOpenDialog(target);
+        } else {
+          removeOpenDialog(target);
+        }
+      }
+    }
+  }
+}
+
+function ensureDialogObserver() {
+  if (dialogObserver || typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
+    return;
+  }
+  for (const d of document.querySelectorAll<HTMLDialogElement>('dialog[open]')) {
+    pushOpenDialog(d);
+  }
+  dialogObserver = new MutationObserver(processDialogMutations);
+  if (document.documentElement) {
+    dialogObserver.observe(document.documentElement, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['open'],
+    });
+  }
+}
+
 function getTopmostOpenDialog(): HTMLDialogElement | undefined {
+  ensureDialogObserver();
+  if (dialogObserver) {
+    processDialogMutations(dialogObserver.takeRecords());
+  }
   for (let i = openDialogStack.length - 1; i >= 0; i--) {
     const d = openDialogStack[i];
     if (d.isConnected && d.open) return d;
@@ -79,6 +116,8 @@ export function Dialog({
   const open = isControlled ? controlledOpen : uncontrolledOpen;
   const openRef = React.useRef<boolean>(open);
   openRef.current = open;
+  const onOpenChangeRef = React.useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
 
   const dialogRef = React.useRef<HTMLDialogElement | null>(null);
   const rawId = React.useId().replace(/:/g, '');
@@ -90,12 +129,13 @@ export function Dialog({
       if (openRef.current === next) return;
       openRef.current = next;
       if (!isControlled) setUncontrolledOpen(next);
-      onOpenChange?.(next);
+      onOpenChangeRef.current?.(next);
     },
-    [isControlled, onOpenChange],
+    [isControlled],
   );
 
   React.useEffect(() => {
+    ensureDialogObserver();
     const el = dialogRef.current;
     if (!el) return;
     if (open && !el.open) {
@@ -248,7 +288,9 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
       document.addEventListener('keydown', onDocKeyDownCapture, true);
       document.addEventListener('keydown', onDocKeyDown);
       return () => {
-        removeOpenDialog(el);
+        if (!el.open || !el.isConnected) {
+          removeOpenDialog(el);
+        }
         el.removeEventListener('close', onClose);
         document.removeEventListener('keydown', onDocKeyDownCapture, true);
         document.removeEventListener('keydown', onDocKeyDown);
@@ -265,10 +307,14 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
     };
 
     const resolvedDescribedBy = userDescribedBy ?? (hasDescription ? descId : undefined);
+    const composedDialogRef = React.useMemo(
+      () => mergeRefs(dialogRef, forwardedRef),
+      [dialogRef, forwardedRef],
+    );
 
     return (
       <dialog
-        ref={mergeRefs(dialogRef, forwardedRef)}
+        ref={composedDialogRef}
         className={`f12-dialog${className ? ` ${className}` : ''}`}
         aria-labelledby={titleId}
         aria-describedby={resolvedDescribedBy}

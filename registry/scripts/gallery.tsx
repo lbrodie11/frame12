@@ -587,7 +587,7 @@ function UnitTestFixtures() {
         <output id="test-dlg-veto-count">{vetoCount}</output>
 
         {/* Two sibling stacked Dialogs for topmost Escape dismissal */}
-        <Dialog open={underOpen} onOpenChange={setUnderOpen}>
+        <Dialog open={underOpen} onOpenChange={(next) => setUnderOpen(next)}>
           <DialogTrigger id="test-dlg-under-open">Open Under Dialog</DialogTrigger>
           <DialogContent id="test-dlg-under">
             <DialogHeader>
@@ -596,16 +596,27 @@ function UnitTestFixtures() {
             <button id="test-dlg-top-open" type="button" onClick={() => setTopOpen(true)}>
               Open Top Dialog
             </button>
+            <button
+              id="test-dlg-under-rerender"
+              type="button"
+              onClick={() => setTweenDuration((d) => (d === 600 ? 601 : 600))}
+            >
+              Rerender Parent
+            </button>
             <DialogFooter>
               <DialogClose id="test-dlg-under-close">Close Under</DialogClose>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <Dialog open={topOpen} onOpenChange={setTopOpen}>
+        <Dialog open={topOpen} onOpenChange={(next) => setTopOpen(next)}>
+          <DialogTrigger id="test-dlg-top-trigger">Open Top Trigger</DialogTrigger>
           <DialogContent id="test-dlg-top">
             <DialogHeader>
               <DialogTitle>Topmost Dialog</DialogTitle>
             </DialogHeader>
+            <button id="test-dlg-under-from-top" type="button" onClick={() => setUnderOpen(true)}>
+              Open Under From Top
+            </button>
             <DialogFooter>
               <DialogClose id="test-dlg-top-close">Close Top</DialogClose>
             </DialogFooter>

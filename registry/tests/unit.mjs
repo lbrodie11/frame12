@@ -444,24 +444,45 @@ await page.waitForSelector('#unit-test-fixtures');
   await page.waitForSelector('#test-dlg-under:not([open])', { state: 'attached' });
 
   // Reversed opening order: open #test-dlg-top (later in DOM) first, then #test-dlg-under (earlier in DOM) second
-  await page.evaluate(() => document.querySelector('#test-dlg-top-open').click());
+  await page.click('#test-dlg-top-trigger');
   await page.waitForSelector('#test-dlg-top[open]');
-  await page.evaluate(() => document.querySelector('#test-dlg-under-open').click());
+  await page.click('#test-dlg-under-from-top');
   await page.waitForSelector('#test-dlg-under[open]');
+  // Trigger a parent state update & rerender with inline onOpenChange while both dialogs are open
+  await page.click('#test-dlg-under-rerender');
+  await page.waitForTimeout(30);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(80);
   const stackReversed = await page.evaluate(() => ({
     underOpen: document.querySelector('#test-dlg-under').open,
     topOpen: document.querySelector('#test-dlg-top').open,
   }));
+
+  // Host native <dialog> opened via showModal() above an open FRAME/12 <Dialog>:
+  // pressing Escape must NOT close the underlying FRAME/12 dialog.
+  const nativeStack = await page.evaluate(() => {
+    const hostDlg = document.createElement('dialog');
+    hostDlg.id = 'test-host-native-dlg';
+    document.body.appendChild(hostDlg);
+    hostDlg.showModal();
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    );
+    const f12StillOpen = document.querySelector('#test-dlg-top').open;
+    hostDlg.close();
+    hostDlg.remove();
+    return { f12StillOpen };
+  });
+
   await page.click('#test-dlg-top-close');
   check(
     stackForward.underOpen &&
       !stackForward.topOpen &&
       !stackReversed.underOpen &&
-      stackReversed.topOpen,
-    'Dialog stack: Escape dismisses only the topmost open modal by opening order (forward and reversed DOM order)',
-    JSON.stringify({ stackForward, stackReversed }),
+      stackReversed.topOpen &&
+      nativeStack.f12StillOpen,
+    'Dialog stack: Escape dismisses only the topmost open modal (forward/reversed DOM order, after rerender, and beneath host native <dialog>)',
+    JSON.stringify({ stackForward, stackReversed, nativeStack }),
   );
 }
 

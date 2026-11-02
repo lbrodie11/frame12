@@ -60,18 +60,23 @@ export const frame12RestrictedImports = {
   ],
 };
 
-export default [
-  {
-    name: 'frame12/design-grammar',
-    files: ['**/*.{ts,tsx,js,jsx}'],
-    ignores: [
-      '**/registry/ui/**',
-      '**/registry/hooks/**',
-      '**/components/frame12/**',
-      '**/hooks/use-on-twos.*',
-    ],
-    rules: {
-      'no-restricted-imports': ['error', frame12RestrictedImports],
-    },
+const frame12RecommendedRule = {
+  name: 'frame12/design-grammar',
+  files: ['**/*.{ts,tsx,js,jsx}'],
+  ignores: [
+    '**/registry/ui/**',
+    '**/registry/hooks/**',
+    '**/components/frame12/**',
+    '**/hooks/use-on-twos.*',
+  ],
+  rules: {
+    'no-restricted-imports': ['error', frame12RestrictedImports],
   },
-];
+};
+
+const frame12Config = [frame12RecommendedRule];
+frame12Config.configs = {
+  recommended: frame12RecommendedRule,
+};
+
+export default frame12Config;

@@ -78,7 +78,7 @@ export default function RecoveryPage() {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel label="Recovered revenue over time">
+        <Panel ${'cut'}="C-01" label="Recovered revenue over time">
           <Metric label="Recovered revenue" value={120054} format={fmtCurrency} big />
           <ToneAreaChart
             data={[
@@ -92,8 +92,8 @@ export default function RecoveryPage() {
           />
         </Panel>
         <PanelPair
-          top={{ label: 'Incremental profit', children: <Metric label="Incremental profit" value={38420} format={fmtCurrency} /> }}
-          bottom={{ label: 'Conversion lift', children: <Metric label="Conversion lift" value={51} /> }}
+          top={{ ${'cut'}: 'C-02', label: 'Incremental profit', children: <Metric label="Incremental profit" value={38420} format={fmtCurrency} /> }}
+          bottom={{ ${'cut'}: 'C-03', label: 'Conversion lift', children: <Metric label="Conversion lift" value={55} format={(v) => \`+\${v} bps\`} /> }}
         />
       </Scene>
     </Sheet>
@@ -101,10 +101,10 @@ export default function RecoveryPage() {
 }`;
 
 const ESLINT_SNIPPET = `// eslint.config.mjs
-import frame12Plugin from './skills/frame12/eslint.frame12.mjs';
+import frame12Rules from './skills/frame12/eslint.frame12.mjs';
 
 export default [
-  frame12Plugin.configs.recommended,
+  ...frame12Rules,
 ];`;
 
 export default function GetStartedPage() {
@@ -257,7 +257,7 @@ export default function GetStartedPage() {
                 </p>
               </div>
               <Link href="/components" className="f12-link-btn" id="start-link-components">
-                Explore All 20 Items
+                Browse 19 Components
               </Link>
             </div>
 
@@ -277,7 +277,7 @@ export default function GetStartedPage() {
               <div className="f12-stack-pair">
                 <div className="f12-row-pair">
                   <Tag>Step 5 · Automated Guardrails</Tag>
-                  <span className="f12-mono-note">Zero drift in CI and AI agent loops</span>
+                  <span className="f12-mono-note">Automated grammar checks in CI and AI agent loops</span>
                 </div>
                 <h2 className="f12-section-title">
                   Wire check-frame12.mjs and ESLint into your test script
