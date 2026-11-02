@@ -28,6 +28,10 @@ function isNonEmptyString(val: unknown): val is string {
   return typeof val === 'string' && val.trim().length > 0;
 }
 
+function isFiniteNumber(val: unknown): val is number {
+  return typeof val === 'number' && Number.isFinite(val);
+}
+
 function isValidIsoTimestamp(val: unknown): val is string {
   if (typeof val !== 'string' || val.length < 10) return false;
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) return false;
@@ -145,6 +149,35 @@ export function validateEvent(
         ok: false,
         error: `Event "run-end" requires payload.status in [${RUN_END_STATUSES.join(', ')}], got "${String(status)}".`,
       };
+    }
+  }
+
+  if (eventType === 'finding') {
+    const fRes = validateFinding(raw.payload.finding, 0);
+    if (!fRes.ok) {
+      return {
+        ok: false,
+        error: `Invalid "finding" event payload: ${fRes.error}`,
+      };
+    }
+  }
+
+  if (eventType === 'metric') {
+    if (!isNonEmptyString(raw.payload.name)) {
+      return { ok: false, error: 'Event "metric" requires a non-empty string payload.name.' };
+    }
+    const val = raw.payload.value;
+    if (!isFiniteNumber(val) && typeof val !== 'string') {
+      return {
+        ok: false,
+        error: 'Event "metric" requires payload.value to be a finite number or string.',
+      };
+    }
+  }
+
+  if (eventType === 'warning') {
+    if (!isNonEmptyString(raw.payload.message)) {
+      return { ok: false, error: 'Event "warning" requires a non-empty string payload.message.' };
     }
   }
 
@@ -284,6 +317,13 @@ export class StoryboardStreamValidator {
           rec.metrics[ev.payload.name] = val;
         }
       }
+    } else if (ev.type === 'finding' || ev.type === 'warning') {
+      if (ev.stepId !== null && !this.openSteps.has(ev.stepId)) {
+        return {
+          ok: false,
+          error: `Event "${ev.type}" for step "${ev.stepId}" at seq=${ev.seq} references a step that is not open.`,
+        };
+      }
     } else if (ev.type === 'step-end') {
       const stepId = ev.stepId!;
       if (!this.openSteps.has(stepId)) {
@@ -302,6 +342,12 @@ export class StoryboardStreamValidator {
         }
       }
     } else if (ev.type === 'run-end') {
+      if (this.openSteps.size > 0) {
+        return {
+          ok: false,
+          error: `Event "run-end" at seq=${ev.seq} cannot be emitted while steps are still open: ${Array.from(this.openSteps).join(', ')}.`,
+        };
+      }
       this.runEnded = true;
       this.runStatus = ev.payload.status as RunEndStatus;
     }
@@ -375,17 +421,17 @@ function validateFinding(raw: unknown, index: number): { ok: true; value: Cochan
   ) {
     return { ok: false, error: `findings[${index}].files must be a 2-tuple of non-empty file path strings.` };
   }
-  if (typeof raw.cochangeCount !== 'number' || raw.cochangeCount < 1) {
-    return { ok: false, error: `findings[${index}].cochangeCount must be a positive number.` };
+  if (!isFiniteNumber(raw.cochangeCount) || raw.cochangeCount < 1) {
+    return { ok: false, error: `findings[${index}].cochangeCount must be a positive finite number.` };
   }
-  if (typeof raw.fileACommits !== 'number' || raw.fileACommits < 1) {
-    return { ok: false, error: `findings[${index}].fileACommits must be a positive number.` };
+  if (!isFiniteNumber(raw.fileACommits) || raw.fileACommits < 1) {
+    return { ok: false, error: `findings[${index}].fileACommits must be a positive finite number.` };
   }
-  if (typeof raw.fileBCommits !== 'number' || raw.fileBCommits < 1) {
-    return { ok: false, error: `findings[${index}].fileBCommits must be a positive number.` };
+  if (!isFiniteNumber(raw.fileBCommits) || raw.fileBCommits < 1) {
+    return { ok: false, error: `findings[${index}].fileBCommits must be a positive finite number.` };
   }
-  if (typeof raw.couplingRatio !== 'number' || raw.couplingRatio < 0 || raw.couplingRatio > 1) {
-    return { ok: false, error: `findings[${index}].couplingRatio must be between 0 and 1.` };
+  if (!isFiniteNumber(raw.couplingRatio) || raw.couplingRatio < 0 || raw.couplingRatio > 1) {
+    return { ok: false, error: `findings[${index}].couplingRatio must be a finite number between 0 and 1.` };
   }
   if (!isPlainObject(raw.evidence)) {
     return { ok: false, error: `findings[${index}].evidence must be an object.` };
@@ -403,8 +449,8 @@ function validateFinding(raw: unknown, index: number): { ok: true; value: Cochan
   ) {
     return { ok: false, error: `findings[${index}].evidence.sampleSubjects must be a string[].` };
   }
-  if (typeof raw.evidence.count !== 'number' || raw.evidence.count < 1) {
-    return { ok: false, error: `findings[${index}].evidence.count must be a positive number.` };
+  if (!isFiniteNumber(raw.evidence.count) || raw.evidence.count < 1) {
+    return { ok: false, error: `findings[${index}].evidence.count must be a positive finite number.` };
   }
   if (!isNonEmptyString(raw.reason)) {
     return { ok: false, error: `findings[${index}].reason must be a non-empty string.` };
@@ -456,17 +502,17 @@ export function validateResultSnapshot(
   if (!isValidIsoTimestamp(raw.startedAt) || !isValidIsoTimestamp(raw.finishedAt)) {
     return { ok: false, error: 'ResultSnapshot requires valid ISO-8601 startedAt and finishedAt timestamps.' };
   }
-  if (typeof raw.maxCommits !== 'number' || raw.maxCommits < 1) {
-    return { ok: false, error: 'ResultSnapshot requires maxCommits >= 1.' };
+  if (!isFiniteNumber(raw.maxCommits) || raw.maxCommits < 1) {
+    return { ok: false, error: 'ResultSnapshot requires finite maxCommits >= 1.' };
   }
-  if (typeof raw.commitsExamined !== 'number' || raw.commitsExamined < 0) {
-    return { ok: false, error: 'ResultSnapshot requires commitsExamined >= 0.' };
+  if (!isFiniteNumber(raw.commitsExamined) || raw.commitsExamined < 0) {
+    return { ok: false, error: 'ResultSnapshot requires finite commitsExamined >= 0.' };
   }
-  if (typeof raw.uniqueFilesObserved !== 'number' || raw.uniqueFilesObserved < 0) {
-    return { ok: false, error: 'ResultSnapshot requires uniqueFilesObserved >= 0.' };
+  if (!isFiniteNumber(raw.uniqueFilesObserved) || raw.uniqueFilesObserved < 0) {
+    return { ok: false, error: 'ResultSnapshot requires finite uniqueFilesObserved >= 0.' };
   }
-  if (typeof raw.totalPairsObserved !== 'number' || raw.totalPairsObserved < 0) {
-    return { ok: false, error: 'ResultSnapshot requires totalPairsObserved >= 0.' };
+  if (!isFiniteNumber(raw.totalPairsObserved) || raw.totalPairsObserved < 0) {
+    return { ok: false, error: 'ResultSnapshot requires finite totalPairsObserved >= 0.' };
   }
   if (!Array.isArray(raw.findings)) {
     return { ok: false, error: 'ResultSnapshot.findings must be an array.' };

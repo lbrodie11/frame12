@@ -243,6 +243,89 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       assert.equal(hugePayload.ok, false);
       assert.match(hugePayload.error, /exceeds maximum allowed/);
     });
+
+    it('[P1-02] rejects malformed finding/metric/warning payloads, unclosed steps at run-end, and NaN/Infinity in ResultSnapshot', () => {
+      const badFindingEv = validateEvent({
+        schemaVersion: SCHEMA_VERSION,
+        eventId: 'evt-2',
+        runId: 'run-1',
+        seq: 2,
+        ts: '2026-11-02T00:00:00.000Z',
+        type: 'finding',
+        stepId: 'rank-findings',
+        payload: { finding: { id: 'F-01', files: ['only-one.ts'] } },
+      });
+      assert.equal(badFindingEv.ok, false);
+      assert.match(badFindingEv.error, /Invalid "finding" event payload/);
+
+      const badMetricEv = validateEvent({
+        schemaVersion: SCHEMA_VERSION,
+        eventId: 'evt-2',
+        runId: 'run-1',
+        seq: 2,
+        ts: '2026-11-02T00:00:00.000Z',
+        type: 'metric',
+        stepId: 'read-history',
+        payload: { name: 'commitsExamined', value: Number.NaN },
+      });
+      assert.equal(badMetricEv.ok, false);
+      assert.match(badMetricEv.error, /finite number or string/);
+
+      const badWarnEv = validateEvent({
+        schemaVersion: SCHEMA_VERSION,
+        eventId: 'evt-2',
+        runId: 'run-1',
+        seq: 2,
+        ts: '2026-11-02T00:00:00.000Z',
+        type: 'warning',
+        stepId: null,
+        payload: { message: '   ' },
+      });
+      assert.equal(badWarnEv.ok, false);
+      assert.match(badWarnEv.error, /non-empty string payload\.message/);
+
+      const unclosedStepStream = validateEventStream([
+        {
+          schemaVersion: SCHEMA_VERSION,
+          eventId: 'evt-1',
+          runId: 'run-1',
+          seq: 1,
+          ts: '2026-11-02T00:00:00.000Z',
+          type: 'run-start',
+          stepId: null,
+          payload: { repoLabel: 'test' },
+        },
+        {
+          schemaVersion: SCHEMA_VERSION,
+          eventId: 'evt-2',
+          runId: 'run-1',
+          seq: 2,
+          ts: '2026-11-02T00:00:01.000Z',
+          type: 'step-start',
+          stepId: 'validate-repo',
+          payload: { title: 'Validate' },
+        },
+        {
+          schemaVersion: SCHEMA_VERSION,
+          eventId: 'evt-3',
+          runId: 'run-1',
+          seq: 3,
+          ts: '2026-11-02T00:00:02.000Z',
+          type: 'run-end',
+          stepId: null,
+          payload: { status: 'completed' },
+        },
+      ]);
+      assert.equal(unclosedStepStream.ok, false);
+      assert.match(unclosedStepStream.error, /while steps are still open: validate-repo/);
+
+      const nanSnap = validateResultSnapshot({
+        ...fixtureResult.snapshot,
+        commitsExamined: Number.NaN,
+      });
+      assert.equal(nanSnap.ok, false);
+      assert.match(nanSnap.error, /finite commitsExamined/);
+    });
   });
 
   // ===========================================================================
