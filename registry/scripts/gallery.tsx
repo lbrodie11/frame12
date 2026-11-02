@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { SUMMARIES, STORE, END_LABEL, fmtMoney, fmtMoneyShort, fmtPP } from '../../lab/src/data.js';
+import { type MotionMode, useChanged, useOnTwos, useCountUp } from '@/hooks/use-on-twos';
 import {
-  type MotionMode,
-  useChanged,
   Sheet,
   Scene,
   Panel,
@@ -48,7 +47,7 @@ import {
   TableHead,
   TableCell,
   TableCaption,
-} from '../index';
+} from '@/components/frame12';
 
 const RANGE_OPTIONS = [
   { value: 7, label: '7', unit: 'days' },
@@ -125,17 +124,17 @@ export function GalleryApp() {
   return (
     <main className="gallery-root">
       <Sheet motion={motion} theme={theme} id="gallery-sheet">
-        <header className="hd">
-          <div className="hd-text">
-            <p className="eyebrow">
+        <header className="f12-hd">
+          <div className="f12-hd-text">
+            <p className="f12-eyebrow">
               {storeName}
               <Tag>Example data</Tag>
               <Badge burst={false}>FRAME/12 Registry</Badge>
             </p>
-            <h1 className="title" style={{ margin: '10px 0 0' }}>
+            <h1 className="f12-title" style={{ margin: '10px 0 0' }}>
               Component Gallery
             </h1>
-            <p className="sub">Through {END_LABEL} · Status: {lastAction}</p>
+            <p className="f12-sub">Through {END_LABEL} · Status: {lastAction}</p>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
             <SegmentedControl
@@ -175,7 +174,7 @@ export function GalleryApp() {
 
         <Scene gutter="scene" layout="split" id="scene-primary">
           <Panel cut="C-01" className="c01" label="Recovered revenue over time">
-            <div className="c01-hd">
+            <div className="f12-c01-hd">
               <Metric
                 label="Recovered revenue"
                 value={summary.revenue}
@@ -187,18 +186,18 @@ export function GalleryApp() {
                 big
               />
               {focusedRow ? (
-                <ul className="legend" aria-label="Chart legend">
+                <ul className="f12-legend" aria-label="Chart legend">
                   <li>
-                    <i className="sw sw-total" aria-hidden="true" />
+                    <i className="f12-sw f12-sw-total" aria-hidden="true" />
                     All interventions
                   </li>
                   <li>
-                    <i className="sw sw-focus" aria-hidden="true" />
+                    <i className="f12-sw f12-sw-focus" aria-hidden="true" />
                     {focusedRow.name}
                   </li>
                 </ul>
               ) : (
-                <p className="legend legend-hint">
+                <p className="f12-legend f12-legend-hint">
                   Select an intervention to compare it with the total.
                 </p>
               )}
@@ -206,6 +205,7 @@ export function GalleryApp() {
             <ToneAreaChart
               data={chartData}
               seriesLabel="Recovered revenue"
+              labelColumnHeader="Date"
               compareLabel={focusedRow?.name}
               formatValue={fmtMoney}
               formatShort={fmtMoneyShort}
@@ -283,7 +283,7 @@ export function GalleryApp() {
 
           <Panel cut="C-05" label="Controls and annotations">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h3 className="m-label">Controls &amp; Annotations</h3>
+              <h2 className="f12-m-label">Controls &amp; Annotations</h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
                 <Button
                   id="btn-primary"
@@ -351,26 +351,36 @@ export function GalleryApp() {
         <Scene gutter="pair" layout="equal" id="scene-adapters">
           <Panel cut="C-06" label="Interactive primitive adapters">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h3 className="m-label">Primitive Adapters</h3>
+              <h2 className="f12-m-label">Primitive Adapters</h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
-                <Select
-                  id="gal-select"
-                  label="Recovery channel"
-                  value={channel}
-                  onValueChange={(v) => {
-                    setChannel(v);
-                    setLastAction(`Channel: ${v}`);
+                <form
+                  id="gal-select-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget);
+                    setLastAction(`Form channel: ${String(fd.get('recoveryChannel') ?? '')}`);
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="email">Abandoned-cart email</SelectItem>
-                    <SelectItem value="exit">Exit-intent offer</SelectItem>
-                    <SelectItem value="stock">Back-in-stock alert</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <Select
+                    id="gal-select"
+                    name="recoveryChannel"
+                    label="Recovery channel"
+                    value={channel}
+                    onValueChange={(v) => {
+                      setChannel(v);
+                      setLastAction(`Channel: ${v}`);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="email">Abandoned-cart email</SelectItem>
+                      <SelectItem value="exit">Exit-intent offer</SelectItem>
+                      <SelectItem value="stock">Back-in-stock alert</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </form>
 
                 <Dialog>
                   <DialogTrigger id="gal-dialog-open" variant="secondary">
@@ -387,6 +397,23 @@ export function GalleryApp() {
                     <p style={{ margin: 0, fontSize: '14px' }}>
                       Active range: {range} days · Channel: {channel}
                     </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger id="gal-dialog-menu-trigger" variant="secondary" size="sm">
+                          Nested menu ▼
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuLabel>Cut actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            id="gal-dialog-menu-item"
+                            onSelect={() => setLastAction('Nested menu action')}
+                          >
+                            Verify cut order
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                     <DialogFooter>
                       <DialogClose id="gal-dialog-close" variant="primary">
                         Confirm cut
@@ -429,7 +456,7 @@ export function GalleryApp() {
 
           <Panel cut="C-07" label="Tabular ledger adapter">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <h3 className="m-label">Intervention Ledger</h3>
+              <h2 className="f12-m-label">Intervention Ledger</h2>
               <Table>
                 <TableCaption>Summary for the last {range} days</TableCaption>
                 <TableHeader>
@@ -466,8 +493,211 @@ export function GalleryApp() {
   );
 }
 
+function UnitTestFixtures() {
+  const [dlgOpen, setDlgOpen] = React.useState(false);
+  const [closeCount, setCloseCount] = React.useState(0);
+  const [tipClicks, setTipClicks] = React.useState(0);
+  const [tipFocused, setTipFocused] = React.useState(0);
+  const [tipRefSet, setTipRefSet] = React.useState(false);
+  const [tweenKey, setTweenKey] = React.useState(1);
+  const [tweenDuration, setTweenDuration] = React.useState(333);
+  const [tweenMotion, setTweenMotion] = React.useState<MotionMode>('stepped');
+  const [countTarget, setCountTarget] = React.useState(100);
+
+  const progress = useOnTwos(tweenKey, tweenDuration, tweenMotion);
+  const counted = useCountUp(countTarget, 'stepped', 500);
+
+  const handleDlgOpenChange = React.useCallback((next: boolean) => {
+    setDlgOpen(next);
+    if (!next) {
+      setCloseCount((c) => c + 1);
+    }
+  }, []);
+
+  const tipBtnRef = React.useCallback((node: HTMLButtonElement | null) => {
+    if (node) setTipRefSet(true);
+  }, []);
+
+  return (
+    <div id="unit-test-fixtures">
+      {/* External elements outside .f12-frame for CSS isolation verification */}
+      <div id="external-host-zone">
+        <button id="test-ext-btn" type="button">
+          Host Button Outside Frame12
+        </button>
+        <a id="test-ext-link" href="#ext">
+          Host Link Outside Frame12
+        </a>
+      </div>
+
+      <Sheet motion="stepped" theme="light" id="fixture-sheet">
+        {/* Controlled Dialog for single onOpenChange(false) & asChild trigger */}
+        <Dialog open={dlgOpen} onOpenChange={handleDlgOpenChange}>
+          <DialogTrigger asChild>
+            <button id="test-dlg-aschild-btn" type="button" className="custom-trigger">
+              Open Controlled Dialog
+            </button>
+          </DialogTrigger>
+          <DialogContent id="test-controlled-dlg">
+            <DialogHeader>
+              <DialogTitle>Controlled Dialog</DialogTitle>
+              <DialogDescription>Tests single close callback</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose id="test-controlled-dlg-close">Close</DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <output id="test-dlg-close-count">{closeCount}</output>
+
+        {/* Dialog without DialogDescription */}
+        <Dialog>
+          <DialogTrigger id="test-dlg-nodesc-open">Open No-Desc Dialog</DialogTrigger>
+          <DialogContent id="test-nodesc-dlg">
+            <DialogHeader>
+              <DialogTitle>Dialog Without Description</DialogTitle>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose id="test-dlg-nodesc-close">Close</DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* TooltipTrigger asChild preserving child props */}
+        <span id="ext-desc">External description</span>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                id="test-tip-aschild-btn"
+                type="button"
+                aria-describedby="ext-desc"
+                ref={tipBtnRef}
+                onClick={() => setTipClicks((c) => c + 1)}
+                onFocus={() => setTipFocused((f) => f + 1)}
+              >
+                Child Trigger
+              </button>
+            </TooltipTrigger>
+            <TooltipContent id="test-tip-content">Tooltip body</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <output
+          id="test-tip-state"
+          data-clicks={tipClicks}
+          data-focused={tipFocused}
+          data-ref={tipRefSet}
+        />
+
+        {/* Input merging caller aria-describedby */}
+        <span id="caller-input-desc">Caller input note</span>
+        <Input
+          id="test-input-merged"
+          label="Merged input"
+          aria-describedby="caller-input-desc"
+          hint="Built-in hint"
+          error="Built-in error"
+        />
+
+        {/* Motion hooks test harness */}
+        <div
+          id="test-hooks-box"
+          data-progress={progress.toFixed(4)}
+          data-counted={Math.round(counted)}
+        >
+          <button id="test-tween-key" type="button" onClick={() => setTweenKey((k) => k + 1)}>
+            Step Key
+          </button>
+          <button id="test-tween-dur" type="button" onClick={() => setTweenDuration((d) => d + 100)}>
+            Change Duration Only
+          </button>
+          <button
+            id="test-tween-motion"
+            type="button"
+            onClick={() => setTweenMotion((m) => (m === 'stepped' ? 'smooth' : 'stepped'))}
+          >
+            Change Motion Only
+          </button>
+          <button id="test-count-1000" type="button" onClick={() => setCountTarget(1000)}>
+            Count to 1000
+          </button>
+          <button id="test-count-500" type="button" onClick={() => setCountTarget(500)}>
+            Count to 500
+          </button>
+        </div>
+
+        {/* ToneAreaChart edge cases */}
+        <div id="chart-empty">
+          <ToneAreaChart data={[]} />
+        </div>
+        <div id="chart-single">
+          <ToneAreaChart data={[{ label: 'Only', value: 42 }]} />
+        </div>
+        <div id="chart-zeros">
+          <ToneAreaChart
+            data={[
+              { label: 'D1', value: 0 },
+              { label: 'D2', value: 0 },
+            ]}
+          />
+        </div>
+        <div id="chart-negative">
+          <ToneAreaChart
+            data={[
+              { label: 'D1', value: -50 },
+              { label: 'D2', value: 25 },
+              { label: 'D3', value: 100 },
+            ]}
+          />
+        </div>
+        <div id="chart-compare-higher">
+          <ToneAreaChart
+            data={[
+              { label: 'D1', value: 100, compareValue: 250 },
+              { label: 'D2', value: 120, compareValue: 300 },
+            ]}
+            compareLabel="Higher Benchmark"
+          />
+        </div>
+        <div id="chart-nan">
+          <ToneAreaChart
+            data={[
+              { label: 'D1', value: Number.NaN },
+              { label: 'D2', value: Number.POSITIVE_INFINITY },
+              { label: 'D3', value: 80 },
+            ]}
+          />
+        </div>
+
+        {/* Zero-width hidden Panel for SSR fallback polygon test */}
+        <div id="test-panel-ssr" style={{ display: 'none' }}>
+          <Panel cut="C-99" label="SSR fallback panel">
+            SSR Content
+          </Panel>
+        </div>
+
+        {/* Balloon long unbroken string wrapping */}
+        <div id="test-balloon-wrap" style={{ width: '220px' }}>
+          <Balloon id="test-balloon-long">
+            whsec_99887766554433221100aabbccddeeff99887766554433221100aabbccddeeff
+          </Balloon>
+        </div>
+      </Sheet>
+    </div>
+  );
+}
+
 const rootEl = document.getElementById('root');
 if (rootEl) {
   const RD = (window as unknown as { ReactDOM: { createRoot: (el: HTMLElement) => { render: (node: React.ReactNode) => void } } }).ReactDOM;
   RD.createRoot(rootEl).render(<GalleryApp />);
+  (window as unknown as { __mountUnitFixtures?: () => void }).__mountUnitFixtures = () => {
+    let host = document.getElementById('unit-fixtures-root');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'unit-fixtures-root';
+      document.body.appendChild(host);
+    }
+    RD.createRoot(host).render(<UnitTestFixtures />);
+  };
 }

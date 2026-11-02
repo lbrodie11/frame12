@@ -95,14 +95,14 @@ In print page layout, the width of the gutter between panels isn't arbitrary whi
 - `--f-gutter-scene: 20px` — separates panels that belong to the same scene (`Scene gutter="scene"`)
 - `--f-gutter-change: 32px` — separates distinct narrative scenes down the sheet (`Sheet`)
 
-The outer `.dash.frame` wrapper defines `container-type: inline-size`, so multi-column scenes (`.scene-split`, `.scene-equal`, `.scene-three`) collapse cleanly via `@container (max-width: 760px)` whether the sheet is full-bleed on a `390px` phone or embedded inside a narrow split-pane preview.
+The outer `.f12-dash.f12-frame` wrapper defines `container-type: inline-size`, so multi-column scenes (`.f12-scene-split`, `.f12-scene-equal`, `.f12-scene-three`) collapse cleanly via `@container (max-width: 760px)` whether the sheet is full-bleed on a `390px` phone or embedded inside a narrow split-pane preview.
 
 #### 2. Flashback Dark Mode (`data-theme="dark"`)
 Standard dark modes invert the page into dark gray and make cards slightly lighter gray. In print comics, when a scene shifts into a flashback, the printer floods the **gutters** between panels with solid black ink so the panels read as illuminated memories cut out of darkness.
 
 In FRAME/12:
-- **Light mode:** Warm paper sheet (`#fbf8f1`), crisp white panels (`#ffffff`), heavy ink rules (`#121212`).
-- **Dark mode (Flashback):** Black gutters (`#070708`), charcoal panels (`#131316`), bone-white ink rules (`#f4f1ea`), and unchanged marker yellow (`#ffd60a`) strictly paired with `#121212` ink text so WCAG AA contrast (`4.5:1` body, `3:1` display) holds in both themes.
+- **Light mode:** Crisp paper sheet (`#ffffff` over a `#e2e3e5` desk), white panels (`#ffffff`), heavy ink rules (`#121212`).
+- **Dark mode (Flashback):** Black gutters (`#050505`), charcoal panels (`#19191a`), bone-white ink rules (`#f1f0ea`), and unchanged marker yellow (`#ffd60a`) strictly paired with `#121212` ink text so WCAG AA contrast (`4.5:1` body, `3:1` display) holds in both themes.
 
 #### 3. Exposure-Sheet Segmented Control with `mix-blend-mode: difference`
 When switching tabs or time ranges in `SegmentedControl`, a solid ink indicator bar (`background: #fff; mix-blend-mode: difference`) jumps across cells using `transition: transform 250ms steps(3, end)`. Because of `mix-blend-mode: difference` inside an `isolation: isolate` track, any label or numeral the indicator crosses on intermediate poses (`0ms → 83ms → 167ms → 250ms`) inverts sharply with zero sub-pixel anti-aliasing blur.

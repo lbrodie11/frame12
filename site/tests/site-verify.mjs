@@ -1,7 +1,8 @@
 // Playwright production verification, WCAG AA accessibility, responsive overflow,
-// registry JSON endpoint, Open Graph image, and screenshot suite for @frame12/site.
+// registry JSON endpoint, Open Graph image, font binding, and screenshot suite for @frame12/site.
 
 import { chromium } from 'playwright';
+import AxeBuilder from '@axe-core/playwright';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -92,7 +93,7 @@ const CONTRAST = () => {
     if (
       !el ||
       !t.textContent.trim() ||
-      el.closest('svg, .sr-only, .rng, .skip-link, [inert], dialog:not([open])')
+      el.closest('svg, .f12-sr-only, .f12-rng, .skip-link, [inert], dialog:not([open])')
     )
       continue;
     const rc = el.getBoundingClientRect();
@@ -105,8 +106,8 @@ const CONTRAST = () => {
     const r = ratio(parse(cs.color), bgOf(el));
     if (r < need) out.push(`${t.textContent.trim().slice(0, 30)} (${r.toFixed(2)} < ${need})`);
   }
-  for (const tx of document.querySelectorAll('.chart svg text')) {
-    const r = ratio(parse(getComputedStyle(tx).fill), bgOf(tx.closest('.chart')));
+  for (const tx of document.querySelectorAll('.f12-chart svg text')) {
+    const r = ratio(parse(getComputedStyle(tx).fill), bgOf(tx.closest('.f12-chart')));
     if (r < 4.5) {
       out.push(`chart label ${tx.textContent} (${r.toFixed(2)})`);
       break;
@@ -118,9 +119,9 @@ const CONTRAST = () => {
 const NAMES = () => {
   const unnamed = [];
   for (const el of document.querySelectorAll(
-    'button, input, select, textarea, [tabindex="0"], a[href]',
+    'button, input:not([type="hidden"]), select:not([tabindex="-1"]):not([aria-hidden="true"]), textarea, [tabindex="0"], a[href]',
   )) {
-    if (el.closest('[inert], dialog:not([open])')) continue;
+    if (el.closest('[inert], dialog:not([open]), [aria-hidden="true"]')) continue;
     const name = (
       el.getAttribute('aria-label') ||
       el.textContent ||
@@ -135,14 +136,14 @@ const NAMES = () => {
 };
 
 const GRAMMAR_DOM = () => {
-  const scenes = [...document.querySelectorAll('.scene')];
+  const scenes = [...document.querySelectorAll('.f12-scene')];
   const sceneGaps = scenes.map((s) =>
     parseFloat(getComputedStyle(s).rowGap || getComputedStyle(s).gap),
   );
-  const pairs = [...document.querySelectorAll('.pair')];
+  const pairs = [...document.querySelectorAll('.f12-pair')];
   const pairGaps = pairs.map((p) => parseFloat(getComputedStyle(p).gap));
 
-  const cutEls = [...document.querySelectorAll('.panel > .cut')];
+  const cutEls = [...document.querySelectorAll('.f12-panel > .f12-cut')];
   const cuts = cutEls.map((e) => e.textContent.trim());
   const sequential =
     cuts.length > 0 &&
@@ -183,25 +184,37 @@ const GRAMMAR_DOM = () => {
   };
 };
 
-async function focusMisses(page, stops = 14) {
+async function focusMissesAll(page) {
   const misses = [];
-  await page.mouse.click(2, 2);
-  for (let i = 0; i < stops; i++) {
+  const seenKeys = new Set();
+  await page.evaluate(() => {
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
+  });
+  for (let i = 0; i < 120; i++) {
     await page.keyboard.press('Tab');
     const info = await page.evaluate(() => {
       const e = document.activeElement;
       if (!e || e === document.body) return null;
       const cs = getComputedStyle(e);
+      const key =
+        e.id ||
+        `${e.tagName}:${(e.getAttribute('aria-label') || e.textContent || '').trim().slice(0, 30)}:${Math.round(e.getBoundingClientRect().top)}`;
       return {
+        key,
         id: e.id || e.tagName,
         vis:
           (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) ||
           cs.boxShadow !== 'none',
       };
     });
-    if (info && !info.vis) misses.push(info.id);
+    if (!info) break;
+    if (seenKeys.has(info.key)) break;
+    seenKeys.add(info.key);
+    if (!info.vis) misses.push(info.id);
   }
-  return misses;
+  return { misses, totalStops: seenKeys.size };
 }
 
 const ROUTES = [
@@ -283,6 +296,25 @@ try {
       // Capture required screenshots
       if (route === '/' && scheme === 'light') {
         await page.screenshot({ path: resolve(DOCS_IMAGES, 'site-home-light.png'), fullPage: true });
+
+        // Verify next/font CSS variable bindings on <html> win over :where(:root) defaults
+        const fontBinding = await page.evaluate(() => {
+          const titleFont = getComputedStyle(document.querySelector('.f12-title')).fontFamily;
+          const bodyFont = getComputedStyle(document.body).fontFamily;
+          const monoFont = getComputedStyle(document.querySelector('.f12-cut')).fontFamily;
+          const htmlVarDisplay = getComputedStyle(document.documentElement)
+            .getPropertyValue('--font-f-display')
+            .trim();
+          return { titleFont, bodyFont, monoFont, htmlVarDisplay };
+        });
+        check(
+          Boolean(fontBinding.titleFont) &&
+            Boolean(fontBinding.bodyFont) &&
+            Boolean(fontBinding.monoFont) &&
+            !fontBinding.htmlVarDisplay.startsWith('"Dela Gothic One", "Arial Black"'),
+          'site next/font binding: <html> next/font CSS variables override :where(:root) fallback stacks',
+          JSON.stringify(fontBinding),
+        );
       } else if (route === '/motion' && scheme === 'light') {
         await page.screenshot({
           path: resolve(DOCS_IMAGES, 'site-motion-light.png'),
@@ -306,15 +338,21 @@ try {
       }
 
       const c = await page.evaluate(CONTRAST);
+      const axe = await new AxeBuilder({ page }).analyze();
       const n = await page.evaluate(NAMES);
       const g = await page.evaluate(GRAMMAR_DOM);
-      const f = await focusMisses(page);
+      const f = await focusMissesAll(page);
       const sw = await page.evaluate(() => document.documentElement.scrollWidth);
 
       check(
         c.length === 0,
         `site ${route} (${scheme}, 1280px): WCAG AA text contrast`,
         c.slice(0, 3).join('; '),
+      );
+      check(
+        axe.violations.length === 0,
+        `site ${route} (${scheme}, 1280px): @axe-core/playwright zero violations`,
+        axe.violations.map((v) => `${v.id} (${v.nodes.length})`).join(', '),
       );
       check(
         n.unnamed.length === 0 && n.dup.length === 0,
@@ -327,9 +365,9 @@ try {
         JSON.stringify(g),
       );
       check(
-        f.length === 0,
-        `site ${route} (${scheme}, 1280px): visible keyboard focus`,
-        f.slice(0, 3).join(', '),
+        f.misses.length === 0 && f.totalStops > 0,
+        `site ${route} (${scheme}, 1280px): visible keyboard focus across all ${f.totalStops} tab stops`,
+        f.misses.slice(0, 3).join(', '),
       );
       check(
         sw <= 1280 && errors.length === 0,
@@ -390,7 +428,7 @@ try {
     await page.click('#int-home-exit');
     await page.waitForTimeout(200);
     const hasCompareLine = await page.evaluate(() =>
-      Boolean(document.querySelector('.chart .l-focus')),
+      Boolean(document.querySelector('.f12-chart .f12-l-focus')),
     );
 
     check(
@@ -403,7 +441,7 @@ try {
     await page.click('#motion-play-btn');
     await page.waitForTimeout(300);
     const hasCutClass = await page.evaluate(() =>
-      Boolean(document.querySelector('.m-cut')),
+      Boolean(document.querySelector('.f12-m-cut')),
     );
     check(
       hasCutClass,

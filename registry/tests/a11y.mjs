@@ -1,9 +1,10 @@
-// Accessibility and motion checks for @frame12/registry gallery.html:
-// WCAG AA text contrast in light & dark themes, accessible names, unique IDs,
-// visible keyboard focus, stepped motion pose count <= 4 vs smooth > 6,
-// instant reduced-motion, and gallery screenshots in docs/images/.
+// Accessibility, axe-core, forced-colors, and motion checks for @frame12/registry gallery.html:
+// WCAG AA text contrast in light & dark themes, @axe-core/playwright audit, accessible names,
+// unique IDs, full-cycle visible keyboard focus, forced-colors high-contrast mode,
+// stepped motion pose count <= 4 vs smooth > 6, instant reduced-motion, and gallery screenshots.
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import AxeBuilder from '@axe-core/playwright';
 import { launch, openGallery, REPO_ROOT, check, finish } from './lib.mjs';
 
 const CONTRAST = () => {
@@ -49,7 +50,12 @@ const CONTRAST = () => {
   while (walker.nextNode()) {
     const t = walker.currentNode,
       el = t.parentElement;
-    if (!el || !t.textContent.trim() || el.closest('svg, .sr-only, .rng, [inert]')) continue;
+    if (
+      !el ||
+      !t.textContent.trim() ||
+      el.closest('svg, .f12-sr-only, .sr-only, .f12-rng, .rng, [inert], dialog:not([open])')
+    )
+      continue;
     const rc = el.getBoundingClientRect();
     if (!rc.width || !rc.height) continue;
     const cs = getComputedStyle(el);
@@ -60,8 +66,8 @@ const CONTRAST = () => {
     const r = ratio(parse(cs.color), bgOf(el));
     if (r < need) out.push(`${t.textContent.trim().slice(0, 30)} (${r.toFixed(2)} < ${need})`);
   }
-  for (const tx of document.querySelectorAll('.chart svg text')) {
-    const r = ratio(parse(getComputedStyle(tx).fill), bgOf(tx.closest('.chart')));
+  for (const tx of document.querySelectorAll('.f12-chart svg text')) {
+    const r = ratio(parse(getComputedStyle(tx).fill), bgOf(tx.closest('.f12-chart')));
     if (r < 4.5) {
       out.push(`chart label ${tx.textContent} (${r.toFixed(2)})`);
       break;
@@ -73,9 +79,9 @@ const CONTRAST = () => {
 const NAMES = () => {
   const unnamed = [];
   for (const el of document.querySelectorAll(
-    'button, input, select, textarea, [tabindex="0"], a[href]',
+    'button, input, select:not([tabindex="-1"]), textarea, [tabindex="0"], a[href]',
   )) {
-    if (el.closest('[inert]')) continue;
+    if (el.closest('[inert], dialog:not([open])')) continue;
     const name = (
       el.getAttribute('aria-label') ||
       el.textContent ||
@@ -89,25 +95,40 @@ const NAMES = () => {
   return { unnamed, dup: Object.keys(ids).filter((k) => ids[k] > 1) };
 };
 
-async function focusMisses(page, stops = 35) {
+async function focusMissesAll(page) {
+  const totalFocusable = await page.evaluate(() => {
+    const sel =
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]), summary, [tabindex="0"]';
+    return [...document.querySelectorAll(sel)].filter((el) => {
+      if (el.closest('[inert], dialog:not([open])')) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+    }).length;
+  });
+
   const misses = [];
+  const visited = [];
   await page.mouse.click(3, 300);
-  for (let i = 0; i < stops; i++) {
+  for (let i = 0; i < totalFocusable + 4; i++) {
     await page.keyboard.press('Tab');
     const info = await page.evaluate(() => {
       const e = document.activeElement;
       if (!e || e === document.body) return null;
       const cs = getComputedStyle(e);
+      const key = e.id || `${e.tagName}:${(e.textContent || '').trim().slice(0, 20)}`;
       return {
-        id: e.id || e.tagName,
+        key,
         vis:
           (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) ||
           cs.boxShadow !== 'none',
       };
     });
-    if (info && !info.vis) misses.push(info.id);
+    if (!info) break;
+    if (visited.length > 0 && info.key === visited[0]) break;
+    visited.push(info.key);
+    if (!info.vis) misses.push(info.key);
   }
-  return misses;
+  return { misses, checkedCount: visited.length, totalFocusable };
 }
 
 const docsImagesDir = resolve(REPO_ROOT, 'docs/images');
@@ -127,7 +148,8 @@ for (const scheme of ['light', 'dark']) {
 
   const c = await page.evaluate(CONTRAST);
   const n = await page.evaluate(NAMES);
-  const f = await focusMisses(page);
+  const axe = await new AxeBuilder({ page }).analyze();
+  const f = await focusMissesAll(page);
   const sw = await page.evaluate(() => document.documentElement.scrollWidth);
 
   check(
@@ -136,14 +158,19 @@ for (const scheme of ['light', 'dark']) {
     c.slice(0, 3).join('; '),
   );
   check(
+    axe.violations.length === 0,
+    `gallery ${scheme}: @axe-core/playwright zero violations`,
+    axe.violations.map((v) => `${v.id} (${v.nodes.length})`).join(', '),
+  );
+  check(
     n.unnamed.length === 0 && n.dup.length === 0,
     `gallery ${scheme}: controls named, ids unique`,
     [...n.unnamed, ...n.dup].slice(0, 3).join('; '),
   );
   check(
-    f.length === 0,
-    `gallery ${scheme}: keyboard focus visible`,
-    f.slice(0, 3).join(', '),
+    f.misses.length === 0 && f.checkedCount >= f.totalFocusable,
+    `gallery ${scheme}: keyboard focus visible across all ${f.checkedCount} tab stops`,
+    f.misses.slice(0, 3).join(', '),
   );
   check(
     sw <= 1280 && errors.length === 0,
@@ -153,12 +180,38 @@ for (const scheme of ['light', 'dark']) {
   await ctx.close();
 }
 
+// Forced-colors (Windows High Contrast) mode check
+{
+  const { ctx, page, errors } = await openGallery(browser, { scheme: 'light' });
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.waitForTimeout(100);
+  const fcState = await page.evaluate(() => {
+    const mq = window.matchMedia('(forced-colors: active)').matches;
+    const panelPoly = document.querySelector('.f12-panel-frame polygon');
+    const tag = document.querySelector('.f12-tag');
+    return {
+      mq,
+      polyStrokeWidth: panelPoly ? getComputedStyle(panelPoly).strokeWidth : '0px',
+      tagBorderStyle: tag ? getComputedStyle(tag).borderTopStyle : 'none',
+    };
+  });
+  check(
+    fcState.mq && parseFloat(fcState.polyStrokeWidth) >= 2 && fcState.tagBorderStyle === 'solid' && errors.length === 0,
+    'gallery forced-colors: high-contrast media query active with visible borders on panels and tags',
+    JSON.stringify(fcState),
+  );
+  await ctx.close();
+}
+
 // Stepped vs smooth motion pose count
 {
   const { ctx, page } = await openGallery(browser);
   const sample = (target) =>
     page.evaluate(async (t) => {
-      const ind = document.querySelector('#gal-rng-30').closest('.rng').querySelector('.rng-ind');
+      const ind = document
+        .querySelector('#gal-rng-30')
+        .closest('.f12-rng')
+        .querySelector('.f12-rng-ind');
       document.querySelector(t).click();
       const xs = [];
       const t0 = performance.now();
@@ -189,10 +242,10 @@ for (const scheme of ['light', 'dark']) {
   const r = await page.evaluate(async () => {
     document.querySelector('#gal-rng-90').click();
     await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
-    const clip = document.querySelector('.dash clipPath rect');
+    const clip = document.querySelector('.f12-dash clipPath rect');
     const svg = clip.closest('svg');
     const btn = document.querySelector('#gal-rng-90');
-    const ind = btn.closest('.rng').querySelector('.rng-ind');
+    const ind = btn.closest('.f12-rng').querySelector('.f12-rng-ind');
     return {
       chart: +clip.getAttribute('width') >= +svg.getAttribute('width') - 20,
       marker:

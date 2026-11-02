@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](LICENSE)
 [![Next.js + TypeScript](https://img.shields.io/badge/Next.js_14-TypeScript-121212?style=flat-square&labelColor=121212&color=ffffff)](site/)
-[![shadcn Registry](https://img.shields.io/badge/shadcn-Registry_19_Items-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](registry/)
+[![shadcn Registry](https://img.shields.io/badge/shadcn-Registry_22_Items-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](registry/)
 [![Agent Skill](https://img.shields.io/badge/SKILL.md-0_Drift_Linter-121212?style=flat-square&labelColor=121212&color=ffffff)](skills/frame12/)
 
 An interface design language, copy-in React component registry, and AI agent skill drawn from sequential print page composition and hand-drawn cel-animation production craft: `2.5px` mitered ink panels, semantic `12px`/`20px`/`32px` gutter grammar, rotated `45°` SVG halftone screentone fills instead of alpha gradients, and discrete state transitions held **on twos** (`12fps`, `83.33ms` per pose).
@@ -44,11 +44,11 @@ Every workspace is self-contained, shares a single root toolchain, and is verifi
 | Workspace / Directory | Milestone | What It Contains |
 | --- | --- | --- |
 | [`lab/`](lab/) | `m1-fix-restructure` | Phase 1 recovery dashboard prototype (`prototype.html`), blind counterbalanced usability study (`study.html`), and interactive style sheet (`style-sheet.html`). |
-| [`registry/`](registry/) | `m2-registry` | 19 `shadcn`-compatible registry items: 14 core components (`Sheet`, `Scene`, `Panel`, `PanelPair`, `SegmentedControl`, `Button`, `Input`, `Badge`, `Tag`, `Metric`, `Balloon`, `ToneAreaChart`, `ToneBarList`, `ToneSpark`), 5 primitive adapters (`Dialog`, `Select`, `Tooltip`, `DropdownMenu`, `Table`), `useOnTwos` hooks, and standalone `frame12.css`. |
+| [`registry/`](registry/) | `m2-registry` | 22 `shadcn`-compatible registry items installing into `components/frame12/*.tsx`, `hooks/use-on-twos.ts`, and `styles/frame12.css`: 14 core components (`Sheet`, `Scene`, `Panel`, `PanelPair`, `SegmentedControl`, `Button`, `Input`, `Badge`, `Tag`, `Metric`, `Balloon`, `ToneAreaChart`, `ToneBarList`, `ToneSpark`), 5 primitive adapters (`Dialog`, `Select`, `Tooltip`, `DropdownMenu`, `Table`), `useOnTwos` hooks, and standalone `.f12-*` scoped `frame12.css`. |
 | [`skills/frame12/`](skills/frame12/) | `m3-skill` | Portable Agent Skill (`SKILL.md`, `references/components-and-adapters.md`, `references/examples-and-mistakes.md`) and ESLint flat-config rules (`eslint.frame12.mjs`). |
-| [`eval/`](eval/) | `m3-skill` | AI reproduction benchmark across 3 product archetypes (`01-settings`, `02-landing-hero`, `03-data-table`), static linter tests (`check-linter.mjs`), and Playwright WCAG AA + mobile verification ([`eval/RESULTS.md`](eval/RESULTS.md)). |
+| [`eval/`](eval/) | `m3-skill` | AI reproduction benchmark across 3 product archetypes (`01-settings`, `02-landing-hero`, `03-data-table`), static linter tests (`check-linter.mjs`), and Playwright WCAG AA + `@axe-core/playwright` + mobile verification ([`eval/RESULTS.md`](eval/RESULTS.md)). |
 | [`site/`](site/) | `m4-site` | Next.js App Router documentation and interactive showcase (`/` Home, `/motion` On Twos Studio, `/components` Gallery & `[slug]` docs, `/agents` Skill & Linter benchmark, `/style-sheet`, `/get-started`, plus `/r/*.json` endpoints and dynamic Open Graph images). |
-| [`templates/next-starter/`](templates/next-starter/) | `m5-launch` | Standalone Next.js App Router + TypeScript starter template pre-loaded with `src/registry/`, Google Fonts, `.claude/skills/frame12/SKILL.md`, and `scripts/check-frame12.mjs`. |
+| [`templates/next-starter/`](templates/next-starter/) | `m5-launch` | Standalone Next.js App Router + TypeScript starter template pre-loaded with `src/components/frame12/`, `src/hooks/use-on-twos.ts`, `src/styles/frame12.css`, Google Fonts, `.claude/skills/frame12/SKILL.md`, and `scripts/check-frame12.mjs`. |
 | [`launch/`](launch/) | `m5-launch` | Launch kit (prepared, unpublished): Playwright video & hero recorder (`launch/scripts/record-clip.mjs`), `motion-on-twos.webm`, `social-hero.png`, Show HN / X / Reddit drafts, *"Designing Interfaces on Twos"* essay, verified directory listings ([`launch/LISTINGS.md`](launch/LISTINGS.md)), and [`launch/LAUNCH-CHECKLIST.md`](launch/LAUNCH-CHECKLIST.md). |
 
 ---

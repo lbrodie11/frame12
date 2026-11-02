@@ -21,13 +21,13 @@ Three product archetypes not present in the original Phase 1 prototype were spec
 
 `scripts/check-frame12.mjs` enforces the five checkable static grammar rules across `.tsx`, `.ts`, `.jsx`, `.js`, and `.css` files:
 
-1. **`color-literal`:** Flags any hex (`#...`), `rgb()`, `rgba()`, `hsl()`, `hsla()`, `oklch()`, or hard-coded font family name outside `frame12.css` / `frame12-tailwind.css` (exempting only the white luminance mask stop in `tone-area-chart.tsx`).
-2. **`illegal-gutter`:** Flags any `<Scene gutter="...">` prop not in `{'pair', 'scene', 'change'}`, any inline or CSS `gap` / `rowGap` / `columnGap` / `gridGap` not in `{0, 12px, 20px, 32px, var(--f-gutter-*)}`, and any Tailwind `gap-*` class not mapped to the three legal gutter widths.
+1. **`color-literal`:** Flags any hex (`#...`), `rgb()`, `rgba()`, `hsl()`, `hsla()`, `oklch()`, CSS named-color gradients, or hard-coded font family name outside `frame12.css` / `frame12-tailwind.css` (with zero file exceptions).
+2. **`illegal-gutter`:** Flags any `<Scene gutter="...">` prop not in `{'pair', 'scene', 'change'}`, any inline or CSS `gap` / `rowGap` / `columnGap` / `gridGap` not in `{0, 12px, 20px, 32px, var(--f-gutter-*)}`, and any Tailwind `gap-*` class (in strings, template literals, or `cn()`/`clsx()` calls) not mapped to the three legal gutter widths.
 3. **`marker-misuse`:** Flags `--f-marker` or `#ffd60a` used on `color`, `stroke`, `fill`, `border*`, `outline*`, or `boxShadow`, as well as any `--f-marker` background in inline styles or CSS that does not explicitly pair with `color: var(--f-marker-ink)`.
 4. **`cut-order`:** Extracts all `cut`, `topCut`, and `bottomCut` literals in DOM order and verifies two-digit formatting (`C-01`), starting at `C-01`, and strict `n + 1` sequential increments with zero gaps, duplicates, or reversals.
-5. **`raw-shadcn-import`:** Flags imports from `@/components/ui/*` where a FRAME/12 component or adapter exists (`button`, `input`, `badge`, `tag`, `card`, `tabs`, `dialog`, `select`, `tooltip`, `dropdown-menu`, `table`, `sheet`, `panel`), raw `@radix-ui/*` primitives, and external charting or animation libraries (`recharts`, `chart.js`, `d3`, `framer-motion`, `gsap`).
+5. **`raw-shadcn-import`:** Flags imports from `@/components/ui/*` where a FRAME/12 component or adapter exists (`button`, `input`, `badge`, `tag`, `card`, `tabs`, `dialog`, `select`, `tooltip`, `dropdown-menu`, `table`, `sheet`, `panel`), raw `@radix-ui/*` primitives in application screens, and external charting or animation libraries (`recharts`, `chart.js`, `d3`, `framer-motion`, `gsap`).
 
-Companion ESLint flat-config rules are exported in `skills/frame12/eslint.frame12.mjs`, and unit/CLI tests for all five rules run in `eval/tests/check-linter.mjs` (14/14 assertions passing).
+Companion ESLint flat-config rules are exported in `skills/frame12/eslint.frame12.mjs`, and unit/CLI tests for all five rules run in `eval/tests/check-linter.mjs` (17/17 assertions passing).
 
 ---
 

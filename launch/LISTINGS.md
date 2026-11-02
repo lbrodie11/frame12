@@ -122,7 +122,7 @@ Verified submission workflows, technical requirements, asset specifications, and
 ### Pre-Filled Submission Form Metadata
 - **Template Name:** `FRAME/12 Next.js Starter — Storyboard UI & Agent Guardrails`
 - **Framework:** `Next.js` (App Router, TypeScript)
-- **CSS / UI:** `@frame12/registry` (`frame12.css`, zero external runtime UI dependencies)
+- **CSS / UI:** `@frame12/registry` (`frame12.css`, zero external animation or charting libraries; `@radix-ui/react-select` and `@radix-ui/react-dropdown-menu` for WAI-ARIA popup primitives)
 - **Use Case / Category:** `Starter`, `Dashboard`, `Design System`, `AI-Ready`
 - **GitHub Repo URL:** `https://github.com/lbrodie11/frame12/tree/main/templates/next-starter`
 - **Live Demo URL:** `https://frame12.dev`
