@@ -9,12 +9,13 @@
     "lab",
     "registry",
     "eval",
-    "site"
+    "site",
+    "templates/next-starter"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "lint:frame12": "node scripts/check-frame12.mjs registry/ui eval/screens site/src site/app",
-    "test": "npm run lint:frame12 && npm run test --workspaces --if-present",
+    "lint:frame12": "node scripts/check-frame12.mjs registry/ui eval/screens site/src site/app templates/next-starter/app templates/next-starter/src",
+    "test": "npm run lint:frame12 && npm run test --workspaces --if-present && node launch/tests/verify-launch.mjs",
     "dev": "npm run dev --workspaces --if-present"
   },
   "devDependencies": {
@@ -26,5 +27,6 @@
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

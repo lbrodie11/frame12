@@ -1,116 +1,100 @@
 # FRAME/12
 
-An interface design language taken from animation and manga production: ink-framed panels, gutters whose width means something, screentone instead of gradients, and motion held on twos.
+[![License: MIT](https://img.shields.io/badge/License-MIT-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](LICENSE)
+[![Next.js + TypeScript](https://img.shields.io/badge/Next.js_14-TypeScript-121212?style=flat-square&labelColor=121212&color=ffffff)](site/)
+[![shadcn Registry](https://img.shields.io/badge/shadcn-Registry_19_Items-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](registry/)
+[![Agent Skill](https://img.shields.io/badge/SKILL.md-0_Drift_Linter-121212?style=flat-square&labelColor=121212&color=ffffff)](skills/frame12/)
 
-**Status: Phase 1 / Milestone 1.** This repository holds the Phase 1 lab (prototype, blind study, and style sheet) alongside the workspaces for the component registry, agent skill, and showcase site.
+An interface design language, copy-in React component registry, and AI agent skill drawn from sequential print page composition and hand-drawn cel-animation production craft: `2.5px` mitered ink panels, semantic `12px`/`20px`/`32px` gutter grammar, rotated `45°` SVG halftone screentone fills instead of alpha gradients, and discrete state transitions held **on twos** (`12fps`, `83.33ms` per pose).
 
-![FRAME/12 style sheet](docs/images/style-sheet-light.png)
+![FRAME/12 Social Hero](launch/clips/social-hero.png)
 
-## What's here
+---
 
-Three self-contained pages in `lab/`, built from one React codebase and one seeded dataset, so every number matches everywhere. Each build produces both `lab/dist/artifact/*.html` (page fragments for the Claude artifact host) and `lab/dist/standalone/*.html` (complete HTML5 documents with mobile viewport configuration).
+## Install in 10 Seconds
 
-| Page | For | What it does |
+Install the complete **FRAME/12** kit (styles, motion hooks, 14 core components, and 5 accessible primitive adapters) or individual items via the `shadcn` CLI:
+
+```bash
+# Full kit
+npx shadcn@latest add https://frame12.dev/r/frame12.json
+
+# Individual registry items
+npx shadcn@latest add https://frame12.dev/r/frame12-styles.json
+npx shadcn@latest add https://frame12.dev/r/sheet.json
+npx shadcn@latest add https://frame12.dev/r/scene.json
+npx shadcn@latest add https://frame12.dev/r/panel.json
+npx shadcn@latest add https://frame12.dev/r/panel-pair.json
+npx shadcn@latest add https://frame12.dev/r/segmented-control.json
+npx shadcn@latest add https://frame12.dev/r/tone-area-chart.json
+```
+
+Install the portable AI Agent Skill (`skills/frame12/SKILL.md`) for Claude Code, Cursor, and compatible coding agents:
+
+```bash
+npx skills add lbrodie11/frame12 --skill frame12
+```
+
+---
+
+## Monorepo Workspaces & Directories
+
+Every workspace is self-contained, shares a single root toolchain, and is verified by `npm test` and `npm run lint:frame12`:
+
+| Workspace / Directory | Milestone | What It Contains |
 | --- | --- | --- |
-| `lab/dist/standalone/prototype.html` | You and the designer critique | One recovery dashboard in a strong conventional style and in FRAME/12. Switch design, motion (smooth, stepped, cut), theme, and a grayscale test. |
-| `lab/dist/standalone/study.html` | Participants | Blind, counterbalanced study: 3 timed tasks per design, 6 ratings each, a side-by-side comparison, 3 stepped-vs-smooth motion pairs. Add `#results` to the URL for the live decision. |
-| `lab/dist/standalone/style-sheet.html` | Anyone | The visual language on one page: the sheet in light, dark and phone, panel grammar, construction details, motion, type and palette. |
+| [`lab/`](lab/) | `m1-fix-restructure` | Phase 1 recovery dashboard prototype (`prototype.html`), blind counterbalanced usability study (`study.html`), and interactive style sheet (`style-sheet.html`). |
+| [`registry/`](registry/) | `m2-registry` | 19 `shadcn`-compatible registry items: 14 core components (`Sheet`, `Scene`, `Panel`, `PanelPair`, `SegmentedControl`, `Button`, `Input`, `Badge`, `Tag`, `Metric`, `Balloon`, `ToneAreaChart`, `ToneBarList`, `ToneSpark`), 5 primitive adapters (`Dialog`, `Select`, `Tooltip`, `DropdownMenu`, `Table`), `useOnTwos` hooks, and standalone `frame12.css`. |
+| [`skills/frame12/`](skills/frame12/) | `m3-skill` | Portable Agent Skill (`SKILL.md`, `references/components-and-adapters.md`, `references/examples-and-mistakes.md`) and ESLint flat-config rules (`eslint.frame12.mjs`). |
+| [`eval/`](eval/) | `m3-skill` | AI reproduction benchmark across 3 product archetypes (`01-settings`, `02-landing-hero`, `03-data-table`), static linter tests (`check-linter.mjs`), and Playwright WCAG AA + mobile verification ([`eval/RESULTS.md`](eval/RESULTS.md)). |
+| [`site/`](site/) | `m4-site` | Next.js App Router documentation and interactive showcase (`/` Home, `/motion` On Twos Studio, `/components` Gallery & `[slug]` docs, `/agents` Skill & Linter benchmark, `/style-sheet`, `/get-started`, plus `/r/*.json` endpoints and dynamic Open Graph images). |
+| [`templates/next-starter/`](templates/next-starter/) | `m5-launch` | Standalone Next.js App Router + TypeScript starter template pre-loaded with `src/registry/`, Google Fonts, `.claude/skills/frame12/SKILL.md`, and `scripts/check-frame12.mjs`. |
+| [`launch/`](launch/) | `m5-launch` | Launch kit (prepared, unpublished): Playwright video & hero recorder (`launch/scripts/record-clip.mjs`), `motion-on-twos.webm`, `social-hero.png`, Show HN / X / Reddit drafts, *"Designing Interfaces on Twos"* essay, verified directory listings ([`launch/LISTINGS.md`](launch/LISTINGS.md)), and [`launch/LAUNCH-CHECKLIST.md`](launch/LAUNCH-CHECKLIST.md). |
 
-All data is fictional (Fernwood Supply Co., 180 days ending Oct 31, 2026) and labelled "Example data" on screen.
+---
 
-## Quick start
+## Quick Start (Local Development)
 
 ```bash
 npm install
-npx playwright install chromium   # first time only, for the tests
-npm run build                     # writes lab/dist/artifact/*.html and lab/dist/standalone/*.html
-open lab/dist/standalone/style-sheet.html
+npx playwright install chromium   # first time only, for automated browser verification
+npm run build                     # builds lab, registry, eval, site, and templates/next-starter
+npm run lint:frame12              # runs static design-grammar checker across all workspaces
+npm test                          # runs full lint, unit, build, and Playwright a11y/study suites
 ```
 
-The pages load React 18 from cdnjs and fonts from Google Fonts at view time. Everything else is inlined, so each file can be opened directly or published as a single page.
+To run the documentation and showcase site (`site/`) locally:
 
-## Tests
-
-| Command | Checks |
-| --- | --- |
-| `npm --workspace lab run test:study` | Walks the whole study on desktop and phone, decodes the result codes, imports them into the results view, and confirms scoring, design mapping and the decision rule. |
-| `npm --workspace lab run test:a11y` | Text contrast against rendered backgrounds (WCAG AA), accessible names, unique ids, visible keyboard focus, stepped-motion pose count, reduced-motion behaviour. |
-| `npm --workspace lab run test:screens` | Full-page screenshots of every page at 1280 and 390 px, light and dark, into `lab/test-results/`; fails on sideways scroll. |
-| `npm test` | Runs `build` and test suites across all workspaces. |
-
-Offline runs: set `F12_REACT_UMD` to a file that defines `window.React` and `window.ReactDOM`, and the harness serves it in place of the CDN. `CHROME_PATH` selects a browser binary.
-
-## The language, briefly
-
-- **Panel grammar.** Gutter width encodes relationship: 12 px pairs two panels, 20 px keeps them in one scene, 32 px starts a new scene. The largest panel is the establishing frame.
-- **Cut numbers** (C-01, C-02…) sit in the frame line and always match reading order and code order.
-- **Screentone** halftone fills replace gradients and transparency.
-- **Speech-balloon annotations** point at the value they describe.
-- **Marker yellow** is the only accent, and only ever sits under ink text.
-- **Dark mode** turns the gutters black, the manga convention for flashback pages.
-- **Motion on twos.** Discrete changes hold each pose for 83 ms (12 poses a second). Hover, scrolling and typing stay immediate. Reduced-motion settings make everything instant.
-- **Type.** Dela Gothic One for display numbers, Zen Kaku Gothic New for body, M PLUS 1 Code for labels.
-
-No named artist's work is reproduced or referenced in the product; every element is original.
-
-## Phase 1 decision rule
-
-The results view applies these automatically. Mobile and accessibility are team checks set on that page.
-
-| Criterion | Passing rule |
-| --- | --- |
-| Visual distinctiveness | ≥70% pick FRAME/12 as more distinctive |
-| Overall preference | ≥60% would rather use FRAME/12 |
-| Task success | FRAME/12 within 10 points of Conventional |
-| Efficiency | Median task time no more than 15% slower |
-| Design consistency | Designers rate coherence ≥5.0 of 7 (3+ designers) |
-| Mobile, accessibility | No critical defects |
-| Animation | For one interaction or more: ≥60% prefer stepped or see no difference, ≤20% call it broken |
-
-- **Proceed:** all of distinctiveness, preference, task success, efficiency, mobile and accessibility pass.
-- **Revise:** distinctive, but anything else fails.
-- **Stop or change direction:** not distinctive after one focused redesign.
-
-Results are provisional until 16 responses.
-
-## Roadmap
-
-Each phase starts only when the gate before it passes.
-
-1. **Visual identity:** prove FRAME/12 against an excellent conventional design. Gate: Proceed.
-2. **Design grammar:** three reference screens (dashboard, landing page, settings); extract rules from what works. Gate: five screens in new palettes still read as one family.
-3. **AI reproducibility:** small component set with shadcn adapters, tokens, a SKILL.md and lint rules, served as a shadcn registry. Gate: an agent builds a new screen with no manual restyling.
-4. **Benchmark:** 20 fixed tasks comparing plain shadcn, an existing design skill and FRAME/12, rated blind. Gate: FRAME/12 preferred in 70%+ at reasonable cost.
-
-## Layout
-
-```
-lab/
-  src/
-    data.js         seeded example data and study tasks (answers computed from the data)
-    ui.jsx          shared dashboard components for both designs, motion hooks
-    explorer.jsx    prototype page
-    study.jsx       study flow, analysis and results view
-    specimen.jsx    style sheet page
-    styles.css      both design languages, themes, motion grammar
-    shell.css       neutral chrome for the prototype and study
-    specimen.css    style sheet layout
-  scripts/build.mjs builds dist/artifact/*.html and dist/standalone/*.html with esbuild
-  tests/            Playwright checks (Node) against dist/standalone/*.html
-registry/           copy-in component source and shadcn registry (Milestone 2)
-skills/frame12/     agent skill and design rules (Milestone 3)
-site/               FRAME/12 documentation and showcase website (Milestone 4)
-docs/images/        rendered screenshots
+```bash
+npm --workspace site run dev
 ```
 
-## Naming
+To run the standalone Next.js starter template (`templates/next-starter/`):
 
-Use `frame12` for anything technical (package, repo, URLs, registry); the slash in "FRAME/12" breaks them. "FRAME/12" stays the display name. The name has not been checked for trademark conflicts.
+```bash
+npm --prefix templates/next-starter run dev
+```
 
-## Fonts
+---
 
-All typefaces used in FRAME/12 (`Dela Gothic One`, `Zen Kaku Gothic New`, and `M PLUS 1 Code`), as well as `Geist` and `Geist Mono` (used in the conventional comparison baseline only), are open-source and licensed under the [SIL Open Font License 1.1](https://openfontlicense.org/).
+## The 8 Non-Negotiable Rules (`scripts/check-frame12.mjs`)
 
-## License
+1. **Tokens, not literals (`color-literal`):** No hard-coded hex/RGB/HSL colors or font stacks outside `frame12.css` / `frame12-tailwind.css`. Always use `var(--f-*)` and `var(--font-f-*)`.
+2. **Gutter grammar (`illegal-gutter`):** Layout gutters come strictly from three semantic values:
+   - `12px` (`--f-gutter-pair` / `gutter="pair"`): tightly paired panels (`PanelPair`) across a `16px` diagonal slant.
+   - `20px` (`--f-gutter-scene` / `gutter="scene"`): panels within the same narrative scene.
+   - `32px` (`--f-gutter-change` / `gutter="change"`): separation between scenes down the sheet.
+3. **Sequential cut numbers (`cut-order`):** Every panel (`C-01`, `C-02`, `C-03`…) is numbered sequentially in DOM and reading order starting at `C-01`.
+4. **Marker-yellow discipline (`marker-misuse`):** Highlighter yellow (`--f-marker`, `#ffd60a`) is used **only** as a background paired with `--f-marker-ink` (`#121212`) text, or as an inked peak dot with a `2px` `--f-rule` stroke.
+5. **Motion on twos:** Discrete state transitions hold each pose for `83.33ms` (`12fps`) via `useOnTwos`. Pointer hover, scrolling, typing, and chart crosshairs stay immediate (`0ms`). `prefers-reduced-motion: reduce` switches all transitions to instant hard cuts (`0ms`).
+6. **Flashback dark mode & WCAG AA accessibility:** Dark mode turns the gutters pitch black (`#050505`) while keeping panels legible (`#19191a`) with ≥4.5:1 body contrast, ≥3:1 display contrast, visible `:focus-visible` outlines, keyboard chart navigation, and semantic `<table>` fallbacks.
+7. **Describe the craft, never name people or franchises:** Zero named artists, studios, comics, or franchises appear anywhere in code or docs.
+8. **Zero external animation or charting libraries (`raw-shadcn-import`):** Built purely with React, SVG, and CSS custom properties.
+
+---
+
+## Fonts & License
+
+All typefaces used in FRAME/12 (`Dela Gothic One`, `Zen Kaku Gothic New`, and `M PLUS 1 Code`), as well as `Geist` and `Geist Mono` (used in the Phase 1 conventional comparison baseline only), are open-source under the [SIL Open Font License 1.1](https://openfontlicense.org/).
 
 MIT License — see [`LICENSE`](LICENSE). Copyright (c) 2026 Laqwan Brodie.

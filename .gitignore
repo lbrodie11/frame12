@@ -13,6 +13,8 @@ registry/.f12-run/
 eval/.f12-run/
 .next/
 site/.next/
+templates/next-starter/.next/
+launch/clips/.tmp-video/
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store

@@ -1,0 +1,134 @@
+---
+name: frame12
+description: Build interfaces, dashboards, settings screens, landing pages, and data tables in the FRAME/12 design language using ink-framed panels, rotated SVG screentone fills, strict 12px/20px/32px gutter grammar, sequential cut numbers (C-01, C-02…), marker-yellow highlights, and 12fps stepped motion ("on twos"). Use whenever creating or modifying UI with @frame12/registry components.
+---
+
+# FRAME/12 Design System Skill
+
+FRAME/12 is an interface design language built from page composition and cel-animation production craft: heavy `2.5px` mitered ink panel borders, rotated 45° SVG screentone dot patterns instead of gradients, exposure-sheet segmented controls, speech-balloon data annotations, and discrete state transitions sampled "on twos" (`12fps`, `83.33ms` per pose).
+
+For complete TypeScript prop signatures and adapter details, read [references/components-and-adapters.md](references/components-and-adapters.md).
+For worked screen examples, common drift fixes, and ESLint enforcement, read [references/examples-and-mistakes.md](references/examples-and-mistakes.md).
+
+---
+
+## 1. Installation & Setup
+
+Install the full kit or individual components via the `shadcn` CLI:
+
+```bash
+# Full kit (styles, hooks, 14 core components, and 5 primitive adapters)
+npx shadcn@latest add https://frame12.dev/r/frame12.json
+
+# Or individual registry items
+npx shadcn@latest add https://frame12.dev/r/frame12-styles.json
+npx shadcn@latest add https://frame12.dev/r/sheet.json
+npx shadcn@latest add https://frame12.dev/r/scene.json
+npx shadcn@latest add https://frame12.dev/r/panel.json
+npx shadcn@latest add https://frame12.dev/r/panel-pair.json
+npx shadcn@latest add https://frame12.dev/r/tone-area-chart.json
+```
+
+Import `styles/frame12.css` (or `styles/frame12-tailwind.css` for Tailwind CSS v4 `@theme` mappings) once at the root of your application. Every component works standalone with `frame12.css` without requiring Tailwind.
+
+---
+
+## 2. The 8 Non-Negotiable Rules
+
+Every screen, component, and stylesheet MUST pass these 8 rules (`node scripts/check-frame12.mjs`):
+
+1. **Tokens, not literals (`color-literal`):**
+   - Never write hex (`#...`), `rgb(...)`, `rgba(...)`, `hsl(...)`, or `hsla(...)` colors or font-family names outside `frame12.css` / `frame12-tailwind.css`.
+   - Always use CSS custom properties:
+     - Surfaces: `--f-desk`, `--f-sheet`, `--f-panel`, `--f-hole`
+     - Ink & rules: `--f-ink`, `--f-ink-2`, `--f-rule`, `--f-tone`, `--f-grid`
+     - Marker highlight: `--f-marker`, `--f-marker-ink`
+     - Gutters: `--f-gutter-pair` (`12px`), `--f-gutter-scene` (`20px`), `--f-gutter-change` (`32px`)
+     - Typography: `--font-f-display`, `--font-f-body`, `--font-f-mono`
+2. **Gutter grammar (`illegal-gutter`):**
+   - Gutters come strictly from three values:
+     - `12px` (`gutter="pair"` / `--f-gutter-pair`): tightly paired panels (`PanelPair`) or compact control groups.
+     - `20px` (`gutter="scene"` / `--f-gutter-scene`): panels and columns within the same scene.
+     - `32px` (`gutter="change"` / `--f-gutter-change`): separation between scenes on a `Sheet`.
+   - Never use arbitrary gaps (`8px`, `16px`, `24px`, `gap-4`, `gap-6`) in `Scene`, panel layouts, or inline `gap` styles.
+3. **Sequential cut numbers (`cut-order`):**
+   - Number every `Panel` (and modal `DialogContent` cut) sequentially in reading order starting at `C-01` (`C-01`, `C-02`, `C-03`, `C-04`…).
+   - Visual order, reading order (top-to-bottom, left-to-right), and DOM order MUST match. Never skip, duplicate, or reverse cut numbers.
+4. **Marker yellow discipline (`marker-misuse`):**
+   - `--f-marker` (`#ffd60a`) is a highlighter. It may **only** be used as a `background` / `background-color` paired with `--f-marker-ink` (`#121212`) text, or as an inked target dot (`.peak-dot`, `.cross-dot`) with a `2px` `--f-rule` stroke.
+   - Never use `--f-marker` as a text color, line stroke, chart series color, or standalone border.
+5. **Motion on twos:**
+   - Default motion mode is `'stepped'`: discrete state changes (switching time ranges, filtering rows, counting metrics) sample an ease-out curve at `12fps` (`83.33ms` per pose).
+   - Continuous pointer interactions—hover states, scrolling, dragging, typing in inputs, and chart crosshairs—MUST stay immediate (`0ms`).
+   - `prefers-reduced-motion: reduce` automatically switches all transitions to instant hard cuts (`'cut'`).
+   - Use `useChanged(key)` so entrance animations (`.enter`, `<Badge pop={changed}>`) never fire on initial page load; the sheet is complete at rest.
+6. **Accessibility (WCAG AA):**
+   - Text contrast must meet WCAG AA (`4.5:1` body, `3:1` large display) in both `light` and `dark` themes.
+   - Every interactive control must have an accessible name (`label`, `aria-label`, or visible text), unique `id`, and visible `:focus-visible` outline (`3px solid var(--f-ink)`).
+   - Every chart must provide keyboard inspection (`tabIndex={0}`, `ArrowLeft`/`ArrowRight`/`Escape`) and a collapsible `<details className="tbl">` semantic data table (`showTable`).
+   - All decorative SVG frames, bursts, pegs, and tails must carry `aria-hidden="true"`.
+7. **Describe the craft, never name people or franchises:**
+   - Never mention specific artists, studios, comics, anime titles, or franchises in code, comments, copy, or documentation. Refer strictly to the production craft: *panels, mitered ink frames, screentone, registration pegs, exposure sheets, cut numbers, and animating on twos*.
+8. **Zero external animation, drawing, or charting libraries:**
+   - Do not import `framer-motion`, `gsap`, `recharts`, `chart.js`, `d3`, or `lucide-react`. Use `@frame12/registry` components (`ToneAreaChart`, `ToneBarList`, `ToneSpark`, `Balloon`) and hooks (`useOnTwos`, `useCountUp`, `useChanged`).
+
+---
+
+## 3. Panel Composition & Storyboard Hierarchy
+
+Compose every screen like a production storyboard sheet:
+
+1. **Wrap the page in `<Sheet>`:**
+   - `<Sheet pegs motion={motion} theme={theme}>` renders the registration pegs at the top edge and establishes a `32px` vertical rhythm between `<header className="hd">` and each `<Scene>`.
+2. **Establish the scene in `C-01`:**
+   - The first panel (`cut="C-01"`) is the establishing shot. Give it dominant visual weight using `<Scene gutter="scene" layout="split">` (`2fr 1fr` on desktop, single-column stack under `760px`) or a full-width `<Scene gutter="scene" layout="stack">`.
+3. **Pair secondary KPIs or coupled controls with `<PanelPair>`:**
+   - Place `<PanelPair top={{ cut: 'C-02', ... }} bottom={{ cut: 'C-03', ... }} />` in the secondary column of a `split` scene (or alongside a detail panel). `PanelPair` draws a `16px` diagonal slant across a `12px` (`pair`) gutter (`slant-bottom` over `slant-top`).
+4. **Use `20px` (`gutter="scene"`) within a scene and `32px` (`gutter="change"`) between scenes:**
+   - Keep panels that answer the same question in one `<Scene gutter="scene" layout="equal" | "three" | "split">`.
+   - Start a new `<Scene>` for a new narrative beat (e.g., moving from hero KPIs to a filterable ledger or danger-zone configuration).
+
+---
+
+## 4. Component Selection & Adapter Policy
+
+Always import from `@frame12/registry` (or your local FRAME/12 registry paths). Never import raw `@/components/ui/*` or `@radix-ui/*` primitives when a FRAME/12 component or adapter exists.
+
+| UI Need | FRAME/12 Component | Forbidden Raw Alternative |
+| --- | --- | --- |
+| Page shell & registration pegs | `Sheet` | Custom wrapper divs with hard-coded padding |
+| Multi-column / stacked grid | `Scene` (`gutter="pair" \| "scene" \| "change"`, `layout="split" \| "equal" \| "three" \| "stack"`) | Arbitrary CSS grid or Tailwind `gap-4` / `gap-6` |
+| Framed section / card | `Panel` (`cut="C-01"`, `label="..."`) | shadcn `Card`, bordered `<div>` |
+| Vertically paired KPIs / panels | `PanelPair` (`top`, `bottom`, 12px slanted gutter) | Two stacked cards with `gap-4` |
+| Mode, range, or status switcher | `SegmentedControl` | shadcn `Tabs`, radio button pills |
+| Action button | `Button` (`variant="primary" \| "secondary" \| "marker"`) | Raw `<button>` or unadapted `@/components/ui/button` |
+| Text / number / search field | `Input` (`label`, `hint`, `error`) | Unlabeled `<input>` or raw `@/components/ui/input` |
+| Highlight callout with impact burst | `Badge` (`pop`, `burst`) | Colored status pills (green/red/blue badges) |
+| Compact metadata marker | `Tag` | Colored chips |
+| Headline KPI + directional delta | `Metric` & `Delta` | Custom stat card |
+| Time-series or trend chart | `ToneAreaChart` | Recharts, Chart.js, Visx |
+| Ranked comparison bar list | `ToneBarList` | Progress bars, horizontal bar chart libraries |
+| Compact daily bar sparkline | `ToneSpark` | SVG sparkline libraries |
+| Speech-balloon callout | `Balloon` | Floating popovers for static callouts |
+| Modal confirmation / detail view | `Dialog` (`DialogTrigger`, `DialogContent cut="C-0X"`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogClose`) | Raw `@radix-ui/react-dialog` or `window.confirm` |
+| Single-value dropdown selector | `Select` (`SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`) | Native `<select>` without styling or raw Radix Select |
+| Focus/hover hint | `Tooltip` (`TooltipProvider`, `TooltipTrigger`, `TooltipContent`) | `title` attribute or raw Radix Tooltip |
+| Action menu | `DropdownMenu` (`DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuLabel`, `DropdownMenuSeparator`) | Raw Radix DropdownMenu |
+| Structured tabular ledger | `Table` (`TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`) | Unstyled `<table>` or data-grid libraries |
+
+---
+
+## 5. Pre-Flight & Automated Verification Checklist
+
+Before finishing any FRAME/12 task, run the automated checker and verify:
+
+```bash
+node scripts/check-frame12.mjs <your-files-or-directories>
+```
+
+- [ ] **Zero `color-literal` errors:** All colors use `var(--f-*)` and all fonts use `var(--font-f-*)`.
+- [ ] **Zero `illegal-gutter` errors:** Every `Scene` `gutter` and every flex/grid `gap` uses `12px` (`var(--f-gutter-pair)`), `20px` (`var(--f-gutter-scene)`), or `32px` (`var(--f-gutter-change)`).
+- [ ] **Zero `marker-misuse` errors:** `--f-marker` only appears as a background with `--f-marker-ink` foreground text.
+- [ ] **Zero `cut-order` errors:** Cuts start at `C-01` and increment sequentially (`C-01`, `C-02`, `C-03`…) in DOM order.
+- [ ] **Zero `raw-shadcn-import` errors:** All UI primitives and adapters come from FRAME/12.
+- [ ] **Both themes & viewports verified:** Light and dark themes meet WCAG AA contrast, and layouts have no horizontal overflow at `1280px` desktop or `390px` mobile widths.
