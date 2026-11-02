@@ -489,8 +489,8 @@ try {
       () => document.documentElement.getAttribute('data-theme') === 'dark',
     );
 
-    // Verify pre-hydration first paint in Dark mode:
-    // 1. OS dark mode with JavaScript completely disabled -> sheet (#050505) and panel fill (#19191a) must paint dark
+    // Verify pre-hydration first paint & no-JS completeness:
+    // 1. OS dark mode with JavaScript completely disabled across routes -> dark theme, charts, sparklines, and segmented controls all render on first frame
     {
       const noJsCtx = await browser.newContext({
         viewport: { width: 1280, height: 920 },
@@ -499,17 +499,37 @@ try {
       });
       const noJsPage = await noJsCtx.newPage();
       await noJsPage.goto(`${baseUrl}/`, { waitUntil: 'load' });
-      const noJsColors = await noJsPage.evaluate(() => ({
-        sheetBg: getComputedStyle(document.querySelector('.f12-sheet')).backgroundColor,
-        frameFill: getComputedStyle(document.querySelector('.f12-panel svg polygon')).fill,
-        titleColor: getComputedStyle(document.querySelector('.f12-title')).color,
-      }));
+      const noJsHome = await noJsPage.evaluate(() => {
+        const sparks = [...document.querySelectorAll('.f12-spark')];
+        const rngs = [...document.querySelectorAll('.f12-rng')];
+        const unhighlightedRngs = rngs.filter((rng) => {
+          const btns = [...rng.querySelectorAll('.f12-rng-btn')];
+          return !btns.some((b) => getComputedStyle(b).backgroundColor !== 'rgba(0, 0, 0, 0)');
+        });
+        return {
+          sheetBg: getComputedStyle(document.querySelector('.f12-sheet')).backgroundColor,
+          frameFill: getComputedStyle(document.querySelector('.f12-panel svg polygon')).fill,
+          titleColor: getComputedStyle(document.querySelector('.f12-title')).color,
+          darkToggleBg: getComputedStyle(document.querySelector('#site-theme-dark')).backgroundColor,
+          lightToggleBg: getComputedStyle(document.querySelector('#site-theme-light')).backgroundColor,
+          chartPaths: document.querySelectorAll('.f12-chart svg path.f12-l-total').length,
+          sparkSvgs: document.querySelectorAll('.f12-spark svg').length,
+          sparkMinHeight: Math.min(...sparks.map((s) => s.getBoundingClientRect().height)),
+          unhighlightedRngs: unhighlightedRngs.length,
+        };
+      });
       check(
-        noJsColors.sheetBg === 'rgb(5, 5, 5)' &&
-          noJsColors.frameFill === 'rgb(25, 25, 26)' &&
-          noJsColors.titleColor === 'rgb(241, 240, 234)',
-        'site / pre-hydration OS dark mode (JS disabled): .f12-sheet, .f12-panel svg polygon, and .f12-title paint dark on first frame without light flash',
-        JSON.stringify(noJsColors),
+        noJsHome.sheetBg === 'rgb(5, 5, 5)' &&
+          noJsHome.frameFill === 'rgb(25, 25, 26)' &&
+          noJsHome.titleColor === 'rgb(241, 240, 234)' &&
+          noJsHome.darkToggleBg === 'rgb(241, 240, 234)' &&
+          noJsHome.lightToggleBg === 'rgba(0, 0, 0, 0)' &&
+          noJsHome.chartPaths >= 1 &&
+          noJsHome.sparkSvgs >= 2 &&
+          noJsHome.sparkMinHeight >= 70 &&
+          noJsHome.unhighlightedRngs === 0,
+        'site / pre-hydration OS dark mode (JS disabled): dark sheet/panel, server-rendered chart & sparklines (74px height), and highlighted segmented controls',
+        JSON.stringify(noJsHome),
       );
       await noJsCtx.close();
     }

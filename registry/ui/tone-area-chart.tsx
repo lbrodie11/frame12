@@ -115,7 +115,8 @@ export function ToneAreaChart({
   const [bw, setBw] = React.useState<number>(0);
 
   const pad = { l: 46, r: 14, t: 46, b: 28 };
-  const W = Math.max(0, w);
+  const isMeasured = w > 0;
+  const W = isMeasured ? w : 680;
   const H = height;
   const iw = Math.max(1, W - pad.l - pad.r);
   const ih = Math.max(1, H - pad.t - pad.b);
@@ -228,10 +229,12 @@ export function ToneAreaChart({
   return (
     <div className={`f12-tone-area-chart${className ? ` ${className}` : ''}`}>
       <div className="f12-chart" ref={wrap} style={{ height: H }}>
-        {W > 0 && n > 0 && (
+        {n > 0 && (
           <svg
-            width={W}
+            width={isMeasured ? W : '100%'}
             height={H}
+            viewBox={`0 0 ${W} ${H}`}
+            preserveAspectRatio={isMeasured ? undefined : 'none'}
             className="f12-chart-svg"
             role="img"
             aria-label={computedAriaLabel}
@@ -325,10 +328,12 @@ export function ToneAreaChart({
 
             {showPeak && resolvedAnnotation && (
               <>
-                <path
-                  className="f12-tail"
-                  d={`M${tailX - 6},${bTop + bH - 1} L${px - (px - tailX) * 0.15},${py - 7} L${tailX + 6},${bTop + bH - 1}`}
-                />
+                {isMeasured && (
+                  <path
+                    className="f12-tail"
+                    d={`M${tailX - 6},${bTop + bH - 1} L${px - (px - tailX) * 0.15},${py - 7} L${tailX + 6},${bTop + bH - 1}`}
+                  />
+                )}
                 <circle className="f12-peak-dot" cx={px} cy={py} r="4" />
               </>
             )}
@@ -345,14 +350,23 @@ export function ToneAreaChart({
           </svg>
         )}
 
-        {W > 0 && showPeak && resolvedAnnotation && (
+        {showPeak && resolvedAnnotation && (
           <div
             ref={balloon}
             className="f12-balloon"
-            style={{ left: bLeft, top: bTop, minHeight: bH }}
+            style={
+              isMeasured
+                ? { left: bLeft, top: bTop, minHeight: bH }
+                : {
+                    left: `${Math.max(10, Math.min(80, (px / W) * 100))}%`,
+                    transform: 'translateX(-50%)',
+                    top: bTop,
+                    minHeight: bH,
+                  }
+            }
             aria-hidden="true"
           >
-            <span className="f12-balloon-gap" style={{ left: tailX - bLeft - 5 }} />
+            {isMeasured && <span className="f12-balloon-gap" style={{ left: tailX - bLeft - 5 }} />}
             {resolvedAnnotation.text}
           </div>
         )}

@@ -43,10 +43,10 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
 
   const ssrPts =
     shape === 'slant-bottom'
-      ? '0,0 100,0 100,90 0,100'
+      ? '0.35,0.35 99.65,0.35 99.65,93.2 0.35,99.65'
       : shape === 'slant-top'
-        ? '0,10 100,0 100,100 0,100'
-        : '0,0 100,0 100,100 0,100';
+        ? '0.35,6.8 99.65,0.35 99.65,99.65 0.35,99.65'
+        : '0.35,0.35 99.65,0.35 99.65,99.65 0.35,99.65';
 
   return (
     <section

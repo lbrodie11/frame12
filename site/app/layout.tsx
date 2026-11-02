@@ -29,6 +29,8 @@ const mPlus1Code = localFont({
   ],
   variable: '--font-f-mono',
   display: 'swap',
+  adjustFontFallback: false,
+  fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
 });
 
 export const metadata: Metadata = {
