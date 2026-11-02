@@ -64,14 +64,14 @@ const PALETTE: Array<{
 ];
 
 export default function StyleSheetPage() {
-  const { theme, motion } = useSiteSettings();
+  const { motion } = useSiteSettings();
   const [range, setRange] = React.useState<RangeDays>(30);
   const s7 = SUMMARIES[7];
   const s30 = SUMMARIES[30];
   const s90 = SUMMARIES[90];
 
   return (
-    <Sheet pegs motion={motion} theme={theme}>
+    <Sheet pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">

@@ -121,12 +121,12 @@ const EIGHT_RULES = [
 ];
 
 export default function AgentsPage() {
-  const { theme, motion } = useSiteSettings();
+  const { motion } = useSiteSettings();
   const [activePrompt, setActivePrompt] = React.useState<PromptKey>('settings');
   const currentPrompt = EXAMPLE_PROMPTS[activePrompt];
 
   return (
-    <Sheet pegs motion={motion} theme={theme}>
+    <Sheet pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">

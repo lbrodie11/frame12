@@ -112,6 +112,16 @@ body {
   gap: var(--f-gutter-pair);
 }
 
+html[data-theme="dark"] .site-root:not([data-hydrated="true"]) .site-controls > .f12-rng:first-child .f12-rng-ind {
+  transform: translateX(100%) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .site-root:not([data-hydrated="true"]) .site-controls > .f12-rng:first-child .f12-rng-ind {
+    transform: translateX(100%) !important;
+  }
+}
+
 .site-nav {
   border-top: 1px solid var(--f-grid);
   padding-top: 10px;

@@ -42,7 +42,7 @@ const PROFIT_NOTE = 'Margin on recovered orders, after offer costs';
 const LIFT_NOTE = 'Checkout conversion vs. holdout group';
 
 export default function HomePage() {
-  const { theme, motion } = useSiteSettings();
+  const { motion } = useSiteSettings();
   const [range, setRange] = React.useState<RangeDays>(DEFAULT_RANGE);
   const [focus, setFocus] = React.useState<string | null>(null);
   const changed = useChanged(range);
@@ -75,7 +75,7 @@ export default function HomePage() {
   );
 
   return (
-    <Sheet pegs motion={motion} theme={theme}>
+    <Sheet pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">

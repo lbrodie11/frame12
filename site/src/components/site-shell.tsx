@@ -49,6 +49,7 @@ const MOTION_OPTIONS: Array<{ value: MotionMode; label: string; unit: string }> 
 export function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '/';
   const [theme, setThemeState] = React.useState<ThemeMode>('light');
+  const [hydrated, setHydrated] = React.useState(false);
   const [motion, setMotion] = React.useState<MotionMode>('stepped');
 
   React.useEffect(() => {
@@ -81,6 +82,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
 
     const initial = resolveInitial();
     setThemeState(initial);
+    setHydrated(true);
     applyThemeToDom(initial);
 
     const onSystemChange = (e: MediaQueryListEvent) => {
@@ -168,7 +170,10 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SiteSettingsContext.Provider value={ctxValue}>
-      <div className={`site-root f12-theme-${theme} f12-m-${motion}`}>
+      <div
+        className={`site-root f12-m-${motion}`}
+        data-hydrated={hydrated ? 'true' : undefined}
+      >
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>

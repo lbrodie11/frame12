@@ -488,6 +488,61 @@ try {
     const isDarkAttr = await page.evaluate(
       () => document.documentElement.getAttribute('data-theme') === 'dark',
     );
+
+    // Verify pre-hydration first paint in Dark mode:
+    // 1. OS dark mode with JavaScript completely disabled -> sheet (#050505) and panel fill (#19191a) must paint dark
+    {
+      const noJsCtx = await browser.newContext({
+        viewport: { width: 1280, height: 920 },
+        colorScheme: 'dark',
+        javaScriptEnabled: false,
+      });
+      const noJsPage = await noJsCtx.newPage();
+      await noJsPage.goto(`${baseUrl}/`, { waitUntil: 'load' });
+      const noJsColors = await noJsPage.evaluate(() => ({
+        sheetBg: getComputedStyle(document.querySelector('.f12-sheet')).backgroundColor,
+        frameFill: getComputedStyle(document.querySelector('.f12-panel svg polygon')).fill,
+        titleColor: getComputedStyle(document.querySelector('.f12-title')).color,
+      }));
+      check(
+        noJsColors.sheetBg === 'rgb(5, 5, 5)' &&
+          noJsColors.frameFill === 'rgb(25, 25, 26)' &&
+          noJsColors.titleColor === 'rgb(241, 240, 234)',
+        'site / pre-hydration OS dark mode (JS disabled): .f12-sheet, .f12-panel svg polygon, and .f12-title paint dark on first frame without light flash',
+        JSON.stringify(noJsColors),
+      );
+      await noJsCtx.close();
+    }
+
+    // 2. Saved localStorage dark setting on OS light mode with React bundle blocked (only <head> FOUC_SCRIPT runs)
+    {
+      const savedDarkCtx = await browser.newContext({
+        viewport: { width: 1280, height: 920 },
+        colorScheme: 'light',
+      });
+      await savedDarkCtx.addInitScript(() => {
+        localStorage.setItem('color-scheme', 'dark');
+      });
+      const savedDarkPage = await savedDarkCtx.newPage();
+      await savedDarkPage.route('**/_next/static/**/*.js', (route) => route.abort());
+      await savedDarkPage.goto(`${baseUrl}/`, { waitUntil: 'load' });
+      const savedDarkColors = await savedDarkPage.evaluate(() => ({
+        dataTheme: document.documentElement.getAttribute('data-theme'),
+        sheetBg: getComputedStyle(document.querySelector('.f12-sheet')).backgroundColor,
+        frameFill: getComputedStyle(document.querySelector('.f12-panel svg polygon')).fill,
+        titleColor: getComputedStyle(document.querySelector('.f12-title')).color,
+      }));
+      check(
+        savedDarkColors.dataTheme === 'dark' &&
+          savedDarkColors.sheetBg === 'rgb(5, 5, 5)' &&
+          savedDarkColors.frameFill === 'rgb(25, 25, 26)' &&
+          savedDarkColors.titleColor === 'rgb(241, 240, 234)',
+        'site / pre-hydration saved dark mode (before React loads): .f12-sheet, .f12-panel svg polygon, and .f12-title paint dark on first frame',
+        JSON.stringify(savedDarkColors),
+      );
+      await savedDarkCtx.close();
+    }
+
     await page.click('#site-theme-light');
 
     // Switch home dashboard range to 7 days and select exit intervention

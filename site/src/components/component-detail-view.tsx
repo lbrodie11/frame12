@@ -21,11 +21,11 @@ import { ComponentPreview } from '@/components/component-preview';
 import { CopyCommand } from '@/components/copy-command';
 
 export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
-  const { theme, motion } = useSiteSettings();
+  const { motion } = useSiteSettings();
   const installCmd = `npx shadcn@latest add ${entry.registryUrl}`;
 
   return (
-    <Sheet pegs motion={motion} theme={theme}>
+    <Sheet pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">

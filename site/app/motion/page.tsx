@@ -66,7 +66,6 @@ const POSES = [
 ];
 
 export default function MotionPage() {
-  const { theme } = useSiteSettings();
   const [range, setRange] = React.useState<RangeDays>(DEFAULT_RANGE);
   const [stageKind, setStageKind] = React.useState<StageFocusMode>('all');
   const [compareMotion, setCompareMotion] = React.useState<MotionMode>('smooth');
@@ -126,7 +125,7 @@ export default function MotionPage() {
   );
 
   return (
-    <Sheet pegs motion="stepped" theme={theme}>
+    <Sheet pegs motion="stepped">
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">

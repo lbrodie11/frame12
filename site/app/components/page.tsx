@@ -67,14 +67,14 @@ function CategoryTable({
 }
 
 export default function ComponentsIndexPage() {
-  const { theme, motion } = useSiteSettings();
+  const { motion } = useSiteSettings();
   const componentCount = CATALOG.filter((c) => c.category !== 'Motion Hooks').length;
   const hookAndAdapterEntries = CATALOG.filter(
     (c) => c.category === 'Motion Hooks' || c.category === 'Primitive Adapters',
   );
 
   return (
-    <Sheet pegs motion={motion} theme={theme}>
+    <Sheet pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">

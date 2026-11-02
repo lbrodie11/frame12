@@ -91,11 +91,11 @@ export default [
 ];`;
 
 export default function GetStartedPage() {
-  const { theme, motion } = useSiteSettings();
+  const { motion } = useSiteSettings();
   const [track, setTrack] = React.useState<SetupTrack>('new');
 
   return (
-    <Sheet pegs motion={motion} theme={theme}>
+    <Sheet pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
