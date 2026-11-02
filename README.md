@@ -7,7 +7,7 @@
 
 An interface design language, copy-in React component registry, and AI agent skill drawn from sequential print page composition and hand-drawn cel-animation production craft: `2.5px` mitered ink panels, semantic `12px`/`20px`/`32px` gutter grammar, rotated `45°` SVG halftone screentone fills instead of alpha gradients, and discrete state transitions held **on twos** (`12fps`, `83.33ms` per pose).
 
-![FRAME/12 Social Hero](launch/clips/social-hero.png)
+![FRAME/12 Social Hero](docs/images/social-hero.png)
 
 ---
 
@@ -51,7 +51,6 @@ Every workspace is self-contained, shares a single root toolchain, and is verifi
 | [`eval/`](eval/) | `m3-skill` | AI reproduction benchmark across 3 product archetypes (`01-settings`, `02-landing-hero`, `03-data-table`), static linter tests (`check-linter.mjs`), and Playwright WCAG AA + `@axe-core/playwright` + mobile verification ([`eval/RESULTS.md`](eval/RESULTS.md)). |
 | [`site/`](site/) | `m4-site` | Next.js App Router documentation and interactive showcase (`/` Home, `/motion` On Twos Studio, `/components` Gallery & `[slug]` docs, `/agents` Skill & Linter benchmark, `/style-sheet`, `/get-started`, plus `/r/*.json` endpoints and dynamic Open Graph images). |
 | [`templates/next-starter/`](templates/next-starter/) | `m5-launch` | Standalone Next.js App Router + TypeScript starter template pre-loaded with `src/components/frame12/`, `src/hooks/use-on-twos.ts`, `src/styles/frame12.css`, Google Fonts, `.claude/skills/frame12/SKILL.md`, and `scripts/check-frame12.mjs`. |
-| [`launch/`](launch/) | `m5-launch` | Launch kit (prepared, unpublished): Playwright video & hero recorder (`launch/scripts/record-clip.mjs`), `motion-on-twos.webm`, `social-hero.png`, Show HN / X / Reddit drafts, *"Designing Interfaces on Twos"* essay, verified directory listings ([`launch/LISTINGS.md`](launch/LISTINGS.md)), and [`launch/LAUNCH-CHECKLIST.md`](launch/LAUNCH-CHECKLIST.md). |
 
 ---
 

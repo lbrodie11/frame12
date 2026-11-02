@@ -17,7 +17,7 @@
     "sync:check": "node scripts/sync-workspaces.mjs --check",
     "build": "npm run build --workspaces --if-present",
     "lint:frame12": "node scripts/check-frame12.mjs registry/ui eval/screens site/src site/app templates/next-starter/app templates/next-starter/src",
-    "test": "npm run sync:check && npm run lint:frame12 && npm run test --workspaces --if-present && node launch/tests/verify-launch.mjs",
+    "test": "npm run sync:check && npm run lint:frame12 && npm run test --workspaces --if-present",
     "dev": "npm run dev --workspaces --if-present"
   },
   "dependencies": {
