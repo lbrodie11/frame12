@@ -463,6 +463,13 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         assert.equal(/<script\b/i.test(htmlOut), false);
         assert.equal(htmlOut.includes('<img src=x onerror=alert(1)>'), false);
         assert.equal(htmlOut.includes('&lt;img src=x onerror=alert(1)&gt;'), true);
+
+        // [P1-04] Programmatic theme option is strictly clamped to light|dark to prevent attribute injection
+        const untrustedThemeHtml = renderWebReportHtml(advRun.snapshot, advRun.events, {
+          theme: 'light" onload="alert(1)' /** @type {any} */,
+        });
+        assert.equal(untrustedThemeHtml.includes('onload='), false);
+        assert.match(untrustedThemeHtml, /<html lang="en" data-theme="light" class="f12-theme-light">/);
       } finally {
         advFixture.cleanup();
       }

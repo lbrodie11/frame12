@@ -438,7 +438,7 @@ export function renderWebReportHtml(
   events: StoryboardEvent[] = [],
   options: WebReportOptions = {},
 ): string {
-  const theme = options.theme ?? 'light';
+  const theme: 'light' | 'dark' = options.theme === 'dark' ? 'dark' : 'light';
   const safeTitle = sanitizeTerminalText(
     options.title ?? `FRAME/12 Storyboard Report — ${snapshot.repoLabel}`,
   );
