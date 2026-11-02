@@ -1,11 +1,11 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "frame12",
-  "homepage": "https://github.com/MaskStarmoney/frame12",
+  "homepage": "https://github.com/lbrodie11/frame12",
   "items": [
     {
       "name": "frame12-styles",
-      "type": "registry:style",
+      "type": "registry:ui",
       "title": "FRAME/12 Styles & Tokens",
       "description": "FRAME/12 CSS custom properties, panel grammar, screentone fills, and motion on twos.",
       "files": [
@@ -29,7 +29,8 @@
       "files": [
         {
           "path": "hooks/use-on-twos.ts",
-          "type": "registry:hook"
+          "type": "registry:hook",
+          "target": "hooks/use-on-twos.ts"
         }
       ]
     },
@@ -40,12 +41,19 @@
       "description": "Top-level FRAME/12 storyboard sheet with registration pegs, theme scope, and motion grammar.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/sheet.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/sheet.tsx"
         },
         {
           "path": "hooks/use-on-twos.ts",
-          "type": "registry:hook"
+          "type": "registry:hook",
+          "target": "hooks/use-on-twos.ts"
         }
       ]
     },
@@ -56,8 +64,14 @@
       "description": "Panel grammar layout container enforcing 12px (pair), 20px (scene), and 32px (change) gutters.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/scene.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/scene.tsx"
         }
       ]
     },
@@ -68,12 +82,19 @@
       "description": "Ink-framed panel with SVG mitered polygon border, optional slanted gutter edge, and cut number in reading order.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/panel.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/panel.tsx"
         },
         {
           "path": "hooks/use-on-twos.ts",
-          "type": "registry:hook"
+          "type": "registry:hook",
+          "target": "hooks/use-on-twos.ts"
         }
       ]
     },
@@ -84,16 +105,24 @@
       "description": "Pairs two related panels across a shared 12px slanted gutter (slant-bottom over slant-top).",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/panel-pair.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/panel-pair.tsx"
         },
         {
           "path": "ui/panel.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/panel.tsx"
         },
         {
           "path": "hooks/use-on-twos.ts",
-          "type": "registry:hook"
+          "type": "registry:hook",
+          "target": "hooks/use-on-twos.ts"
         }
       ]
     },
@@ -104,8 +133,14 @@
       "description": "Exposure-sheet cell selector with mix-blend-mode: difference indicator and stepped 12fps motion.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/segmented-control.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/segmented-control.tsx"
         }
       ]
     },
@@ -116,8 +151,14 @@
       "description": "Ink-framed button with primary, secondary, and marker-yellow variants.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/button.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/button.tsx"
         }
       ]
     },
@@ -128,8 +169,14 @@
       "description": "Ink-framed text input with accessible label, hint, and marker-flagged error message.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/input.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/input.tsx"
         }
       ]
     },
@@ -140,8 +187,14 @@
       "description": "Marker-yellow badge with ink text and optional two-frame SVG impact burst.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/badge.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/badge.tsx"
         }
       ]
     },
@@ -152,8 +205,14 @@
       "description": "Flat marker-yellow tag with ink text.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/tag.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/tag.tsx"
         }
       ]
     },
@@ -164,12 +223,19 @@
       "description": "Display KPI with count-up on twos, directional marker delta badge, note, and optional ToneSpark.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/metric.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/metric.tsx"
         },
         {
           "path": "hooks/use-on-twos.ts",
-          "type": "registry:hook"
+          "type": "registry:hook",
+          "target": "hooks/use-on-twos.ts"
         }
       ]
     },
@@ -180,8 +246,14 @@
       "description": "Speech-balloon callout annotation with mitered tail and marker target dot.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/balloon.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/balloon.tsx"
         }
       ]
     },
@@ -189,15 +261,22 @@
       "name": "tone-area-chart",
       "type": "registry:ui",
       "title": "ToneAreaChart",
-      "description": "Area chart with rotated SVG screentone halftone fill, luminance mask, speech-balloon peak callout, keyboard navigation, and accessible data table.",
+      "description": "Area chart with rotated SVG screentone halftone bands, speech-balloon peak callout, keyboard navigation, and accessible data table.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/tone-area-chart.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/tone-area-chart.tsx"
         },
         {
           "path": "hooks/use-on-twos.ts",
-          "type": "registry:hook"
+          "type": "registry:hook",
+          "target": "hooks/use-on-twos.ts"
         }
       ]
     },
@@ -208,16 +287,24 @@
       "description": "Interactive ranked list with screentone progress bars, share percentages, and impact-burst leader badge.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/tone-bar-list.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/tone-bar-list.tsx"
         },
         {
           "path": "ui/badge.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/badge.tsx"
         },
         {
           "path": "hooks/use-on-twos.ts",
-          "type": "registry:hook"
+          "type": "registry:hook",
+          "target": "hooks/use-on-twos.ts"
         }
       ]
     },
@@ -228,12 +315,19 @@
       "description": "Compact daily bar sparkline filled with 45-degree SVG screentone dots.",
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/tone-spark.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/tone-spark.tsx"
         },
         {
           "path": "hooks/use-on-twos.ts",
-          "type": "registry:hook"
+          "type": "registry:hook",
+          "target": "hooks/use-on-twos.ts"
         }
       ]
     },
@@ -242,15 +336,21 @@
       "type": "registry:ui",
       "title": "Dialog (FRAME/12 Adapter)",
       "description": "FRAME/12 skin for modal dialogs using native <dialog>, ink frame, cut number, and screentone backdrop.",
-      "registryDependencies": ["dialog"],
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/dialog.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/dialog.tsx"
         },
         {
           "path": "ui/button.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/button.tsx"
         }
       ]
     },
@@ -258,12 +358,18 @@
       "name": "select",
       "type": "registry:ui",
       "title": "Select (FRAME/12 Adapter)",
-      "description": "FRAME/12 skin for accessible select menus with ink frame and marker-yellow caret.",
-      "registryDependencies": ["select"],
+      "description": "FRAME/12 skin for accessible select menus built on @radix-ui/react-select with ink frame and marker-yellow caret.",
+      "dependencies": ["@radix-ui/react-select"],
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/select.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/select.tsx"
         }
       ]
     },
@@ -272,11 +378,16 @@
       "type": "registry:ui",
       "title": "Tooltip (FRAME/12 Adapter)",
       "description": "FRAME/12 skin for accessible tooltips with hard ink shadow.",
-      "registryDependencies": ["tooltip"],
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/tooltip.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/tooltip.tsx"
         }
       ]
     },
@@ -284,16 +395,23 @@
       "name": "dropdown-menu",
       "type": "registry:ui",
       "title": "DropdownMenu (FRAME/12 Adapter)",
-      "description": "FRAME/12 skin for action menus with ink inversion on focus and hover.",
-      "registryDependencies": ["dropdown-menu"],
+      "description": "FRAME/12 skin for accessible action menus built on @radix-ui/react-dropdown-menu with ink inversion on focus and hover.",
+      "dependencies": ["@radix-ui/react-dropdown-menu"],
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/dropdown-menu.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/dropdown-menu.tsx"
         },
         {
           "path": "ui/button.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/button.tsx"
         }
       ]
     },
@@ -302,11 +420,16 @@
       "type": "registry:ui",
       "title": "Table (FRAME/12 Adapter)",
       "description": "FRAME/12 skin for semantic data tables with monospace headers, tabular numerals, and heavy ink rules.",
-      "registryDependencies": ["table"],
       "files": [
         {
+          "path": "styles/frame12.css",
+          "type": "registry:file",
+          "target": "styles/frame12.css"
+        },
+        {
           "path": "ui/table.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/table.tsx"
         }
       ]
     },
@@ -315,6 +438,7 @@
       "type": "registry:block",
       "title": "FRAME/12 Complete Kit",
       "description": "All FRAME/12 styles, hooks, components, and primitive adapters.",
+      "dependencies": ["@radix-ui/react-select", "@radix-ui/react-dropdown-menu"],
       "files": [
         {
           "path": "styles/frame12.css",
@@ -328,83 +452,108 @@
         },
         {
           "path": "hooks/use-on-twos.ts",
-          "type": "registry:hook"
+          "type": "registry:hook",
+          "target": "hooks/use-on-twos.ts"
+        },
+        {
+          "path": "ui/index.ts",
+          "type": "registry:ui",
+          "target": "components/frame12/index.ts"
         },
         {
           "path": "ui/sheet.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/sheet.tsx"
         },
         {
           "path": "ui/scene.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/scene.tsx"
         },
         {
           "path": "ui/panel.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/panel.tsx"
         },
         {
           "path": "ui/panel-pair.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/panel-pair.tsx"
         },
         {
           "path": "ui/segmented-control.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/segmented-control.tsx"
         },
         {
           "path": "ui/button.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/button.tsx"
         },
         {
           "path": "ui/input.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/input.tsx"
         },
         {
           "path": "ui/badge.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/badge.tsx"
         },
         {
           "path": "ui/tag.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/tag.tsx"
         },
         {
           "path": "ui/metric.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/metric.tsx"
         },
         {
           "path": "ui/balloon.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/balloon.tsx"
         },
         {
           "path": "ui/tone-area-chart.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/tone-area-chart.tsx"
         },
         {
           "path": "ui/tone-bar-list.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/tone-bar-list.tsx"
         },
         {
           "path": "ui/tone-spark.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/tone-spark.tsx"
         },
         {
           "path": "ui/dialog.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/dialog.tsx"
         },
         {
           "path": "ui/select.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/select.tsx"
         },
         {
           "path": "ui/tooltip.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/tooltip.tsx"
         },
         {
           "path": "ui/dropdown-menu.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/dropdown-menu.tsx"
         },
         {
           "path": "ui/table.tsx",
-          "type": "registry:ui"
+          "type": "registry:ui",
+          "target": "components/frame12/table.tsx"
         }
       ]
     }

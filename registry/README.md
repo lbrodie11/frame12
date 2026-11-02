@@ -54,21 +54,21 @@ Import `styles/frame12.css` (or `styles/frame12-tailwind.css` when using Tailwin
 | `Button` | `variant?: 'primary' \| 'secondary' \| 'marker'`, `size?: 'sm' \| 'md' \| 'lg'` | Ink-framed button with visible focus ring and marker-yellow accent variant. |
 | `Input` | `label`, `hint?`, `error?` | Ink-framed input with linked `<label>`, hint, and marker-flagged error alert. |
 | `Badge` | `pop?: boolean`, `burst?: boolean` | Marker-yellow badge with ink text and two-frame SVG impact `Burst`. |
-| `Tag` | `children` | Flat marker-yellow tag with ink text (`.tag`). |
+| `Tag` | `children` | Flat marker-yellow tag with ink text (`.f12-tag`). |
 
 ### Data (`ui/metric.tsx`, `tone-area-chart.tsx`, `tone-bar-list.tsx`, `tone-spark.tsx`, `balloon.tsx`)
 
 | Component | Key Props | Purpose |
 | --- | --- | --- |
-| `Metric` & `Delta` | `label`, `value`, `format`, `delta`, `deltaKind`, `comparisonLabel`, `note`, `big`, `motion`, `spark` | Display KPI with count-up on twos, marker delta symbol, and optional `ToneSpark`. |
-| `ToneAreaChart` | `data`, `seriesLabel`, `compareLabel`, `formatValue`, `formatShort`, `annotation`, `motion`, `height`, `tableSummary` | Screentone halftone area chart with luminance fade mask, speech-balloon annotation, keyboard arrow navigation, pointer crosshair, and `<details className="tbl">` data table. |
+| `Metric` & `Delta` | `label`, `value`, `format`, `delta`, `deltaKind`, `comparisonLabel`, `note`, `big`, `headingLevel`, `motion`, `spark` | Display KPI with count-up on twos, marker delta symbol, and optional `ToneSpark`. |
+| `ToneAreaChart` | `data`, `seriesLabel`, `labelColumnHeader`, `compareLabel`, `formatValue`, `formatShort`, `annotation`, `motion`, `height`, `tableSummary` | 4-band SVG screentone halftone area chart, speech-balloon annotation, keyboard arrow navigation, pointer crosshair, and `<details className="f12-tbl">` data table. |
 | `ToneBarList` | `title`, `subtitle`, `items`, `selectedId`, `onSelect`, `motion`, `changed`, `idPrefix` | Ranked comparison list with screentone bars, share percentages, and impact-burst leader badge. |
 | `ToneSpark` | `values`, `label`, `ariaLabel`, `rangeKey`, `motion` | Daily mini bar chart filled with rotated SVG screentone dots. |
 | `Balloon` | `tailOffset?`, `showDot?`, `children` | Standalone speech-balloon annotation with mitered tail and marker target dot. |
 
 ## Adapter Policy for Complex Primitives
 
-For complex interactive primitives (`Dialog`, `Select`, `Tooltip`, `DropdownMenu`, `Table`), FRAME/12 ships thin skin adapters (`ui/dialog.tsx`, `ui/select.tsx`, `ui/tooltip.tsx`, `ui/dropdown-menu.tsx`, `ui/table.tsx`) that:
-1. Declare the corresponding shadcn primitive (`"dialog"`, `"select"`, `"tooltip"`, `"dropdown-menu"`, `"table"`) in `registryDependencies` in `registry/registry.json`.
-2. Preserve accessible semantics (native `<dialog>` with `showModal()`, `aria-labelledby`, `closedby="any"` light-dismiss fallback, `overscroll-behavior: contain`; ARIA `listbox`, `tooltip`, `menu`, and semantic `<table>` with `scope="col"`).
-3. Style all surfaces, borders, focus rings, and active states strictly through `--f-*` and `--font-f-*` tokens in `styles/frame12.css`.
+For complex interactive primitives (`Dialog`, `Select`, `Tooltip`, `DropdownMenu`, `Table`), FRAME/12 ships accessible adapters (`ui/dialog.tsx`, `ui/select.tsx`, `ui/tooltip.tsx`, `ui/dropdown-menu.tsx`, `ui/table.tsx`) that:
+1. Target `components/frame12/*.tsx`, `hooks/use-on-twos.ts`, and `styles/frame12.css` in `registry/registry.json` so installing FRAME/12 never overwrites existing `components/ui/*.tsx` shadcn primitives in a host project.
+2. Preserve full WAI-ARIA and keyboard accessibility (native `<dialog>` with `showModal()`, `aria-labelledby`, conditional `aria-describedby`, `Escape` isolation with nested popups, and pointer light-dismiss; `@radix-ui/react-select` and `@radix-ui/react-dropdown-menu` with portal theme inheritance and hidden `<select>` form submission; `TooltipTrigger asChild` handler/ref/aria-describedby merging; and semantic `<table>` with `scope="col"`).
+3. Style all surfaces, borders, focus rings, and active states strictly through `.f12-*` classes and `--f-*` / `--font-f-*` tokens in `styles/frame12.css`.
