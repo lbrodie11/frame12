@@ -328,7 +328,11 @@ export async function runGitHistoryWorkload(
     }));
 
   emit('step-end', 'rank-findings', { status: 'ok', summary: `${findings.length} findings ranked` });
-  emit('run-end', null, { status: 'completed', summary: `${findings.length} findings from ${commits.length} commits` });
+  emit('run-end', null, {
+    status: 'completed',
+    summary: `${findings.length} findings from ${commits.length} commits`,
+    hotFiles,
+  });
 
   const snapshot: ResultSnapshot = {
     schemaVersion: SCHEMA_VERSION,

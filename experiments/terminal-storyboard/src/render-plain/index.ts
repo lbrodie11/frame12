@@ -50,7 +50,10 @@ export function shouldUseColor(options: PlainRenderOptions = {}): boolean {
 }
 
 export function resolveColumns(options: PlainRenderOptions = {}): number {
-  const raw = options.columns ?? 80;
+  const env = options.env ?? (typeof process !== 'undefined' ? process.env : {});
+  const envCols = env.COLUMNS !== undefined ? Number(env.COLUMNS) : Number.NaN;
+  const raw =
+    options.columns ?? (Number.isFinite(envCols) && envCols > 0 ? envCols : 80);
   if (!Number.isFinite(raw) || raw <= 0) return 80;
   return Math.max(40, Math.floor(raw));
 }

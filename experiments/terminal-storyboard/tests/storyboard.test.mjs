@@ -534,12 +534,67 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         assert.equal(replayCode, 0);
         assert.match(replayStderr, /\[REPLAY\] FRAME\/12 STORYBOARD/);
         assert.match(replayStdout, /\[REPLAY\] FINDINGS/);
+
+        // [P1-03] --replay --json preserves exact findings, SHAs, couplingRatio, reason, and hotFiles
+        let replayJsonOut = '';
+        const replayJsonCode = await runCli(['run', '--replay', ndjsonPath, '--json'], {
+          stdout: (s) => {
+            replayJsonOut += s;
+          },
+          stderr: () => {},
+        });
+        assert.equal(replayJsonCode, 0);
+        const replayedSnap = JSON.parse(replayJsonOut);
+        assert.deepEqual(replayedSnap.findings, parsedSnap.findings);
+        assert.deepEqual(replayedSnap.hotFiles, parsedSnap.hotFiles);
+        assert.equal(replayedSnap.commitsExamined, parsedSnap.commitsExamined);
+        assert.equal(replayedSnap.uniqueFilesObserved, parsedSnap.uniqueFilesObserved);
+        assert.equal(replayedSnap.totalPairsObserved, parsedSnap.totalPairsObserved);
+
+        // [P1-03] --replay --events and import-archaeology --events emit valid NDJSON to stdout
+        let replayEventsOut = '';
+        const replayEventsCode = await runCli(['run', '--replay', ndjsonPath, '--events'], {
+          stdout: (s) => {
+            replayEventsOut += s;
+          },
+          stderr: () => {},
+        });
+        assert.equal(replayEventsCode, 0);
+        assert.equal(
+          validateEventStream(replayEventsOut.trim().split('\n').map((l) => JSON.parse(l))).ok,
+          true,
+        );
+
+        let archEventsOut = '';
+        const archEventsCode = await runCli(
+          [
+            'import-archaeology',
+            resolve(expRoot, 'fixtures/repo-archaeology-reconstructed.json'),
+            '--events',
+          ],
+          {
+            stdout: (s) => {
+              archEventsOut += s;
+            },
+            stderr: () => {},
+          },
+        );
+        assert.equal(archEventsCode, 0);
+        const archEvents = archEventsOut.trim().split('\n').map((l) => JSON.parse(l));
+        assert.equal(validateEventStream(archEvents).ok, true);
+
+        // [P1-03] Reject combining positional <repo-path> and --replay
+        const bothCode = await runCli(['run', fixture.repoDir, '--replay', ndjsonPath], {
+          stdout: () => {},
+          stderr: () => {},
+        });
+        assert.equal(bothCode, 2);
       } finally {
         rmSync(tmpDir, { recursive: true, force: true });
       }
     });
 
-    it('enforces NO_COLOR, TERM=dumb, non-TTY, and 40-column narrow width wrapping', () => {
+    it('enforces NO_COLOR, TERM=dumb, non-TTY, and 40-column narrow width wrapping (including COLUMNS=40 env)', async () => {
       assert.equal(shouldUseColor({ isTTY: false }), false);
       assert.equal(shouldUseColor({ isTTY: true, env: { NO_COLOR: '1' } }), false);
       assert.equal(shouldUseColor({ isTTY: true, env: { TERM: 'dumb' } }), false);
@@ -554,6 +609,23 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
           line.length <= 40,
           `Line exceeded 40 columns (${line.length} chars): "${line}"`,
         );
+      }
+
+      // [P1-03] Verify COLUMNS=40 in env wraps CLI stdout and stderr to <= 40 columns
+      let envColStdout = '';
+      let envColStderr = '';
+      const envColCode = await runCli(['run', fixture.repoDir], {
+        stdout: (s) => {
+          envColStdout += s;
+        },
+        stderr: (s) => {
+          envColStderr += s;
+        },
+        env: { COLUMNS: '40' },
+      });
+      assert.equal(envColCode, 0);
+      for (const line of [...envColStdout.split('\n'), ...envColStderr.split('\n')]) {
+        assert.ok(line.length <= 40, `COLUMNS=40 line exceeded 40 chars (${line.length}): "${line}"`);
       }
     });
   });

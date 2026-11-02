@@ -4,6 +4,8 @@ import {
   SCHEMA_VERSION,
   validateEventStream,
   type CochangeFinding,
+  type HotFileSummary,
+  type ReconstructedMetadata,
   type ResultSnapshot,
   type StoryboardEvent,
 } from './model/index.js';
@@ -141,6 +143,16 @@ function parseArgs(argv: string[]): ParsedCliArgs {
     return res;
   }
 
+  if (res.command === 'import-archaeology' && res.replayPath) {
+    res.error = 'Flag --replay cannot be combined with import-archaeology.';
+    return res;
+  }
+
+  if (res.targetPath && res.replayPath) {
+    res.error = 'Cannot specify both <repo-path> and --replay <events.ndjson>.';
+    return res;
+  }
+
   if (!res.targetPath && !res.replayPath) {
     res.error =
       res.command === 'import-archaeology'
@@ -178,6 +190,29 @@ function reconstructSnapshotFromEvents(events: StoryboardEvent[]): ResultSnapsho
     }
   }
 
+  const hotFiles: HotFileSummary[] = Array.isArray(last.payload.hotFiles)
+    ? (last.payload.hotFiles as HotFileSummary[])
+    : [];
+
+  let reconstructed: ReconstructedMetadata | undefined;
+  if (
+    typeof last.payload.reconstructed === 'object' &&
+    last.payload.reconstructed !== null &&
+    !Array.isArray(last.payload.reconstructed)
+  ) {
+    reconstructed = last.payload.reconstructed as ReconstructedMetadata;
+  } else if (first.payload.reconstructed === true || last.payload.reconstructed === true) {
+    reconstructed = {
+      source: 'repo-archaeology',
+      originalSchemaVersion: 1,
+      note: String(
+        first.payload.note ??
+          last.payload.summary ??
+          'Reconstructed from a completed Repo Archaeology (schemaVersion: 1) analysis, not live events',
+      ),
+    };
+  }
+
   const status = (last.payload.status as ResultSnapshot['status']) ?? 'completed';
   const error = typeof last.payload.error === 'string' ? last.payload.error : undefined;
 
@@ -193,9 +228,10 @@ function reconstructSnapshotFromEvents(events: StoryboardEvent[]): ResultSnapsho
     uniqueFilesObserved,
     totalPairsObserved,
     findings,
-    hotFiles: [],
+    hotFiles,
     warnings,
     ...(error ? { error } : {}),
+    ...(reconstructed ? { reconstructed } : {}),
   };
 }
 
@@ -211,8 +247,13 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
   const stdout = io?.stdout ?? ((s: string) => process.stdout.write(s));
   const stderr = io?.stderr ?? ((s: string) => process.stderr.write(s));
   const isTTY = io?.isTTY ?? Boolean(process.stdout.isTTY);
-  const columns = io?.columns ?? process.stdout.columns ?? 80;
   const env = io?.env ?? process.env;
+  const envCols = env.COLUMNS !== undefined ? Number(env.COLUMNS) : Number.NaN;
+  const columns =
+    io?.columns ??
+    (Number.isFinite(envCols) && envCols > 0 ? Math.floor(envCols) : undefined) ??
+    process.stdout.columns ??
+    80;
 
   const parsed = parseArgs(argv);
   if (parsed.error) {
@@ -252,7 +293,9 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       return 2;
     }
 
-    if (parsed.mode === 'storyboard') {
+    if (parsed.mode === 'events') {
+      for (const ev of events) stdout(`${JSON.stringify(ev)}\n`);
+    } else if (parsed.mode === 'storyboard') {
       const printer = new PlainStreamPrinter((l) => stderr(`${l}\n`), plainOpts);
       for (const ev of events) printer.onEvent(ev);
     }
@@ -280,7 +323,9 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       return 2;
     }
 
-    if (parsed.mode === 'storyboard') {
+    if (parsed.mode === 'events') {
+      for (const ev of events) stdout(`${JSON.stringify(ev)}\n`);
+    } else if (parsed.mode === 'storyboard') {
       const printer = new PlainStreamPrinter((l) => stderr(`${l}\n`), plainOpts);
       for (const ev of events) printer.onEvent(ev);
     }

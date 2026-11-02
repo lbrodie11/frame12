@@ -198,7 +198,8 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
 
   pushEv('run-end', null, {
     status: 'completed',
-    reconstructed: true,
+    reconstructed: snapshot.reconstructed,
+    hotFiles,
     summary: reconstructedNote,
   });
 
