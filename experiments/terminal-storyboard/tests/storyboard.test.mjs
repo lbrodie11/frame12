@@ -17,6 +17,7 @@ import {
   validateResultSnapshot,
 } from '../dist/model/index.js';
 import {
+  classifyCochangePair,
   globToRegExp,
   matchesPattern,
   runGitHistoryWorkload,
@@ -451,8 +452,8 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       }
     });
 
-    it('matches multi-segment ** globs in --exclude and filters low-signal test/doc/mirror pairs by default', () => {
-      // Multi-segment ** glob matching
+    it('matches multi-segment ** globs (including ./ prefixes) in --exclude and classifies co-change pairs while preserving full evidence by default', () => {
+      // Multi-segment ** glob matching (start, middle, end, and ./ prefix normalization)
       assert.equal(
         matchesPattern(
           'templates/next-starter/src/components/frame12/dialog.tsx',
@@ -461,7 +462,22 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         true,
       );
       assert.equal(
-        globToRegExp('templates/next-starter/src/**').test(
+        matchesPattern(
+          './templates/next-starter/src/components/frame12/dialog.tsx',
+          './templates/**',
+        ),
+        true,
+      );
+      assert.equal(
+        matchesPattern('a/b/c/d.ts', 'a/**/d.ts'),
+        true,
+      );
+      assert.equal(
+        matchesPattern('a/d.ts', 'a/**/d.ts'),
+        true,
+      );
+      assert.equal(
+        globToRegExp('./templates/next-starter/src/**').test(
           'templates/next-starter/src/components/frame12/dialog.tsx',
         ),
         true,
@@ -469,38 +485,43 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       assert.equal(matchesPattern('src/deep/nested/foo.test.ts', '**/*.test.*'), true);
       assert.equal(matchesPattern('src/deep/nested/foo.ts', '**/*.test.*'), false);
 
-      // Low-signal pair filtering (code+test, doc/release metadata, exact-basename mirror copies)
+      // Pair classification (cross-module, same-module, test-companion, docs-release, workspace-mirror)
       assert.equal(
-        shouldFilterLowSignalPair(
+        classifyCochangePair('src/commands/map.ts', 'src/map/template.ts'),
+        'cross-module',
+      );
+      assert.equal(
+        classifyCochangePair('registry/ui/dialog.tsx', 'registry/ui/tooltip.tsx'),
+        'same-module',
+      );
+      assert.equal(
+        classifyCochangePair(
           'experiments/terminal-storyboard/src/workload/git-history.ts',
           'experiments/terminal-storyboard/tests/storyboard.test.mjs',
         ),
-        true,
+        'test-companion',
       );
       assert.equal(
-        shouldFilterLowSignalPair('site/app/site.css', 'site/scripts/site-verify.mjs'),
-        true,
+        classifyCochangePair('site/app/site.css', 'site/scripts/site-verify.mjs'),
+        'test-companion',
       );
-      assert.equal(shouldFilterLowSignalPair('README.md', 'package.json'), true);
-      assert.equal(shouldFilterLowSignalPair('CHANGELOG.md', 'package.json'), true);
+      assert.equal(classifyCochangePair('README.md', 'package.json'), 'docs-release');
+      assert.equal(classifyCochangePair('CHANGELOG.md', 'package.json'), 'docs-release');
       assert.equal(
-        shouldFilterLowSignalPair(
+        classifyCochangePair(
           'registry/ui/dialog.tsx',
           'templates/next-starter/src/components/frame12/dialog.tsx',
         ),
-        true,
+        'workspace-mirror',
       );
-      // Real architectural code pairs are NOT filtered
+
+      // shouldFilterLowSignalPair identifies non-production companion pairs while runGitHistoryWorkload preserves all pairs by default
+      assert.equal(shouldFilterLowSignalPair('README.md', 'package.json'), true);
+      assert.equal(shouldFilterLowSignalPair('README.md', 'package.json', true), false);
       assert.equal(
         shouldFilterLowSignalPair('src/commands/map.ts', 'src/map/template.ts'),
         false,
       );
-      assert.equal(
-        shouldFilterLowSignalPair('registry/ui/dialog.tsx', 'registry/ui/tooltip.tsx'),
-        false,
-      );
-      // Passing includeNoise=true disables low-signal pair filtering
-      assert.equal(shouldFilterLowSignalPair('README.md', 'package.json', true), false);
     });
   });
 

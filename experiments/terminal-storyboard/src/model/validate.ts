@@ -1,11 +1,13 @@
 import {
   EVENT_TYPES,
+  FINDING_CLASSIFICATIONS,
   MAX_PAYLOAD_BYTES,
   RUN_END_STATUSES,
   SCHEMA_VERSION,
   STEP_END_STATUSES,
   type CochangeFinding,
   type EventType,
+  type FindingClassification,
   type HotFileSummary,
   type ReconstructedMetadata,
   type ResultSnapshot,
@@ -17,6 +19,7 @@ import {
 const EVENT_TYPE_SET = new Set<string>(EVENT_TYPES);
 const STEP_STATUS_SET = new Set<string>(STEP_END_STATUSES);
 const RUN_STATUS_SET = new Set<string>(RUN_END_STATUSES);
+const FINDING_CLASSIFICATION_SET = new Set<string>(FINDING_CLASSIFICATIONS);
 const NON_NEGATIVE_METRIC_NAMES = new Set<string>([
   'commitsExamined',
   'uniqueFilesObserved',
@@ -565,6 +568,15 @@ function validateFinding(
   if (!isNonEmptyString(raw.reason)) {
     return { ok: false, error: `findings[${index}].reason must be a non-empty string.` };
   }
+  if (
+    raw.classification !== undefined &&
+    (typeof raw.classification !== 'string' || !FINDING_CLASSIFICATION_SET.has(raw.classification))
+  ) {
+    return {
+      ok: false,
+      error: `findings[${index}].classification must be one of [${FINDING_CLASSIFICATIONS.join(', ')}].`,
+    };
+  }
 
   return {
     ok: true,
@@ -576,6 +588,9 @@ function validateFinding(
       fileBCommits: raw.fileBCommits,
       couplingRatio: raw.couplingRatio,
       jaccardRatio,
+      ...(raw.classification !== undefined
+        ? { classification: raw.classification as FindingClassification }
+        : {}),
       evidence: {
         commitShas: raw.evidence.commitShas as string[],
         sampleSubjects: raw.evidence.sampleSubjects as string[],

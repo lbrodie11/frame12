@@ -49,6 +49,16 @@ export interface CochangeEvidence {
   count: number;
 }
 
+export const FINDING_CLASSIFICATIONS = [
+  'cross-module',
+  'same-module',
+  'test-companion',
+  'docs-release',
+  'workspace-mirror',
+] as const;
+
+export type FindingClassification = (typeof FINDING_CLASSIFICATIONS)[number];
+
 export interface CochangeFinding {
   id: string;
   files: [string, string];
@@ -59,6 +69,7 @@ export interface CochangeFinding {
   couplingRatio: number;
   /** Jaccard similarity: cochangeCount / (fileACommits + fileBCommits - cochangeCount) */
   jaccardRatio: number;
+  classification?: FindingClassification;
   evidence: CochangeEvidence;
   reason: string;
 }

@@ -8,7 +8,11 @@ import {
   type ResultSnapshot,
   type StoryboardEvent,
 } from '../model/index.js';
-import { describeCochangeRelationship, truncateText } from './git-history.js';
+import {
+  classifyCochangePair,
+  describeCochangeRelationship,
+  truncateText,
+} from './git-history.js';
 
 export interface RepoArchaeologyEvidenceView {
   hash: string;
@@ -392,6 +396,8 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
       320,
     );
 
+    const classification = classifyCochangePair(sortedFiles[0], sortedFiles[1]);
+
     return {
       id,
       files: sortedFiles,
@@ -400,6 +406,7 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
       fileBCommits,
       couplingRatio,
       jaccardRatio,
+      classification,
       evidence: {
         commitShas: shas,
         sampleSubjects: subjects,

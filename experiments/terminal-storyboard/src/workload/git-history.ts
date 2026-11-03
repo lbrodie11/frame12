@@ -6,6 +6,7 @@ import {
   StoryboardStreamValidator,
   type CochangeFinding,
   type EventType,
+  type FindingClassification,
   type HotFileSummary,
   type ResultSnapshot,
   type RunEndStatus,
@@ -76,7 +77,6 @@ const DEFAULT_GENERATED_PREFIXES = [
   'node_modules/',
   'coverage/',
   'site/public/r/',
-  'templates/',
 ];
 
 const DOC_OR_RELEASE_META_BASENAMES = new Set<string>([
@@ -207,18 +207,7 @@ export function isTestOrVerificationPath(filePath: string): boolean {
   return false;
 }
 
-/**
- * Filters obvious low-signal co-change pairs by default (unless --include-noise is passed):
- * 1. Test / verification scripts paired with source files or other test files.
- * 2. Routine documentation / release metadata pairs (e.g. README.md + package.json, CHANGELOG.md + package.json, *.md + *.md).
- * 3. Exact-basename mirror copies across workspace directories (e.g. registry/ui/dialog.tsx + site/.../dialog.tsx).
- */
-export function shouldFilterLowSignalPair(
-  fileA: string,
-  fileB: string,
-  includeNoise = false,
-): boolean {
-  if (includeNoise) return false;
+export function classifyCochangePair(fileA: string, fileB: string): FindingClassification {
   const normA = fileA.replace(/\\/g, '/');
   const normB = fileB.replace(/\\/g, '/');
   const baseA = posix.basename(normA);
@@ -226,31 +215,39 @@ export function shouldFilterLowSignalPair(
   const lowerA = baseA.toLowerCase();
   const lowerB = baseB.toLowerCase();
 
-  // 1. Test or verification files paired with code or tests
   if (isTestOrVerificationPath(normA) || isTestOrVerificationPath(normB)) {
-    return true;
-  }
-
-  // 2. Routine documentation / release metadata pairs
-  if (DOC_OR_RELEASE_META_BASENAMES.has(lowerA) && DOC_OR_RELEASE_META_BASENAMES.has(lowerB)) {
-    return true;
-  }
-  if (extname(lowerA) === '.md' && extname(lowerB) === '.md') {
-    return true;
+    return 'test-companion';
   }
   if (
-    (extname(lowerA) === '.md' && lowerB === 'package.json') ||
-    (extname(lowerB) === '.md' && lowerA === 'package.json')
+    DOC_OR_RELEASE_META_BASENAMES.has(lowerA) ||
+    DOC_OR_RELEASE_META_BASENAMES.has(lowerB) ||
+    extname(lowerA) === '.md' ||
+    extname(lowerB) === '.md'
   ) {
-    return true;
+    return 'docs-release';
   }
-
-  // 3. Exact-basename mirror copies across different directory trees
   if (baseA === baseB && !GENERIC_BARREL_BASENAMES.has(lowerA)) {
-    return true;
+    return 'workspace-mirror';
   }
+  if (posix.dirname(normA) === posix.dirname(normB)) {
+    return 'same-module';
+  }
+  return 'cross-module';
+}
 
-  return false;
+/**
+ * Identifies whether a pair is a non-production companion pair (test, docs/release,
+ * or exact-basename workspace mirror). Note: full evidence is preserved by default
+ * during ranking; use --exclude to filter specific paths.
+ */
+export function shouldFilterLowSignalPair(
+  fileA: string,
+  fileB: string,
+  includeNoise = false,
+): boolean {
+  if (includeNoise) return false;
+  const kind = classifyCochangePair(fileA, fileB);
+  return kind === 'test-companion' || kind === 'docs-release' || kind === 'workspace-mirror';
 }
 
 export interface CochangeRelationshipSummary {
@@ -703,16 +700,8 @@ export async function runGitHistoryWorkload(
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
     }
     const minThreshold = commits.length >= 3 ? 2 : 1;
-    let filteredLowSignalPairs = 0;
     const candidates = Array.from(pairMap.values())
-      .filter((p) => {
-        if (p.count < minThreshold) return false;
-        if (shouldFilterLowSignalPair(p.files[0], p.files[1], includeNoise)) {
-          filteredLowSignalPairs += 1;
-          return false;
-        }
-        return true;
-      })
+      .filter((p) => p.count >= minThreshold)
       .map((p) => {
         const fileACommits = Math.max(p.count, nonBulkFileCommits.get(p.files[0]) ?? p.count);
         const fileBCommits = Math.max(p.count, nonBulkFileCommits.get(p.files[1]) ?? p.count);
@@ -733,15 +722,6 @@ export async function runGitHistoryWorkload(
       )
       .slice(0, topN);
 
-    if (filteredLowSignalPairs > 0) {
-      const lowSigWarn = `Filtered ${filteredLowSignalPairs} low-signal test/doc/mirror pair(s) (pass --include-noise to include).`;
-      warnings.push(lowSigWarn);
-      emit('warning', 'rank-findings', { message: lowSigWarn, filteredLowSignalPairs });
-      if (options.signal?.aborted) {
-        return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
-      }
-    }
-
     const findings: CochangeFinding[] = [];
     for (let idx = 0; idx < candidates.length; idx++) {
       if (options.signal?.aborted) {
@@ -749,6 +729,7 @@ export async function runGitHistoryWorkload(
       }
       const c = candidates[idx]!;
       const id = `F-${String(idx + 1).padStart(2, '0')}`;
+      const classification = classifyCochangePair(c.files[0], c.files[1]);
       const rel = describeCochangeRelationship({
         files: c.files,
         cochangeCount: c.count,
@@ -765,6 +746,7 @@ export async function runGitHistoryWorkload(
         fileBCommits: c.fileBCommits,
         couplingRatio: c.couplingRatio,
         jaccardRatio: c.jaccardRatio,
+        classification,
         evidence: { commitShas: c.shas, sampleSubjects: c.subjects, count: c.count },
         reason: `${rel.patternLabel}: ${rel.summary}`,
       };
@@ -775,20 +757,8 @@ export async function runGitHistoryWorkload(
       findings.push(finding);
     }
 
-    const allHotEntries = Array.from(fileCommits.entries()).sort(
-      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-    );
-    const filteredHotEntries = includeNoise
-      ? allHotEntries
-      : allHotEntries.filter(([file]) => {
-          const base = posix.basename(file).toLowerCase();
-          if (isTestOrVerificationPath(file)) return false;
-          if (DOC_OR_RELEASE_META_BASENAMES.has(base) || extname(base) === '.md') return false;
-          return true;
-        });
-    const hotFiles: HotFileSummary[] = (
-      filteredHotEntries.length > 0 ? filteredHotEntries : allHotEntries
-    )
+    const hotFiles: HotFileSummary[] = Array.from(fileCommits.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 6)
       .map(([file, count]) => ({
         file,
