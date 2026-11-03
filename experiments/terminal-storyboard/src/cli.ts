@@ -24,6 +24,7 @@ export interface CliIo {
   stdout: (chunk: string) => void;
   stderr: (chunk: string) => void;
   isTTY?: boolean;
+  stderrIsTTY?: boolean;
   columns?: number;
   env?: Record<string, string | undefined>;
   signal?: AbortSignal;
@@ -37,6 +38,9 @@ interface ParsedCliArgs {
   includeNoise: boolean;
   excludePatterns: string[];
   mode: 'storyboard' | 'baseline' | 'json' | 'events';
+  style: 'auto' | 'panels' | 'plain';
+  styleExplicit: boolean;
+  ascii: boolean;
   reportPath: string | null;
   theme: 'light' | 'dark';
   replayPath: string | null;
@@ -57,6 +61,9 @@ function parseArgs(argv: string[]): ParsedCliArgs {
     includeNoise: false,
     excludePatterns: [],
     mode: 'storyboard',
+    style: 'auto',
+    styleExplicit: false,
+    ascii: false,
     reportPath: null,
     theme: 'light',
     replayPath: null,
@@ -91,6 +98,16 @@ function parseArgs(argv: string[]): ParsedCliArgs {
       res.mode = 'baseline';
     } else if (arg === '--no-color') {
       res.noColor = true;
+    } else if (arg === '--ascii') {
+      res.ascii = true;
+    } else if (arg === '--style') {
+      const next = args[++i];
+      if (next !== 'auto' && next !== 'panels' && next !== 'plain') {
+        res.error = `Invalid --style "${String(next)}". Expected "auto", "panels", or "plain".`;
+        return res;
+      }
+      res.style = next;
+      res.styleExplicit = true;
     } else if (arg === '--include-noise') {
       res.includeNoise = true;
     } else if (arg === '--exclude') {
@@ -158,6 +175,11 @@ function parseArgs(argv: string[]): ParsedCliArgs {
 
   if (modesSelected.length > 1) {
     res.error = `Flags ${modesSelected.map((m) => `--${m}`).join(' and ')} are mutually exclusive. Choose at most one output mode.`;
+    return res;
+  }
+
+  if (res.styleExplicit && res.mode !== 'storyboard') {
+    res.error = `Flags --style ${res.style} and --${res.mode} are mutually exclusive.`;
     return res;
   }
 
@@ -268,8 +290,8 @@ const HELP_TEXT = [
   'FRAME/12 Terminal Storyboard CLI (0-experimental)',
   '',
   'Usage:',
-  '  storyboard run <repo-path> [--max-commits N] [--top N] [--exclude <glob>] [--include-noise] [--events | --json | --baseline] [--report <out.html>] [--theme light|dark] [--replay <events.ndjson>]',
-  '  storyboard import-archaeology <json-path> [--report <out.html>] [--events | --json | --baseline] [--theme light|dark]',
+  '  storyboard run <repo-path> [--max-commits N] [--top N] [--exclude <glob>] [--include-noise] [--style auto|panels|plain] [--ascii] [--events | --json | --baseline] [--report <out.html>] [--theme light|dark] [--replay <events.ndjson>]',
+  '  storyboard import-archaeology <json-path> [--report <out.html>] [--style auto|panels|plain] [--ascii] [--events | --json | --baseline] [--theme light|dark]',
 ].join('\n');
 
 export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<number> {
@@ -278,7 +300,8 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
   const writeDiag = (message: string) => {
     stderr(`${sanitizeTerminalText(message)}\n`);
   };
-  const isTTY = io?.isTTY ?? Boolean(process.stdout.isTTY);
+  const isTTY = io?.isTTY ?? (io?.stdout ? false : Boolean(process.stdout.isTTY));
+  const stderrIsTTY = io?.stderrIsTTY ?? (io?.stderr ? Boolean(io?.isTTY) : Boolean(process.stderr.isTTY));
   const env = io?.env ?? process.env;
   const envCols = env.COLUMNS !== undefined ? Number(env.COLUMNS) : Number.NaN;
   const columns =
@@ -298,6 +321,12 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
     return 0;
   }
 
+  const usePanels =
+    parsed.mode === 'storyboard' &&
+    (parsed.style === 'panels' ||
+      (parsed.style === 'auto' &&
+        Boolean(stderrIsTTY && isTTY && env.TERM !== 'dumb' && !env.CI)));
+
   const plainOpts: PlainRenderOptions = {
     columns: parsed.columns ?? columns,
     isTTY,
@@ -305,6 +334,8 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
     isReplay: Boolean(parsed.replayPath),
     env,
   };
+
+  const inkMod = usePanels ? await import('./render-ink/index.js') : null;
 
   let snapshot: ResultSnapshot;
   let events: StoryboardEvent[];
@@ -333,8 +364,22 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
     if (parsed.mode === 'events') {
       for (const ev of events) stdout(`${JSON.stringify(ev)}\n`);
     } else if (parsed.mode === 'storyboard') {
-      const printer = new PlainStreamPrinter((l) => stderr(`${l}\n`), plainOpts);
-      for (const ev of events) printer.onEvent(ev);
+      if (inkMod) {
+        const controller = new inkMod.InkStreamController({
+          ...plainOpts,
+          isTTY: isTTY || parsed.style === 'panels',
+          ascii: parsed.ascii,
+          write: (s) => stderr(s),
+        });
+        try {
+          for (const ev of events) controller.onEvent(ev);
+        } finally {
+          await controller.dispose();
+        }
+      } else {
+        const printer = new PlainStreamPrinter((l) => stderr(`${l}\n`), plainOpts);
+        for (const ev of events) printer.onEvent(ev);
+      }
     }
   } else if (parsed.replayPath) {
     const filePath = resolve(parsed.replayPath);
@@ -363,8 +408,22 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
     if (parsed.mode === 'events') {
       for (const ev of events) stdout(`${JSON.stringify(ev)}\n`);
     } else if (parsed.mode === 'storyboard') {
-      const printer = new PlainStreamPrinter((l) => stderr(`${l}\n`), plainOpts);
-      for (const ev of events) printer.onEvent(ev);
+      if (inkMod) {
+        const controller = new inkMod.InkStreamController({
+          ...plainOpts,
+          isTTY: isTTY || parsed.style === 'panels',
+          ascii: parsed.ascii,
+          write: (s) => stderr(s),
+        });
+        try {
+          for (const ev of events) controller.onEvent(ev);
+        } finally {
+          await controller.dispose();
+        }
+      } else {
+        const printer = new PlainStreamPrinter((l) => stderr(`${l}\n`), plainOpts);
+        for (const ev of events) printer.onEvent(ev);
+      }
     }
   } else {
     const ac = new AbortController();
@@ -375,8 +434,19 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       else io.signal.addEventListener('abort', onSigint, { once: true });
     }
 
+    const inkController =
+      parsed.mode === 'storyboard' && inkMod
+        ? new inkMod.InkStreamController({
+            ...plainOpts,
+            isTTY: isTTY || parsed.style === 'panels',
+            ascii: parsed.ascii,
+            write: (s) => stderr(s),
+            resizeTarget: !io?.columns ? process.stdout : undefined,
+          })
+        : null;
+
     const printer =
-      parsed.mode === 'storyboard'
+      parsed.mode === 'storyboard' && !inkMod
         ? new PlainStreamPrinter((l) => stderr(`${l}\n`), plainOpts)
         : null;
 
@@ -391,6 +461,8 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
         onEvent: (ev) => {
           if (parsed.mode === 'events') {
             stdout(`${JSON.stringify(ev)}\n`);
+          } else if (inkController) {
+            inkController.onEvent(ev);
           } else if (printer) {
             printer.onEvent(ev);
           }
@@ -404,10 +476,14 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       return 1;
     } finally {
       process.removeListener('SIGINT', onSigint);
+      if (inkController) {
+        await inkController.dispose();
+      }
     }
   }
 
   // Write HTML report if requested (inside error boundary so unwritable paths exit 1 cleanly)
+  let reportWritten = false;
   if (parsed.reportPath) {
     try {
       const outPath = resolve(parsed.reportPath);
@@ -415,6 +491,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       const { renderWebReportHtml } = await import('./render-web/index.js');
       const html = renderWebReportHtml(snapshot, events, { theme: parsed.theme });
       writeFileSync(outPath, html, 'utf8');
+      reportWritten = true;
       writeDiag(`Wrote FRAME/12 HTML report: ${outPath}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -429,7 +506,18 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
   } else if (parsed.mode === 'baseline') {
     stdout(`${renderBaseline(snapshot, plainOpts)}\n`);
   } else if (parsed.mode === 'storyboard') {
-    stdout(`${renderPlainSummary(snapshot, plainOpts)}\n`);
+    if (inkMod) {
+      stdout(
+        inkMod.renderInkStaticSummary(snapshot, events, {
+          ...plainOpts,
+          isTTY: isTTY || parsed.style === 'panels',
+          ascii: parsed.ascii,
+          reportWritten,
+        }),
+      );
+    } else {
+      stdout(`${renderPlainSummary(snapshot, plainOpts)}\n`);
+    }
   }
 
   if (snapshot.status === 'canceled') {

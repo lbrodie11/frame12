@@ -28,8 +28,17 @@ experiments/terminal-storyboard/
       repo-archaeology-adapter.ts        # Converter from Repo Archaeology schemaVersion: 1 JSON to ResultSnapshot (labeled reconstructed)
     render-plain/                        # Append-only terminal & baseline renderer (no cursor motion, spinners, or Ink)
       index.ts                           # Sanitizer (C0/C1, CSI, OSC 8, bidi), Unicode display-width wrapper, live C-01..C-0N narrator, and --baseline formatter
+    render-ink/                          # Optional editorial Ink renderer (--style panels or --style auto in interactive TTY)
+      MarkerLabel.tsx                    # Restrained yellow-background marker pill ([LABEL] under NO_COLOR / --ascii)
+      ToneBar.tsx                        # Segmented 16-cell horizontal tone bar (▄/░ in Unicode, #/- in --ascii)
+      FilePair.tsx                       # Two-line file pair with middle-segment path abbreviation (src/…/map.ts)
+      StepLine.tsx                       # Compact editorial step row (C-01 ✓ Repository validated, etc.)
+      FindingPanel.tsx                   # Single framed hero panel for F-01 / TOP FINDING
+      RunSummary.tsx                     # Concise run completion status line
+      StoryboardApp.tsx                  # Top-level Ink composition (<Static> steps + hero panel + secondary rows)
+      index.tsx                          # 12fps Motion-on-Twos InkStreamController + renderInkStaticSummary
     render-web/                          # Separate entry point: offline static HTML report using direct FRAME/12 registry components
-      index.tsx                          # react-dom/server renderToStaticMarkup + inlined registry/styles/frame12.css
+      index.tsx                          # react-dom/server renderToStaticMarkup + inlined registry/styles/frame12.css + C-04 finding cards
     cli.ts                               # CLI argument parser, stream router, error boundary, and SIGINT / timeout lifecycle handler
   fixtures/
     create-fixture-repo.ts               # Deterministic temp git repo generator supporting Fixture A and Fixture B (scripted co-change commits, no tracked .git)
@@ -55,15 +64,20 @@ experiments/terminal-storyboard/
 ### 3. CLI Flags & Stream Contract (`bin/storyboard.ts`)
 
 ```text
-storyboard run <repo-path> [--max-commits N] [--top N] [--exclude <glob>] [--include-noise] [--events | --json | --baseline] [--report <out.html>] [--theme light|dark] [--replay <events.ndjson>]
-storyboard import-archaeology <fixture.json> [--report <out.html>] [--events | --json | --baseline] [--theme light|dark]
+storyboard run <repo-path> [--max-commits N] [--top N] [--exclude <glob>] [--include-noise] [--style auto|panels|plain] [--ascii] [--events | --json | --baseline] [--report <out.html>] [--theme light|dark] [--replay <events.ndjson>]
+storyboard import-archaeology <fixture.json> [--report <out.html>] [--style auto|panels|plain] [--ascii] [--events | --json | --baseline] [--theme light|dark]
 ```
 
-- **`stderr`:** Human-readable live storyboard progress narration (emitted on `step-start`, throttled `step-progress`, and `step-end` in default mode) and diagnostic/error messages.
+- **`--style auto | panels | plain` (default: `auto`):**
+  - `auto`: Uses `panels` (Ink editorial layout) **only** when `stderr.isTTY && stdout.isTTY && TERM !== 'dumb' && !CI`; otherwise falls back to `plain`.
+  - `panels`: Forces the Ink editorial renderer (`FindingPanel` + secondary rows + `RunSummary`), dynamically importing `dist/render-ink/index.js`.
+  - `plain`: Uses the zero-Ink append-only plain narrator (`dist/render-ink/index.js` is never loaded).
+- **`--ascii`:** Uses 7-bit ASCII borders (`+---+`), bars (`#`/`-`), and status markers (`[OK]`, `<->`).
+- **`stderr`:** Human-readable live storyboard progress narration (emitted on `step-start`, `12 fps` / `83.33ms` Motion-on-Twos throttled `step-progress`, and `step-end` in default mode) and diagnostic/error messages.
 - **`stdout`:**
-  - Default: Final human-readable storyboard summary and findings table.
+  - Default (`panels` in interactive TTY or `plain` in non-TTY): Final human-readable storyboard summary and findings.
   - `--baseline`: Unframed plain list of findings (no `C-01` cuts, no step narration) for A/B usability comparison.
-  - `--json`: Only the serialized `ResultSnapshot` JSON (`--json` and `--events` are mutually exclusive -> exit `2`).
+  - `--json`: Only the serialized `ResultSnapshot` JSON (`--json`, `--events`, `--baseline`, and explicit `--style` are mutually exclusive -> exit `2`).
   - `--events`: Only valid NDJSON `StoryboardEvent` lines.
 - **Signals & Exit Codes:**
   - `0`: Completed (`status: "completed"`)

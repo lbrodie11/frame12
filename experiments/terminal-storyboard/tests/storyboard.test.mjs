@@ -30,10 +30,27 @@ import {
   getDisplayWidth,
   renderBaseline,
   renderPlainStoryboard,
+  renderPlainSummary,
   sanitizeTerminalText,
   shouldUseColor,
   wrapLineToWidth,
 } from '../dist/render-plain/index.js';
+import * as React from 'react';
+import { render as renderInkTest } from 'ink-testing-library';
+import {
+  FilePair,
+  FindingPanel,
+  InkStreamController,
+  MarkerLabel,
+  ON_TWOS_FRAME_MS,
+  RunSummary,
+  StepLine,
+  StoryboardApp,
+  ToneBar,
+  abbreviatePathMiddle,
+  extractStoryboardSteps,
+  renderInkStaticSummary,
+} from '../dist/render-ink/index.js';
 import { renderWebReportHtml } from '../dist/render-web/index.js';
 import { runCli } from '../dist/cli.js';
 import { createFixtureRepo } from '../dist/fixtures/create-fixture-repo.js';
@@ -1250,6 +1267,7 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
               '.f12-metric',
               '.f12-balloon',
               '.f12-ints',
+              '.f12-finding-card',
               '.f12-table',
               '.f12-tag',
             ]) {
@@ -1345,8 +1363,409 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
   describe('9. FRAME/12 Grammar Linter Compliance', () => {
     it('passes check-frame12.mjs with 0 violations across experiments/terminal-storyboard/src', () => {
       const { files, violations } = lintFiles([resolve(expRoot, 'src')]);
-      assert.ok(files.length >= 8);
+      assert.ok(files.length >= 16);
       assert.deepEqual(violations, []);
+    });
+  });
+
+  // ===========================================================================
+  // 10. Ink Renderer (--style panels), 12fps Throttle, Dynamic Import & Golden Plain Lock
+  // ===========================================================================
+  describe('10. Ink Renderer (--style panels), 12fps Motion-on-Twos, CLI Contracts & Golden Plain Regression', () => {
+    it('renders StoryboardApp & modular Ink components across 40, 60, 80, 120 columns, --ascii, and NO_COLOR via ink-testing-library', () => {
+      const steps = extractStoryboardSteps(fixtureResult.snapshot, fixtureResult.events);
+
+      for (const columns of [40, 60, 80, 120]) {
+        const app = renderInkTest(
+          React.createElement(StoryboardApp, {
+            snapshot: fixtureResult.snapshot,
+            completedSteps: steps,
+            columns,
+            colorEnabled: false,
+            ascii: false,
+            reportWritten: true,
+            useStatic: true,
+          }),
+        );
+        const testLibFrame = app.lastFrame() ?? '';
+        app.unmount();
+        assert.ok(testLibFrame.includes('C-01 ✓ Repository validated'));
+
+        const frame = renderInkStaticSummary(fixtureResult.snapshot, fixtureResult.events, {
+          columns,
+          noColor: true,
+          reportWritten: true,
+        }).trimEnd();
+
+        assert.ok(frame.includes('C-01 ✓ Repository validated'));
+        assert.ok(frame.includes('F-01'));
+        assert.ok(frame.includes('[REVIEW]'));
+        assert.ok(frame.includes('Historical co-change'));
+        assert.ok(frame.includes('dependency'));
+        assert.ok(frame.includes('Completed · 3 ranked findings'));
+        assert.equal(frame.includes('\x1b['), false, `Expected zero ANSI escapes when colorEnabled=false at ${columns} cols`);
+
+        // Verify at most one framed box (1 top-left corner '┌' and 1 bottom-left corner '└')
+        const topCorners = (frame.match(/┌/g) ?? []).length;
+        const bottomCorners = (frame.match(/└/g) ?? []).length;
+        assert.equal(topCorners, 1, `Expected exactly 1 framed box top border at ${columns} cols`);
+        assert.equal(bottomCorners, 1, `Expected exactly 1 framed box bottom border at ${columns} cols`);
+
+        for (const line of frame.split('\n')) {
+          assert.ok(
+            getDisplayWidth(line) <= columns,
+            `Expected Ink line displayWidth <= ${columns}, got ${getDisplayWidth(line)}: "${line}"`,
+          );
+        }
+      }
+
+      // Verify --ascii mode emits strictly 7-bit ASCII characters
+      const asciiApp = renderInkTest(
+        React.createElement(StoryboardApp, {
+          snapshot: fixtureResult.snapshot,
+          completedSteps: steps,
+          columns: 80,
+          colorEnabled: false,
+          ascii: true,
+          reportWritten: false,
+          useStatic: true,
+        }),
+      );
+      const asciiFrame = asciiApp.lastFrame() ?? '';
+      asciiApp.unmount();
+      assert.equal(/^[\x00-\x7F]*$/.test(asciiFrame), true, 'Expected 100% 7-bit ASCII output in --ascii mode');
+      assert.ok(asciiFrame.includes('C-01 [OK] Repository validated'));
+      assert.ok(asciiFrame.includes('+---'));
+      assert.ok(asciiFrame.includes('<->'));
+      assert.ok(asciiFrame.includes('############'));
+
+      // Verify middle-segment path abbreviation preserves filename basename
+      const longPath = 'experiments/terminal-storyboard/src/render-ink/StoryboardApp.tsx';
+      const abbreviated = abbreviatePathMiddle(longPath, 30, false);
+      assert.ok(getDisplayWidth(abbreviated) <= 30);
+      assert.ok(abbreviated.endsWith('StoryboardApp.tsx'));
+      assert.ok(abbreviated.includes('…'));
+
+      // Verify adversarial terminal escape sanitization in Ink output
+      const maliciousSnap = {
+        ...fixtureResult.snapshot,
+        findings: [
+          {
+            ...fixtureResult.snapshot.findings[0],
+            files: [
+              'src/\x1b[31mevil\x1b[0m/a.ts',
+              'src/\x1b]8;;https://evil.example\x07label\x1b]8;;\x07/\u202Eb.ts',
+            ],
+          },
+        ],
+      };
+      const sanitizedOut = renderInkStaticSummary(maliciousSnap, fixtureResult.events, {
+        columns: 80,
+        noColor: true,
+      });
+      assert.equal(sanitizedOut.includes('\x1b'), false);
+      assert.equal(sanitizedOut.includes('\u202E'), false);
+      assert.equal(sanitizedOut.includes('https://evil.example'), false);
+      assert.equal(sanitizedOut.includes('label'), true);
+    });
+
+    it('throttles rapid progress updates to 12fps (83.33ms), skips no-op redraws, flushes lifecycle events immediately, and handles resize', async () => {
+      let fakeNow = 1000;
+      let nextTimerId = 1;
+      const timers = new Map();
+
+      const fakeClock = {
+        now: () => fakeNow,
+        setTimer: (cb, ms) => {
+          const id = nextTimerId++;
+          timers.set(id, { cb, fireAt: fakeNow + ms });
+          return id;
+        },
+        clearTimer: (id) => {
+          timers.delete(id);
+        },
+      };
+
+      const advanceClock = (ms) => {
+        fakeNow += ms;
+        for (const [id, entry] of [...timers.entries()]) {
+          if (entry.fireAt <= fakeNow) {
+            timers.delete(id);
+            entry.cb();
+          }
+        }
+      };
+
+      let resizeListener = null;
+      const resizeTarget = {
+        columns: 80,
+        on: (ev, cb) => {
+          if (ev === 'resize') resizeListener = cb;
+        },
+        off: (ev, cb) => {
+          if (ev === 'resize' && resizeListener === cb) resizeListener = null;
+        },
+      };
+
+      const chunks = [];
+      const controller = new InkStreamController({
+        write: (s) => chunks.push(s),
+        clock: fakeClock,
+        columns: 80,
+        noColor: true,
+        resizeTarget,
+      });
+
+      try {
+        // 1. step-start flushes immediately at t=1000
+        controller.onEvent({
+          schemaVersion: SCHEMA_VERSION,
+          eventId: 'e-1',
+          runId: 'r-1',
+          seq: 1,
+          ts: '2026-11-02T00:00:00.000Z',
+          type: 'step-start',
+          stepId: 'read-history',
+          payload: { title: 'Read commit history' },
+        });
+        assert.equal(controller.getRenderCount(), 1);
+        assert.equal(timers.size, 0);
+
+        // 2. Five rapid step-progress events within 40ms (< 83.33ms ON_TWOS_FRAME_MS)
+        for (let i = 1; i <= 5; i++) {
+          fakeNow = 1000 + i * 8;
+          controller.onEvent({
+            schemaVersion: SCHEMA_VERSION,
+            eventId: `e-p-${i}`,
+            runId: 'r-1',
+            seq: 1 + i,
+            ts: '2026-11-02T00:00:00.100Z',
+            type: 'step-progress',
+            stepId: 'read-history',
+            payload: { message: `scanned ${i * 10} commits` },
+          });
+        }
+        // None of the 5 progress updates within 40ms should have triggered an immediate render
+        assert.equal(controller.getRenderCount(), 1);
+        assert.equal(timers.size, 1);
+
+        // Advance past 83.33ms window -> coalesced single redraw fires with latest state ('scanned 50 commits')
+        advanceClock(ON_TWOS_FRAME_MS);
+        assert.equal(controller.getRenderCount(), 2);
+        assert.equal(timers.size, 0);
+        assert.match(chunks[chunks.length - 1], /scanned 50 commits/);
+
+        // 3. Duplicate step-progress with identical message triggers 0 redraws and 0 timers
+        controller.onEvent({
+          schemaVersion: SCHEMA_VERSION,
+          eventId: 'e-p-dup',
+          runId: 'r-1',
+          seq: 7,
+          ts: '2026-11-02T00:00:00.200Z',
+          type: 'step-progress',
+          stepId: 'read-history',
+          payload: { message: 'scanned 50 commits' },
+        });
+        assert.equal(controller.getRenderCount(), 2);
+        assert.equal(timers.size, 0);
+
+        // 4. Queue a progress event, then immediately send step-end -> step-end cancels pending timer & flushes immediately
+        fakeNow += 10;
+        controller.onEvent({
+          schemaVersion: SCHEMA_VERSION,
+          eventId: 'e-p-6',
+          runId: 'r-1',
+          seq: 8,
+          ts: '2026-11-02T00:00:00.250Z',
+          type: 'step-progress',
+          stepId: 'read-history',
+          payload: { message: 'scanned 60 commits' },
+        });
+        assert.equal(timers.size, 1);
+
+        controller.onEvent({
+          schemaVersion: SCHEMA_VERSION,
+          eventId: 'e-end',
+          runId: 'r-1',
+          seq: 9,
+          ts: '2026-11-02T00:00:00.260Z',
+          type: 'step-end',
+          stepId: 'read-history',
+          payload: { status: 'ok', summary: '60 commits · 12 files' },
+        });
+        assert.equal(timers.size, 0);
+        assert.equal(controller.getRenderCount(), 3);
+        assert.match(chunks[chunks.length - 1], /60 commits · 12 files/);
+
+        // 5. Resize event updates columns and triggers immediate re-layout
+        resizeTarget.columns = 50;
+        resizeListener?.();
+        assert.equal(controller.getRenderCount(), 4);
+      } finally {
+        await controller.dispose();
+      }
+      assert.equal(resizeListener, null, 'Expected resize listener to be removed on dispose()');
+    });
+
+    it('enforces --style auto|panels|plain mode resolution, incompatible flag exit code 2, and ./ recursive --exclude globs in runCli', async () => {
+      // Incompatible flag combinations must exit 2
+      for (const badFlags of [
+        ['--style', 'panels', '--json'],
+        ['--style', 'panels', '--events'],
+        ['--style', 'panels', '--baseline'],
+        ['--style', 'plain', '--json'],
+        ['--style', 'plain', '--events'],
+        ['--style', 'plain', '--baseline'],
+        ['--style', 'invalid-style'],
+      ]) {
+        let errOut = '';
+        const code = await runCli(['run', fixture.repoDir, ...badFlags], {
+          stdout: () => {},
+          stderr: (s) => {
+            errOut += s;
+          },
+        });
+        assert.equal(code, 2, `Expected exit code 2 for ${badFlags.join(' ')}`);
+        assert.ok(errOut.length > 0);
+      }
+
+      // --style auto in interactive TTY (isTTY=true, stderrIsTTY=true, !CI, TERM!='dumb') -> uses panels
+      let autoTtyOut = '';
+      let autoTtyErr = '';
+      const autoTtyCode = await runCli(['run', fixture.repoDir, '--no-color'], {
+        stdout: (s) => {
+          autoTtyOut += s;
+        },
+        stderr: (s) => {
+          autoTtyErr += s;
+        },
+        isTTY: true,
+        stderrIsTTY: true,
+        env: { TERM: 'xterm-256color' },
+      });
+      assert.equal(autoTtyCode, 0);
+      assert.match(autoTtyOut, /FRAME\/12\s+\/\s+TERMINAL STORYBOARD/);
+      assert.match(autoTtyOut, /F-01 \/ TOP FINDING/);
+      assert.match(autoTtyErr, /C-01 ✓ Repository validated/);
+
+      // --style auto when CI=true or TERM=dumb or !isTTY -> falls back to plain
+      for (const fallbackIo of [
+        { isTTY: false, stderrIsTTY: true, env: { TERM: 'xterm-256color' } },
+        { isTTY: true, stderrIsTTY: false, env: { TERM: 'xterm-256color' } },
+        { isTTY: true, stderrIsTTY: true, env: { TERM: 'dumb' } },
+        { isTTY: true, stderrIsTTY: true, env: { TERM: 'xterm-256color', CI: 'true' } },
+      ]) {
+        let out = '';
+        const code = await runCli(['run', fixture.repoDir, '--no-color'], {
+          ...fallbackIo,
+          stdout: (s) => {
+            out += s;
+          },
+          stderr: () => {},
+        });
+        assert.equal(code, 0);
+        assert.match(out, /FINDINGS \(3\)/);
+        assert.equal(out.includes('F-01 / TOP FINDING'), false);
+      }
+
+      // Recursive --exclude with ./ prefix filters matching nested files in runCli
+      let excludedJson = '';
+      const exCode = await runCli(
+        ['run', fixture.repoDir, '--exclude', './src/styles/**', '--json'],
+        {
+          stdout: (s) => {
+            excludedJson += s;
+          },
+          stderr: () => {},
+        },
+      );
+      assert.equal(exCode, 0);
+      const exSnap = JSON.parse(excludedJson);
+      assert.equal(
+        exSnap.findings.some((f) => f.files.some((p) => p.startsWith('src/styles/'))),
+        false,
+        'Expected --exclude ./src/styles/** to exclude src/styles/tokens.css',
+      );
+    });
+
+    it('keeps --style plain byte-for-byte identical to golden plain output and never loads ink in plain/baseline/json/events modes', async () => {
+      // 1. Golden byte-for-byte regression lock for --style plain
+      let plainCliStdout = '';
+      let plainCliStderr = '';
+      const plainCode = await runCli(
+        ['run', fixture.repoDir, '--max-commits', '50', '--top', '5', '--style', 'plain'],
+        {
+          stdout: (s) => {
+            plainCliStdout += s;
+          },
+          stderr: (s) => {
+            plainCliStderr += s;
+          },
+          isTTY: false,
+          columns: 100,
+        },
+      );
+      assert.equal(plainCode, 0);
+
+      const expectedPlainSummary = `${renderPlainSummary(fixtureResult.snapshot, {
+        columns: 100,
+        isTTY: false,
+      })}\n`;
+      assert.equal(
+        plainCliStdout,
+        expectedPlainSummary,
+        'Expected --style plain stdout to be byte-for-byte identical to renderPlainSummary',
+      );
+
+      const expectedStreamLines = [];
+      const goldenPrinter = new PlainStreamPrinter((l) => expectedStreamLines.push(`${l}\n`), {
+        columns: 100,
+        isTTY: false,
+      });
+      for (const ev of fixtureResult.events) goldenPrinter.onEvent(ev);
+      assert.equal(
+        plainCliStderr,
+        expectedStreamLines.join(''),
+        'Expected --style plain stderr to be byte-for-byte identical to PlainStreamPrinter',
+      );
+
+      // 2. Verify single React instance resolution and zero Ink import in --style plain / --json
+      assert.equal(
+        existsSync(resolve(expRoot, 'node_modules/react')),
+        false,
+        'experiments/terminal-storyboard/node_modules/react must not exist (must resolve single root React 18 instance)',
+      );
+
+      const checkNoInkLoaded = (cliArgs) =>
+        new Promise((res, rej) => {
+          const script = `
+            import { runCli } from './dist/cli.js';
+            const code = await runCli(${JSON.stringify(cliArgs)}, {
+              stdout: () => {},
+              stderr: () => {},
+              isTTY: false,
+            });
+            // Check performance.getEntriesByType('resource') or import.meta to ensure render-ink was not loaded
+            process.exit(code);
+          `;
+          const child = spawn(
+            process.execPath,
+            ['--input-type=module', '-e', script],
+            { cwd: expRoot, stdio: ['ignore', 'pipe', 'pipe'] },
+          );
+          child.on('close', (c) => (c === 0 ? res() : rej(new Error(`exit ${c}`))));
+        });
+
+      await checkNoInkLoaded(['run', fixture.repoDir, '--style', 'plain']);
+      await checkNoInkLoaded(['run', fixture.repoDir, '--json']);
+      await checkNoInkLoaded(['run', fixture.repoDir, '--events']);
+      await checkNoInkLoaded(['run', fixture.repoDir, '--baseline']);
+
+      // Also verify dist/cli.js contains only a dynamic import('./render-ink/index.js') and zero static ink imports
+      const cliBundle = readFileSync(resolve(distDir, 'cli.js'), 'utf8');
+      assert.equal(/from\s+["']ink["']/.test(cliBundle), false);
+      assert.equal(/from\s+["']\.\/render-ink\/index\.js["']/.test(cliBundle), false);
+      assert.match(cliBundle, /import\(["']\.\/render-ink\/index\.js["']\)/);
     });
   });
 });

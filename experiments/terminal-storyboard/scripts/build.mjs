@@ -54,7 +54,15 @@ await build({
   target: ['node20'],
   sourcemap: false,
   plugins: [frame12AliasPlugin],
-  external: ['react', 'react-dom', 'react-dom/server', '../render-web/index.js', './render-web/index.js'],
+  external: [
+    'react',
+    'react-dom',
+    'react-dom/server',
+    '../render-web/index.js',
+    './render-web/index.js',
+    '../render-ink/index.js',
+    './render-ink/index.js',
+  ],
 });
 
 // 2. Build Web HTML renderer entry point (bundles direct registry/ui components, keeps react & react-dom/server external)
@@ -71,6 +79,22 @@ await build({
   sourcemap: false,
   plugins: [frame12AliasPlugin],
   external: ['react', 'react-dom', 'react-dom/server', 'react/jsx-runtime'],
+});
+
+// 3. Build optional Ink terminal renderer entry point (dynamically imported only in --style panels mode)
+await build({
+  entryPoints: {
+    'render-ink/index': resolve(expRoot, 'src/render-ink/index.tsx'),
+  },
+  outdir: distDir,
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: ['node20'],
+  jsx: 'automatic',
+  sourcemap: false,
+  plugins: [frame12AliasPlugin],
+  external: ['ink', 'chalk', 'react', 'react-dom', 'react/jsx-runtime'],
 });
 
 chmodSync(resolve(distDir, 'bin/storyboard.js'), 0o755);

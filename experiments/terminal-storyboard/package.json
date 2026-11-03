@@ -13,6 +13,13 @@
     "typecheck": "../../node_modules/.bin/tsc --noEmit",
     "lint:frame12": "node ../../scripts/check-frame12.mjs src",
     "test": "npm run build && npm run typecheck && npm run lint:frame12 && node --test tests/storyboard.test.mjs",
-    "demo": "npm run build && node dist/bin/storyboard.js run ../.. --max-commits 40 --report dist/sample-report.html"
+    "demo": "npm run build && node dist/bin/storyboard.js run ../.. --max-commits 40 --report dist/sample-report.html",
+    "postinstall": "rm -rf node_modules/react node_modules/react-dom"
+  },
+  "dependencies": {
+    "ink": "5.1.0"
+  },
+  "devDependencies": {
+    "ink-testing-library": "4.0.0"
   }
 }

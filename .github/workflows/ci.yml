@@ -36,7 +36,7 @@ jobs:
         run: npm test
 
       - name: Run terminal-storyboard experiment suite
-        run: npm --prefix experiments/terminal-storyboard test
+        run: npm --prefix experiments/terminal-storyboard ci && npm --prefix experiments/terminal-storyboard test
 
       - name: Run shadcn registry smoke-install verification
         run: node scripts/smoke-install.mjs
