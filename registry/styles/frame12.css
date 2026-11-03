@@ -138,13 +138,10 @@
   container-type: inline-size;
   position: relative;
 }
-.f12-dash h2,
-.f12-dash h3,
-.f12-dash p,
-.f12-dash ul {
+:where(.f12-dash) :where(h2, h3, p, ul) {
   margin: 0;
 }
-.f12-dash ul {
+:where(.f12-dash) :where(ul) {
   list-style: none;
   padding: 0;
 }

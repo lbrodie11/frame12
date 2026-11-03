@@ -190,7 +190,7 @@ function Specimen() {
               </div>
             </div>
             <h3>Marker</h3>
-            <p>One flat yellow, always under ink text. It flags; it never colours a line or a chart.</p>
+            <p>One flat yellow, always under ink text. It flags; it never colors a line or a chart.</p>
           </div>
           <div className="sp-card">
             <div className="theme-light sp-live sp-rng">

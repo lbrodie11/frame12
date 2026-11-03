@@ -81,7 +81,7 @@ body:has(.spec) { background: var(--f-sheet); color: var(--f-ink); }
 .sp-table tbody th { font-weight: 700; }
 .sp-pal td { font-family: var(--font-f-mono); font-size: 13px; }
 .sp-pal td:last-child { font-family: var(--font-f-body); font-size: 14px; }
-.sw-chip { display: inline-block; width: 18px; height: 18px; vertical-align: -4px; margin-right: 8px; border: 2px solid var(--f-rule); }
+.sw-chip { display: inline-block; width: 18px; height: 18px; vertical-align: -4px; margin-right: 8px; border: 2px solid var(--f-rule); box-shadow: inset 0 0 0 1.5px var(--f-panel), 0 0 0 1.5px var(--f-panel); }
 
 .sp-type { display: grid; gap: 22px; }
 .sp-type > div { display: flex; flex-direction: column; gap: 6px; padding-bottom: 18px; border-bottom: 1px solid var(--f-grid); }

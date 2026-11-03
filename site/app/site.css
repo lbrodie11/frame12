@@ -562,7 +562,9 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   vertical-align: -4px;
   margin-right: 8px;
   border: 2px solid var(--f-rule);
-  box-shadow: 0 0 0 1px var(--f-panel);
+  box-shadow:
+    inset 0 0 0 1.5px var(--f-panel),
+    0 0 0 1.5px var(--f-panel);
 }
 
 .sp-phone-box {

@@ -1,5 +1,5 @@
 // Shared Playwright harness for @frame12/registry tests.
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -16,21 +16,35 @@ const shim = process.env.F12_REACT_UMD ? readFileSync(process.env.F12_REACT_UMD,
 
 export const outPath = (name) => resolve(OUT, name);
 
-export async function launch() {
-  return chromium.launch({
-    executablePath: process.env.CHROME_PATH || undefined,
-    args: ['--no-sandbox'],
-  });
+export const ENGINES = { chromium, firefox, webkit };
+
+export async function launch(browserName = process.env.BROWSER || 'chromium') {
+  const engine = ENGINES[browserName] || chromium;
+  if (engine === chromium) {
+    return chromium.launch({
+      executablePath: process.env.CHROME_PATH || undefined,
+      args: ['--no-sandbox'],
+    });
+  }
+  return engine.launch();
 }
 
 export async function openGallery(
   browser,
-  { w = 1280, h = 900, scheme = 'light', reduced = 'no-preference', css = '' } = {},
+  {
+    w = 1280,
+    h = 900,
+    scheme = 'light',
+    reduced = 'no-preference',
+    forcedColors = 'none',
+    css = '',
+  } = {},
 ) {
   const ctx = await browser.newContext({
     viewport: { width: w, height: h },
     colorScheme: scheme,
     reducedMotion: reduced,
+    forcedColors,
   });
   const page = await ctx.newPage();
   const errors = [];

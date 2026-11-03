@@ -23,19 +23,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers (Chromium, Firefox, WebKit)
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Verify workspace file synchronization
         run: npm run sync:check
 
-      - name: Build all workspaces (registry, eval, site)
+      - name: Build all workspaces (lab, registry, eval, site, next-starter)
         run: npm run build
 
-      - name: Run full verification suite (unit, a11y, linter, eval, site, launch)
+      - name: Verify React 18 starter template (typecheck & build)
+        run: npm --workspace=@frame12/next-starter run test && npm --workspace=@frame12/next-starter run build
+
+      - name: Run full verification & cross-browser suite (unit, a11y, cross-browser, linter, eval, site)
         run: npm test
 
-      - name: Run shadcn registry smoke-install verification
+      - name: Run shadcn registry smoke-install verification (single-component & full kit)
         run: node scripts/smoke-install.mjs
 
   real-install:

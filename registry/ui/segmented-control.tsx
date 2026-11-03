@@ -64,7 +64,7 @@ export function SegmentedControl<T extends string | number = string | number>({
           style={{ transform: `translateX(${ind.x}px)`, width: ind.w }}
         />
       )}
-      {options.map((opt) => (
+      {options.map((opt, idx) => (
         <button
           key={String(opt.value)}
           id={`${resolvedPrefix}-${opt.value}`}
@@ -72,6 +72,26 @@ export function SegmentedControl<T extends string | number = string | number>({
           className="f12-rng-btn"
           aria-pressed={value === opt.value}
           onClick={() => onChange(opt.value)}
+          onKeyDown={(e) => {
+            if (options.length === 0) return;
+            let nextIdx = -1;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+              nextIdx = (idx + 1) % options.length;
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+              nextIdx = (idx - 1 + options.length) % options.length;
+            } else if (e.key === 'Home') {
+              nextIdx = 0;
+            } else if (e.key === 'End') {
+              nextIdx = options.length - 1;
+            }
+            if (nextIdx !== -1) {
+              e.preventDefault();
+              const nextOpt = options[nextIdx];
+              onChange(nextOpt.value);
+              const buttons = wrap.current?.querySelectorAll<HTMLButtonElement>('.f12-rng-btn');
+              buttons?.[nextIdx]?.focus();
+            }
+          }}
         >
           <span className="f12-rng-n">{opt.label}</span>
           {opt.unit && <span className="f12-rng-u">{opt.unit}</span>}

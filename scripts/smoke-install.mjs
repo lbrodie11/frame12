@@ -453,6 +453,67 @@ console.log('R19_RUNTIME_OK:' + html.length);
     'React 19 runtime execution: renders installed components and resolves element.props.ref without triggering element.ref deprecation getter',
     runRes.status !== 0 ? `${runRes.stdout}\n${runRes.stderr}` : runRes.stdout.trim(),
   );
+
+  // 7. Single-component consumer installation (/r/panel.json)
+  const singleDir = mkdtempSync(join(tmpdir(), 'frame12-single-'));
+  try {
+    mkdirSync(join(singleDir, 'src/app'), { recursive: true });
+    mkdirSync(join(singleDir, '.shim-bin'), { recursive: true });
+    const singleShim = join(singleDir, '.shim-bin/npm');
+    writeFileSync(singleShim, '#!/bin/sh\nexit 0\n');
+    chmodSync(singleShim, 0o755);
+    writeFileSync(join(singleDir, 'src/app/globals.css'), '/* host globals */\n');
+    writeFileSync(
+      join(singleDir, 'package.json'),
+      readFileSync(join(tempDir, 'package.json'), 'utf8'),
+    );
+    writeFileSync(
+      join(singleDir, 'package-lock.json'),
+      readFileSync(join(tempDir, 'package-lock.json'), 'utf8'),
+    );
+    writeFileSync(
+      join(singleDir, 'tsconfig.json'),
+      readFileSync(join(tempDir, 'tsconfig.json'), 'utf8'),
+    );
+    writeFileSync(
+      join(singleDir, 'components.json'),
+      readFileSync(join(tempDir, 'components.json'), 'utf8'),
+    );
+
+    const panelUrl = `http://127.0.0.1:${port}/r/panel.json`;
+    const singleAdd = await runAsync(
+      'npx',
+      ['--yes', 'shadcn', 'add', panelUrl, '--yes', '--overwrite'],
+      {
+        cwd: singleDir,
+        env: {
+          ...process.env,
+          CI: 'true',
+          PATH: `${join(singleDir, '.shim-bin')}:${process.env.PATH || ''}`,
+        },
+      },
+    );
+    const hasSinglePanel =
+      existsSync(join(singleDir, 'src/components/frame12/panel.tsx')) &&
+      existsSync(join(singleDir, 'src/hooks/use-on-twos.ts')) &&
+      existsSync(join(singleDir, 'src/styles/frame12.css'));
+    symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(singleDir, 'node_modules'), 'dir');
+    writeFileSync(
+      join(singleDir, 'src/app/single-check.tsx'),
+      `import * as React from 'react';\nimport '@/styles/frame12.css';\nimport { Panel } from '@/components/frame12/panel';\nexport function SingleCheck() {\n  return <Panel cut="C-01" label="Single">OK</Panel>;\n}\n`,
+    );
+    const singleTsc = spawnSync(tscBin, ['--noEmit', '-p', join(singleDir, 'tsconfig.json')], {
+      cwd: singleDir,
+      encoding: 'utf8',
+    });
+    check(
+      singleAdd.status === 0 && hasSinglePanel && singleTsc.status === 0,
+      'Single-component install (/r/panel.json) installs panel.tsx + use-on-twos.ts + frame12.css and passes tsc --noEmit',
+      singleTsc.status !== 0 ? `${singleTsc.stdout}\n${singleTsc.stderr}` : '',
+    );
+  } finally {
+    rmSync(singleDir, { recursive: true, force: true });
+  }
 } finally {
   server.close();
   rmSync(tempDir, { recursive: true, force: true });

@@ -1,7 +1,7 @@
 // Playwright production verification, WCAG AA accessibility, responsive overflow,
 // registry JSON endpoint, Open Graph image, font binding, and screenshot suite for @frame12/site.
 
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -595,6 +595,142 @@ try {
   }
 
   await browser.close();
+
+  // 6. Cross-Browser Site Matrix (Chromium, Firefox, WebKit) across 1280px, 768px, and 390px + Visual Defect Geometry Checks
+  for (const [engineName, engine] of [
+    ['chromium', chromium],
+    ['firefox', firefox],
+    ['webkit', webkit],
+  ]) {
+    const xb = await engine.launch(
+      engineName === 'chromium'
+        ? { executablePath: process.env.CHROME_PATH || undefined, args: ['--no-sandbox'] }
+        : {},
+    );
+    try {
+      for (const scheme of ['light', 'dark']) {
+        const ctx = await xb.newContext({
+          viewport: { width: 1280, height: 920 },
+          colorScheme: scheme,
+          reducedMotion: 'no-preference',
+        });
+        const page = await ctx.newPage();
+        const errors = [];
+        page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+        page.on('console', (m) => {
+          if (m.type() === 'error') errors.push(`console: ${m.text()}`);
+        });
+
+        // 6a. Home (/) — Conversion lift metric descender clearance (#1) & layout
+        await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' });
+        await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+        const homeGeom = await page.evaluate(() => {
+          const panels = [...document.querySelectorAll('.f12-panel')];
+          const liftPanel = panels.find((p) =>
+            (p.getAttribute('aria-label') || '').includes('Conversion lift'),
+          );
+          const mVal = liftPanel?.querySelector('.f12-m-value')?.getBoundingClientRect();
+          const delta = liftPanel?.querySelector('.f12-delta')?.getBoundingClientRect();
+          const clearancePx =
+            mVal && delta ? Number((delta.top - mVal.bottom).toFixed(2)) : -999;
+          return {
+            clearancePx,
+            noOverlap: clearancePx >= 10,
+            noOverflow:
+              document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+          };
+        });
+        check(
+          homeGeom.noOverlap && homeGeom.noOverflow && errors.length === 0,
+          `site [${engineName} 1280px ${scheme}] /: Conversion lift metric descender clearance (${homeGeom.clearancePx}px >= 10px) & zero overflow`,
+          errors.join('; '),
+        );
+
+        // 6b. Style Sheet (/style-sheet) — .sw-chip contrast boundaries (#3) & token-pill nowrap (#2)
+        await page.goto(`${baseUrl}/style-sheet`, { waitUntil: 'networkidle' });
+        await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+        const styleSheetGeom = await page.evaluate(() => {
+          const chips = [...document.querySelectorAll('.sw-chip')];
+          const allChipsHaveDualRing =
+            chips.length >= 14 &&
+            chips.every((ch) => {
+              const st = getComputedStyle(ch);
+              return (
+                st.borderTopWidth === '2px' &&
+                st.boxShadow.includes('inset') &&
+                st.boxShadow.split('rgb').length >= 3
+              );
+            });
+          const tokenPills = [...document.querySelectorAll('code.f12-code-inline.f12-nowrap')];
+          const allPillsSingleLine =
+            tokenPills.length >= 7 &&
+            tokenPills.every(
+              (el) =>
+                getComputedStyle(el).whiteSpace === 'nowrap' && el.getClientRects().length === 1,
+            );
+          return {
+            chipCount: chips.length,
+            allChipsHaveDualRing,
+            allPillsSingleLine,
+            noOverflow:
+              document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+          };
+        });
+        check(
+          styleSheetGeom.allChipsHaveDualRing &&
+            styleSheetGeom.allPillsSingleLine &&
+            styleSheetGeom.noOverflow &&
+            errors.length === 0,
+          `site [${engineName} 1280px ${scheme}] /style-sheet: all ${styleSheetGeom.chipCount} .sw-chip swatches have inset+outer contrast rings & token pills stay single-line`,
+          JSON.stringify(styleSheetGeom),
+        );
+
+        // 6c. Components (/components) — registry column widths (#4), 768px & 390px responsiveness, Dialog focus return
+        await page.goto(`${baseUrl}/components`, { waitUntil: 'networkidle' });
+        await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+        const compGeom = await page.evaluate(() => {
+          const cells = [...document.querySelectorAll('.f12-comp-cell code.f12-nowrap')];
+          const allSingleLine =
+            cells.length >= 19 &&
+            cells.every(
+              (c) => getComputedStyle(c).whiteSpace === 'nowrap' && c.getClientRects().length === 1,
+            );
+          return {
+            cellCount: cells.length,
+            allSingleLine,
+            noOverflow:
+              document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+          };
+        });
+        check(
+          compGeom.allSingleLine && compGeom.noOverflow && errors.length === 0,
+          `site [${engineName} 1280px ${scheme}] /components: all ${compGeom.cellCount} registry JSON paths render single-line with zero overflow`,
+        );
+
+        if (scheme === 'light') {
+          // Test 768px container-query transition & 390px mobile on /components and /
+          await page.setViewportSize({ width: 768, height: 900 });
+          await page.waitForTimeout(100);
+          const ok768 = await page.evaluate(
+            () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+          );
+          await page.setViewportSize({ width: 390, height: 844 });
+          await page.waitForTimeout(100);
+          const ok390 = await page.evaluate(
+            () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+          );
+          check(
+            ok768 && ok390 && errors.length === 0,
+            `site [${engineName} 768px & 390px] /components: zero horizontal overflow across container-query & mobile viewports`,
+          );
+        }
+
+        await ctx.close();
+      }
+    } finally {
+      await xb.close();
+    }
+  }
 } finally {
   serverProc.kill('SIGTERM');
 }

@@ -1,0 +1,99 @@
+# FRAME/12 Performance Baseline (`v0.2.0` Phase 0 / WP1)
+
+- **Baseline Commit:** `840b134561f137f289f26cbd36a998c446c2dd89` (with WP1 fixes on `quality/cross-browser`)
+- **Measurement Environment:**
+  - OS: macOS (Apple Silicon)
+  - Node.js: `v20.19.0`, npm: `10.8.2`
+  - Next.js Production Build: `next build` + `next start` (`Next.js 14.2.35`, static/SSG routes)
+  - Browser Harness: Playwright `1.55.0` (`Chromium 1248`, `1280×900`, `colorScheme: 'dark'`)
+  - Methodology: **5 independent fresh browser-context runs per route** recording `PerformanceObserver('largest-contentful-paint')`, `PerformanceObserver('layout-shift')` (`!hadRecentInput`), network JavaScript bytes (`/_next/static/**/*.js`), SSR HTML byte size & pre-hydration content presence, console/hydration warnings, and a **clearly labeled laboratory interaction latency proxy** (click + double `requestAnimationFrame` next-paint completion time in ms).
+
+---
+
+## 1. Next.js Production Build Bundle Table (`@frame12/site`)
+
+```text
+Route (app)                              Route JS   First Load JS (gzipped)
+┌ ○ /                                    6.55 kB         149 kB
+├ ○ /_not-found                          873 B          88.2 kB
+├ ○ /agents                              7.42 kB         150 kB
+├ ○ /components                          13.1 kB         155 kB
+├ ● /components/[slug] (19 SSG routes)   6.86 kB         149 kB
+├ ○ /get-started                         6.04 kB         148 kB
+├ ○ /motion                              7.13 kB         141 kB
+└ ○ /style-sheet                         7.69 kB         150 kB
++ First Load JS shared by all            87.3 kB
+```
+
+**React 18 Starter Template (`@frame12/next-starter`):**
+- `/` Route Size: `11.4 kB`, First Load JS: `98.6 kB` (shared `87.2 kB`).
+
+---
+
+## 2. Five-Run Laboratory Measurements Across Representative Routes
+
+### Summary Table (Medians Across 5 Runs)
+
+| Route | LCP Median (ms) | CLS Median | First Load JS (Next Build) | Uncompressed Static JS (`/_next/static/*.js`) | SSR HTML Size | Pre-Hydration Theme & Content | Console / Hydration Warnings | Lab Interaction Next-Paint Proxy Median (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| `/` | **40.0 ms** | **0.0003** | 149 kB | 614.4 KB (14 chunks) | 47.2 KB | Dark on frame 0 (`FOUC_SCRIPT` + `<polygon>` + chart `<path>` + spark `<svg>`) | 0 / 0 | 17.7 ms |
+| `/motion` | **40.0 ms** | **0.0003** | 141 kB | 614.4 KB (14 chunks) | 63.2 KB | Dark on frame 0 (`FOUC_SCRIPT` + filmstrip + comparison stage) | 0 / 0 | 11.2 ms |
+| `/components` | **36.0 ms** | **0.0000** | 155 kB | 637.8 KB (15 chunks) | 30.6 KB | Dark on frame 0 (`FOUC_SCRIPT` + 19-row catalog table + live specimens) | 0 / 0 | 9.6 ms |
+| `/style-sheet` | **40.0 ms** | **0.0001** | 150 kB | 614.4 KB (14 chunks) | 80.4 KB | Dark on frame 0 (`FOUC_SCRIPT` + grammar SVG + 14 `.sw-chip` swatches) | 0 / 0 | 17.8 ms |
+| `/agents` | **32.0 ms** | **0.0000** | 150 kB | 614.4 KB (14 chunks) | 29.5 KB | Dark on frame 0 (`FOUC_SCRIPT` + skill/linter rule reference) | 0 / 0 | 7.3 ms |
+| `/get-started` | **32.0 ms** | **0.0000** | 148 kB | 614.4 KB (14 chunks) | 30.1 KB | Dark on frame 0 (`FOUC_SCRIPT` + step-by-step install guide) | 0 / 0 | 15.7 ms |
+| `/components/panel` | **32.0 ms** | **0.0000** | 149 kB | 637.8 KB (15 chunks) | 25.2 KB | Dark on frame 0 (`FOUC_SCRIPT` + live `Panel` specimen + props table) | 0 / 0 | 15.6 ms |
+
+---
+
+### Individual 5-Run Raw Data Per Route
+
+#### 1. `/` (Home — Interactive Recovery Dashboard & Grammar Overview)
+- **LCP (ms):** `[96, 40, 40, 36, 40]` -> **Median: `40.0 ms`**
+- **CLS:** `[0.0003, 0.0003, 0.0003, 0.0003, 0.0003]` -> **Median: `0.0003`**
+- **Lab Interaction Latency Proxy (`#home-rng-7` click -> 2× rAF paint, ms):** `[13.6, 18.6, 12.4, 19.3, 17.7]` -> **Median: `17.7 ms`**
+- **SSR & First-Paint Verification:** `47,226 bytes` HTML; `hasFoucScript: true`, `hasSheetMarkup: true`, `hasPanelPolygon: true`; `0` console warnings, `0` hydration errors.
+
+#### 2. `/motion` (Motion on Twos — 12fps vs 60fps vs Cut Comparison Stage)
+- **LCP (ms):** `[40, 40, 40, 40, 40]` -> **Median: `40.0 ms`**
+- **CLS:** `[0.0003, 0.0003, 0.0003, 0.0003, 0.0003]` -> **Median: `0.0003`**
+- **Lab Interaction Latency Proxy (`#stage-compare-mode-cut` click -> 2× rAF paint, ms):** `[18.6, 8.2, 8.7, 16.8, 11.2]` -> **Median: `11.2 ms`**
+- **SSR & First-Paint Verification:** `63,208 bytes` HTML; `hasFoucScript: true`, `hasSheetMarkup: true`, `hasPanelPolygon: true`; `0` console warnings, `0` hydration errors.
+
+#### 3. `/components` (Component & Adapter Registry Index)
+- **LCP (ms):** `[40, 36, 60, 36, 36]` -> **Median: `36.0 ms`**
+- **CLS:** `[0, 0, 0, 0, 0]` -> **Median: `0.0000`**
+- **Lab Interaction Latency Proxy (`#site-theme-light` click -> 2× rAF paint, ms):** `[9.6, 7.4, 12.2, 7.8, 16.9]` -> **Median: `9.6 ms`**
+- **SSR & First-Paint Verification:** `30,649 bytes` HTML; `hasFoucScript: true`, `hasSheetMarkup: true`, `hasPanelPolygon: true`; `0` console warnings, `0` hydration errors.
+
+#### 4. `/style-sheet` (Production Style Sheet, Tokens & Typography)
+- **LCP (ms):** `[40, 40, 72, 40, 40]` -> **Median: `40.0 ms`**
+- **CLS:** `[0.0001, 0.0001, 0.0001, 0.0001, 0.0001]` -> **Median: `0.0001`**
+- **Lab Interaction Latency Proxy (`#site-theme-light` click -> 2× rAF paint, ms):** `[17.0, 17.8, 21.9, 17.5, 18.5]` -> **Median: `17.8 ms`**
+- **SSR & First-Paint Verification:** `80,440 bytes` HTML; `hasFoucScript: true`, `hasSheetMarkup: true`, `hasPanelPolygon: true`; `0` console warnings, `0` hydration errors.
+
+#### 5. `/agents` (AI Agent Skill, Linter & Evaluation Harness)
+- **LCP (ms):** `[32, 32, 36, 32, 32]` -> **Median: `32.0 ms`**
+- **CLS:** `[0, 0, 0, 0, 0]` -> **Median: `0.0000`**
+- **Lab Interaction Latency Proxy (`#site-theme-light` click -> 2× rAF paint, ms):** `[10.0, 6.7, 7.3, 6.5, 10.4]` -> **Median: `7.3 ms`**
+- **SSR & First-Paint Verification:** `29,499 bytes` HTML; `hasFoucScript: true`, `hasSheetMarkup: true`, `hasPanelPolygon: true`; `0` console warnings, `0` hydration errors.
+
+#### 6. `/get-started` (Installation & Integration Guide)
+- **LCP (ms):** `[36, 32, 36, 32, 32]` -> **Median: `32.0 ms`**
+- **CLS:** `[0, 0, 0, 0, 0]` -> **Median: `0.0000`**
+- **Lab Interaction Latency Proxy (`#site-theme-light` click -> 2× rAF paint, ms):** `[28.3, 14.3, 7.1, 15.7, 16.1]` -> **Median: `15.7 ms`**
+- **SSR & First-Paint Verification:** `30,110 bytes` HTML; `hasFoucScript: true`, `hasSheetMarkup: true`, `hasPanelPolygon: true`; `0` console warnings, `0` hydration errors.
+
+#### 7. `/components/panel` (Representative Dynamic SSG Component Detail Route)
+- **LCP (ms):** `[32, 36, 32, 32, 32]` -> **Median: `32.0 ms`**
+- **CLS:** `[0, 0, 0, 0, 0]` -> **Median: `0.0000`**
+- **Lab Interaction Latency Proxy (`#site-theme-light` click -> 2× rAF paint, ms):** `[6.8, 16.1, 7.2, 19.9, 15.6]` -> **Median: `15.6 ms`**
+- **SSR & First-Paint Verification:** `25,243 bytes` HTML; `hasFoucScript: true`, `hasSheetMarkup: true`, `hasPanelPolygon: true`; `0` console warnings, `0` hydration errors.
+
+---
+
+## 3. Performance Guardrails for v0.2.0 Work Packages (WP2–WP10)
+
+1. **Zero Layout-Shift Regression:** Every route must maintain laboratory `CLS <= 0.01` (current medians `0.0000–0.0003`) by providing deterministic SSR viewBox/polygon dimensions and CSS `:has([aria-pressed="true"])` pre-hydration states for new components.
+2. **Pre-Hydration Theme & Content Fidelity:** All new showcase routes (`/examples`, `/tokens`, `/changelog`) and new components must render complete structural markup with JavaScript disabled and paint dark on frame 0 when OS or saved `color-scheme` is `dark`.
+3. **Client Bundle Discipline:** Shared First Load JS (`87.3 kB`) and per-route First Load JS (`141–155 kB`) must not grow through unnecessary third-party primitive libraries (enforced by ADR-001 in `docs/architecture/primitive-foundation.md`).

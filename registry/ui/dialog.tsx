@@ -106,6 +106,8 @@ interface DialogContextValue {
   hasDescription: boolean;
   setHasDescription: (present: boolean) => void;
   dialogRef: React.RefObject<HTMLDialogElement | null>;
+  returnFocusRef: React.MutableRefObject<HTMLElement | null>;
+  restoreFocus: () => void;
 }
 
 const DialogContext = React.createContext<DialogContextValue | null>(null);
@@ -139,13 +141,41 @@ export function Dialog({
   onOpenChangeRef.current = onOpenChange;
 
   const dialogRef = React.useRef<HTMLDialogElement | null>(null);
+  const returnFocusRef = React.useRef<HTMLElement | null>(null);
   const rawId = React.useId().replace(/:/g, '');
   const titleId = `f12-dlg-title-${rawId}`;
   const descId = `f12-dlg-desc-${rawId}`;
 
+  const restoreFocus = React.useCallback(() => {
+    const opener = returnFocusRef.current;
+    returnFocusRef.current = null;
+    if (!opener || !opener.isConnected || typeof opener.focus !== 'function') return;
+    const active = typeof document !== 'undefined' ? document.activeElement : null;
+    const el = dialogRef.current;
+    if (
+      !active ||
+      active === document.body ||
+      active === document.documentElement ||
+      (el && el.contains(active))
+    ) {
+      opener.focus({ preventScroll: true });
+    }
+  }, []);
+
   const setOpen = React.useCallback(
     (next: boolean) => {
       if (openRef.current === next) return;
+      if (
+        next &&
+        !returnFocusRef.current &&
+        typeof document !== 'undefined' &&
+        document.activeElement instanceof HTMLElement &&
+        document.activeElement !== document.body &&
+        document.activeElement !== document.documentElement &&
+        (!dialogRef.current || !dialogRef.current.contains(document.activeElement))
+      ) {
+        returnFocusRef.current = document.activeElement;
+      }
       openRef.current = next;
       if (!isControlled) setUncontrolledOpen(next);
       onOpenChangeRef.current?.(next);
@@ -158,6 +188,16 @@ export function Dialog({
     const el = dialogRef.current;
     if (!el) return;
     if (open && !el.open) {
+      if (
+        !returnFocusRef.current &&
+        typeof document !== 'undefined' &&
+        document.activeElement instanceof HTMLElement &&
+        document.activeElement !== document.body &&
+        document.activeElement !== document.documentElement &&
+        !el.contains(document.activeElement)
+      ) {
+        returnFocusRef.current = document.activeElement;
+      }
       if (typeof el.showModal === 'function') el.showModal();
       else el.setAttribute('open', '');
       pushOpenDialog(el);
@@ -167,10 +207,11 @@ export function Dialog({
       removeOpenDialog(el);
       if (typeof el.close === 'function') el.close();
       else el.removeAttribute('open');
+      restoreFocus();
     } else {
       removeOpenDialog(el);
     }
-  }, [open]);
+  }, [open, restoreFocus]);
 
   return (
     <DialogContext.Provider
@@ -182,6 +223,8 @@ export function Dialog({
         hasDescription,
         setHasDescription,
         dialogRef,
+        returnFocusRef,
+        restoreFocus,
       }}
     >
       {children}
@@ -218,7 +261,7 @@ export const DialogTrigger = React.forwardRef<HTMLButtonElement, DialogTriggerPr
     { asChild = false, onClick, className = '', children, ...rest },
     forwardedRef,
   ) {
-    const { setOpen } = useDialogContext();
+    const { setOpen, returnFocusRef } = useDialogContext();
     const childRef = React.isValidElement(children) ? getElementRef(children) : undefined;
     const composedRef = React.useMemo(
       () => mergeRefs(forwardedRef, childRef),
@@ -240,6 +283,9 @@ export const DialogTrigger = React.forwardRef<HTMLButtonElement, DialogTriggerPr
             (childProps.onClick as (ev: React.MouseEvent<HTMLButtonElement>) => void)(e);
           }
           if (!e.defaultPrevented) {
+            if (e.currentTarget instanceof HTMLElement) {
+              returnFocusRef.current = e.currentTarget;
+            }
             setOpen(true);
           }
         },
@@ -252,6 +298,9 @@ export const DialogTrigger = React.forwardRef<HTMLButtonElement, DialogTriggerPr
         onClick={(e) => {
           onClick?.(e);
           if (!e.defaultPrevented) {
+            if (e.currentTarget instanceof HTMLElement) {
+              returnFocusRef.current = e.currentTarget;
+            }
             setOpen(true);
           }
         }}
@@ -282,7 +331,8 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
     },
     forwardedRef,
   ) {
-    const { setOpen, titleId, descId, hasDescription, dialogRef } = useDialogContext();
+    const { setOpen, titleId, descId, hasDescription, dialogRef, restoreFocus } =
+      useDialogContext();
     const pressedOutside = React.useRef<boolean>(false);
     const childPopupOpenOnEscapeRef = React.useRef<boolean>(false);
 
@@ -292,6 +342,7 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
       const onClose = () => {
         removeOpenDialog(el);
         setOpen(false);
+        restoreFocus();
       };
       // Capture Escape keydown at document capture phase BEFORE Radix DismissableLayer
       // unmounts the open listbox/menu, so we know whether Escape was consumed by a child popup.
@@ -325,6 +376,7 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
         removeOpenDialog(el);
         el.close();
         setOpen(false);
+        restoreFocus();
       };
       el.addEventListener('close', onClose);
       document.addEventListener('keydown', onDocKeyDownCapture, true);
@@ -337,7 +389,7 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
         document.removeEventListener('keydown', onDocKeyDownCapture, true);
         document.removeEventListener('keydown', onDocKeyDown);
       };
-    }, [dialogRef, setOpen]);
+    }, [dialogRef, setOpen, restoreFocus]);
 
     // Fallback for browsers where <dialog closedby="any"> is not yet supported:
     // test pointer coordinates against the dialog bounding box on pointerdown + pointerup.
@@ -396,6 +448,7 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
           if (el && pressedOutside.current && e.target === el && isOutside(e, el)) {
             el.close();
             setOpen(false);
+            restoreFocus();
           }
           pressedOutside.current = false;
         }}
