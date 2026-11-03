@@ -312,8 +312,7 @@ export class PlainStreamPrinter {
     }
 
     if (event.type === 'warning') {
-      const msg = sanitizeTerminalText(event.payload.message ?? 'Warning');
-      this.emitLines([`     Warning: ${msg}`]);
+      // Warnings are rendered once in the final WARNINGS section of renderPlainSummary
       return;
     }
 

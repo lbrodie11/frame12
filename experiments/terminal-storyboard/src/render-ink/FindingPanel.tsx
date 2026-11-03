@@ -31,16 +31,21 @@ export function FindingPanel({
   const id = sanitizeTerminalText(finding.id);
   const baseA = posix.basename(sanitizeTerminalText(finding.files[0]));
   const baseB = posix.basename(sanitizeTerminalText(finding.files[1]));
-  const moreChangedCommits = Math.max(1, finding.fileACommits, finding.fileBCommits);
-  const moreChangedRatio = Math.max(
-    0,
-    Math.min(1, finding.cochangeCount / moreChangedCommits),
+  const unionCommits = Math.max(
+    1,
+    finding.fileACommits + finding.fileBCommits - finding.cochangeCount,
   );
+  const jaccardRatio =
+    typeof finding.jaccardRatio === 'number' && Number.isFinite(finding.jaccardRatio)
+      ? Math.max(0, Math.min(1, finding.jaccardRatio))
+      : Math.max(0, Math.min(1, finding.cochangeCount / unionCommits));
+  const jaccardPct = Math.round(jaccardRatio * 100);
+  const commitsNoun = unionCommits === 1 ? 'commit' : 'commits';
 
   const metricsLead =
     columns < 52
-      ? `${finding.cochangeCount} shared${sep}${finding.cochangeCount}/${moreChangedCommits} touches`
-      : `${finding.cochangeCount} shared commits${sep}${finding.cochangeCount}/${moreChangedCommits} touches of the more-changed file`;
+      ? `${finding.cochangeCount}/${unionCommits} combined ${commitsNoun}${sep}${jaccardPct}% Jaccard`
+      : `${finding.cochangeCount} of ${unionCommits} combined ${commitsNoun} (${jaccardPct}% Jaccard)`;
 
   const directionalLine = `${baseA}: ${finding.cochangeCount}/${finding.fileACommits}${sep}${baseB}: ${finding.cochangeCount}/${finding.fileBCommits}`;
   const barSegments = Math.max(4, Math.min(12, Math.floor((innerWidth + 1) / 5)));
@@ -74,7 +79,7 @@ export function FindingPanel({
         {columns >= 48 && (
           <Box>
             <ToneBar
-              ratio={moreChangedRatio}
+              ratio={jaccardRatio}
               segments={barSegments}
               columns={columns}
               colorEnabled={colorEnabled}

@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { chmodSync, mkdirSync, rmSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,6 +7,29 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const expRoot = resolve(__dirname, '..');
 const repoRoot = resolve(expRoot, '../..');
 const distDir = resolve(expRoot, 'dist');
+const fontsDir = resolve(repoRoot, 'site/src/fonts');
+
+const FONT_SPECS = [
+  { file: 'dela-gothic-one-400.woff2', family: 'Dela Gothic One', weight: 400 },
+  { file: 'zen-kaku-gothic-new-400.woff2', family: 'Zen Kaku Gothic New', weight: 400 },
+  { file: 'zen-kaku-gothic-new-500.woff2', family: 'Zen Kaku Gothic New', weight: 500 },
+  { file: 'zen-kaku-gothic-new-700.woff2', family: 'Zen Kaku Gothic New', weight: 700 },
+  { file: 'm-plus-1-code-400.woff2', family: 'M PLUS 1 Code', weight: 400 },
+  { file: 'm-plus-1-code-500.woff2', family: 'M PLUS 1 Code', weight: 500 },
+  { file: 'm-plus-1-code-700.woff2', family: 'M PLUS 1 Code', weight: 700 },
+];
+
+const embeddedFontRules = FONT_SPECS.map(({ file, family, weight }) => {
+  const b64 = readFileSync(resolve(fontsDir, file)).toString('base64');
+  return `@font-face { font-family: '${family}'; font-style: normal; font-weight: ${weight}; font-display: block; src: url("data:font/woff2;base64,${b64}") format("woff2"); }`;
+}).join('\n');
+
+const baseFrame12Css = readFileSync(resolve(repoRoot, 'registry/styles/frame12.css'), 'utf8');
+const embeddedFrame12Css = [
+  embeddedFontRules,
+  ":root { --font-display: 'Dela Gothic One', sans-serif; --font-sans: 'Zen Kaku Gothic New', sans-serif; --font-mono: 'M PLUS 1 Code', monospace; }",
+  baseFrame12Css,
+].join('\n');
 
 // Ensure single React 18 instance from repository root using cross-platform Node fs.rmSync
 rmSync(resolve(expRoot, 'node_modules/react'), { recursive: true, force: true });
@@ -69,7 +92,7 @@ await build({
   ],
 });
 
-// 2. Build Web HTML renderer entry point (bundles direct registry/ui components, keeps react & react-dom/server external)
+// 2. Build Web HTML renderer entry point (bundles direct registry/ui components & embedded woff2 fonts, keeps react & react-dom/server external)
 await build({
   entryPoints: {
     'render-web/index': resolve(expRoot, 'src/render-web/index.tsx'),
@@ -82,6 +105,9 @@ await build({
   jsx: 'automatic',
   sourcemap: false,
   plugins: [frame12AliasPlugin],
+  define: {
+    __FRAME12_CSS__: JSON.stringify(embeddedFrame12Css),
+  },
   external: ['react', 'react-dom', 'react-dom/server', 'react/jsx-runtime'],
 });
 

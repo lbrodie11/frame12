@@ -12,6 +12,7 @@ import {
   classifyCochangePair,
   describeCochangeRelationship,
   fitFindingToPayloadBudget,
+  pluralize,
   truncateText,
   validateFilePathLength,
 } from './git-history.js';
@@ -390,6 +391,7 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
         : computedJaccard;
 
     const id = `F-${String(idx + 1).padStart(2, '0')}`;
+    const classification = classifyCochangePair(sortedFiles[0], sortedFiles[1]);
     const rel = describeCochangeRelationship({
       files: sortedFiles,
       cochangeCount: sharedCommits,
@@ -397,14 +399,13 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
       fileBCommits,
       jaccardRatio,
       sampleSubjects: subjects,
+      classification,
     });
     const customReason = (pair.why ?? pair.note ?? pair.reason)?.trim();
     const reason = truncateText(
       customReason ? `${rel.patternLabel}: ${customReason}` : `${rel.patternLabel}: ${rel.summary}`,
       320,
     );
-
-    const classification = classifyCochangePair(sortedFiles[0], sortedFiles[1]);
 
     return fitFindingToPayloadBudget({
       id,
@@ -581,7 +582,7 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
   pushEv('metric', 'read-history', { name: 'uniqueFilesObserved', value: uniqueFilesObserved });
   pushEv('step-end', 'read-history', {
     status: 'ok',
-    summary: `${commitsExamined} commits · ${uniqueFilesObserved} files (reconstructed)`,
+    summary: `${commitsExamined} ${pluralize(commitsExamined, 'commit', 'commits')} · ${uniqueFilesObserved} ${pluralize(uniqueFilesObserved, 'file', 'files')} (reconstructed)`,
   });
 
   pushEv('step-start', 'pair-cochanges', { title: 'Pair co-changing files (reconstructed)' });
@@ -591,7 +592,7 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
   }
   pushEv('step-end', 'pair-cochanges', {
     status: 'ok',
-    summary: `${totalPairsObserved} co-change pairs (reconstructed)`,
+    summary: `${totalPairsObserved} co-change ${pluralize(totalPairsObserved, 'pair', 'pairs')} (reconstructed)`,
   });
 
   pushEv('step-start', 'rank-findings', { title: 'Rank coupled file pairs (reconstructed)' });
@@ -601,7 +602,7 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
   pushEv('warning', 'rank-findings', { message: reconstructedNote });
   pushEv('step-end', 'rank-findings', {
     status: 'ok',
-    summary: `${findings.length} findings reconstructed`,
+    summary: `${findings.length} ${pluralize(findings.length, 'finding', 'findings')} reconstructed`,
   });
 
   pushEv('run-end', null, {

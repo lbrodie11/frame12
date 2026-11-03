@@ -303,8 +303,12 @@ export function shouldFilterLowSignalPair(
   return kind === 'test-companion' || kind === 'docs-release' || kind === 'workspace-mirror';
 }
 
+export function pluralize(n: number, singular: string, plural: string): string {
+  return n === 1 ? singular : plural;
+}
+
 export interface CochangeRelationshipSummary {
-  patternLabel: 'Mutual lockstep' | 'One-way dependency' | 'Shared feature surface';
+  patternLabel: 'ALWAYS CHANGED TOGETHER' | 'ALWAYS CHANGED WITH' | 'FREQUENT CO-CHANGE';
   summary: string;
   actionHint: string;
 }
@@ -316,6 +320,7 @@ export function describeCochangeRelationship(params: {
   fileBCommits: number;
   jaccardRatio?: number;
   sampleSubjects?: string[];
+  classification?: FindingClassification;
 }): CochangeRelationshipSummary {
   const fileA = sanitizeTerminalText(params.files[0]);
   const fileB = sanitizeTerminalText(params.files[1]);
@@ -330,12 +335,44 @@ export function describeCochangeRelationship(params: {
       ? params.jaccardRatio
       : Math.min(1, Math.round((shared / unionCommits) * 100) / 100);
   const jaccardPct = Math.round(jaccard * 100);
+  const classification = params.classification ?? classifyCochangePair(fileA, fileB);
+
+  const patternLabel: CochangeRelationshipSummary['patternLabel'] =
+    countA === shared && countB === shared
+      ? 'ALWAYS CHANGED TOGETHER'
+      : Math.min(countA, countB) === shared
+        ? 'ALWAYS CHANGED WITH'
+        : 'FREQUENT CO-CHANGE';
+
+  if (classification === 'docs-release') {
+    return {
+      patternLabel,
+      summary: `Documentation and package metadata changed together in ${shared} of ${unionCommits} combined ${pluralize(unionCommits, 'commit', 'commits')} (${jaccardPct}% Jaccard; ${baseA} ${countA}, ${baseB} ${countB}).`,
+      actionHint: `Check whether CLI flags, scripts, or version updates in ${fileB} require a matching documentation update in ${fileA}.`,
+    };
+  }
+
+  if (classification === 'test-companion') {
+    return {
+      patternLabel,
+      summary: `Source module and test suite changed together in ${shared} of ${unionCommits} combined ${pluralize(unionCommits, 'commit', 'commits')} (${jaccardPct}% Jaccard; ${baseA} ${countA}, ${baseB} ${countB}).`,
+      actionHint: `Run and update ${fileB} whenever modifying behavior in ${fileA}.`,
+    };
+  }
+
+  if (classification === 'workspace-mirror') {
+    return {
+      patternLabel,
+      summary: `Mirrored workspace files changed together in ${shared} of ${unionCommits} combined ${pluralize(unionCommits, 'commit', 'commits')} (${jaccardPct}% Jaccard).`,
+      actionHint: `Keep synced workspace copy ${fileB} aligned when modifying ${fileA}.`,
+    };
+  }
 
   if (countA === shared && countB === shared) {
     return {
-      patternLabel: 'Mutual lockstep',
-      summary: `Always modified together across all ${shared} commits (${jaccardPct}% Jaccard); verify shared exports and state before editing either file.`,
-      actionHint: `Inspect ${fileB} whenever modifying ${fileA} (both files changed together in ${shared} of ${shared} commits).`,
+      patternLabel: 'ALWAYS CHANGED TOGETHER',
+      summary: `Always modified together across ${shared === 1 ? '1 commit' : `all ${shared} commits`} (${jaccardPct}% Jaccard); verify shared exports and state before editing either file.`,
+      actionHint: `Inspect ${fileB} whenever modifying ${fileA} (both files changed together in ${shared} of ${shared} ${pluralize(shared, 'commit', 'commits')}).`,
     };
   }
 
@@ -348,16 +385,16 @@ export function describeCochangeRelationship(params: {
     const hubTotal = Math.max(countA, countB);
     const soloCommits = hubTotal - shared;
     return {
-      patternLabel: 'One-way dependency',
-      summary: `${depBase} never changed without ${hubBase} (${shared}/${shared} commits), while ${hubBase} had ${soloCommits} independent commit${soloCommits === 1 ? '' : 's'} (${shared}/${hubTotal}, ${jaccardPct}% Jaccard).`,
-      actionHint: `When editing ${depPath}, always check ${hubPath} for matching schema or contract updates (${shared} of ${hubTotal} combined commits).`,
+      patternLabel: 'ALWAYS CHANGED WITH',
+      summary: `${depBase} never changed without ${hubBase} (${shared}/${shared} ${pluralize(shared, 'commit', 'commits')}), while ${hubBase} had ${soloCommits} independent ${pluralize(soloCommits, 'commit', 'commits')} (${shared}/${hubTotal}, ${jaccardPct}% Jaccard).`,
+      actionHint: `When editing ${depPath}, always check ${hubPath} for matching schema or contract updates (${shared} of ${hubTotal} combined ${pluralize(hubTotal, 'commit', 'commits')}).`,
     };
   }
 
   return {
-    patternLabel: 'Shared feature surface',
-    summary: `Modified together in ${shared} of ${unionCommits} combined commits (${jaccardPct}% Jaccard; ${baseA} ${shared}/${countA}, ${baseB} ${shared}/${countB}); check shared interfaces when editing either file.`,
-    actionHint: `Review ${fileA} and ${fileB} together when touching shared types, styles, or handlers (${shared} of ${unionCommits} commits).`,
+    patternLabel: 'FREQUENT CO-CHANGE',
+    summary: `Modified together in ${shared} of ${unionCommits} combined ${pluralize(unionCommits, 'commit', 'commits')} (${jaccardPct}% Jaccard; ${baseA} ${shared}/${countA}, ${baseB} ${shared}/${countB}); check shared interfaces when editing either file.`,
+    actionHint: `Review ${fileA} and ${fileB} together when touching shared types, styles, or handlers (${shared} of ${unionCommits} ${pluralize(unionCommits, 'commit', 'commits')}).`,
   };
 }
 
@@ -611,7 +648,6 @@ export async function runGitHistoryWorkload(
     let carry = '';
     let lastProgressCommits = 0;
     let lastProgressTime = Date.now();
-    let emittedInitialProgress = false;
 
     const logRes = await runGit(
       ['log', '--no-color', `-n`, String(maxCommits), '--pretty=format:__F12_COMMIT__%x00%h%x00%aI%x00%s', '--name-only'],
@@ -625,13 +661,11 @@ export async function runGitHistoryWorkload(
         }
         const now = Date.now();
         if (
-          parts.length > 0 &&
+          commits.length > 0 &&
           !options.signal?.aborted &&
-          (!emittedInitialProgress ||
-            commits.length - lastProgressCommits >= 250 ||
+          (commits.length - lastProgressCommits >= 250 ||
             now - lastProgressTime >= 1000)
         ) {
-          emittedInitialProgress = true;
           lastProgressCommits = commits.length;
           lastProgressTime = now;
           emit('step-progress', 'read-history', { commitsParsed: commits.length });
@@ -709,7 +743,10 @@ export async function runGitHistoryWorkload(
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while reading git history'), events };
     }
-    emit('step-end', 'read-history', { status: 'ok', summary: `${commits.length} commits · ${fileCommits.size} files` });
+    emit('step-end', 'read-history', {
+      status: 'ok',
+      summary: `${commits.length} ${pluralize(commits.length, 'commit', 'commits')} · ${fileCommits.size} ${pluralize(fileCommits.size, 'file', 'files')}`,
+    });
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled before pairing co-changing files'), events };
     }
@@ -731,7 +768,7 @@ export async function runGitHistoryWorkload(
       }
       const c = filteredCommits[idx]!;
       if (c.rawCount > MAX_FILES_PER_COMMIT) {
-        const w = `Skipped bulk commit ${c.sha} touching ${c.rawCount} files.`;
+        const w = `Skipped bulk commit ${c.sha} touching ${c.rawCount} ${pluralize(c.rawCount, 'file', 'files')}.`;
         warnings.push(w);
         emit('warning', 'pair-cochanges', { message: w, sha: c.sha });
         if (options.signal?.aborted) {
@@ -752,7 +789,7 @@ export async function runGitHistoryWorkload(
         }
       }
       const now = Date.now();
-      if ((idx + 1) % 500 === 0 || now - lastPairProgressTime >= 1000) {
+      if ((idx + 1) % 250 === 0 || now - lastPairProgressTime >= 1000) {
         lastPairProgressTime = now;
         emit('step-progress', 'pair-cochanges', {
           commitsProcessed: idx + 1,
@@ -768,7 +805,10 @@ export async function runGitHistoryWorkload(
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while pairing co-changing files'), events };
     }
-    emit('step-end', 'pair-cochanges', { status: 'ok', summary: `${pairMap.size} co-change pairs observed` });
+    emit('step-end', 'pair-cochanges', {
+      status: 'ok',
+      summary: `${pairMap.size} co-change ${pluralize(pairMap.size, 'pair', 'pairs')} observed`,
+    });
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled before ranking findings'), events };
     }
@@ -819,6 +859,7 @@ export async function runGitHistoryWorkload(
         fileBCommits: c.fileBCommits,
         jaccardRatio: c.jaccardRatio,
         sampleSubjects: c.subjects,
+        classification,
       });
       const finding = fitFindingToPayloadBudget({
         id,
@@ -844,13 +885,16 @@ export async function runGitHistoryWorkload(
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
     }
-    emit('step-end', 'rank-findings', { status: 'ok', summary: `${findings.length} findings ranked` });
+    emit('step-end', 'rank-findings', {
+      status: 'ok',
+      summary: `${findings.length} ${pluralize(findings.length, 'finding', 'findings')} ranked`,
+    });
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled before run completion'), events };
     }
     emit('run-end', null, {
       status: 'completed',
-      summary: `${findings.length} findings from ${commits.length} commits`,
+      summary: `${findings.length} ${pluralize(findings.length, 'finding', 'findings')} from ${commits.length} ${pluralize(commits.length, 'commit', 'commits')}`,
       hotFiles,
     });
 

@@ -18,8 +18,10 @@ import {
 } from '../dist/model/index.js';
 import {
   classifyCochangePair,
+  describeCochangeRelationship,
   globToRegExp,
   matchesPattern,
+  pluralize,
   runGitHistoryWorkload,
   shouldFilterLowSignalPair,
   unquoteGitPath,
@@ -570,6 +572,55 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         shouldFilterLowSignalPair('src/commands/map.ts', 'src/map/template.ts'),
         false,
       );
+
+      // Verify pluralize helper and zero-commit step-progress suppression
+      assert.equal(pluralize(1, 'commit', 'commits'), 'commit');
+      assert.equal(pluralize(2, 'commit', 'commits'), 'commits');
+      assert.equal(pluralize(0, 'commit', 'commits'), 'commits');
+      assert.equal(
+        fixtureResult.events.some(
+          (e) => e.type === 'step-progress' && e.payload.commitsParsed === 0,
+        ),
+        false,
+        'Expected zero step-progress events with commitsParsed === 0',
+      );
+
+      // Verify factual co-change pattern labels (no "ONE-WAY DEPENDENCY") and classification-specific prose
+      const alwaysWith = describeCochangeRelationship({
+        files: ['src/commands/map.ts', 'src/map/template.ts'],
+        cochangeCount: 8,
+        fileACommits: 8,
+        fileBCommits: 10,
+      });
+      assert.equal(alwaysWith.patternLabel, 'ALWAYS CHANGED WITH');
+      assert.match(alwaysWith.summary, /never changed without/);
+
+      const alwaysTogether = describeCochangeRelationship({
+        files: ['src/checkout/session.ts', 'src/checkout/webhook.ts'],
+        cochangeCount: 6,
+        fileACommits: 6,
+        fileBCommits: 6,
+      });
+      assert.equal(alwaysTogether.patternLabel, 'ALWAYS CHANGED TOGETHER');
+
+      const crossModFreq = describeCochangeRelationship({
+        files: ['src/cli.ts', 'src/map/template.ts'],
+        cochangeCount: 10,
+        fileACommits: 13,
+        fileBCommits: 16,
+      });
+      const docsRelFreq = describeCochangeRelationship({
+        files: ['README.md', 'package.json'],
+        cochangeCount: 7,
+        fileACommits: 10,
+        fileBCommits: 14,
+      });
+      assert.equal(crossModFreq.patternLabel, 'FREQUENT CO-CHANGE');
+      assert.equal(docsRelFreq.patternLabel, 'FREQUENT CO-CHANGE');
+      assert.match(docsRelFreq.summary, /Documentation and package metadata changed together/);
+      assert.match(docsRelFreq.actionHint, /matching documentation update/);
+      assert.notEqual(crossModFreq.summary, docsRelFreq.summary);
+      assert.notEqual(crossModFreq.actionHint, docsRelFreq.actionHint);
     });
 
     it('preserves full file path identities (>320 chars) without merging distinct files sharing a long prefix, and rejects paths >2048 bytes', async () => {
@@ -1374,23 +1425,57 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
     it('renders offline in headless Chromium at 1280px and 390px (light & dark) with 0 network requests, 0 overflow, sequential cuts, and 0 axe violations', async () => {
       const lightHtmlPath = resolve(distDir, 'sample-report.html');
       const darkHtmlPath = resolve(distDir, 'sample-report-dark.html');
+      const archRawJson = JSON.parse(
+        readFileSync(resolve(expRoot, 'fixtures/repo-archaeology-reconstructed.json'), 'utf8'),
+      );
+      const archConverted = convertRepoArchaeologySnapshot(archRawJson);
+      const archLightHtmlPath = resolve(distDir, 'repo-archaeology-light.html');
+      const archDarkHtmlPath = resolve(distDir, 'repo-archaeology-dark.html');
 
+      const lightHtml = renderWebReportHtml(fixtureResult.snapshot, fixtureResult.events, {
+        theme: 'light',
+      });
+      const darkHtml = renderWebReportHtml(fixtureResult.snapshot, fixtureResult.events, {
+        theme: 'dark',
+      });
+      writeFileSync(lightHtmlPath, lightHtml, 'utf8');
+      writeFileSync(darkHtmlPath, darkHtml, 'utf8');
       writeFileSync(
-        lightHtmlPath,
-        renderWebReportHtml(fixtureResult.snapshot, fixtureResult.events, { theme: 'light' }),
+        archLightHtmlPath,
+        renderWebReportHtml(archConverted.snapshot, archConverted.events, { theme: 'light' }),
         'utf8',
       );
       writeFileSync(
-        darkHtmlPath,
-        renderWebReportHtml(fixtureResult.snapshot, fixtureResult.events, { theme: 'dark' }),
+        archDarkHtmlPath,
+        renderWebReportHtml(archConverted.snapshot, archConverted.events, { theme: 'dark' }),
         'utf8',
       );
+
+      // Verify embedded woff2 @font-face declarations and font-src data: CSP
+      assert.match(lightHtml, /font-src data:;/);
+      assert.match(lightHtml, /@font-face[\s\S]*Dela Gothic One[\s\S]*data:font\/woff2;base64,/);
+      assert.match(lightHtml, /@font-face[\s\S]*Zen Kaku Gothic New[\s\S]*data:font\/woff2;base64,/);
+      assert.match(lightHtml, /@font-face[\s\S]*M PLUS 1 Code[\s\S]*data:font\/woff2;base64,/);
+      // Verify top header does not contain .f12-sub debug line and C-04 header uses combined commits denominator
+      assert.equal(lightHtml.includes('<p class="f12-sub">'), false);
+      assert.match(lightHtml, /6 of 6 combined commits \(100% Jaccard\)/);
+      assert.match(lightHtml, /Run metadata: runId/);
 
       const browser = await chromium.launch({ headless: true });
       try {
         for (const { theme, htmlPath, screenshotName } of [
           { theme: 'light', htmlPath: lightHtmlPath, screenshotName: 'sample-report-light.png' },
           { theme: 'dark', htmlPath: darkHtmlPath, screenshotName: 'sample-report-dark.png' },
+          {
+            theme: 'light',
+            htmlPath: archLightHtmlPath,
+            screenshotName: 'repo-archaeology-light.png',
+          },
+          {
+            theme: 'dark',
+            htmlPath: archDarkHtmlPath,
+            screenshotName: 'repo-archaeology-dark.png',
+          },
         ]) {
           for (const viewport of [
             { width: 1280, height: 900, label: 'desktop' },
@@ -1420,6 +1505,13 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
             });
 
             await page.goto(`file://${htmlPath}`, { waitUntil: 'load' });
+            const loadedFontFaces = await page.evaluate(() =>
+              document.fonts.ready.then(() => document.fonts.size),
+            );
+            assert.ok(
+              loadedFontFaces >= 7,
+              `Expected >= 7 embedded @font-face definitions loaded in ${theme}/${viewport.label}, got ${loadedFontFaces}`,
+            );
 
             assert.deepEqual(externalRequests, [], `Unexpected external requests in ${theme}/${viewport.label}`);
             assert.deepEqual(consoleErrors, [], `Console errors in ${theme}/${viewport.label}`);
@@ -1524,6 +1616,8 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
 
       assert.equal(existsSync(resolve(distDir, 'sample-report-light.png')), true);
       assert.equal(existsSync(resolve(distDir, 'sample-report-dark.png')), true);
+      assert.equal(existsSync(resolve(distDir, 'repo-archaeology-light.png')), true);
+      assert.equal(existsSync(resolve(distDir, 'repo-archaeology-dark.png')), true);
     });
   });
 
@@ -1651,18 +1745,30 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       assert.match(snapshotOnlyOut, /\[SNAPSHOT ONLY · NO LIVE EVENT STREAM\]/);
       assert.equal(snapshotOnlyOut.includes('C-01 ✓'), false);
 
-      // Verify warnings are always rendered in panel mode even when findings.length > 0
+      // Verify warnings are always rendered in panel mode even when findings.length > 0, with hanging indentation on wrapped lines
       const snapWithWarnings = {
         ...fixtureResult.snapshot,
-        warnings: ['Skipped bulk commit abcdef1 touching 72 files.'],
+        warnings: [
+          'Skipped bulk commit abcdef1 touching 72 files.',
+          'Reconstructed from a completed Repo Archaeology (schemaVersion: 1) analysis, not live events',
+        ],
       };
       const warnPanelOut = renderInkStaticSummary(snapWithWarnings, fixtureResult.events, {
-        columns: 80,
+        columns: 60,
         noColor: true,
         isTTY: false,
         env: {},
       });
-      assert.match(warnPanelOut, /Warning: Skipped bulk commit abcdef1 touching 72 files\./);
+      assert.match(warnPanelOut, /! Warning: Skipped bulk commit abcdef1/);
+      const warnLines = warnPanelOut.split('\n');
+      const reconWarnIdx = warnLines.findIndex((l) => l.includes('! Warning: Reconstructed from'));
+      assert.ok(reconWarnIdx >= 0, 'Expected reconstructed warning line in RunSummary');
+      assert.match(
+        warnLines[reconWarnIdx + 1] ?? '',
+        /^ {4}\S/,
+        'Expected wrapped warning continuation line to have 4-space hanging indentation',
+      );
+      assert.match(warnPanelOut, /6 of 6 combined commits \(100% Jaccard\)/);
     });
 
     it('throttles rapid progress updates to 12fps (83.33ms), skips no-op redraws, flushes lifecycle events immediately, and handles resize', async () => {
@@ -2072,6 +2178,11 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         assert.match(archPanelsErr, /\[RECONSTRUCTED · NOT LIVE EVENTS\]/);
         assert.match(archPanelsOut, /RECONSTRUCTED \(repo-archaeology v1\)/);
         assert.match(archPanelsOut, /Warning: Excluded 2 automated lockfile-only commits/);
+        assert.equal(
+          archPanelsErr.includes('Excluded 2 automated lockfile-only commits'),
+          false,
+          'Expected warnings not to be duplicated on stderr when rendered in RunSummary on stdout',
+        );
 
         // Real POSIX PTY end-to-end execution of storyboard CLI in --style auto (interactive TTY)
         const ptyReportPath = join(tmpDir, 'pty-report.html');

@@ -34,7 +34,12 @@ export interface WebReportOptions {
   title?: string;
 }
 
+declare const __FRAME12_CSS__: string | undefined;
+
 function loadFrame12Css(): string {
+  if (typeof __FRAME12_CSS__ === 'string' && __FRAME12_CSS__.length > 0) {
+    return __FRAME12_CSS__;
+  }
   const here = dirname(fileURLToPath(import.meta.url));
   const candidates = [
     resolve(here, '../../../registry/styles/frame12.css'),
@@ -150,6 +155,9 @@ function StoryboardReportView({
   const topFinding = snapshot.findings[0];
   const maxSharedCommits = topFinding ? Math.max(1, topFinding.cochangeCount) : 1;
 
+  const topClassification = topFinding
+    ? (topFinding.classification ?? classifyCochangePair(topFinding.files[0], topFinding.files[1]))
+    : undefined;
   const topRel = topFinding
     ? describeCochangeRelationship({
         files: topFinding.files,
@@ -158,6 +166,7 @@ function StoryboardReportView({
         fileBCommits: topFinding.fileBCommits,
         jaccardRatio: topFinding.jaccardRatio,
         sampleSubjects: topFinding.evidence.sampleSubjects,
+        classification: topClassification,
       })
     : null;
 
@@ -201,13 +210,6 @@ function StoryboardReportView({
               )}
             </div>
             <h1 className="f12-title">Co-Change Storyboard: {safeRepo}</h1>
-            <p className="f12-sub">
-              runId: {safeRunId} · window: {snapshot.maxCommits} commits · schema:{' '}
-              {sanitizeTerminalText(snapshot.schemaVersion)}
-              {snapshot.reconstructed
-                ? ` · source: ${sanitizeTerminalText(snapshot.reconstructed.source)} (v${sanitizeTerminalText(snapshot.reconstructed.originalSchemaVersion)})`
-                : ''}
-            </p>
             <div className="f12-run-summary-banner">
               <span>
                 <strong>{snapshot.commitsExamined}</strong> commits examined
@@ -434,11 +436,11 @@ function StoryboardReportView({
                       const baseA = posix.basename(sanitizeTerminalText(f.files[0]));
                       const baseB = posix.basename(sanitizeTerminalText(f.files[1]));
                       const overlapPct = Math.round(f.couplingRatio * 100);
-                      const moreChangedCommits = Math.max(f.fileACommits, f.fileBCommits);
                       const unionCommits = Math.max(
                         1,
                         f.fileACommits + f.fileBCommits - f.cochangeCount,
                       );
+                      const unionNoun = unionCommits === 1 ? 'commit' : 'commits';
                       const jaccardRatio =
                         typeof f.jaccardRatio === 'number' && Number.isFinite(f.jaccardRatio)
                           ? f.jaccardRatio
@@ -447,6 +449,8 @@ function StoryboardReportView({
                       const shas = f.evidence.commitShas
                         .map((s) => sanitizeTerminalText(s))
                         .join(', ');
+                      const classification =
+                        f.classification ?? classifyCochangePair(f.files[0], f.files[1]);
                       const rel = describeCochangeRelationship({
                         files: f.files,
                         cochangeCount: f.cochangeCount,
@@ -454,9 +458,8 @@ function StoryboardReportView({
                         fileBCommits: f.fileBCommits,
                         jaccardRatio,
                         sampleSubjects: f.evidence.sampleSubjects,
+                        classification,
                       });
-                      const classification =
-                        f.classification ?? classifyCochangePair(f.files[0], f.files[1]);
                       const classificationLabel =
                         classification === 'test-companion'
                           ? 'TEST COMPANION'
@@ -488,8 +491,8 @@ function StoryboardReportView({
                             </div>
                             <span className="f12-mono-code">
                               <strong>
-                                {f.cochangeCount} shared commits · {f.cochangeCount}/
-                                {moreChangedCommits} touches of the more-changed file
+                                {f.cochangeCount} of {unionCommits} combined {unionNoun} (
+                                {jaccardPct}% Jaccard)
                               </strong>
                             </span>
                           </div>
@@ -644,6 +647,15 @@ function StoryboardReportView({
                     <p className="f12-mono-note">Error: {sanitizeTerminalText(snapshot.error)}</p>
                   </li>
                 )}
+                <li className="f12-action-item">
+                  <p className="f12-mono-note">
+                    Run metadata: runId <code>{safeRunId}</code> · window {snapshot.maxCommits}{' '}
+                    commits · schema <code>{sanitizeTerminalText(snapshot.schemaVersion)}</code>
+                    {snapshot.reconstructed
+                      ? ` · source ${sanitizeTerminalText(snapshot.reconstructed.source)} (v${sanitizeTerminalText(snapshot.reconstructed.originalSchemaVersion)})`
+                      : ''}
+                  </p>
+                </li>
               </ul>
             </div>
           </Panel>
@@ -677,7 +689,7 @@ export function renderWebReportHtml(
     '<head>',
     '<meta charset="utf-8" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1" />',
-    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:;" />',
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:; font-src data:;" />',
     `<title>${escapeHtmlText(safeTitle)}</title>`,
     '<style>',
     frame12Css,

@@ -1,6 +1,6 @@
 import { Writable } from 'node:stream';
 import * as React from 'react';
-import { Box, Text, render, type Instance as InkInstance } from 'ink';
+import { Box, Static, Text, render, type Instance as InkInstance } from 'ink';
 import {
   validateEventStream,
   type ResultSnapshot,
@@ -54,6 +54,7 @@ export interface InkRenderOptions extends PlainRenderOptions {
 
 export interface InkStreamControllerOptions extends InkRenderOptions {
   write: (chunk: string) => void;
+  liveStream?: NodeJS.WriteStream;
   clock?: InkClock;
   resizeTarget?: {
     columns?: number;
@@ -125,15 +126,25 @@ export function formatStepProgressPayload(payload: Record<string, unknown>): str
   if (typeof payload.message === 'string' && payload.message.trim().length > 0) {
     return sanitizeTerminalText(payload.message);
   }
-  if (typeof payload.commitsParsed === 'number' && Number.isFinite(payload.commitsParsed)) {
-    return `${payload.commitsParsed} commits examined`;
+  if (
+    typeof payload.commitsParsed === 'number' &&
+    Number.isFinite(payload.commitsParsed) &&
+    payload.commitsParsed > 0
+  ) {
+    const n = payload.commitsParsed;
+    return `${n} ${n === 1 ? 'commit' : 'commits'} examined`;
   }
-  if (typeof payload.commitsProcessed === 'number' && Number.isFinite(payload.commitsProcessed)) {
+  if (
+    typeof payload.commitsProcessed === 'number' &&
+    Number.isFinite(payload.commitsProcessed) &&
+    payload.commitsProcessed > 0
+  ) {
+    const n = payload.commitsProcessed;
     const pairs =
       typeof payload.pairsObserved === 'number' && Number.isFinite(payload.pairsObserved)
         ? payload.pairsObserved
         : 0;
-    return `${payload.commitsProcessed} commits paired · ${pairs} pairs`;
+    return `${n} ${n === 1 ? 'commit' : 'commits'} paired · ${pairs} ${pairs === 1 ? 'pair' : 'pairs'}`;
   }
   return '';
 }
@@ -202,6 +213,8 @@ export function renderInkStaticSummary(
  */
 export class InkStreamController {
   private writeFn: (chunk: string) => void;
+  private liveStream?: NodeJS.WriteStream;
+  private liveInstance: InkInstance | null = null;
   private clock: InkClock;
   private columns: number;
   private colorEnabled: boolean;
@@ -218,7 +231,6 @@ export class InkStreamController {
 
   private headerPrinted = false;
   private printedCompletedCount = 0;
-  private printedWarningCount = 0;
   private lastPrintedProgressSig = '';
   private frames: string[] = [];
 
@@ -230,6 +242,7 @@ export class InkStreamController {
 
   constructor(options: InkStreamControllerOptions) {
     this.writeFn = options.write;
+    this.liveStream = options.liveStream;
     this.clock = options.clock ?? defaultClock;
     this.columns = Math.max(32, Math.floor(options.columns || 80));
     this.colorEnabled = shouldUseColor(options);
@@ -261,6 +274,10 @@ export class InkStreamController {
     return [...this.frames];
   }
 
+  public getWarnings(): string[] {
+    return [...this.pendingWarnings];
+  }
+
   public setColumns(columns: number): void {
     const nextCols = Math.max(32, Math.floor(columns || 80));
     if (nextCols !== this.columns) {
@@ -284,9 +301,93 @@ export class InkStreamController {
       isReplay: this.isReplay,
       reconstructed: this.reconstructed,
       completed: this.completedSteps,
-      warnings: this.pendingWarnings,
       active,
     });
+  }
+
+  private buildLiveElement(active: StoryboardStepItem | null): React.ReactElement {
+    const layoutWidth = Math.max(32, Math.min(this.columns, 88));
+    const baseHeader =
+      this.columns < 44 ? 'FRAME/12 / STORYBOARD' : 'FRAME/12  /  TERMINAL STORYBOARD';
+    const headerTitle = this.isReplay ? `[REPLAY] ${baseHeader}` : baseHeader;
+
+    const staticItems: Array<
+      | { key: string; kind: 'header' }
+      | { key: string; kind: 'notice'; text: string }
+      | { key: string; kind: 'step'; step: StoryboardStepItem }
+    > = [
+      { key: 'header', kind: 'header' },
+      ...(this.reconstructed
+        ? [
+            {
+              key: 'reconstructed',
+              kind: 'notice' as const,
+              text: '[RECONSTRUCTED · NOT LIVE EVENTS]',
+            },
+          ]
+        : []),
+      ...this.completedSteps.map((s) => ({
+        key: `step-${s.id}`,
+        kind: 'step' as const,
+        step: s,
+      })),
+    ];
+
+    return (
+      <Box flexDirection="column" width={layoutWidth}>
+        <Static items={staticItems}>
+          {(item) => {
+            if (item.kind === 'header') {
+              return (
+                <Box key={item.key} width={layoutWidth}>
+                  <Text bold={Boolean(this.colorEnabled)} wrap="wrap">
+                    {headerTitle}
+                  </Text>
+                </Box>
+              );
+            }
+            if (item.kind === 'notice') {
+              return (
+                <Box key={item.key} width={layoutWidth}>
+                  <Text dimColor={Boolean(this.colorEnabled)} wrap="wrap">
+                    {item.text}
+                  </Text>
+                </Box>
+              );
+            }
+            const s = item.step;
+            return (
+              <Box key={item.key} width={layoutWidth}>
+                <StepLine
+                  cutLabel={s.cutLabel}
+                  stepId={s.stepId}
+                  title={s.title}
+                  status={s.status}
+                  summary={s.summary}
+                  columns={this.columns}
+                  colorEnabled={this.colorEnabled}
+                  ascii={this.ascii}
+                />
+              </Box>
+            );
+          }}
+        </Static>
+        {active ? (
+          <Box width={layoutWidth}>
+            <StepLine
+              cutLabel={active.cutLabel}
+              stepId={active.stepId}
+              title={active.title}
+              status={active.status}
+              summary={active.summary}
+              columns={this.columns}
+              colorEnabled={this.colorEnabled}
+              ascii={this.ascii}
+            />
+          </Box>
+        ) : null}
+      </Box>
+    );
   }
 
   private emitIncrementalLine(element: React.ReactElement): void {
@@ -306,6 +407,23 @@ export class InkStreamController {
     this.lastSignature = sig;
     this.lastFlushAt = this.clock.now();
     this.redrawCount += 1;
+
+    if (this.liveStream) {
+      const active = this.getActiveStep();
+      const element = this.buildLiveElement(active);
+      if (!this.liveInstance) {
+        this.liveInstance = render(element, {
+          stdout: this.liveStream,
+          stderr: this.liveStream,
+          debug: false,
+          patchConsole: false,
+          exitOnCtrlC: false,
+        });
+      } else {
+        this.liveInstance.rerender(element);
+      }
+      return;
+    }
 
     const layoutWidth = Math.max(32, Math.min(this.columns, 88));
     const baseHeader =
@@ -346,18 +464,6 @@ export class InkStreamController {
             colorEnabled={this.colorEnabled}
             ascii={this.ascii}
           />
-        </Box>,
-      );
-    }
-
-    while (this.printedWarningCount < this.pendingWarnings.length) {
-      const w = this.pendingWarnings[this.printedWarningCount]!;
-      this.printedWarningCount += 1;
-      this.emitIncrementalLine(
-        <Box width={layoutWidth}>
-          <Text dimColor={Boolean(this.colorEnabled)} wrap="wrap">
-            {`  Warning: ${w}`}
-          </Text>
         </Box>,
       );
     }
@@ -466,7 +572,6 @@ export class InkStreamController {
       const msg = sanitizeTerminalText(String(event.payload.message ?? ''));
       if (msg && !this.pendingWarnings.includes(msg)) {
         this.pendingWarnings.push(msg);
-        this.flushImmediate();
       }
       return;
     }
@@ -506,6 +611,7 @@ export class InkStreamController {
     }
 
     if (event.type === 'run-end') {
+      this.activeSteps.clear();
       this.flushImmediate();
     }
   }
@@ -514,6 +620,17 @@ export class InkStreamController {
     if (this.disposed) return;
     this.clearPendingTimer();
     this.disposed = true;
+    try {
+      if (this.liveInstance) {
+        this.activeSteps.clear();
+        this.liveInstance.rerender(this.buildLiveElement(null));
+        this.liveInstance.unmount();
+        this.liveInstance.cleanup();
+        this.liveInstance = null;
+      }
+    } catch {
+      // Ensure disposal never throws during error/SIGINT cleanup
+    }
     try {
       this.resizeCleanup?.();
     } catch {

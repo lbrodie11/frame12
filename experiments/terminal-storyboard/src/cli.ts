@@ -372,6 +372,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
           isTTY: stderrIsTTY,
           ascii: parsed.ascii,
           write: (s) => stderr(s),
+          liveStream: !io?.stderr && stderrIsTTY ? process.stderr : undefined,
         });
         try {
           for (const ev of events) controller.onEvent(ev);
@@ -416,6 +417,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
           isTTY: stderrIsTTY,
           ascii: parsed.ascii,
           write: (s) => stderr(s),
+          liveStream: !io?.stderr && stderrIsTTY ? process.stderr : undefined,
         });
         try {
           for (const ev of events) controller.onEvent(ev);
@@ -443,6 +445,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
             isTTY: stderrIsTTY,
             ascii: parsed.ascii,
             write: (s) => stderr(s),
+            liveStream: !io?.stderr && stderrIsTTY ? process.stderr : undefined,
             resizeTarget: !io?.columns
               ? process.stderr.isTTY
                 ? process.stderr

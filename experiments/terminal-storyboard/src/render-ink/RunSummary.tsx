@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Box, Text } from 'ink';
 import type { ResultSnapshot } from '../model/index.js';
-import { sanitizeTerminalText } from '../render-plain/index.js';
+import { sanitizeTerminalText, wrapLineToWidth } from '../render-plain/index.js';
 
 export interface RunSummaryProps {
   snapshot: ResultSnapshot;
@@ -50,14 +50,6 @@ export function RunSummary({
     tailParts.push(sanitizeTerminalText(snapshot.error));
   }
 
-  const inlineSingleWarning =
-    !snapshot.error && count === 0 && snapshot.warnings.length === 1;
-  if (inlineSingleWarning) {
-    tailParts.push(sanitizeTerminalText(snapshot.warnings[0]!));
-  }
-
-  const extraWarnings = inlineSingleWarning ? [] : snapshot.warnings;
-
   const statusColor =
     snapshot.status === 'completed'
       ? 'green'
@@ -75,13 +67,23 @@ export function RunSummary({
           <Text dimColor={Boolean(colorEnabled)}>{`${sep}${tailParts.join(sep)}`}</Text>
         </Text>
       </Box>
-      {extraWarnings.map((w, idx) => (
-        <Box key={idx} flexDirection="row">
-          <Text dimColor={Boolean(colorEnabled)} wrap="wrap">
-            {`Warning: ${sanitizeTerminalText(w)}`}
-          </Text>
-        </Box>
-      ))}
+      {snapshot.warnings.map((w, idx) => {
+        const innerWidth = Math.max(24, (width ?? 80) - 2);
+        const wrappedLines = wrapLineToWidth(
+          `! Warning: ${sanitizeTerminalText(w)}`,
+          innerWidth,
+          '  ',
+        );
+        return (
+          <Box key={idx} flexDirection="column" paddingLeft={2} width={width}>
+            {wrappedLines.map((line, lineIdx) => (
+              <Text key={lineIdx} dimColor={Boolean(colorEnabled)}>
+                {line}
+              </Text>
+            ))}
+          </Box>
+        );
+      })}
     </Box>
   );
 }
