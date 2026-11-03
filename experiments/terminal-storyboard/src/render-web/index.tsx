@@ -76,6 +76,8 @@ const REPORT_LAYOUT_CSS = [
   '.f12-action-list { display: flex; flex-direction: column; gap: var(--f-gutter-pair); padding: 0; margin: 0; list-style: none; }',
   '.f12-action-item { border-left: 2.5px solid var(--f-rule); padding-left: 10px; display: flex; flex-direction: column; gap: 0; }',
   '.f12-tag, .f12-nowrap { white-space: nowrap; }',
+  '.f12-tag.f12-tag-ink, .f12-badge.f12-badge-ink { background: var(--f-ink); color: var(--f-panel); border-color: var(--f-rule); }',
+  '.f12-tag.f12-tag-muted, .f12-badge.f12-badge-muted { background: var(--f-panel); color: var(--f-ink); border: 1.5px solid var(--f-rule); }',
   '.f12-metric.big .f12-m-value { font-size: clamp(22px, 3.4cqi, 34px); line-height: 1.18; word-break: normal; overflow-wrap: break-word; }',
   '.f12-metric .f12-m-note { max-width: 68ch; }',
   '.f12-table td, .f12-title, .f12-sub { word-break: normal; overflow-wrap: break-word; }',
@@ -175,12 +177,16 @@ function StoryboardReportView({
             <div className="f12-eyebrow">
               <span>FRAME/12 STORYBOARD REPORT</span>
               <span>·</span>
-              <Tag>{safeStatus}</Tag>
+              <Tag className="f12-tag-ink">{safeStatus}</Tag>
               {snapshot.reconstructed && (
-                <Badge burst={false}>RECONSTRUCTED SNAPSHOT · NOT LIVE EVENTS</Badge>
+                <Badge burst={false} className="f12-badge-muted">
+                  RECONSTRUCTED SNAPSHOT · NOT LIVE EVENTS
+                </Badge>
               )}
               {snapshotOnly && !snapshot.reconstructed && (
-                <Badge burst={false}>SNAPSHOT ONLY · NO LIVE EVENT STREAM</Badge>
+                <Badge burst={false} className="f12-badge-muted">
+                  SNAPSHOT ONLY · NO LIVE EVENT STREAM
+                </Badge>
               )}
             </div>
             <h1 className="f12-title">Co-Change Storyboard: {safeRepo}</h1>
@@ -286,7 +292,7 @@ function StoryboardReportView({
                         <li key={id} className="f12-static-bar-li">
                           <div className="f12-static-bar-item">
                             <div className="f12-static-bar-head">
-                              <Tag>{id}</Tag>
+                              <Tag className={f.id === 'F-01' ? '' : 'f12-tag-muted'}>{id}</Tag>
                               <span className="f12-static-bar-pair">
                                 {renderFormattedPath(f.files[0])}
                                 <span className="f12-pair-arrow">↔</span>
@@ -328,7 +334,9 @@ function StoryboardReportView({
                 <>
                   <div className="f12-report-meta-row">
                     <Tag>{sanitizeTerminalText(topFinding.id)}</Tag>
-                    <Badge burst={false}>{topRel.patternLabel.toUpperCase()}</Badge>
+                    <Badge burst={false} className="f12-badge-ink">
+                      {topRel.patternLabel.toUpperCase()}
+                    </Badge>
                   </div>
                   <p className="f12-body-copy">
                     <strong>{topRel.summary}</strong>
@@ -392,7 +400,7 @@ function StoryboardReportView({
             <div className="f12-report-stack">
               <div className="f12-report-meta-row">
                 <h2 className="f12-sec-title">Ranked Co-Change Findings &amp; Commit Evidence</h2>
-                <Tag>{`${snapshot.findings.length} FINDINGS`}</Tag>
+                <Tag className="f12-tag-muted">{`${snapshot.findings.length} FINDINGS`}</Tag>
               </div>
               {snapshot.findings.length === 0 ? (
                 <p className="f12-body-copy">
@@ -452,7 +460,7 @@ function StoryboardReportView({
                       return (
                         <TableRow key={id}>
                           <TableCell>
-                            <Tag>{id}</Tag>
+                            <Tag className={f.id === 'F-01' ? '' : 'f12-tag-muted'}>{id}</Tag>
                           </TableCell>
                           <TableCell>
                             <div>{renderFormattedPath(f.files[0])}</div>
@@ -480,7 +488,7 @@ function StoryboardReportView({
                           </TableCell>
                           <TableCell>
                             <div className="f12-report-meta-row">
-                              <Tag>{rel.patternLabel.toUpperCase()}</Tag>
+                              <Tag className="f12-tag-ink">{rel.patternLabel.toUpperCase()}</Tag>
                             </div>
                             <div className="f12-body-copy">{cleanedReason}</div>
                           </TableCell>
@@ -500,7 +508,11 @@ function StoryboardReportView({
             <div className="f12-report-stack">
               <div className="f12-report-meta-row">
                 <h2 className="f12-sec-title">Execution Storyboard Step Log</h2>
-                {snapshotOnly && <Badge burst={false}>SNAPSHOT ONLY · NO LIVE EVENT STREAM</Badge>}
+                {snapshotOnly && (
+                  <Badge burst={false} className="f12-badge-muted">
+                    SNAPSHOT ONLY · NO LIVE EVENT STREAM
+                  </Badge>
+                )}
               </div>
               {snapshotOnly ? (
                 <p className="f12-body-copy">
@@ -532,7 +544,9 @@ function StoryboardReportView({
                           <div className="f12-mono-note">{sanitizeTerminalText(s.title)}</div>
                         </TableCell>
                         <TableCell>
-                          <Tag>{sanitizeTerminalText(s.status.toUpperCase())}</Tag>
+                          <Tag className="f12-tag-muted">
+                            {sanitizeTerminalText(s.status.toUpperCase())}
+                          </Tag>
                         </TableCell>
                         <TableCell>
                           <span className="f12-mono-note">
