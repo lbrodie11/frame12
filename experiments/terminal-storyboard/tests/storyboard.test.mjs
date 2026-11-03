@@ -1437,7 +1437,7 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       assert.ok(asciiFrame.includes('C-01 [OK] Repository validated'));
       assert.ok(asciiFrame.includes('+---'));
       assert.ok(asciiFrame.includes('<->'));
-      assert.ok(asciiFrame.includes('############'));
+      assert.ok(asciiFrame.includes('#### ####'));
 
       // Verify middle-segment path abbreviation preserves filename basename
       const longPath = 'experiments/terminal-storyboard/src/render-ink/StoryboardApp.tsx';
@@ -1644,9 +1644,20 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         env: { TERM: 'xterm-256color' },
       });
       assert.equal(autoTtyCode, 0);
-      assert.match(autoTtyOut, /FRAME\/12\s+\/\s+TERMINAL STORYBOARD/);
-      assert.match(autoTtyOut, /F-01 \/ TOP FINDING/);
+      assert.match(autoTtyErr, /FRAME\/12\s+\/\s+TERMINAL STORYBOARD/);
       assert.match(autoTtyErr, /C-01 ✓ Repository validated/);
+      assert.match(autoTtyOut, /F-01 \/ TOP FINDING/);
+      const combinedTerminal = autoTtyErr + autoTtyOut;
+      assert.equal(
+        (combinedTerminal.match(/TERMINAL STORYBOARD/g) ?? []).length,
+        1,
+        'Expected FRAME/12 / TERMINAL STORYBOARD header to appear exactly once across stderr + stdout',
+      );
+      assert.equal(
+        (combinedTerminal.match(/C-01 ✓ Repository validated/g) ?? []).length,
+        1,
+        'Expected C-01 step line to appear exactly once across stderr + stdout',
+      );
 
       // --style auto when CI=true or TERM=dumb or !isTTY -> falls back to plain
       for (const fallbackIo of [

@@ -1,7 +1,7 @@
 import { Writable } from 'node:stream';
 import * as React from 'react';
 import chalk from 'chalk';
-import { render, type Instance as InkInstance } from 'ink';
+import { Box, Text, render, type Instance as InkInstance } from 'ink';
 import {
   validateEventStream,
   type ResultSnapshot,
@@ -50,6 +50,7 @@ const defaultClock: InkClock = {
 export interface InkRenderOptions extends PlainRenderOptions {
   ascii?: boolean;
   reportWritten?: boolean;
+  includeHeaderAndSteps?: boolean;
 }
 
 export interface InkStreamControllerOptions extends InkRenderOptions {
@@ -94,6 +95,37 @@ class CaptureWritable extends Writable {
 
 function stripAnsiSgr(input: string): string {
   return input.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+function renderInkElementToString(
+  element: React.ReactElement,
+  columns: number,
+  colorEnabled: boolean,
+): string {
+  const stream = new CaptureWritable(columns);
+  const prevChalkLevel = chalk.level;
+  chalk.level = colorEnabled ? (Math.max(1, prevChalkLevel || 3) as 1 | 2 | 3) : 0;
+
+  let instance: InkInstance | null = null;
+  try {
+    instance = render(element, {
+      stdout: stream as unknown as NodeJS.WriteStream,
+      stderr: stream as unknown as NodeJS.WriteStream,
+      debug: true,
+      patchConsole: false,
+      exitOnCtrlC: false,
+    });
+  } finally {
+    try {
+      instance?.unmount();
+      instance?.cleanup();
+    } finally {
+      chalk.level = prevChalkLevel;
+    }
+  }
+
+  const rawFrame = stream.frames[stream.frames.length - 1] ?? '';
+  return colorEnabled ? rawFrame : stripAnsiSgr(rawFrame);
 }
 
 export function extractStoryboardSteps(
@@ -152,8 +184,8 @@ export function extractStoryboardSteps(
 }
 
 /**
- * Renders the final FRAME/12 Ink storyboard summary (Header, C-01..C-04 steps,
- * hero FindingPanel, secondary finding rows, and RunSummary) to a string.
+ * Renders the FRAME/12 Ink storyboard (Header + C-01..C-04 steps when includeHeaderAndSteps !== false,
+ * plus hero FindingPanel, secondary finding rows, and RunSummary) to a string.
  */
 export function renderInkStaticSummary(
   snapshot: ResultSnapshot,
@@ -163,52 +195,33 @@ export function renderInkStaticSummary(
   const cols = Math.max(32, Math.floor(options.columns || 80));
   const colorEnabled = shouldUseColor(options);
   const ascii = Boolean(options.ascii);
-  const completedSteps = extractStoryboardSteps(snapshot, events);
+  const includeHeaderAndSteps = options.includeHeaderAndSteps ?? true;
+  const completedSteps = includeHeaderAndSteps ? extractStoryboardSteps(snapshot, events) : [];
 
-  const stream = new CaptureWritable(cols);
-  const prevChalkLevel = chalk.level;
-  chalk.level = colorEnabled ? (Math.max(1, prevChalkLevel || 3) as 1 | 2 | 3) : 0;
-
-  let instance: InkInstance | null = null;
-  try {
-    instance = render(
-      <StoryboardApp
-        snapshot={snapshot}
-        completedSteps={completedSteps}
-        columns={cols}
-        colorEnabled={colorEnabled}
-        ascii={ascii}
-        reportWritten={Boolean(options.reportWritten)}
-        useStatic={true}
-      />,
-      {
-        stdout: stream as unknown as NodeJS.WriteStream,
-        stderr: stream as unknown as NodeJS.WriteStream,
-        debug: true,
-        patchConsole: false,
-        exitOnCtrlC: false,
-      },
-    );
-  } finally {
-    try {
-      instance?.unmount();
-      instance?.cleanup();
-    } finally {
-      chalk.level = prevChalkLevel;
-    }
-  }
-
-  const rawFrame = stream.frames[stream.frames.length - 1] ?? '';
-  const cleaned = colorEnabled ? rawFrame : stripAnsiSgr(rawFrame);
+  const cleaned = renderInkElementToString(
+    <StoryboardApp
+      snapshot={snapshot}
+      completedSteps={completedSteps}
+      columns={cols}
+      colorEnabled={colorEnabled}
+      ascii={ascii}
+      reportWritten={Boolean(options.reportWritten)}
+      useStatic={true}
+      includeHeaderAndSteps={includeHeaderAndSteps}
+    />,
+    cols,
+    colorEnabled,
+  );
   return cleaned.endsWith('\n') ? cleaned : `${cleaned}\n`;
 }
 
 /**
  * Live Ink stream controller with Motion-on-Twos (12 fps / 83.33ms) throttling:
- * - Coalesces rapid progress updates to at most 1 redraw per 83.33ms window
+ * - Emits the header and each completed C-01..C-04 step line once (never duplicating prior lines)
+ * - Coalesces rapid step-progress updates to at most 1 redraw per 83.33ms window
  * - Skips no-op redraws when visible state has not changed
- * - Flushes lifecycle transitions (run-start, step-start, step-end, warning, run-end) immediately
- * - Responds to terminal resize events and cleans up / unmounts deterministically
+ * - Flushes lifecycle transitions (run-start, step-start, step-end, run-end) immediately
+ * - Responds to terminal resize events and cleans up deterministically
  */
 export class InkStreamController {
   private writeFn: (chunk: string) => void;
@@ -216,14 +229,17 @@ export class InkStreamController {
   private columns: number;
   private colorEnabled: boolean;
   private ascii: boolean;
-  private stream: CaptureWritable;
-  private instance: InkInstance | null = null;
   private disposed = false;
 
   private completedSteps: StoryboardStepItem[] = [];
   private activeSteps = new Map<string, StoryboardStepItem>();
   private stepOrder = new Map<string, string>();
   private nextCutIndex = 0;
+
+  private headerPrinted = false;
+  private printedCompletedCount = 0;
+  private lastPrintedProgressSig = '';
+  private frames: string[] = [];
 
   private lastFlushAt = -Infinity;
   private pendingTimer: unknown = null;
@@ -238,11 +254,6 @@ export class InkStreamController {
     this.colorEnabled = shouldUseColor(options);
     this.ascii = Boolean(options.ascii);
 
-    this.stream = new CaptureWritable(this.columns, (chunk) => {
-      const out = this.colorEnabled ? chunk : stripAnsiSgr(chunk);
-      this.writeFn(`${out}\n`);
-    });
-
     if (options.resizeTarget?.on) {
       const target = options.resizeTarget;
       const onResize = () => {
@@ -250,8 +261,6 @@ export class InkStreamController {
         const nextCols = Math.max(32, Math.floor(target.columns || this.columns));
         if (nextCols !== this.columns) {
           this.columns = nextCols;
-          this.stream.columns = nextCols;
-          this.stream.emit('resize');
           this.flushImmediate();
         }
       };
@@ -267,15 +276,13 @@ export class InkStreamController {
   }
 
   public getFrames(): string[] {
-    return [...this.stream.frames];
+    return [...this.frames];
   }
 
   public setColumns(columns: number): void {
     const nextCols = Math.max(32, Math.floor(columns || 80));
     if (nextCols !== this.columns) {
       this.columns = nextCols;
-      this.stream.columns = nextCols;
-      this.stream.emit('resize');
       this.flushImmediate();
     }
   }
@@ -297,6 +304,14 @@ export class InkStreamController {
     });
   }
 
+  private emitIncrementalLine(element: React.ReactElement): void {
+    const line = renderInkElementToString(element, this.columns, this.colorEnabled);
+    if (line.trim().length > 0) {
+      this.frames.push(line);
+      this.writeFn(`${line}\n`);
+    }
+  }
+
   private renderNow(): void {
     if (this.disposed) return;
     const sig = this.computeSignature();
@@ -307,33 +322,61 @@ export class InkStreamController {
     this.lastFlushAt = this.clock.now();
     this.redrawCount += 1;
 
-    const prevChalkLevel = chalk.level;
-    chalk.level = this.colorEnabled ? (Math.max(1, prevChalkLevel || 3) as 1 | 2 | 3) : 0;
-    try {
-      const element = (
-        <StoryboardApp
-          snapshot={null}
-          completedSteps={this.completedSteps}
-          activeStep={this.getActiveStep()}
-          columns={this.columns}
-          colorEnabled={this.colorEnabled}
-          ascii={this.ascii}
-          useStatic={true}
-        />
+    const layoutWidth = Math.max(32, Math.min(this.columns, 88));
+    const headerTitle =
+      this.columns < 44 ? 'FRAME/12 / STORYBOARD' : 'FRAME/12  /  TERMINAL STORYBOARD';
+
+    if (!this.headerPrinted) {
+      this.headerPrinted = true;
+      this.emitIncrementalLine(
+        <Box width={layoutWidth}>
+          <Text bold={Boolean(this.colorEnabled)}>{headerTitle}</Text>
+        </Box>,
       );
-      if (!this.instance) {
-        this.instance = render(element, {
-          stdout: this.stream as unknown as NodeJS.WriteStream,
-          stderr: this.stream as unknown as NodeJS.WriteStream,
-          debug: true,
-          patchConsole: false,
-          exitOnCtrlC: false,
-        });
-      } else {
-        this.instance.rerender(element);
+    }
+
+    let printedAnyCompleted = false;
+    while (this.printedCompletedCount < this.completedSteps.length) {
+      const s = this.completedSteps[this.printedCompletedCount]!;
+      this.printedCompletedCount += 1;
+      printedAnyCompleted = true;
+      this.lastPrintedProgressSig = '';
+      this.emitIncrementalLine(
+        <Box width={layoutWidth}>
+          <StepLine
+            cutLabel={s.cutLabel}
+            stepId={s.stepId}
+            title={s.title}
+            status={s.status}
+            summary={s.summary}
+            columns={this.columns}
+            colorEnabled={this.colorEnabled}
+            ascii={this.ascii}
+          />
+        </Box>,
+      );
+    }
+
+    const active = this.getActiveStep();
+    if (!printedAnyCompleted && active && active.summary) {
+      const progSig = `${active.id}:${active.summary}:${this.columns}`;
+      if (progSig !== this.lastPrintedProgressSig) {
+        this.lastPrintedProgressSig = progSig;
+        this.emitIncrementalLine(
+          <Box width={layoutWidth}>
+            <StepLine
+              cutLabel={active.cutLabel}
+              stepId={active.stepId}
+              title={active.title}
+              status={active.status}
+              summary={active.summary}
+              columns={this.columns}
+              colorEnabled={this.colorEnabled}
+              ascii={this.ascii}
+            />
+          </Box>,
+        );
       }
-    } finally {
-      chalk.level = prevChalkLevel;
     }
   }
 
@@ -456,16 +499,8 @@ export class InkStreamController {
     this.disposed = true;
     try {
       this.resizeCleanup?.();
-      if (this.instance) {
-        const exitPromise = this.instance.waitUntilExit();
-        this.instance.unmount();
-        this.instance.cleanup();
-        await exitPromise;
-      }
     } catch {
       // Ensure disposal never throws during error/SIGINT cleanup
-    } finally {
-      this.instance = null;
     }
   }
 }

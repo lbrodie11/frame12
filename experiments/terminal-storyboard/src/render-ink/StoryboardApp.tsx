@@ -20,6 +20,7 @@ export interface StoryboardAppProps {
   ascii?: boolean;
   reportWritten?: boolean;
   useStatic?: boolean;
+  includeHeaderAndSteps?: boolean;
 }
 
 interface StaticHeaderOrStep {
@@ -113,22 +114,26 @@ export function StoryboardApp({
   ascii = false,
   reportWritten = false,
   useStatic = true,
+  includeHeaderAndSteps = true,
 }: StoryboardAppProps): React.ReactElement {
   const safeCols = Math.max(32, Math.floor(columns || 80));
   const layoutWidth = Math.max(32, Math.min(safeCols, 88));
   const ruleChar = ascii ? '-' : '─';
   const ruleLine = ruleChar.repeat(layoutWidth);
+  const subRuleLine = `  ${ruleChar.repeat(Math.max(10, layoutWidth - 2))}`;
   const headerTitle =
     safeCols < 44 ? 'FRAME/12 / STORYBOARD' : 'FRAME/12  /  TERMINAL STORYBOARD';
 
-  const staticItems: StaticHeaderOrStep[] = [
-    { key: 'header', kind: 'header' },
-    ...completedSteps.map((s) => ({
-      key: `step-${s.id}`,
-      kind: 'step' as const,
-      step: s,
-    })),
-  ];
+  const staticItems: StaticHeaderOrStep[] = includeHeaderAndSteps
+    ? [
+        { key: 'header', kind: 'header' },
+        ...completedSteps.map((s) => ({
+          key: `step-${s.id}`,
+          kind: 'step' as const,
+          step: s,
+        })),
+      ]
+    : [];
 
   const renderStaticItem = (item: StaticHeaderOrStep) => {
     if (item.kind === 'header') {
@@ -160,13 +165,14 @@ export function StoryboardApp({
 
   return (
     <Box flexDirection="column" width={layoutWidth}>
-      {useStatic ? (
-        <Static items={staticItems}>{renderStaticItem}</Static>
-      ) : (
-        <Box flexDirection="column">{staticItems.map(renderStaticItem)}</Box>
-      )}
+      {includeHeaderAndSteps &&
+        (useStatic ? (
+          <Static items={staticItems}>{renderStaticItem}</Static>
+        ) : (
+          <Box flexDirection="column">{staticItems.map(renderStaticItem)}</Box>
+        ))}
 
-      {activeStep && (
+      {includeHeaderAndSteps && activeStep && (
         <StepLine
           cutLabel={activeStep.cutLabel}
           stepId={activeStep.stepId}
@@ -214,15 +220,17 @@ export function StoryboardApp({
 
           {secondaryFindings.length > 0 && (
             <Box flexDirection="column">
-              {secondaryFindings.map((f) => (
-                <SecondaryFindingRow
-                  key={sanitizeTerminalText(f.id)}
-                  finding={f}
-                  width={layoutWidth}
-                  columns={safeCols}
-                  colorEnabled={colorEnabled}
-                  ascii={ascii}
-                />
+              {secondaryFindings.map((f, idx) => (
+                <Box key={sanitizeTerminalText(f.id)} flexDirection="column">
+                  {idx > 0 && <Text dimColor={Boolean(colorEnabled)}>{subRuleLine}</Text>}
+                  <SecondaryFindingRow
+                    finding={f}
+                    width={layoutWidth}
+                    columns={safeCols}
+                    colorEnabled={colorEnabled}
+                    ascii={ascii}
+                  />
+                </Box>
               ))}
             </Box>
           )}

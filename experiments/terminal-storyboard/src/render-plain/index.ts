@@ -41,11 +41,17 @@ export function sanitizeTerminalText(input: unknown): string {
 }
 
 export function shouldUseColor(options: PlainRenderOptions = {}): boolean {
+  const hasExplicitEnv = options.env !== undefined;
   const env = options.env ?? (typeof process !== 'undefined' ? process.env : {});
   if (options.noColor === true) return false;
   if (env.NO_COLOR !== undefined && env.NO_COLOR !== '') return false;
   if (env.TERM === 'dumb') return false;
-  if (env.FORCE_COLOR !== undefined && env.FORCE_COLOR !== '' && env.FORCE_COLOR !== '0') {
+  if (
+    (hasExplicitEnv || options.isTTY) &&
+    env.FORCE_COLOR !== undefined &&
+    env.FORCE_COLOR !== '' &&
+    env.FORCE_COLOR !== '0'
+  ) {
     return true;
   }
   if (env.CI === 'true' || env.CI === '1') return false;

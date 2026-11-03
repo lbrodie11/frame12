@@ -302,7 +302,8 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
   };
   const isTTY = io?.isTTY ?? (io?.stdout ? false : Boolean(process.stdout.isTTY));
   const stderrIsTTY = io?.stderrIsTTY ?? (io?.stderr ? Boolean(io?.isTTY) : Boolean(process.stderr.isTTY));
-  const env = io?.env ?? process.env;
+  const explicitEnv = io ? io.env : process.env;
+  const env = explicitEnv ?? process.env;
   const envCols = env.COLUMNS !== undefined ? Number(env.COLUMNS) : Number.NaN;
   const columns =
     io?.columns ??
@@ -332,7 +333,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
     isTTY,
     noColor: parsed.noColor,
     isReplay: Boolean(parsed.replayPath),
-    env,
+    env: explicitEnv,
   };
 
   const inkMod = usePanels ? await import('./render-ink/index.js') : null;
@@ -492,7 +493,9 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       const html = renderWebReportHtml(snapshot, events, { theme: parsed.theme });
       writeFileSync(outPath, html, 'utf8');
       reportWritten = true;
-      writeDiag(`Wrote FRAME/12 HTML report: ${outPath}`);
+      if (!inkMod) {
+        writeDiag(`Wrote FRAME/12 HTML report: ${outPath}`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       writeDiag(`Error writing HTML report: ${msg}`);
@@ -513,6 +516,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
           isTTY: isTTY || parsed.style === 'panels',
           ascii: parsed.ascii,
           reportWritten,
+          includeHeaderAndSteps: false,
         }),
       );
     } else {

@@ -43,7 +43,7 @@ export function FindingPanel({
       : `${finding.cochangeCount} shared commits${sep}${finding.cochangeCount}/${moreChangedCommits} touches of the more-changed file`;
 
   const directionalLine = `${baseA}: ${finding.cochangeCount}/${finding.fileACommits}${sep}${baseB}: ${finding.cochangeCount}/${finding.fileBCommits}`;
-  const inlineBar = columns >= 76;
+  const barSegments = Math.max(4, Math.min(12, Math.floor((innerWidth + 1) / 5)));
 
   return (
     <Box
@@ -70,31 +70,16 @@ export function FindingPanel({
       </Box>
 
       <Box marginTop={1} flexDirection="column">
-        {inlineBar ? (
-          <Box flexDirection="row" justifyContent="space-between" width={innerWidth}>
-            <Text wrap="wrap">{metricsLead}</Text>
+        <Text wrap="wrap">{metricsLead}</Text>
+        {columns >= 48 && (
+          <Box>
             <ToneBar
               ratio={moreChangedRatio}
-              width={16}
+              segments={barSegments}
               columns={columns}
               colorEnabled={colorEnabled}
               ascii={ascii}
             />
-          </Box>
-        ) : (
-          <Box flexDirection="column">
-            <Text wrap="wrap">{metricsLead}</Text>
-            {columns >= 48 && (
-              <Box>
-                <ToneBar
-                  ratio={moreChangedRatio}
-                  width={Math.min(16, Math.max(8, innerWidth - 4))}
-                  columns={columns}
-                  colorEnabled={colorEnabled}
-                  ascii={ascii}
-                />
-              </Box>
-            )}
           </Box>
         )}
         <Text dimColor={Boolean(colorEnabled)} wrap="wrap">
