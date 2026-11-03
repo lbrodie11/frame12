@@ -528,14 +528,20 @@ function validateFinding(
   ) {
     return { ok: false, error: `findings[${index}].files must be a 2-tuple of non-empty file path strings.` };
   }
-  if (!isFiniteNumber(raw.cochangeCount) || raw.cochangeCount < 1) {
-    return { ok: false, error: `findings[${index}].cochangeCount must be a positive finite number.` };
+  if (typeof raw.cochangeCount !== 'number' || !Number.isInteger(raw.cochangeCount) || raw.cochangeCount < 1) {
+    return { ok: false, error: `findings[${index}].cochangeCount must be a positive integer.` };
   }
-  if (!isFiniteNumber(raw.fileACommits) || raw.fileACommits < 1) {
-    return { ok: false, error: `findings[${index}].fileACommits must be a positive finite number.` };
+  if (typeof raw.fileACommits !== 'number' || !Number.isInteger(raw.fileACommits) || raw.fileACommits < 1) {
+    return { ok: false, error: `findings[${index}].fileACommits must be a positive integer.` };
   }
-  if (!isFiniteNumber(raw.fileBCommits) || raw.fileBCommits < 1) {
-    return { ok: false, error: `findings[${index}].fileBCommits must be a positive finite number.` };
+  if (typeof raw.fileBCommits !== 'number' || !Number.isInteger(raw.fileBCommits) || raw.fileBCommits < 1) {
+    return { ok: false, error: `findings[${index}].fileBCommits must be a positive integer.` };
+  }
+  if (raw.cochangeCount > raw.fileACommits || raw.cochangeCount > raw.fileBCommits) {
+    return {
+      ok: false,
+      error: `findings[${index}].cochangeCount (${raw.cochangeCount}) cannot exceed fileACommits (${raw.fileACommits}) or fileBCommits (${raw.fileBCommits}).`,
+    };
   }
   if (!isFiniteNumber(raw.couplingRatio) || raw.couplingRatio < 0 || raw.couplingRatio > 1) {
     return { ok: false, error: `findings[${index}].couplingRatio must be a finite number between 0 and 1.` };
@@ -562,8 +568,8 @@ function validateFinding(
   ) {
     return { ok: false, error: `findings[${index}].evidence.sampleSubjects must be a string[].` };
   }
-  if (!isFiniteNumber(raw.evidence.count) || raw.evidence.count < 1) {
-    return { ok: false, error: `findings[${index}].evidence.count must be a positive finite number.` };
+  if (typeof raw.evidence.count !== 'number' || !Number.isInteger(raw.evidence.count) || raw.evidence.count < 1) {
+    return { ok: false, error: `findings[${index}].evidence.count must be a positive integer.` };
   }
   if (!isNonEmptyString(raw.reason)) {
     return { ok: false, error: `findings[${index}].reason must be a non-empty string.` };

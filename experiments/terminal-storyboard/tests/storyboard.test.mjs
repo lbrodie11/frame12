@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -52,7 +52,7 @@ import {
   renderInkStaticSummary,
 } from '../dist/render-ink/index.js';
 import { renderWebReportHtml } from '../dist/render-web/index.js';
-import { runCli } from '../dist/cli.js';
+import { reconstructSnapshotFromEvents, runCli } from '../dist/cli.js';
 import { createFixtureRepo } from '../dist/fixtures/create-fixture-repo.js';
 import { lintFiles } from '../../../scripts/check-frame12.mjs';
 
@@ -349,6 +349,37 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       });
       assert.equal(nanSnap.ok, false);
       assert.match(nanSnap.error, /finite integer commitsExamined/);
+
+      // Reject fractional counts (cochangeCount, fileACommits, fileBCommits, evidence.count)
+      const baseFinding = fixtureResult.snapshot.findings[0];
+      for (const override of [
+        { cochangeCount: 1.5 },
+        { fileACommits: 2.5 },
+        { fileBCommits: 3.5 },
+        { evidence: { ...baseFinding.evidence, count: 1.5 } },
+      ]) {
+        const fracSnap = validateResultSnapshot({
+          ...fixtureResult.snapshot,
+          findings: [{ ...baseFinding, ...override }],
+        });
+        assert.equal(fracSnap.ok, false);
+        assert.match(fracSnap.error, /positive integer/);
+      }
+
+      // Reject cochangeCount > fileACommits or cochangeCount > fileBCommits
+      const impossibleCountSnap = validateResultSnapshot({
+        ...fixtureResult.snapshot,
+        findings: [
+          {
+            ...baseFinding,
+            cochangeCount: 5,
+            fileACommits: 1,
+            fileBCommits: 5,
+          },
+        ],
+      });
+      assert.equal(impossibleCountSnap.ok, false);
+      assert.match(impossibleCountSnap.error, /cochangeCount \(5\) cannot exceed fileACommits \(1\) or fileBCommits \(5\)/);
     });
   });
 
@@ -540,6 +571,52 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         false,
       );
     });
+
+    it('preserves full file path identities (>320 chars) without merging distinct files sharing a long prefix, and rejects paths >2048 bytes', async () => {
+      const longPrefix = 'packages/' + 'deep-segment/'.repeat(26); // >340 chars
+      const longFileA = `${longPrefix}alpha-service.ts`;
+      const longFileB = `${longPrefix}beta-handler.ts`;
+      assert.ok(longFileA.length > 350);
+      assert.ok(longFileB.length > 350);
+      assert.equal(unquoteGitPath(longFileA), longFileA);
+      assert.equal(unquoteGitPath(longFileB), longFileB);
+      assert.notEqual(unquoteGitPath(longFileA), unquoteGitPath(longFileB));
+
+      assert.throws(
+        () => unquoteGitPath('a'.repeat(2049)),
+        /exceeds maximum allowed length of 2048 UTF-8 bytes/,
+      );
+
+      const tmpRepo = mkdtempSync(join(tmpdir(), 'f12-long-paths-'));
+      const runGitSync = (args) =>
+        new Promise((res, rej) => {
+          const p = spawn('git', args, { cwd: tmpRepo, stdio: 'ignore' });
+          p.on('close', (c) => (c === 0 ? res() : rej(new Error(`git ${args.join(' ')} failed`))));
+        });
+      try {
+        await runGitSync(['init']);
+        await runGitSync(['config', 'user.name', 'Test']);
+        await runGitSync(['config', 'user.email', 'test@example.com']);
+        await runGitSync(['config', 'commit.gpgsign', 'false']);
+
+        mkdirSync(join(tmpRepo, longPrefix), { recursive: true });
+        for (let c = 1; c <= 3; c++) {
+          writeFileSync(join(tmpRepo, longFileA), `export const a = ${c};\n`);
+          writeFileSync(join(tmpRepo, longFileB), `export const b = ${c};\n`);
+          await runGitSync(['add', '.']);
+          await runGitSync(['commit', '-m', `feat: long path commit ${c}`]);
+        }
+
+        const res = await runGitHistoryWorkload({ repoPath: tmpRepo, maxCommits: 10, topN: 5 });
+        assert.equal(res.snapshot.status, 'completed');
+        assert.equal(res.snapshot.uniqueFilesObserved, 2);
+        assert.equal(res.snapshot.findings.length, 1);
+        assert.deepEqual(res.snapshot.findings[0].files, [longFileA, longFileB]);
+        assert.equal(validateEventStream(res.events).ok, true);
+      } finally {
+        rmSync(tmpRepo, { recursive: true, force: true });
+      }
+    });
   });
 
   // ===========================================================================
@@ -548,8 +625,8 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
   describe('3. Renderer Equivalence, Snapshot-Only HTML & Bundle Hygiene', () => {
     it('renders identical findings, file pairs, counts, overlap/Jaccard ratios, and commit SHAs across all 3 views', () => {
       const { snapshot, events } = fixtureResult;
-      const plainText = renderPlainStoryboard(snapshot, events, { columns: 100 });
-      const baselineText = renderBaseline(snapshot, { columns: 100 });
+      const plainText = renderPlainStoryboard(snapshot, events, { columns: 100, isTTY: false, env: {} });
+      const baselineText = renderBaseline(snapshot, { columns: 100, isTTY: false, env: {} });
       const htmlText = renderWebReportHtml(snapshot, events, { theme: 'light' });
 
       assert.match(plainText, /C-01 Validate target repository/);
@@ -623,8 +700,12 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
           maxCommits: 50,
           topN: 5,
         });
-        const plainOut = renderPlainStoryboard(advRun.snapshot, advRun.events, { columns: 100 });
-        const baseOut = renderBaseline(advRun.snapshot, { columns: 100 });
+        const plainOut = renderPlainStoryboard(advRun.snapshot, advRun.events, {
+          columns: 100,
+          isTTY: false,
+          env: {},
+        });
+        const baseOut = renderBaseline(advRun.snapshot, { columns: 100, isTTY: false, env: {} });
         const htmlOut = renderWebReportHtml(advRun.snapshot, advRun.events);
 
         for (const termOut of [plainOut, baseOut]) {
@@ -633,6 +714,8 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
           assert.equal(termOut.includes('https://evil.example'), false);
         }
 
+        // Verify HTML report also strips all bidi overrides and control chars from summary/actionHint prose
+        assert.equal(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\u061C]/.test(htmlOut), false);
         assert.equal(/<script\b/i.test(htmlOut), false);
         assert.equal(htmlOut.includes('<img src=x onerror=alert(1)>'), false);
         assert.equal(htmlOut.includes('&lt;img src=x onerror=alert(1)&gt;'), true);
@@ -1129,6 +1212,44 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         signal: cliAc.signal,
       });
       assert.equal(exitCode, 130);
+
+      // Verify canceled live ResultSnapshot matches reconstructSnapshotFromEvents(events) when aborted mid-ranking
+      const midRankAc = new AbortController();
+      const midRankRes = await runGitHistoryWorkload({
+        repoPath: fixture.repoDir,
+        maxCommits: 50,
+        signal: midRankAc.signal,
+        onEvent: (ev) => {
+          if (ev.type === 'finding') {
+            midRankAc.abort();
+          }
+        },
+      });
+      assert.equal(midRankRes.snapshot.status, 'canceled');
+      assert.equal(midRankRes.snapshot.commitsExamined, 13);
+      assert.equal(midRankRes.snapshot.uniqueFilesObserved, 6);
+      assert.equal(midRankRes.snapshot.totalPairsObserved, 3);
+      assert.equal(midRankRes.snapshot.findings.length, 1);
+      assert.deepEqual(
+        midRankRes.snapshot,
+        reconstructSnapshotFromEvents(midRankRes.events),
+        'Expected canceled live ResultSnapshot to match reconstructSnapshotFromEvents(events)',
+      );
+
+      // Verify macrotask timer abort scheduled before pair-cochanges is observed via event-loop yield
+      const timerAc = new AbortController();
+      const timerRes = await runGitHistoryWorkload({
+        repoPath: fixture.repoDir,
+        maxCommits: 50,
+        signal: timerAc.signal,
+        onEvent: (ev) => {
+          if (ev.type === 'step-start' && ev.stepId === 'pair-cochanges') {
+            setImmediate(() => timerAc.abort());
+          }
+        },
+      });
+      assert.equal(timerRes.snapshot.status, 'canceled');
+      assert.deepEqual(timerRes.snapshot, reconstructSnapshotFromEvents(timerRes.events));
     });
   });
 
@@ -1167,6 +1288,55 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       assert.deepEqual(swapped.snapshot.findings[0].files, ['src/a-first.ts', 'src/z-last.ts']);
       assert.equal(swapped.snapshot.findings[0].fileACommits, 10);
       assert.equal(swapped.snapshot.findings[0].fileBCommits, 100);
+
+      // Verify overlap (couplingRatio) is derived from counts (8 / min(100, 10) = 0.8) when reverseConfidence is omitted
+      const oneWayConfidenceOnly = convertRepoArchaeologySnapshot({
+        schemaVersion: 1,
+        meta: { repoName: 'one-way-conf', commitsAnalyzed: 120, files: 10 },
+        suggestions: [
+          {
+            from: 'src/a-hub.ts',
+            to: 'src/b-spoke.ts',
+            shared: 8,
+            fromChanges: 100,
+            toChanges: 10,
+            confidence: 0.08,
+            evidence: [{ hash: '1111111', subject: 'feat: coupled edit' }],
+          },
+        ],
+      });
+      assert.equal(oneWayConfidenceOnly.snapshot.findings[0].couplingRatio, 0.8);
+      assert.equal(oneWayConfidenceOnly.snapshot.findings[0].jaccardRatio, 0.08);
+
+      // Verify long file paths (>320 chars) are preserved without truncation in Repo Archaeology adapter
+      const longPrefix = 'packages/' + 'deep-module/'.repeat(28);
+      const longA = `${longPrefix}first-file.ts`;
+      const longB = `${longPrefix}second-file.ts`;
+      const longArch = convertRepoArchaeologySnapshot({
+        schemaVersion: 1,
+        meta: { repoName: 'long-arch', commitsAnalyzed: 40, files: 2 },
+        suggestions: [
+          {
+            from: longA,
+            to: longB,
+            shared: 4,
+            fromChanges: 4,
+            toChanges: 4,
+            evidence: [{ hash: 'abcdef1', subject: 'feat: long paths' }],
+          },
+        ],
+      });
+      assert.deepEqual(longArch.snapshot.findings[0].files, [longA, longB]);
+
+      // Reject minimal/ambiguous {"schemaVersion": 1} or missing commitsAnalyzed instead of fabricating 50
+      assert.throws(
+        () => convertRepoArchaeologySnapshot({ schemaVersion: 1 }),
+        /missing required "suggestions"/,
+      );
+      assert.throws(
+        () => convertRepoArchaeologySnapshot({ schemaVersion: 1, suggestions: [] }),
+        /Missing required Repo Archaeology numeric field "commitsAnalyzed"/,
+      );
 
       // Reject injected non-numeric commitsAnalyzed
       assert.throws(
@@ -1462,11 +1632,37 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       const sanitizedOut = renderInkStaticSummary(maliciousSnap, fixtureResult.events, {
         columns: 80,
         noColor: true,
+        isTTY: false,
+        env: {},
       });
       assert.equal(sanitizedOut.includes('\x1b'), false);
       assert.equal(sanitizedOut.includes('\u202E'), false);
       assert.equal(sanitizedOut.includes('https://evil.example'), false);
       assert.equal(sanitizedOut.includes('label'), true);
+
+      // Verify snapshot-only honesty when events=[] (no fabricated C-01..C-04 steps)
+      assert.deepEqual(extractStoryboardSteps(fixtureResult.snapshot, []), []);
+      const snapshotOnlyOut = renderInkStaticSummary(fixtureResult.snapshot, [], {
+        columns: 80,
+        noColor: true,
+        isTTY: false,
+        env: {},
+      });
+      assert.match(snapshotOnlyOut, /\[SNAPSHOT ONLY · NO LIVE EVENT STREAM\]/);
+      assert.equal(snapshotOnlyOut.includes('C-01 ✓'), false);
+
+      // Verify warnings are always rendered in panel mode even when findings.length > 0
+      const snapWithWarnings = {
+        ...fixtureResult.snapshot,
+        warnings: ['Skipped bulk commit abcdef1 touching 72 files.'],
+      };
+      const warnPanelOut = renderInkStaticSummary(snapWithWarnings, fixtureResult.events, {
+        columns: 80,
+        noColor: true,
+        isTTY: false,
+        env: {},
+      });
+      assert.match(warnPanelOut, /Warning: Skipped bulk commit abcdef1 touching 72 files\./);
     });
 
     it('throttles rapid progress updates to 12fps (83.33ms), skips no-op redraws, flushes lifecycle events immediately, and handles resize', async () => {
@@ -1601,6 +1797,43 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         resizeTarget.columns = 50;
         resizeListener?.();
         assert.equal(controller.getRenderCount(), 4);
+
+        // 6. Numeric step-progress payloads (commitsParsed / commitsProcessed) without payload.message
+        controller.onEvent({
+          schemaVersion: SCHEMA_VERSION,
+          eventId: 'e-s3',
+          runId: 'r-1',
+          seq: 10,
+          ts: '2026-11-02T00:00:00.300Z',
+          type: 'step-start',
+          stepId: 'pair-cochanges',
+          payload: { title: 'Pair co-changing files' },
+        });
+        fakeNow += ON_TWOS_FRAME_MS + 5;
+        controller.onEvent({
+          schemaVersion: SCHEMA_VERSION,
+          eventId: 'e-p-num-1',
+          runId: 'r-1',
+          seq: 11,
+          ts: '2026-11-02T00:00:00.350Z',
+          type: 'step-progress',
+          stepId: 'pair-cochanges',
+          payload: { commitsParsed: 500 },
+        });
+        assert.match(chunks[chunks.length - 1], /500 commits[\s\S]*examined/);
+
+        fakeNow += ON_TWOS_FRAME_MS + 5;
+        controller.onEvent({
+          schemaVersion: SCHEMA_VERSION,
+          eventId: 'e-p-num-2',
+          runId: 'r-1',
+          seq: 12,
+          ts: '2026-11-02T00:00:00.400Z',
+          type: 'step-progress',
+          stepId: 'pair-cochanges',
+          payload: { commitsProcessed: 250, pairsObserved: 42 },
+        });
+        assert.match(chunks[chunks.length - 1], /250 commits paired[\s\S]*42 pairs/);
       } finally {
         await controller.dispose();
       }
@@ -1777,6 +2010,127 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       assert.equal(/from\s+["']ink["']/.test(cliBundle), false);
       assert.equal(/from\s+["']\.\/render-ink\/index\.js["']/.test(cliBundle), false);
       assert.match(cliBundle, /import\(["']\.\/render-ink\/index\.js["']\)/);
+
+      // Verify package.json has no postinstall rm -rf script and dist/render-ink/index.js has no direct chalk import
+      const expPkg = JSON.parse(readFileSync(resolve(expRoot, 'package.json'), 'utf8'));
+      assert.equal(expPkg.scripts?.postinstall, undefined);
+      const inkBundle = readFileSync(resolve(distDir, 'render-ink/index.js'), 'utf8');
+      assert.equal(/from\s+["']chalk["']/.test(inkBundle), false);
+
+      // Verify --replay and import-archaeology provenance in --style panels mode
+      const tmpDir = mkdtempSync(join(tmpdir(), 'f12-panels-prov-'));
+      try {
+        const ndjsonPath = join(tmpDir, 'events.ndjson');
+        writeFileSync(
+          ndjsonPath,
+          fixtureResult.events.map((e) => JSON.stringify(e)).join('\n') + '\n',
+          'utf8',
+        );
+        let replayPanelsOut = '';
+        let replayPanelsErr = '';
+        const replayPanelsCode = await runCli(
+          ['run', '--replay', ndjsonPath, '--style', 'panels', '--no-color'],
+          {
+            stdout: (s) => {
+              replayPanelsOut += s;
+            },
+            stderr: (s) => {
+              replayPanelsErr += s;
+            },
+            isTTY: false,
+            stderrIsTTY: false,
+            env: {},
+          },
+        );
+        assert.equal(replayPanelsCode, 0);
+        assert.match(replayPanelsErr, /\[REPLAY\] FRAME\/12/);
+        assert.match(replayPanelsOut, /\[REPLAY\] Completed/);
+
+        let archPanelsOut = '';
+        let archPanelsErr = '';
+        const archPanelsCode = await runCli(
+          [
+            'import-archaeology',
+            resolve(expRoot, 'fixtures/repo-archaeology-reconstructed.json'),
+            '--style',
+            'panels',
+            '--no-color',
+          ],
+          {
+            stdout: (s) => {
+              archPanelsOut += s;
+            },
+            stderr: (s) => {
+              archPanelsErr += s;
+            },
+            isTTY: false,
+            stderrIsTTY: false,
+            env: {},
+          },
+        );
+        assert.equal(archPanelsCode, 0);
+        assert.match(archPanelsErr, /\[RECONSTRUCTED · NOT LIVE EVENTS\]/);
+        assert.match(archPanelsOut, /RECONSTRUCTED \(repo-archaeology v1\)/);
+        assert.match(archPanelsOut, /Warning: Excluded 2 automated lockfile-only commits/);
+
+        // Real POSIX PTY end-to-end execution of storyboard CLI in --style auto (interactive TTY)
+        const ptyReportPath = join(tmpDir, 'pty-report.html');
+        const pyScript = [
+          'import json, os, pty, select, subprocess, sys',
+          'master_out, slave_out = pty.openpty()',
+          'master_err, slave_err = pty.openpty()',
+          'proc = subprocess.Popen(sys.argv[1:], stdin=subprocess.DEVNULL, stdout=slave_out, stderr=slave_err, close_fds=True)',
+          'os.close(slave_out)',
+          'os.close(slave_err)',
+          'out_chunks, err_chunks = [], []',
+          'fds = {master_out: out_chunks, master_err: err_chunks}',
+          'while fds:',
+          '    r, _, _ = select.select(list(fds.keys()), [], [], 0.1)',
+          '    for fd in r:',
+          '        try:',
+          '            data = os.read(fd, 4096)',
+          '            if data:',
+          '                fds[fd].append(data)',
+          '            else:',
+          '                del fds[fd]',
+          '                os.close(fd)',
+          '        except OSError:',
+          '            del fds[fd]',
+          '            os.close(fd)',
+          'code = proc.wait()',
+          'print(json.dumps({"code": code, "stdout": b"".join(out_chunks).decode("utf-8", "replace"), "stderr": b"".join(err_chunks).decode("utf-8", "replace")}))',
+        ].join('\n');
+
+        const ptyRes = spawnSync(
+          'python3',
+          [
+            '-c',
+            pyScript,
+            process.execPath,
+            resolve(distDir, 'bin/storyboard.js'),
+            'run',
+            fixture.repoDir,
+            '--no-color',
+            '--report',
+            ptyReportPath,
+          ],
+          {
+            encoding: 'utf8',
+            env: { ...process.env, TERM: 'xterm-256color', CI: '', NO_COLOR: '1' },
+          },
+        );
+        assert.equal(ptyRes.status, 0, `PTY wrapper failed: ${ptyRes.stderr}`);
+        const ptyParsed = JSON.parse(ptyRes.stdout.trim());
+        assert.equal(ptyParsed.code, 0);
+        assert.match(ptyParsed.stderr, /FRAME\/12\s+\/\s+TERMINAL STORYBOARD/);
+        assert.match(ptyParsed.stderr, /C-01 ✓ Repository validated/);
+        assert.match(ptyParsed.stderr, /Wrote FRAME\/12 HTML report:/);
+        assert.match(ptyParsed.stdout, /F-01 \/ TOP FINDING/);
+        assert.match(ptyParsed.stdout, /HTML report ready/);
+        assert.equal(existsSync(ptyReportPath), true);
+      } finally {
+        rmSync(tmpDir, { recursive: true, force: true });
+      }
     });
   });
 });

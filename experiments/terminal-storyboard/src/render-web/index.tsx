@@ -350,11 +350,11 @@ function StoryboardReportView({
                     </Badge>
                   </div>
                   <p className="f12-body-copy">
-                    <strong>{topRel.summary}</strong>
+                    <strong>{sanitizeTerminalText(topRel.summary)}</strong>
                   </p>
                   <div className="f12-action-item">
                     <p className="f12-body-copy">
-                      <strong>Recommended next step:</strong> {topRel.actionHint}
+                      <strong>Recommended next step:</strong> {sanitizeTerminalText(topRel.actionHint)}
                     </p>
                     <p className="f12-mono-note">
                       Supporting commits:{' '}
@@ -516,11 +516,11 @@ function StoryboardReportView({
                           <div className="f12-finding-card-body">
                             <div className="f12-finding-card-col">
                               <span className="f12-mono-note">OBSERVED HISTORY</span>
-                              <p className="f12-body-copy">{rel.summary}</p>
+                              <p className="f12-body-copy">{sanitizeTerminalText(rel.summary)}</p>
                             </div>
                             <div className="f12-finding-card-col">
                               <span className="f12-mono-note">SUGGESTED REVIEW ACTION</span>
-                              <p className="f12-body-copy">{rel.actionHint}</p>
+                              <p className="f12-body-copy">{sanitizeTerminalText(rel.actionHint)}</p>
                             </div>
                           </div>
 

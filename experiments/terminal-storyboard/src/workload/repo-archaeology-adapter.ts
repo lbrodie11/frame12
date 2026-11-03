@@ -11,7 +11,9 @@ import {
 import {
   classifyCochangePair,
   describeCochangeRelationship,
+  fitFindingToPayloadBudget,
   truncateText,
+  validateFilePathLength,
 } from './git-history.js';
 
 export interface RepoArchaeologyEvidenceView {
@@ -219,37 +221,26 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
   const rawWindowCommits =
     settings.maxCommits ?? evalOpts.maxCommits ?? meta.commitsRead ?? meta.windowCommits ?? raw.windowCommits;
 
-  const commitsExamined = requireNonNegativeInt(
-    rawCommitsAnalyzed ?? rawWindowCommits,
-    'commitsAnalyzed',
-    50,
-  );
-  const maxCommits = requirePositiveInt(
-    rawWindowCommits ?? (commitsExamined > 0 ? commitsExamined : 50),
-    'maxCommits',
-    50,
-  );
+  if (rawCommitsAnalyzed !== undefined) {
+    requireNonNegativeInt(rawCommitsAnalyzed, 'commitsAnalyzed');
+  }
+  if (rawWindowCommits !== undefined) {
+    requirePositiveInt(rawWindowCommits, 'maxCommits');
+  }
+
+  if (!Array.isArray(raw.suggestions) && !Array.isArray(raw.cochangePairs)) {
+    throw new Error(
+      'Invalid Repo Archaeology snapshot: missing required "suggestions" (or "cochangePairs") array.',
+    );
+  }
 
   const pairsInput = Array.isArray(raw.suggestions)
     ? raw.suggestions
-    : Array.isArray(raw.cochangePairs)
-      ? raw.cochangePairs
-      : [];
+    : (raw.cochangePairs as RepoArchaeologySuggestion[]);
 
   if (raw.totalSuggestions !== undefined) {
     requireNonNegativeInt(raw.totalSuggestions, 'totalSuggestions');
   }
-
-  const uniqueFilesObserved = requireNonNegativeInt(
-    meta.files ?? meta.filesAnalyzed ?? raw.filesAnalyzed,
-    'files',
-    0,
-  );
-  const totalPairsObserved = requireNonNegativeInt(
-    meta.totalCoupledPairs ?? raw.totalCoupledPairs ?? raw.totalSuggestions,
-    'totalSuggestions',
-    pairsInput.length,
-  );
 
   const derivedFileTouches = new Map<string, number>();
 
@@ -315,8 +306,13 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
       );
     }
 
-    const cleanFileA = truncateText(rawFileA.trim(), 320);
-    const cleanFileB = truncateText(rawFileB.trim(), 320);
+    const cleanFileA = validateFilePathLength(rawFileA.trim());
+    const cleanFileB = validateFilePathLength(rawFileB.trim());
+    if (cleanFileA === cleanFileB) {
+      throw new Error(
+        `Invalid Repo Archaeology suggestion at index ${idx}: from/fileA and to/fileB must be distinct file paths.`,
+      );
+    }
     const isOrdered = cleanFileA.localeCompare(cleanFileB) <= 0;
     const sortedFiles: [string, string] = isOrdered
       ? [cleanFileA, cleanFileB]
@@ -367,14 +363,26 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
     }
 
     // Overlap is shared / min(fileACommits, fileBCommits), which equals max(confidence, reverseConfidence)
-    const maxDirectionalConfidence =
-      rawRatio !== undefined && rawRevRatio !== undefined
-        ? Math.max(rawRatio, rawRevRatio)
-        : rawRatio;
+    // Only use directional confidence directly when BOTH confidence and reverseConfidence are present
+    // (or legacy jaccardOrCoupling when explicit per-file commit counts were not provided).
+    const hasBothDirectionalConfidences =
+      pair.confidence !== undefined && rawRevRatio !== undefined;
+    const hasExplicitPerFileCounts =
+      (pair.fromChanges !== undefined ||
+        pair.targetCommits !== undefined ||
+        pair.fileACommits !== undefined) &&
+      (pair.toChanges !== undefined ||
+        pair.companionCommits !== undefined ||
+        pair.fileBCommits !== undefined);
+    const explicitCoupling = hasBothDirectionalConfidences
+      ? Math.max(pair.confidence!, rawRevRatio!)
+      : !hasExplicitPerFileCounts && pair.jaccardOrCoupling !== undefined
+        ? pair.jaccardOrCoupling
+        : undefined;
 
     const couplingRatio =
-      maxDirectionalConfidence !== undefined
-        ? Math.min(1, Math.max(0, Math.round(maxDirectionalConfidence * 100) / 100))
+      explicitCoupling !== undefined
+        ? Math.min(1, Math.max(0, Math.round(explicitCoupling * 100) / 100))
         : computedOverlap;
     const jaccardRatio =
       rawJaccard !== undefined
@@ -398,7 +406,7 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
 
     const classification = classifyCochangePair(sortedFiles[0], sortedFiles[1]);
 
-    return {
+    return fitFindingToPayloadBudget({
       id,
       files: sortedFiles,
       cochangeCount: sharedCommits,
@@ -413,7 +421,7 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
         count: sharedCommits,
       },
       reason,
-    };
+    });
   });
 
   if (Array.isArray(raw.families)) {
@@ -429,13 +437,33 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
             Number.isInteger(m.changes) &&
             m.changes >= 1
           ) {
-            const p = truncateText(m.path.trim(), 320);
+            const p = validateFilePathLength(m.path.trim());
             derivedFileTouches.set(p, Math.max(derivedFileTouches.get(p) ?? 0, m.changes));
           }
         }
       }
     }
   }
+
+  const commitsExamined = requireNonNegativeInt(
+    rawCommitsAnalyzed ?? rawWindowCommits,
+    'commitsAnalyzed',
+  );
+  const maxCommits = requirePositiveInt(
+    rawWindowCommits ?? (commitsExamined > 0 ? commitsExamined : 1),
+    'maxCommits',
+  );
+
+  const uniqueFilesObserved = requireNonNegativeInt(
+    meta.files ?? meta.filesAnalyzed ?? raw.filesAnalyzed,
+    'files',
+    derivedFileTouches.size,
+  );
+  const totalPairsObserved = requireNonNegativeInt(
+    meta.totalCoupledPairs ?? raw.totalCoupledPairs ?? raw.totalSuggestions,
+    'totalSuggestions',
+    pairsInput.length,
+  );
 
   const hotFiles: HotFileSummary[] = Array.isArray(raw.hotspots)
     ? raw.hotspots.map((h, idx) => {
@@ -444,7 +472,7 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
         }
         const touches = requirePositiveInt(h.touches, `hotspots[${idx}].touches`);
         return {
-          file: truncateText(h.path.trim(), 320),
+          file: validateFilePathLength(h.path.trim()),
           commits: touches,
           share:
             commitsExamined > 0

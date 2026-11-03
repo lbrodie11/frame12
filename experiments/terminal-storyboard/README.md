@@ -89,14 +89,15 @@ storyboard import-archaeology <fixture.json> [--report <out.html>] [--style auto
 
 ## How to Run the Demo
 
-First, ensure root workspace dependencies are installed from the repository root (`npm ci`), then run the experiment commands from `experiments/terminal-storyboard`:
+First, ensure both root workspace dependencies and the isolated experiment dependencies (`ink`) are installed (`npm ci` at the repository root and `npm ci` inside `experiments/terminal-storyboard`), then run the experiment commands from `experiments/terminal-storyboard`:
 
 ```bash
 # From the repository root:
 npm ci
 
-# Move into the isolated experiment directory:
+# Move into the isolated experiment directory and install experiment-local dependencies:
 cd experiments/terminal-storyboard
+npm ci
 
 # 1. Build, typecheck, lint (check-frame12.mjs), and run all automated tests:
 npm test

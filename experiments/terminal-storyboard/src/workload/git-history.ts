@@ -13,6 +13,7 @@ import {
   type StepEndStatus,
   type StoryboardEvent,
 } from '../model/index.js';
+import { sanitizeTerminalText } from '../render-plain/index.js';
 
 export interface GitHistoryWorkloadOptions {
   repoPath: string;
@@ -36,7 +37,7 @@ interface ParsedCommit {
 const COMMIT_MARKER = '__F12_COMMIT__\x00';
 const MAX_FILES_PER_COMMIT = 50;
 const MAX_SUBJECT_CHARS = 200;
-const MAX_FILEPATH_CHARS = 320;
+export const MAX_FILEPATH_BYTES = 2048;
 const MAX_STDERR_BYTES = 65536;
 
 const DEFAULT_NOISE_BASENAMES = new Set<string>([
@@ -105,10 +106,62 @@ export function truncateText(input: string, maxChars: number): string {
   return `${codePoints.slice(0, Math.max(1, maxChars - 1)).join('')}…`;
 }
 
+export function validateFilePathLength(filePath: string): string {
+  const normalized = filePath.normalize('NFC');
+  if (Buffer.byteLength(normalized, 'utf8') > MAX_FILEPATH_BYTES) {
+    throw new Error(
+      `File path exceeds maximum allowed length of ${MAX_FILEPATH_BYTES} UTF-8 bytes.`,
+    );
+  }
+  return normalized;
+}
+
+export function fitFindingToPayloadBudget(finding: CochangeFinding): CochangeFinding {
+  let reason = truncateText(finding.reason, 320);
+  let sampleSubjects = finding.evidence.sampleSubjects
+    .slice(0, 3)
+    .map((s) => truncateText(s, MAX_SUBJECT_CHARS));
+
+  let candidate: CochangeFinding = {
+    ...finding,
+    reason,
+    evidence: {
+      ...finding.evidence,
+      sampleSubjects,
+    },
+  };
+
+  if (Buffer.byteLength(JSON.stringify({ finding: candidate }), 'utf8') > 7400) {
+    sampleSubjects = sampleSubjects.slice(0, 1).map((s) => truncateText(s, 80));
+    reason = truncateText(reason, 180);
+    candidate = {
+      ...finding,
+      reason,
+      evidence: {
+        ...finding.evidence,
+        sampleSubjects,
+      },
+    };
+  }
+  if (Buffer.byteLength(JSON.stringify({ finding: candidate }), 'utf8') > 7800) {
+    sampleSubjects = [];
+    reason = truncateText(reason, 120);
+    candidate = {
+      ...finding,
+      reason,
+      evidence: {
+        ...finding.evidence,
+        sampleSubjects,
+      },
+    };
+  }
+  return candidate;
+}
+
 /**
  * Unquotes a Git C-escaped path (when Git wraps paths containing quotes, tabs,
  * backslashes, or control characters in double quotes) while preserving astral
- * Unicode code points (emoji/CJK) and normalizing to NFC.
+ * Unicode code points (emoji/CJK), normalizing to NFC, and preserving full path identity.
  */
 export function unquoteGitPath(line: string): string {
   const cleaned = line.replace(/\r$/, '');
@@ -160,9 +213,9 @@ export function unquoteGitPath(line: string): string {
         i += fullChar.length;
       }
     }
-    return truncateText(Buffer.from(bytes).toString('utf8').normalize('NFC'), MAX_FILEPATH_CHARS);
+    return validateFilePathLength(Buffer.from(bytes).toString('utf8'));
   }
-  return truncateText(cleaned.normalize('NFC'), MAX_FILEPATH_CHARS);
+  return validateFilePathLength(cleaned);
 }
 
 export function globToRegExp(pattern: string): RegExp {
@@ -264,7 +317,8 @@ export function describeCochangeRelationship(params: {
   jaccardRatio?: number;
   sampleSubjects?: string[];
 }): CochangeRelationshipSummary {
-  const [fileA, fileB] = params.files;
+  const fileA = sanitizeTerminalText(params.files[0]);
+  const fileB = sanitizeTerminalText(params.files[1]);
   const baseA = posix.basename(fileA);
   const baseB = posix.basename(fileB);
   const shared = params.cochangeCount;
@@ -366,6 +420,11 @@ export async function runGitHistoryWorkload(
   const validator = new StoryboardStreamValidator();
   const events: StoryboardEvent[] = [];
   const warnings: string[] = [];
+  const findings: CochangeFinding[] = [];
+  let emittedCommitsExamined = 0;
+  let emittedUniqueFilesObserved = 0;
+  let emittedTotalPairsObserved = 0;
+  let emittedHotFiles: HotFileSummary[] = [];
   let seq = 0;
   let ended = false;
   let activeStep: string | null = null;
@@ -395,20 +454,25 @@ export async function runGitHistoryWorkload(
   const finishEarly = (status: RunEndStatus, stepStatus: StepEndStatus, reason: string): ResultSnapshot => {
     const safeReason = truncateText(reason, 300);
     if (activeStep) emit('step-end', activeStep, { status: stepStatus, summary: safeReason });
-    emit('run-end', null, { status, summary: safeReason, ...(status === 'failed' ? { error: safeReason } : {}) });
+    emit('run-end', null, {
+      status,
+      summary: safeReason,
+      ...(emittedHotFiles.length > 0 ? { hotFiles: emittedHotFiles } : {}),
+      ...(status === 'failed' ? { error: safeReason } : {}),
+    });
     return {
       schemaVersion: SCHEMA_VERSION,
       runId,
       status,
       repoLabel,
-      startedAt,
-      finishedAt: new Date().toISOString(),
+      startedAt: events[0]?.ts ?? startedAt,
+      finishedAt: events[events.length - 1]?.ts ?? new Date().toISOString(),
       maxCommits,
-      commitsExamined: 0,
-      uniqueFilesObserved: 0,
-      totalPairsObserved: 0,
-      findings: [],
-      hotFiles: [],
+      commitsExamined: emittedCommitsExamined,
+      uniqueFilesObserved: emittedUniqueFilesObserved,
+      totalPairsObserved: emittedTotalPairsObserved,
+      findings,
+      hotFiles: emittedHotFiles,
       warnings,
       ...(status === 'failed' ? { error: safeReason } : {}),
     };
@@ -627,10 +691,20 @@ export async function runGitHistoryWorkload(
       });
     }
 
+    emittedCommitsExamined = commits.length;
+    emittedHotFiles = Array.from(fileCommits.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 6)
+      .map(([file, count]) => ({
+        file,
+        commits: count,
+        share: commits.length > 0 ? Math.min(1, Math.round((count / commits.length) * 100) / 100) : 0,
+      }));
     emit('metric', 'read-history', { name: 'commitsExamined', value: commits.length });
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while reading git history'), events };
     }
+    emittedUniqueFilesObserved = fileCommits.size;
     emit('metric', 'read-history', { name: 'uniqueFilesObserved', value: fileCommits.size });
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while reading git history'), events };
@@ -642,12 +716,16 @@ export async function runGitHistoryWorkload(
 
     // Step 3: pair-cochanges
     emit('step-start', 'pair-cochanges', { title: 'Pair co-changing files' });
+    await new Promise<void>((r) => setImmediate(r));
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while pairing co-changing files'), events };
     }
     const pairMap = new Map<string, { files: [string, string]; count: number; shas: string[]; subjects: string[] }>();
     let lastPairProgressTime = Date.now();
     for (let idx = 0; idx < filteredCommits.length; idx++) {
+      if (idx > 0 && idx % 5 === 0) {
+        await new Promise<void>((r) => setImmediate(r));
+      }
       if (options.signal?.aborted) {
         return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while pairing co-changing files'), events };
       }
@@ -685,6 +763,7 @@ export async function runGitHistoryWorkload(
         }
       }
     }
+    emittedTotalPairsObserved = pairMap.size;
     emit('metric', 'pair-cochanges', { name: 'totalPairsObserved', value: pairMap.size });
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while pairing co-changing files'), events };
@@ -696,6 +775,7 @@ export async function runGitHistoryWorkload(
 
     // Step 4: rank-findings
     emit('step-start', 'rank-findings', { title: 'Rank coupled file pairs and evidence' });
+    await new Promise<void>((r) => setImmediate(r));
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
     }
@@ -722,8 +802,10 @@ export async function runGitHistoryWorkload(
       )
       .slice(0, topN);
 
-    const findings: CochangeFinding[] = [];
     for (let idx = 0; idx < candidates.length; idx++) {
+      if (idx > 0) {
+        await new Promise<void>((r) => setImmediate(r));
+      }
       if (options.signal?.aborted) {
         return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
       }
@@ -738,7 +820,7 @@ export async function runGitHistoryWorkload(
         jaccardRatio: c.jaccardRatio,
         sampleSubjects: c.subjects,
       });
-      const finding: CochangeFinding = {
+      const finding = fitFindingToPayloadBudget({
         id,
         files: c.files,
         cochangeCount: c.count,
@@ -749,22 +831,15 @@ export async function runGitHistoryWorkload(
         classification,
         evidence: { commitShas: c.shas, sampleSubjects: c.subjects, count: c.count },
         reason: `${rel.patternLabel}: ${rel.summary}`,
-      };
+      });
+      findings.push(finding);
       emit('finding', 'rank-findings', { finding });
       if (options.signal?.aborted) {
         return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
       }
-      findings.push(finding);
     }
 
-    const hotFiles: HotFileSummary[] = Array.from(fileCommits.entries())
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 6)
-      .map(([file, count]) => ({
-        file,
-        commits: count,
-        share: commits.length > 0 ? Math.min(1, Math.round((count / commits.length) * 100) / 100) : 0,
-      }));
+    const hotFiles = emittedHotFiles;
 
     if (options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
@@ -784,8 +859,8 @@ export async function runGitHistoryWorkload(
       runId,
       status: 'completed',
       repoLabel,
-      startedAt,
-      finishedAt: new Date().toISOString(),
+      startedAt: events[0]?.ts ?? startedAt,
+      finishedAt: events[events.length - 1]?.ts ?? new Date().toISOString(),
       maxCommits,
       commitsExamined: commits.length,
       uniqueFilesObserved: fileCommits.size,

@@ -203,7 +203,7 @@ function parseArgs(argv: string[]): ParsedCliArgs {
   return res;
 }
 
-function reconstructSnapshotFromEvents(events: StoryboardEvent[]): ResultSnapshot {
+export function reconstructSnapshotFromEvents(events: StoryboardEvent[]): ResultSnapshot {
   const first = events[0]!;
   const last = events[events.length - 1]!;
   const repoLabel = String(first.payload.repoLabel ?? 'replayed-repo');
@@ -308,6 +308,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
   const columns =
     io?.columns ??
     (Number.isFinite(envCols) && envCols > 0 ? Math.floor(envCols) : undefined) ??
+    process.stderr.columns ??
     process.stdout.columns ??
     80;
 
@@ -368,7 +369,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       if (inkMod) {
         const controller = new inkMod.InkStreamController({
           ...plainOpts,
-          isTTY: isTTY || parsed.style === 'panels',
+          isTTY: stderrIsTTY,
           ascii: parsed.ascii,
           write: (s) => stderr(s),
         });
@@ -412,7 +413,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       if (inkMod) {
         const controller = new inkMod.InkStreamController({
           ...plainOpts,
-          isTTY: isTTY || parsed.style === 'panels',
+          isTTY: stderrIsTTY,
           ascii: parsed.ascii,
           write: (s) => stderr(s),
         });
@@ -439,10 +440,14 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       parsed.mode === 'storyboard' && inkMod
         ? new inkMod.InkStreamController({
             ...plainOpts,
-            isTTY: isTTY || parsed.style === 'panels',
+            isTTY: stderrIsTTY,
             ascii: parsed.ascii,
             write: (s) => stderr(s),
-            resizeTarget: !io?.columns ? process.stdout : undefined,
+            resizeTarget: !io?.columns
+              ? process.stderr.isTTY
+                ? process.stderr
+                : process.stdout
+              : undefined,
           })
         : null;
 
@@ -493,9 +498,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       const html = renderWebReportHtml(snapshot, events, { theme: parsed.theme });
       writeFileSync(outPath, html, 'utf8');
       reportWritten = true;
-      if (!inkMod) {
-        writeDiag(`Wrote FRAME/12 HTML report: ${outPath}`);
-      }
+      writeDiag(`Wrote FRAME/12 HTML report: ${outPath}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       writeDiag(`Error writing HTML report: ${msg}`);
@@ -513,7 +516,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       stdout(
         inkMod.renderInkStaticSummary(snapshot, events, {
           ...plainOpts,
-          isTTY: isTTY || parsed.style === 'panels',
+          isTTY,
           ascii: parsed.ascii,
           reportWritten,
           includeHeaderAndSteps: false,

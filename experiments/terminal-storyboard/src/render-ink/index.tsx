@@ -1,6 +1,5 @@
 import { Writable } from 'node:stream';
 import * as React from 'react';
-import chalk from 'chalk';
 import { Box, Text, render, type Instance as InkInstance } from 'ink';
 import {
   validateEventStream,
@@ -103,8 +102,6 @@ function renderInkElementToString(
   colorEnabled: boolean,
 ): string {
   const stream = new CaptureWritable(columns);
-  const prevChalkLevel = chalk.level;
-  chalk.level = colorEnabled ? (Math.max(1, prevChalkLevel || 3) as 1 | 2 | 3) : 0;
 
   let instance: InkInstance | null = null;
   try {
@@ -116,71 +113,50 @@ function renderInkElementToString(
       exitOnCtrlC: false,
     });
   } finally {
-    try {
-      instance?.unmount();
-      instance?.cleanup();
-    } finally {
-      chalk.level = prevChalkLevel;
-    }
+    instance?.unmount();
+    instance?.cleanup();
   }
 
   const rawFrame = stream.frames[stream.frames.length - 1] ?? '';
   return colorEnabled ? rawFrame : stripAnsiSgr(rawFrame);
 }
 
+export function formatStepProgressPayload(payload: Record<string, unknown>): string {
+  if (typeof payload.message === 'string' && payload.message.trim().length > 0) {
+    return sanitizeTerminalText(payload.message);
+  }
+  if (typeof payload.commitsParsed === 'number' && Number.isFinite(payload.commitsParsed)) {
+    return `${payload.commitsParsed} commits examined`;
+  }
+  if (typeof payload.commitsProcessed === 'number' && Number.isFinite(payload.commitsProcessed)) {
+    const pairs =
+      typeof payload.pairsObserved === 'number' && Number.isFinite(payload.pairsObserved)
+        ? payload.pairsObserved
+        : 0;
+    return `${payload.commitsProcessed} commits paired · ${pairs} pairs`;
+  }
+  return '';
+}
+
 export function extractStoryboardSteps(
-  snapshot: ResultSnapshot,
+  _snapshot: ResultSnapshot,
   events: StoryboardEvent[],
 ): StoryboardStepItem[] {
-  if (events.length > 0) {
-    const validated = validateEventStream(events);
-    if (!validated.ok) {
-      throw new Error(`Invalid event stream passed to Ink renderer: ${validated.error}`);
-    }
-    return validated.steps.map((s, idx) => ({
-      id: s.stepId,
-      cutLabel: `C-${String(idx + 1).padStart(2, '0')}`,
-      stepId: s.stepId,
-      title: s.title,
-      status: s.status,
-      summary: s.summary,
-    }));
+  if (events.length === 0) {
+    return [];
   }
-
-  return [
-    {
-      id: 'validate-repo',
-      cutLabel: 'C-01',
-      stepId: 'validate-repo',
-      title: 'Validate target repository',
-      status: snapshot.status === 'failed' && snapshot.commitsExamined === 0 ? 'failed' : 'ok',
-      summary: `repo: ${snapshot.repoLabel}`,
-    },
-    {
-      id: 'read-history',
-      cutLabel: 'C-02',
-      stepId: 'read-history',
-      title: 'Read commit history',
-      status: 'ok',
-      summary: `${snapshot.commitsExamined} commits · ${snapshot.uniqueFilesObserved} files`,
-    },
-    {
-      id: 'pair-cochanges',
-      cutLabel: 'C-03',
-      stepId: 'pair-cochanges',
-      title: 'Pair co-changing files',
-      status: 'ok',
-      summary: `${snapshot.totalPairsObserved} co-change pairs observed`,
-    },
-    {
-      id: 'rank-findings',
-      cutLabel: 'C-04',
-      stepId: 'rank-findings',
-      title: 'Rank coupled file pairs',
-      status: snapshot.status === 'failed' ? 'failed' : 'ok',
-      summary: `${snapshot.findings.length} findings ranked`,
-    },
-  ];
+  const validated = validateEventStream(events);
+  if (!validated.ok) {
+    throw new Error(`Invalid event stream passed to Ink renderer: ${validated.error}`);
+  }
+  return validated.steps.map((s, idx) => ({
+    id: s.stepId,
+    cutLabel: `C-${String(idx + 1).padStart(2, '0')}`,
+    stepId: s.stepId,
+    title: s.title,
+    status: s.status,
+    summary: s.summary,
+  }));
 }
 
 /**
@@ -206,6 +182,7 @@ export function renderInkStaticSummary(
       colorEnabled={colorEnabled}
       ascii={ascii}
       reportWritten={Boolean(options.reportWritten)}
+      isReplay={Boolean(options.isReplay)}
       useStatic={true}
       includeHeaderAndSteps={includeHeaderAndSteps}
     />,
@@ -229,15 +206,19 @@ export class InkStreamController {
   private columns: number;
   private colorEnabled: boolean;
   private ascii: boolean;
+  private isReplay: boolean;
+  private reconstructed = false;
   private disposed = false;
 
   private completedSteps: StoryboardStepItem[] = [];
   private activeSteps = new Map<string, StoryboardStepItem>();
+  private pendingWarnings: string[] = [];
   private stepOrder = new Map<string, string>();
   private nextCutIndex = 0;
 
   private headerPrinted = false;
   private printedCompletedCount = 0;
+  private printedWarningCount = 0;
   private lastPrintedProgressSig = '';
   private frames: string[] = [];
 
@@ -253,6 +234,7 @@ export class InkStreamController {
     this.columns = Math.max(32, Math.floor(options.columns || 80));
     this.colorEnabled = shouldUseColor(options);
     this.ascii = Boolean(options.ascii);
+    this.isReplay = Boolean(options.isReplay);
 
     if (options.resizeTarget?.on) {
       const target = options.resizeTarget;
@@ -299,7 +281,10 @@ export class InkStreamController {
     const active = this.getActiveStep();
     return JSON.stringify({
       cols: this.columns,
+      isReplay: this.isReplay,
+      reconstructed: this.reconstructed,
       completed: this.completedSteps,
+      warnings: this.pendingWarnings,
       active,
     });
   }
@@ -323,14 +308,22 @@ export class InkStreamController {
     this.redrawCount += 1;
 
     const layoutWidth = Math.max(32, Math.min(this.columns, 88));
-    const headerTitle =
+    const baseHeader =
       this.columns < 44 ? 'FRAME/12 / STORYBOARD' : 'FRAME/12  /  TERMINAL STORYBOARD';
+    const headerTitle = this.isReplay ? `[REPLAY] ${baseHeader}` : baseHeader;
 
     if (!this.headerPrinted) {
       this.headerPrinted = true;
       this.emitIncrementalLine(
-        <Box width={layoutWidth}>
-          <Text bold={Boolean(this.colorEnabled)}>{headerTitle}</Text>
+        <Box width={layoutWidth} flexDirection="column">
+          <Text bold={Boolean(this.colorEnabled)} wrap="wrap">
+            {headerTitle}
+          </Text>
+          {this.reconstructed ? (
+            <Text dimColor={Boolean(this.colorEnabled)} wrap="wrap">
+              [RECONSTRUCTED · NOT LIVE EVENTS]
+            </Text>
+          ) : null}
         </Box>,
       );
     }
@@ -353,6 +346,18 @@ export class InkStreamController {
             colorEnabled={this.colorEnabled}
             ascii={this.ascii}
           />
+        </Box>,
+      );
+    }
+
+    while (this.printedWarningCount < this.pendingWarnings.length) {
+      const w = this.pendingWarnings[this.printedWarningCount]!;
+      this.printedWarningCount += 1;
+      this.emitIncrementalLine(
+        <Box width={layoutWidth}>
+          <Text dimColor={Boolean(this.colorEnabled)} wrap="wrap">
+            {`  Warning: ${w}`}
+          </Text>
         </Box>,
       );
     }
@@ -416,6 +421,9 @@ export class InkStreamController {
     if (this.disposed) return;
 
     if (event.type === 'run-start') {
+      if (event.payload.reconstructed === true) {
+        this.reconstructed = true;
+      }
       this.flushImmediate();
       return;
     }
@@ -441,8 +449,8 @@ export class InkStreamController {
       const stepId = event.stepId ?? '';
       const current = this.activeSteps.get(stepId);
       if (current) {
-        const nextSummary = sanitizeTerminalText(String(event.payload.message ?? ''));
-        if (current.summary === nextSummary) {
+        const nextSummary = formatStepProgressPayload(event.payload);
+        if (!nextSummary || current.summary === nextSummary) {
           return;
         }
         this.activeSteps.set(stepId, {
@@ -450,6 +458,15 @@ export class InkStreamController {
           summary: nextSummary,
         });
         this.scheduleThrottledFlush();
+      }
+      return;
+    }
+
+    if (event.type === 'warning') {
+      const msg = sanitizeTerminalText(String(event.payload.message ?? ''));
+      if (msg && !this.pendingWarnings.includes(msg)) {
+        this.pendingWarnings.push(msg);
+        this.flushImmediate();
       }
       return;
     }

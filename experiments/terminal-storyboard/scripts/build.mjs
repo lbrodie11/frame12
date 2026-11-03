@@ -8,6 +8,10 @@ const expRoot = resolve(__dirname, '..');
 const repoRoot = resolve(expRoot, '../..');
 const distDir = resolve(expRoot, 'dist');
 
+// Ensure single React 18 instance from repository root using cross-platform Node fs.rmSync
+rmSync(resolve(expRoot, 'node_modules/react'), { recursive: true, force: true });
+rmSync(resolve(expRoot, 'node_modules/react-dom'), { recursive: true, force: true });
+
 rmSync(distDir, { recursive: true, force: true });
 mkdirSync(distDir, { recursive: true });
 
@@ -94,7 +98,7 @@ await build({
   jsx: 'automatic',
   sourcemap: false,
   plugins: [frame12AliasPlugin],
-  external: ['ink', 'chalk', 'react', 'react-dom', 'react/jsx-runtime'],
+  external: ['ink', 'react', 'react-dom', 'react/jsx-runtime'],
 });
 
 chmodSync(resolve(distDir, 'bin/storyboard.js'), 0o755);

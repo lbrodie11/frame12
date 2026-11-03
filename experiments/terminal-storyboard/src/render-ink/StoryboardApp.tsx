@@ -19,13 +19,15 @@ export interface StoryboardAppProps {
   colorEnabled?: boolean;
   ascii?: boolean;
   reportWritten?: boolean;
+  isReplay?: boolean;
   useStatic?: boolean;
   includeHeaderAndSteps?: boolean;
 }
 
 interface StaticHeaderOrStep {
   key: string;
-  kind: 'header' | 'step';
+  kind: 'header' | 'notice' | 'step';
+  text?: string;
   step?: StoryboardStepItem;
 }
 
@@ -113,6 +115,7 @@ export function StoryboardApp({
   colorEnabled = true,
   ascii = false,
   reportWritten = false,
+  isReplay = false,
   useStatic = true,
   includeHeaderAndSteps = true,
 }: StoryboardAppProps): React.ReactElement {
@@ -121,12 +124,31 @@ export function StoryboardApp({
   const ruleChar = ascii ? '-' : '─';
   const ruleLine = ruleChar.repeat(layoutWidth);
   const subRuleLine = `  ${ruleChar.repeat(Math.max(10, layoutWidth - 2))}`;
-  const headerTitle =
+  const baseHeader =
     safeCols < 44 ? 'FRAME/12 / STORYBOARD' : 'FRAME/12  /  TERMINAL STORYBOARD';
+  const headerTitle = isReplay ? `[REPLAY] ${baseHeader}` : baseHeader;
 
   const staticItems: StaticHeaderOrStep[] = includeHeaderAndSteps
     ? [
         { key: 'header', kind: 'header' },
+        ...(snapshot?.reconstructed
+          ? [
+              {
+                key: 'reconstructed',
+                kind: 'notice' as const,
+                text: '[RECONSTRUCTED · NOT LIVE EVENTS]',
+              },
+            ]
+          : []),
+        ...(completedSteps.length === 0 && !activeStep && snapshot
+          ? [
+              {
+                key: 'snapshot-only',
+                kind: 'notice' as const,
+                text: '[SNAPSHOT ONLY · NO LIVE EVENT STREAM]',
+              },
+            ]
+          : []),
         ...completedSteps.map((s) => ({
           key: `step-${s.id}`,
           kind: 'step' as const,
@@ -139,7 +161,18 @@ export function StoryboardApp({
     if (item.kind === 'header') {
       return (
         <Box key={item.key}>
-          <Text bold={Boolean(colorEnabled)}>{headerTitle}</Text>
+          <Text bold={Boolean(colorEnabled)} wrap="wrap">
+            {headerTitle}
+          </Text>
+        </Box>
+      );
+    }
+    if (item.kind === 'notice') {
+      return (
+        <Box key={item.key}>
+          <Text dimColor={Boolean(colorEnabled)} wrap="wrap">
+            {item.text}
+          </Text>
         </Box>
       );
     }
@@ -239,6 +272,8 @@ export function StoryboardApp({
           <RunSummary
             snapshot={snapshot}
             reportWritten={reportWritten}
+            isReplay={Boolean(isReplay)}
+            width={layoutWidth}
             colorEnabled={colorEnabled}
             ascii={ascii}
           />
