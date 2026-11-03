@@ -47,7 +47,7 @@ npx shadcn@latest add https://frame12.dev/r/frame12.json
 <details>
 <summary><strong>Install individual components instead of the full bundle</strong></summary>
 
-Every component manifest at `https://frame12.dev/r/<name>.json` is self-contained and automatically includes `frame12.css` and any required hooks or Radix primitives:
+Every component manifest at `https://frame12.dev/r/<name>.json` resolves `frame12-styles` (`styles/frame12.css`) and any required hooks (`hooks/use-on-twos.ts`) or sibling primitives via `registryDependencies`:
 
 ```bash
 npx shadcn@latest add https://frame12.dev/r/sheet.json
@@ -61,23 +61,25 @@ npx shadcn@latest add https://frame12.dev/r/dialog.json
 npx shadcn@latest add https://frame12.dev/r/select.json
 ```
 
-Browse all 19 components and 22 registry payloads at **[frame12.dev/components](https://frame12.dev/components)**.
+> **Upgrading & Customizing Tokens:** Do not edit `styles/frame12.css` directly—put custom `--f-*` token overrides in your own stylesheet (such as `app/globals.css`). When upgrading or adding components after a FRAME/12 update (or in non-interactive CI/agent shells where `shadcn add -y` will skip installing if `styles/frame12.css` differs and still exit `0`), pass `--overwrite` and verify that `components/frame12/<name>.tsx` exists on disk.
+
+Browse all 19 components and 26 registry payloads at **[frame12.dev/components](https://frame12.dev/components)**.
 </details>
 
 ### 2. Import the stylesheet and fonts (`app/layout.tsx`)
 
-Import `@/styles/frame12.css` and bind `--font-f-display` (`Dela Gothic One`), `--font-f-body` (`Zen Kaku Gothic New`), and `--font-f-mono` (`M PLUS 1 Code`):
+Import `@/styles/frame12.css` and bind `--font-dela-gothic-one`, `--font-zen-kaku-gothic-new`, and `--font-m-plus-1-code` (or install `frame12-base.json` to wire the `registry:font` items automatically):
 
 ```tsx
 import { Dela_Gothic_One, Zen_Kaku_Gothic_New, M_PLUS_1_Code } from 'next/font/google';
 import '@/styles/frame12.css';
 
-const display = Dela_Gothic_One({ weight: '400', subsets: ['latin'], variable: '--font-f-display' });
-const body = Zen_Kaku_Gothic_New({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-f-body' });
+const display = Dela_Gothic_One({ weight: '400', subsets: ['latin'], variable: '--font-dela-gothic-one' });
+const body = Zen_Kaku_Gothic_New({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-zen-kaku-gothic-new' });
 const mono = M_PLUS_1_Code({
   weight: ['400', '500', '700'],
   subsets: ['latin'],
-  variable: '--font-f-mono',
+  variable: '--font-m-plus-1-code',
   adjustFontFallback: false,
   fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
 });
@@ -105,7 +107,7 @@ const REVENUE_DAYS = [
 
 export default function DashboardPage() {
   return (
-    <Sheet pegs motion="stepped">
+    <Sheet autoCut pegs motion="stepped">
       <header className="f12-hd">
         <div>
           <p className="f12-eyebrow">Checkout Recovery <Tag>30 Days</Tag></p>
@@ -114,19 +116,17 @@ export default function DashboardPage() {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-01" label="Primary revenue chart">
+        <Panel label="Primary revenue chart">
           <Metric label="Recovered revenue" value={142840} delta={0.184} deltaKind="pct" range={30} big />
           <ToneAreaChart data={REVENUE_DAYS} seriesLabel="Recovered ($)" height={220} />
         </Panel>
 
         <PanelPair
           top={{
-            cut: 'C-02',
             label: 'Incremental profit',
             children: <Metric label="Incremental profit" value={54280} delta={0.142} deltaKind="pct" range={30} />,
           }}
           bottom={{
-            cut: 'C-03',
             label: 'Conversion lift',
             children: <Metric label="Conversion lift" value={0.55} delta={0.08} deltaKind="pp" range={30} />,
           }}
@@ -168,7 +168,7 @@ FRAME/12 replaces subjective styling feedback with eight explicit rules—**five
    - `12px` (`--f-gutter-pair` / `gutter="pair"`): tightly paired panels (`PanelPair`) across a `16px` diagonal slant.
    - `20px` (`--f-gutter-scene` / `gutter="scene"`): panels within the same scene.
    - `32px` (`--f-gutter-change` / `gutter="change"`): separation between scenes down the sheet.
-3. **Sequential cut numbers (`cut-order`):** Panels (`C-01`, `C-02`, `C-03`…) are numbered sequentially in DOM and reading order starting at `C-01`.
+3. **Sequential cut numbers (`cut-order` & `explicit-cut-in-autocut`):** Prefer `<Sheet autoCut>` so panels (`C-01`, `C-02`, `C-03`…) number automatically via CSS counters in DOM and reading order (`cut={false}` suppresses a panel's cut badge). When hand-numbering outside `autoCut`, cut labels must increment sequentially starting at `C-01`, and mixing explicit `cut` strings inside `<Sheet autoCut>` is flagged by `explicit-cut-in-autocut`.
 4. **Marker-yellow discipline (`marker-misuse`):** Highlighter yellow (`--f-marker`, `#ffd60a`) is used strictly as a highlight surface paired with `--f-marker-ink` (`#121212`) text or as an inked peak dot with a `2px` `--f-rule` stroke—never as raw text on a white sheet.
 5. **Adapter boundary (`raw-shadcn-import`):** Screens import primitives from `@/components/frame12` rather than bypassing the design language with unstyled third-party UI kits.
 

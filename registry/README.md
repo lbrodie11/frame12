@@ -6,7 +6,7 @@ Copy-in component source, CSS tokens, motion hooks, and [shadcn](https://ui.shad
 
 1. **Tokens, not literals:** All colors and font stacks come from `--f-*` and `--font-f-*` variables in `styles/frame12.css` (optional Tailwind v4 `@theme` mapping in `styles/frame12-tailwind.css`).
 2. **Gutter grammar:** Gutters inside `Scene` come strictly from `12px` (`pair`), `20px` (`scene`), and `32px` (`change`).
-3. **Cut numbers:** Numbered in reading order (`C-01`, `C-02`…); visual order, reading order, and DOM order always match.
+3. **Cut numbers:** Numbered in reading order (`C-01`, `C-02`…); visual order, reading order, and DOM order always match. Prefer `<Sheet autoCut>` to number panels automatically via CSS counters (`cut={false}` hides a cut on an unnumbered panel).
 4. **Marker yellow (`--f-marker`):** Only ever sits under ink text (`--f-marker-ink`). Never used as a line, chart series, or text color.
 5. **Motion on twos:** Discrete state transitions hold each pose for two frames at 24fps (`1000 / 12` = 83.33ms per pose, 12 poses/second). Hover, scrolling, typing, and crosshairs remain immediate. `prefers-reduced-motion: reduce` switches all transitions to instant hard cuts (`cut`).
 6. **Screentone:** Rotated SVG halftone dot patterns replace gradients and semi-transparent fills.
@@ -24,6 +24,8 @@ npx shadcn@latest add https://frame12.dev/r/tone-area-chart.json
 ```
 
 > **Note:** `https://frame12.dev` is the live production registry origin (override via `NEXT_PUBLIC_SITE_URL`). For local development, run `npm --workspace=@frame12/site run dev` and install from `http://localhost:3000/r/frame12.json` (verified automatically by `node scripts/smoke-install.mjs`).
+>
+> **Upgrading & Overwrite Behavior:** Every individual component depends on `frame12-styles` (`styles/frame12.css`). Never edit `styles/frame12.css` directly (place custom token overrides in your own stylesheet), pass `--overwrite` when adding or upgrading components if `styles/frame12.css` was modified or updated, and in automated/agent scripts always verify that `components/frame12/<name>.tsx` exists on disk after `shadcn add` rather than relying solely on exit code `0`.
 
 Import `styles/frame12.css` (or `styles/frame12-tailwind.css` when using Tailwind v4) in your root layout. Every component works standalone with `frame12.css` without requiring Tailwind.
 
@@ -43,10 +45,10 @@ Import `styles/frame12.css` (or `styles/frame12-tailwind.css` when using Tailwin
 
 | Component | Key Props | Purpose |
 | --- | --- | --- |
-| `Sheet` | `pegs?: boolean`, `motion?: 'stepped' \| 'smooth' \| 'cut'`, `theme?: 'light' \| 'dark'` | Top-level storyboard sheet with registration pegs and 32px scene-change flow. |
+| `Sheet` | `pegs?: boolean`, `autoCut?: boolean`, `motion?: 'stepped' \| 'smooth' \| 'cut'`, `theme?: 'light' \| 'dark'` | Top-level storyboard sheet with registration pegs, optional CSS-counter `autoCut`, and 32px scene-change flow. |
 | `Scene` | `gutter?: 'pair' \| 'scene' \| 'change'`, `layout?: 'split' \| 'stack' \| 'equal' \| 'three'` | Enforces the three legal FRAME/12 gutter widths (`12px`, `20px`, `32px`). |
-| `Panel` | `cut?: string`, `shape?: 'rect' \| 'slant-bottom' \| 'slant-top'`, `label?: string` | Ink-framed section with SVG mitered polygon border (`2.5px` stroke, `16px` slant rise). |
-| `PanelPair` | `top`, `bottom`, `topCut`, `bottomCut`, `children` | Pairs two related panels across a shared 12px slanted gutter (`slant-bottom` over `slant-top`). |
+| `Panel` | `cut?: string \| false`, `shape?: 'rect' \| 'slant-bottom' \| 'slant-top'`, `label?: string` | Ink-framed section with SVG mitered polygon border (`2.5px` stroke, `16px` slant rise) and automatic or explicit cut badge. |
+| `PanelPair` | `top`, `bottom`, `topCut?: string \| false`, `bottomCut?: string \| false`, `children` | Pairs two related panels across a shared 12px slanted gutter (`slant-bottom` over `slant-top`). |
 
 ### Controls (`ui/segmented-control.tsx`, `button.tsx`, `input.tsx`, `badge.tsx`, `tag.tsx`)
 

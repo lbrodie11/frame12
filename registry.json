@@ -1,0 +1,6 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "frame12",
+  "homepage": "https://frame12.dev",
+  "include": ["./registry/registry.json"]
+}

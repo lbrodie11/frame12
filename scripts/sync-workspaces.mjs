@@ -75,13 +75,7 @@ if (fs.existsSync(fontsDir)) {
   }
 }
 
-// 7. registry/registry.json -> site/public/r/registry.json
-FILE_MAPPINGS.push({
-  src: path.join(ROOT, 'registry/registry.json'),
-  dest: path.join(ROOT, 'site/public/r/registry.json'),
-});
-
-// 8. site/app/icon.svg -> templates/next-starter/app/icon.svg
+// 7. site/app/icon.svg -> templates/next-starter/app/icon.svg
 if (fs.existsSync(path.join(ROOT, 'site/app/icon.svg'))) {
   FILE_MAPPINGS.push({
     src: path.join(ROOT, 'site/app/icon.svg'),
@@ -112,10 +106,17 @@ if (checkOnly) {
     }
   }
 
+  // Verify site/public/r/registry.json matches canonical registry/registry.json
+  const canonicalRegistryRaw = fs.readFileSync(path.join(ROOT, 'registry/registry.json'), 'utf8');
+  const publicRegistryPath = path.join(ROOT, 'site/public/r/registry.json');
+  if (!fs.existsSync(publicRegistryPath)) {
+    drifts.push('Missing synced file: site/public/r/registry.json');
+  } else if (fs.readFileSync(publicRegistryPath, 'utf8') !== canonicalRegistryRaw) {
+    drifts.push('Drift between registry/registry.json and site/public/r/registry.json');
+  }
+
   // Verify site/public/r/*.json contain current source contents from registry/
-  const registryJson = JSON.parse(
-    fs.readFileSync(path.join(ROOT, 'registry/registry.json'), 'utf8'),
-  );
+  const registryJson = JSON.parse(canonicalRegistryRaw);
   for (const item of registryJson.items) {
     const builtPath = path.join(ROOT, 'site/public/r', `${item.name}.json`);
     if (!fs.existsSync(builtPath)) {
@@ -142,6 +143,20 @@ if (checkOnly) {
         `registryDependencies mismatch in site/public/r/${item.name}.json: expected ${expectedRegDeps}, got ${actualRegDeps}`,
       );
     }
+    const expectedFont = JSON.stringify(item.font || null);
+    const actualFont = JSON.stringify(builtItem.font || null);
+    if (expectedFont !== actualFont) {
+      drifts.push(
+        `font mismatch in site/public/r/${item.name}.json: expected ${expectedFont}, got ${actualFont}`,
+      );
+    }
+    const expectedConfig = JSON.stringify(item.config || null);
+    const actualConfig = JSON.stringify(builtItem.config || null);
+    if (expectedConfig !== actualConfig) {
+      drifts.push(
+        `config mismatch in site/public/r/${item.name}.json: expected ${expectedConfig}, got ${actualConfig}`,
+      );
+    }
     const expectedSpecs = JSON.stringify(
       (item.files || []).map((f) => ({ path: f.path, type: f.type, target: f.target })),
     );
@@ -153,7 +168,7 @@ if (checkOnly) {
         `File specifications mismatch in site/public/r/${item.name}.json: expected ${expectedSpecs}, got ${actualSpecs}`,
       );
     }
-    for (const fileSpec of item.files) {
+    for (const fileSpec of item.files || []) {
       const srcFileContent = fs.readFileSync(
         path.join(ROOT, 'registry', fileSpec.path),
         'utf8',

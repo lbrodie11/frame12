@@ -8,6 +8,7 @@ import { mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
+import { getRenderedCuts } from '../../registry/tests/lib.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SITE_ROOT = resolve(__dirname, '..');
@@ -143,7 +144,9 @@ const GRAMMAR_DOM = () => {
   const pairs = [...document.querySelectorAll('.f12-pair')];
   const pairGaps = pairs.map((p) => parseFloat(getComputedStyle(p).gap));
 
-  const cutEls = [...document.querySelectorAll('.f12-panel > .f12-cut')];
+  const cutEls = [...document.querySelectorAll('.f12-panel > .f12-cut')].filter(
+    (e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0,
+  );
   const cuts = cutEls.map((e) => e.textContent.trim());
   const sequential =
     cuts.length > 0 &&
@@ -153,7 +156,7 @@ const GRAMMAR_DOM = () => {
     const r = e.getBoundingClientRect();
     return { top: Math.round(r.top), left: Math.round(r.left) };
   });
-  let readingOrder = true;
+  let readingOrder = rects.length > 0;
   for (let i = 1; i < rects.length; i++) {
     const prev = rects[i - 1];
     const cur = rects[i];
@@ -253,12 +256,46 @@ try {
   await waitForServer(baseUrl);
 
   // 1. Verify static registry JSON endpoints served from site/public/r/
-  for (const item of ['panel.json', 'frame12.json', 'registry.json']) {
+  for (const item of [
+    'panel.json',
+    'sheet.json',
+    'frame12-base.json',
+    'font-dela-gothic-one.json',
+    'frame12.json',
+    'registry.json',
+  ]) {
     const res = await fetch(`${baseUrl}/r/${item}`);
     const body = await res.json();
     check(
       res.status === 200 && Boolean(body.name || body.items),
       `site registry endpoint /r/${item} returns HTTP 200 valid JSON`,
+    );
+  }
+
+  // 1a. Verify AI discovery endpoints (/llms.txt and /llms-full.txt)
+  {
+    const llmsRes = await fetch(`${baseUrl}/llms.txt`);
+    const llmsCt = llmsRes.headers.get('content-type') || '';
+    const llmsText = await llmsRes.text();
+    check(
+      llmsRes.status === 200 &&
+        llmsCt.includes('text/plain') &&
+        llmsText.includes('# FRAME/12') &&
+        llmsText.includes('<Sheet autoCut>') &&
+        llmsText.includes('/components/panel'),
+      'site /llms.txt returns HTTP 200 text/plain with canonical catalog links and <Sheet autoCut> guidance',
+    );
+
+    const llmsFullRes = await fetch(`${baseUrl}/llms-full.txt`);
+    const llmsFullCt = llmsFullRes.headers.get('content-type') || '';
+    const llmsFullText = await llmsFullRes.text();
+    check(
+      llmsFullRes.status === 200 &&
+        llmsFullCt.includes('text/plain') &&
+        llmsFullText.includes('skills/frame12/SKILL.md') &&
+        llmsFullText.includes('explicit-cut-in-autocut') &&
+        llmsFullText.includes('frame12-base'),
+      'site /llms-full.txt returns HTTP 200 text/plain generated from SKILL.md, references, registry.json, and catalog.ts',
     );
   }
 
@@ -326,15 +363,15 @@ try {
       if (route === '/' && scheme === 'light') {
         await page.screenshot({ path: resolve(DOCS_IMAGES, 'site-home-light.png'), fullPage: true });
 
-        // Verify next/font CSS variable bindings on <html> win over :where(:root) defaults
+        // Verify next/font CSS variable bindings on <html> resolve through :where(:root) --font-f-* stacks with fallbacks intact
         const fontBinding = await page.evaluate(() => {
           const titleFont = getComputedStyle(document.querySelector('.f12-title')).fontFamily;
           const bodyFont = getComputedStyle(document.body).fontFamily;
           const monoFont = getComputedStyle(document.querySelector('.f12-cut')).fontFamily;
           const rootStyle = getComputedStyle(document.documentElement);
-          const htmlVarDisplay = rootStyle.getPropertyValue('--font-f-display').trim();
-          const htmlVarBody = rootStyle.getPropertyValue('--font-f-body').trim();
-          const htmlVarMono = rootStyle.getPropertyValue('--font-f-mono').trim();
+          const htmlVarDisplay = rootStyle.getPropertyValue('--font-dela-gothic-one').trim();
+          const htmlVarBody = rootStyle.getPropertyValue('--font-zen-kaku-gothic-new').trim();
+          const htmlVarMono = rootStyle.getPropertyValue('--font-m-plus-1-code').trim();
           return {
             titleFont,
             bodyFont,
@@ -349,13 +386,13 @@ try {
           Boolean(fontBinding.htmlVarDisplay) &&
             Boolean(fontBinding.htmlVarBody) &&
             Boolean(fontBinding.htmlVarMono) &&
-            !fontBinding.htmlVarDisplay.startsWith('"Dela Gothic One", "Arial Black"') &&
-            !fontBinding.htmlVarBody.startsWith('"Zen Kaku Gothic New", "Hiragino Sans"') &&
-            !fontBinding.htmlVarMono.startsWith('"M PLUS 1 Code", ui-monospace') &&
-            normFont(fontBinding.titleFont) === normFont(fontBinding.htmlVarDisplay) &&
-            normFont(fontBinding.bodyFont) === normFont(fontBinding.htmlVarBody) &&
-            normFont(fontBinding.monoFont) === normFont(fontBinding.htmlVarMono),
-          'site next/font binding: <html> next/font CSS variables override :where(:root) fallback stacks for display, body, and mono',
+            normFont(fontBinding.titleFont).startsWith(normFont(fontBinding.htmlVarDisplay)) &&
+            normFont(fontBinding.bodyFont).startsWith(normFont(fontBinding.htmlVarBody)) &&
+            normFont(fontBinding.monoFont).startsWith(normFont(fontBinding.htmlVarMono)) &&
+            normFont(fontBinding.titleFont).includes('ArialBlack') &&
+            normFont(fontBinding.bodyFont).includes('HiraginoSans') &&
+            normFont(fontBinding.monoFont).includes('ui-monospace'),
+          'site next/font binding: <html> --font-<slug> CSS variables resolve into --font-f-* while preserving fallback stacks',
           JSON.stringify(fontBinding),
         );
       } else if (route === '/motion' && scheme === 'light') {
@@ -384,6 +421,10 @@ try {
       const axe = await new AxeBuilder({ page }).analyze();
       const n = await page.evaluate(NAMES);
       const g = await page.evaluate(GRAMMAR_DOM);
+      g.cuts = await getRenderedCuts(page, { panelsOnly: true });
+      g.sequential =
+        g.cuts.length > 0 &&
+        g.cuts.every((cut, idx) => cut === `C-${String(idx + 1).padStart(2, '0')}`);
       const f = await focusMissesAll(page);
       const sw = await page.evaluate(() => document.documentElement.scrollWidth);
 
@@ -518,6 +559,7 @@ try {
           unhighlightedRngs: unhighlightedRngs.length,
         };
       });
+      const noJsCuts = await getRenderedCuts(noJsPage, { panelsOnly: true });
       check(
         noJsHome.sheetBg === 'rgb(5, 5, 5)' &&
           noJsHome.frameFill === 'rgb(25, 25, 26)' &&
@@ -527,9 +569,10 @@ try {
           noJsHome.chartPaths >= 1 &&
           noJsHome.sparkSvgs >= 2 &&
           noJsHome.sparkMinHeight >= 70 &&
-          noJsHome.unhighlightedRngs === 0,
-        'site / pre-hydration OS dark mode (JS disabled): dark sheet/panel, server-rendered chart & sparklines (74px height), and highlighted segmented controls',
-        JSON.stringify(noJsHome),
+          noJsHome.unhighlightedRngs === 0 &&
+          noJsCuts.join(',') === 'C-01,C-02,C-03,C-04,C-05,C-06,C-07,C-08',
+        'site / pre-hydration OS dark mode (JS disabled): dark sheet/panel, server-rendered chart & sparklines (74px height), highlighted segmented controls, and auto cuts C-01..C-08',
+        JSON.stringify({ ...noJsHome, noJsCuts }),
       );
       await noJsCtx.close();
     }
@@ -614,115 +657,157 @@ try {
           colorScheme: scheme,
           reducedMotion: 'no-preference',
         });
-        const page = await ctx.newPage();
-        const errors = [];
-        page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-        page.on('console', (m) => {
-          if (m.type() === 'error') errors.push(`console: ${m.text()}`);
-        });
 
-        // 6a. Home (/) — Conversion lift metric descender clearance (#1) & layout
-        await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' });
-        await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
-        const homeGeom = await page.evaluate(() => {
-          const panels = [...document.querySelectorAll('.f12-panel')];
-          const liftPanel = panels.find((p) =>
-            (p.getAttribute('aria-label') || '').includes('Conversion lift'),
+        const openTrackedPage = async () => {
+          const p = await ctx.newPage();
+          const errs = [];
+          p.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`));
+          p.on('console', (m) => {
+            if (m.type() === 'error') errs.push(`console: ${m.text()}`);
+          });
+          return { page: p, errors: errs };
+        };
+
+        // 6a. Home (/) — Conversion lift metric descender clearance (#1), panel count/order & layout
+        {
+          const { page, errors } = await openTrackedPage();
+          await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' });
+          await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+          const homeGeom = await page.evaluate(() => {
+            const panels = [...document.querySelectorAll('.f12-panel')];
+            const cutEls = [...document.querySelectorAll('.f12-panel > .f12-cut')].filter(
+              (e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0,
+            );
+            const rects = cutEls.map((e) => {
+              const r = e.getBoundingClientRect();
+              return { top: Math.round(r.top), left: Math.round(r.left) };
+            });
+            let readingOrder = rects.length === 8;
+            for (let i = 1; i < rects.length; i++) {
+              const prev = rects[i - 1];
+              const cur = rects[i];
+              const sameRow = Math.abs(cur.top - prev.top) < 40;
+              if (sameRow && cur.left < prev.left) readingOrder = false;
+              if (!sameRow && cur.top < prev.top - 40) readingOrder = false;
+            }
+            const liftPanel = panels.find((p) =>
+              (p.getAttribute('aria-label') || '').includes('Conversion lift'),
+            );
+            const mVal = liftPanel?.querySelector('.f12-m-value')?.getBoundingClientRect();
+            const delta = liftPanel?.querySelector('.f12-delta')?.getBoundingClientRect();
+            const clearancePx =
+              mVal && delta ? Number((delta.top - mVal.bottom).toFixed(2)) : -999;
+            return {
+              panelCount: panels.length,
+              visibleCutCount: cutEls.length,
+              readingOrder,
+              clearancePx,
+              noOverlap: clearancePx >= 10,
+              noOverflow:
+                document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+            };
+          });
+          check(
+            homeGeom.noOverlap &&
+              homeGeom.panelCount === 8 &&
+              homeGeom.visibleCutCount === 8 &&
+              homeGeom.readingOrder &&
+              homeGeom.noOverflow &&
+              errors.length === 0,
+            `site [${engineName} 1280px ${scheme}] /: 8 ordered panels, Conversion lift descender clearance (${homeGeom.clearancePx}px >= 10px) & zero overflow`,
+            errors.join('; '),
           );
-          const mVal = liftPanel?.querySelector('.f12-m-value')?.getBoundingClientRect();
-          const delta = liftPanel?.querySelector('.f12-delta')?.getBoundingClientRect();
-          const clearancePx =
-            mVal && delta ? Number((delta.top - mVal.bottom).toFixed(2)) : -999;
-          return {
-            clearancePx,
-            noOverlap: clearancePx >= 10,
-            noOverflow:
-              document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
-          };
-        });
-        check(
-          homeGeom.noOverlap && homeGeom.noOverflow && errors.length === 0,
-          `site [${engineName} 1280px ${scheme}] /: Conversion lift metric descender clearance (${homeGeom.clearancePx}px >= 10px) & zero overflow`,
-          errors.join('; '),
-        );
+          await page.close();
+        }
 
         // 6b. Style Sheet (/style-sheet) — .sw-chip contrast boundaries (#3) & token-pill nowrap (#2)
-        await page.goto(`${baseUrl}/style-sheet`, { waitUntil: 'networkidle' });
-        await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
-        const styleSheetGeom = await page.evaluate(() => {
-          const chips = [...document.querySelectorAll('.sw-chip')];
-          const allChipsHaveDualRing =
-            chips.length >= 14 &&
-            chips.every((ch) => {
-              const st = getComputedStyle(ch);
-              return (
-                st.borderTopWidth === '2px' &&
-                st.boxShadow.includes('inset') &&
-                st.boxShadow.split('rgb').length >= 3
+        {
+          const { page, errors } = await openTrackedPage();
+          await page.goto(`${baseUrl}/style-sheet`, { waitUntil: 'networkidle' });
+          await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+          const styleSheetGeom = await page.evaluate(() => {
+            const chips = [...document.querySelectorAll('.sw-chip')];
+            const allChipsHaveDualRing =
+              chips.length >= 14 &&
+              chips.every((ch) => {
+                const st = getComputedStyle(ch);
+                return (
+                  st.borderTopWidth === '2px' &&
+                  st.boxShadow.includes('inset') &&
+                  st.boxShadow.split('rgb').length >= 3
+                );
+              });
+            const tokenPills = [...document.querySelectorAll('code.f12-code-inline.f12-nowrap')];
+            const allPillsSingleLine =
+              tokenPills.length >= 7 &&
+              tokenPills.every(
+                (el) =>
+                  getComputedStyle(el).whiteSpace === 'nowrap' && el.getClientRects().length === 1,
               );
-            });
-          const tokenPills = [...document.querySelectorAll('code.f12-code-inline.f12-nowrap')];
-          const allPillsSingleLine =
-            tokenPills.length >= 7 &&
-            tokenPills.every(
-              (el) =>
-                getComputedStyle(el).whiteSpace === 'nowrap' && el.getClientRects().length === 1,
-            );
-          return {
-            chipCount: chips.length,
-            allChipsHaveDualRing,
-            allPillsSingleLine,
-            noOverflow:
-              document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
-          };
-        });
-        check(
-          styleSheetGeom.allChipsHaveDualRing &&
-            styleSheetGeom.allPillsSingleLine &&
-            styleSheetGeom.noOverflow &&
-            errors.length === 0,
-          `site [${engineName} 1280px ${scheme}] /style-sheet: all ${styleSheetGeom.chipCount} .sw-chip swatches have inset+outer contrast rings & token pills stay single-line`,
-          JSON.stringify(styleSheetGeom),
-        );
+            return {
+              chipCount: chips.length,
+              allChipsHaveDualRing,
+              allPillsSingleLine,
+              noOverflow:
+                document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+            };
+          });
+          check(
+            styleSheetGeom.allChipsHaveDualRing &&
+              styleSheetGeom.allPillsSingleLine &&
+              styleSheetGeom.noOverflow &&
+              errors.length === 0,
+            `site [${engineName} 1280px ${scheme}] /style-sheet: all ${styleSheetGeom.chipCount} .sw-chip swatches have inset+outer contrast rings & token pills stay single-line`,
+            `${JSON.stringify(styleSheetGeom)} errors=${errors.join('; ')}`,
+          );
+          await page.close();
+        }
 
         // 6c. Components (/components) — registry column widths (#4), 768px & 390px responsiveness, Dialog focus return
-        await page.goto(`${baseUrl}/components`, { waitUntil: 'networkidle' });
-        await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
-        const compGeom = await page.evaluate(() => {
-          const cells = [...document.querySelectorAll('.f12-comp-cell code.f12-nowrap')];
-          const allSingleLine =
-            cells.length >= 19 &&
-            cells.every(
-              (c) => getComputedStyle(c).whiteSpace === 'nowrap' && c.getClientRects().length === 1,
-            );
-          return {
-            cellCount: cells.length,
-            allSingleLine,
-            noOverflow:
-              document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
-          };
-        });
-        check(
-          compGeom.allSingleLine && compGeom.noOverflow && errors.length === 0,
-          `site [${engineName} 1280px ${scheme}] /components: all ${compGeom.cellCount} registry JSON paths render single-line with zero overflow`,
-        );
-
-        if (scheme === 'light') {
-          // Test 768px container-query transition & 390px mobile on /components and /
-          await page.setViewportSize({ width: 768, height: 900 });
-          await page.waitForTimeout(100);
-          const ok768 = await page.evaluate(
-            () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
-          );
-          await page.setViewportSize({ width: 390, height: 844 });
-          await page.waitForTimeout(100);
-          const ok390 = await page.evaluate(
-            () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
-          );
+        {
+          const { page, errors } = await openTrackedPage();
+          await page.goto(`${baseUrl}/components`, { waitUntil: 'networkidle' });
+          await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+          const compGeom = await page.evaluate(() => {
+            const cells = [...document.querySelectorAll('.f12-comp-cell code.f12-nowrap')];
+            const allSingleLine =
+              cells.length >= 19 &&
+              cells.every(
+                (c) =>
+                  getComputedStyle(c).whiteSpace === 'nowrap' && c.getClientRects().length === 1,
+              );
+            return {
+              cellCount: cells.length,
+              allSingleLine,
+              noOverflow:
+                document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+            };
+          });
           check(
-            ok768 && ok390 && errors.length === 0,
-            `site [${engineName} 768px & 390px] /components: zero horizontal overflow across container-query & mobile viewports`,
+            compGeom.allSingleLine && compGeom.noOverflow && errors.length === 0,
+            `site [${engineName} 1280px ${scheme}] /components: all ${compGeom.cellCount} registry JSON paths render single-line with zero overflow`,
+            errors.join('; '),
           );
+
+          if (scheme === 'light') {
+            // Test 768px container-query transition & 390px mobile on /components and /
+            await page.setViewportSize({ width: 768, height: 900 });
+            await page.waitForTimeout(100);
+            const ok768 = await page.evaluate(
+              () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+            );
+            await page.setViewportSize({ width: 390, height: 844 });
+            await page.waitForTimeout(100);
+            const ok390 = await page.evaluate(
+              () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+            );
+            check(
+              ok768 && ok390 && errors.length === 0,
+              `site [${engineName} 768px & 390px] /components: zero horizontal overflow across container-query & mobile viewports`,
+              errors.join('; '),
+            );
+          }
+          await page.close();
         }
 
         await ctx.close();

@@ -7,7 +7,7 @@ import { SiteShell } from '@/components/site-shell';
 const delaGothicOne = localFont({
   src: '../src/fonts/dela-gothic-one-400.woff2',
   weight: '400',
-  variable: '--font-f-display',
+  variable: '--font-dela-gothic-one',
   display: 'swap',
 });
 
@@ -17,7 +17,7 @@ const zenKakuGothicNew = localFont({
     { path: '../src/fonts/zen-kaku-gothic-new-500.woff2', weight: '500', style: 'normal' },
     { path: '../src/fonts/zen-kaku-gothic-new-700.woff2', weight: '700', style: 'normal' },
   ],
-  variable: '--font-f-body',
+  variable: '--font-zen-kaku-gothic-new',
   display: 'swap',
 });
 
@@ -27,7 +27,7 @@ const mPlus1Code = localFont({
     { path: '../src/fonts/m-plus-1-code-500.woff2', weight: '500', style: 'normal' },
     { path: '../src/fonts/m-plus-1-code-700.woff2', weight: '700', style: 'normal' },
   ],
-  variable: '--font-f-mono',
+  variable: '--font-m-plus-1-code',
   display: 'swap',
   adjustFontFallback: false,
   fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],

@@ -2,9 +2,9 @@
    Works standalone without Tailwind. All rules are scoped to .f12-* classes. */
 
 :where(:root) {
-  --font-f-display: "Dela Gothic One", "Arial Black", "Helvetica Neue", sans-serif;
-  --font-f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-f-mono: "M PLUS 1 Code", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-f-display: var(--font-dela-gothic-one, "Dela Gothic One"), "Arial Black", "Helvetica Neue", sans-serif;
+  --font-f-body: var(--font-zen-kaku-gothic-new, "Zen Kaku Gothic New"), "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-f-mono: var(--font-m-plus-1-code, "M PLUS 1 Code"), ui-monospace, "SF Mono", Menlo, monospace;
 
   --f-gutter-pair: 12px;
   --f-gutter-scene: 20px;

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "font-dela-gothic-one",
+  "title": "Dela Gothic One (FRAME/12 Display Font)",
+  "description": "Display typeface (--font-dela-gothic-one -> --font-f-display) for FRAME/12 storyboard titles and establishing KPI numerals.",
+  "type": "registry:font",
+  "font": {
+    "family": "'Dela Gothic One', sans-serif",
+    "provider": "google",
+    "import": "Dela_Gothic_One",
+    "variable": "--font-dela-gothic-one",
+    "weight": [
+      "400"
+    ],
+    "subsets": [
+      "latin"
+    ]
+  }
+}

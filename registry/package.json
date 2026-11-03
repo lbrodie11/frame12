@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "build:gallery": "node scripts/build.mjs",
-    "build:registry": "npx --yes shadcn build registry.json -o ../site/public/r",
+    "build:registry": "npx shadcn build registry.json -o ../site/public/r && node -e \"const fs=require('fs');fs.copyFileSync('registry.json','../site/public/r/registry.json')\"",
     "build": "npm run build:gallery && npm run build:registry",
     "test:unit": "node tests/unit.mjs",
     "test:a11y": "node tests/a11y.mjs",
