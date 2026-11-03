@@ -88,6 +88,7 @@ export function SegmentedControl<T extends string | number = string | number>({
           type="button"
           className="f12-rng-btn"
           aria-pressed={value === opt.value}
+          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End"
           tabIndex={opt.value === activeFocusValue ? 0 : -1}
           onFocus={() => setFocusedValue(opt.value)}
           onClick={() => onChange(opt.value)}

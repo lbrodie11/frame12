@@ -199,9 +199,10 @@ export function Dialog({
     if (!el) return;
     if (open && !el.open) {
       if (typeof document !== 'undefined') {
-        if (!preOpenActiveRef.current) {
-          preOpenActiveRef.current = document.activeElement;
-        }
+        // Unconditionally capture document.activeElement immediately before showModal()
+        // so controlled dialogs that open asynchronously always record the exact element
+        // that native HTMLDialogElement.showModal() saves as its pre-open focus target.
+        preOpenActiveRef.current = document.activeElement;
         if (
           !returnFocusRef.current &&
           document.activeElement instanceof HTMLElement &&

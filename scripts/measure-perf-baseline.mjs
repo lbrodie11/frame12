@@ -7,13 +7,13 @@
  * optional `--font-delay-ms=<ms>` mode to simulate cold-network .woff2 font swaps.
  */
 import { spawn } from 'node:child_process';
+import net from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = resolve(ROOT, 'site');
-const PORT = Number(process.env.F12_PERF_PORT || 4319);
 const RUNS = Number(process.env.F12_PERF_RUNS || 5);
 const fontDelayArg = process.argv.find((a) => a.startsWith('--font-delay-ms='));
 const FONT_DELAY_MS = fontDelayArg ? Number(fontDelayArg.split('=')[1]) : 0;
@@ -34,9 +34,27 @@ function median(values) {
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-async function waitForServer(url, timeoutMs = 20000) {
+function getAvailablePort(preferredPort = 0) {
+  return new Promise((resolvePort, rejectPort) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.on('error', rejectPort);
+    srv.listen(preferredPort, '127.0.0.1', () => {
+      const addr = srv.address();
+      const port = typeof addr === 'object' && addr ? addr.port : 0;
+      srv.close((err) => (err ? rejectPort(err) : resolvePort(port)));
+    });
+  });
+}
+
+async function waitForServer(url, childProc, getExitError, timeoutMs = 20000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
+    const exitErr = getExitError();
+    if (exitErr) throw exitErr;
+    if (childProc.exitCode !== null) {
+      throw new Error(`next start exited prematurely with code ${childProc.exitCode}`);
+    }
     try {
       const res = await fetch(url);
       if (res.ok) return;
@@ -48,7 +66,7 @@ async function waitForServer(url, timeoutMs = 20000) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
-async function measureMode(browser, { cpuThrottleRate = 1, fontDelayMs = 0 }) {
+async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0 }) {
   const results = {};
   for (const route of ROUTES) {
     const lcpRuns = [];
@@ -79,13 +97,34 @@ async function measureMode(browser, { cpuThrottleRate = 1, fontDelayMs = 0 }) {
       }
 
       await page.addInitScript(() => {
-        window.__f12Perf = { lcp: 0, cls: 0 };
+        window.__f12Perf = {
+          lcp: 0,
+          cls: 0,
+          _clsSessionVal: 0,
+          _clsFirstStart: -1,
+          _clsPrevStart: -1,
+        };
         new PerformanceObserver((list) => {
           for (const e of list.getEntries()) window.__f12Perf.lcp = e.startTime;
         }).observe({ type: 'largest-contentful-paint', buffered: true });
         new PerformanceObserver((list) => {
           for (const e of list.getEntries()) {
-            if (!e.hadRecentInput) window.__f12Perf.cls += e.value;
+            if (e.hadRecentInput) continue;
+            // Web Vitals CLS session window: max 1000ms gap between shifts, max 5000ms window duration
+            if (
+              window.__f12Perf._clsFirstStart >= 0 &&
+              e.startTime - window.__f12Perf._clsPrevStart <= 1000 &&
+              e.startTime - window.__f12Perf._clsFirstStart <= 5000
+            ) {
+              window.__f12Perf._clsSessionVal += e.value;
+            } else {
+              window.__f12Perf._clsFirstStart = e.startTime;
+              window.__f12Perf._clsSessionVal = e.value;
+            }
+            window.__f12Perf._clsPrevStart = e.startTime;
+            if (window.__f12Perf._clsSessionVal > window.__f12Perf.cls) {
+              window.__f12Perf.cls = window.__f12Perf._clsSessionVal;
+            }
           }
         }).observe({ type: 'layout-shift', buffered: true });
       });
@@ -111,9 +150,14 @@ async function measureMode(browser, { cpuThrottleRate = 1, fontDelayMs = 0 }) {
         warnings += 1;
       });
 
-      const url = `http://127.0.0.1:${PORT}${route.path}`;
+      const url = `http://127.0.0.1:${port}${route.path}`;
       const resp = await page.goto(url, { waitUntil: 'networkidle' });
-      if (i === 0 && resp) {
+      if (!resp || !resp.ok()) {
+        throw new Error(
+          `Navigation to ${url} failed with HTTP status ${resp ? resp.status() : 'no response'}`,
+        );
+      }
+      if (i === 0) {
         const body = await resp.body();
         htmlBytes = body.byteLength;
       }
@@ -125,12 +169,17 @@ async function measureMode(browser, { cpuThrottleRate = 1, fontDelayMs = 0 }) {
 
       const latency = await page.evaluate(async (sel) => {
         const el = document.querySelector(sel);
-        if (!el) return 0;
+        if (!el) return null;
         const t0 = performance.now();
         el.click();
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         return Number((performance.now() - t0).toFixed(1));
       }, route.actionSelector);
+      if (latency === null) {
+        throw new Error(
+          `Action selector "${route.actionSelector}" not found on route ${route.path}`,
+        );
+      }
       inpRuns.push(latency);
 
       if (i === 0) {
@@ -156,18 +205,44 @@ async function measureMode(browser, { cpuThrottleRate = 1, fontDelayMs = 0 }) {
   return results;
 }
 
-const server = spawn('npx', ['next', 'start', '-p', String(PORT)], {
+const requestedPort = process.env.F12_PERF_PORT ? Number(process.env.F12_PERF_PORT) : 0;
+const port = await getAvailablePort(requestedPort);
+
+let serverExitError = null;
+const server = spawn('npx', ['next', 'start', '-H', '127.0.0.1', '-p', String(port)], {
   cwd: SITE_DIR,
-  stdio: 'ignore',
+  stdio: ['ignore', 'ignore', 'pipe'],
+});
+let stderrBuf = '';
+server.stderr?.on('data', (chunk) => {
+  stderrBuf += chunk.toString();
+});
+server.on('error', (err) => {
+  serverExitError = err;
+});
+server.on('exit', (code, signal) => {
+  if (code !== null && code !== 0) {
+    serverExitError = new Error(
+      `next start exited with code ${code} (${signal || 'no signal'}): ${stderrBuf.trim()}`,
+    );
+  }
 });
 
 try {
-  await waitForServer(`http://127.0.0.1:${PORT}/`);
+  await waitForServer(`http://127.0.0.1:${port}/`, server, () => serverExitError);
   const browser = await chromium.launch({ headless: true });
   try {
-    const unthrottled = await measureMode(browser, { cpuThrottleRate: 1, fontDelayMs: FONT_DELAY_MS });
-    const throttled4x = await measureMode(browser, { cpuThrottleRate: 4, fontDelayMs: FONT_DELAY_MS });
-    console.log(JSON.stringify({ runs: RUNS, fontDelayMs: FONT_DELAY_MS, unthrottled, throttled4x }, null, 2));
+    const unthrottled = await measureMode(browser, port, {
+      cpuThrottleRate: 1,
+      fontDelayMs: FONT_DELAY_MS,
+    });
+    const throttled4x = await measureMode(browser, port, {
+      cpuThrottleRate: 4,
+      fontDelayMs: FONT_DELAY_MS,
+    });
+    console.log(
+      JSON.stringify({ runs: RUNS, fontDelayMs: FONT_DELAY_MS, unthrottled, throttled4x }, null, 2),
+    );
   } finally {
     await browser.close();
   }
