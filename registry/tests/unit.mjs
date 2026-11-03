@@ -905,6 +905,83 @@ await page.waitForSelector('#unit-test-fixtures');
       '<Sheet autoCut> mixing warning: logs console.warn once with cut value in development and zero times in production',
       JSON.stringify({ devWarnings, prodWarnings }),
     );
+
+    // 3m. WP3: Expressive/Quiet Panels, Semantic Statuses, Pattern Differentiation & Compact Density
+    const wp3Check = await page.evaluate(() => {
+      const quietPanel = document.querySelector('#fixture-autocut-quiet');
+      const quietHasSvg = Boolean(quietPanel?.querySelector('.f12-panel-frame'));
+      const quietHasCut = Boolean(quietPanel?.querySelector('.f12-cut'));
+      const quietBorder = quietPanel ? getComputedStyle(quietPanel).borderTopWidth : '0px';
+
+      const quietPairPanels = [...document.querySelectorAll('#fixture-wp3-quiet-pair .f12-panel')];
+      const quietPairAllRect =
+        quietPairPanels.length === 2 &&
+        quietPairPanels.every(
+          (p) =>
+            p.classList.contains('f12-panel-quiet') &&
+            p.classList.contains('f12-rect') &&
+            !p.querySelector('.f12-panel-frame') &&
+            !p.querySelector('.f12-cut'),
+        );
+
+      const quietMetric = document.querySelector('#fixture-wp3-quiet-pair .f12-metric-quiet .f12-m-value');
+      const quietMetricFontSize = quietMetric ? getComputedStyle(quietMetric).fontSize : '0px';
+
+      const tagInfo = document.querySelector('#fixture-tag-info .f12-status-glyph')?.textContent;
+      const tagSuccess = document.querySelector('#fixture-tag-success .f12-status-glyph')?.textContent;
+      const tagWarning = document.querySelector('#fixture-tag-warning .f12-status-glyph')?.textContent;
+      const tagDanger = document.querySelector('#fixture-tag-danger .f12-status-glyph')?.textContent;
+      const tagNeutralGlyph = document.querySelector('#fixture-tag-neutral .f12-status-glyph');
+      const tagSuppressedGlyph = document.querySelector('#fixture-tag-no-glyph .f12-status-glyph');
+
+      const badgeStatusBurst = document.querySelector('#fixture-badge-status .f12-burst');
+      const badgeExplicitBurst = document.querySelector('#fixture-badge-burst .f12-burst');
+      const badgeStatusGlyph = document.querySelector('#fixture-badge-status .f12-status-glyph')?.textContent;
+
+      const compactInput = document.querySelector('#fixture-input-compact');
+      const compactSelect = document.querySelector('#fixture-select-compact');
+      const compactTable = document.querySelector('#fixture-table-compact');
+      const compactBars = document.querySelector('#fixture-wp3-patterns .f12-ints-compact');
+      const hatchFill = document.querySelector('#fixture-wp3-patterns .f12-int-fill-hatch');
+      const denseFill = document.querySelector('#fixture-wp3-patterns .f12-int-fill-dense');
+
+      return {
+        quietIsQuietClass: quietPanel?.classList.contains('f12-panel-quiet') ?? false,
+        quietHasSvg,
+        quietHasCut,
+        quietBorder,
+        quietPairAllRect,
+        quietMetricFontSize,
+        glyphsOk:
+          tagInfo === '[i]' &&
+          tagSuccess === '[✓]' &&
+          tagWarning === '[!]' &&
+          tagDanger === '[×]' &&
+          !tagNeutralGlyph &&
+          !tagSuppressedGlyph,
+        badgeOk: !badgeStatusBurst && Boolean(badgeExplicitBurst) && badgeStatusGlyph === '[✓]',
+        compactOk:
+          Boolean(compactInput?.classList.contains('f12-input-compact')) &&
+          Boolean(compactSelect?.closest('.f12-select-compact')) &&
+          Boolean(compactTable?.classList.contains('f12-table-compact')) &&
+          Boolean(compactBars) &&
+          Boolean(hatchFill) &&
+          Boolean(denseFill),
+      };
+    });
+    check(
+      wp3Check.quietIsQuietClass &&
+        !wp3Check.quietHasSvg &&
+        !wp3Check.quietHasCut &&
+        wp3Check.quietBorder === '1px' &&
+        wp3Check.quietPairAllRect &&
+        wp3Check.quietMetricFontSize === '22px' &&
+        wp3Check.glyphsOk &&
+        wp3Check.badgeOk &&
+        wp3Check.compactOk,
+      'WP3 grammar: <Panel variant="quiet"> (1px rule, no SVG/cut), <PanelPair variant="quiet">, <Metric variant="quiet">, semantic status glyphs ([i]/[✓]/[!]/[×]), bar patterns, and compact density',
+      JSON.stringify(wp3Check),
+    );
   }
 }
 

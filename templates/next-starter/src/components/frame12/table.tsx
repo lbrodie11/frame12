@@ -2,14 +2,26 @@
 
 import * as React from 'react';
 
+export type TableDensity = 'comfortable' | 'compact';
+
+export interface TableProps extends React.TableHTMLAttributes<HTMLTableElement> {
+  density?: TableDensity;
+}
+
 export function Table({
+  density = 'comfortable',
   className = '',
   children,
   ...rest
-}: React.TableHTMLAttributes<HTMLTableElement>) {
+}: TableProps) {
+  const isCompact = density === 'compact';
   return (
     <div className="f12-table-wrap">
-      <table className={`f12-table${className ? ` ${className}` : ''}`} {...rest}>
+      <table
+        className={`f12-table${isCompact ? ' f12-table-compact' : ''}${className ? ` ${className}` : ''}`}
+        data-density={isCompact ? 'compact' : undefined}
+        {...rest}
+      >
         {children}
       </table>
     </div>

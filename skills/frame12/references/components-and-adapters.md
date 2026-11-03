@@ -92,21 +92,23 @@ export interface SceneProps extends React.HTMLAttributes<HTMLDivElement> {
 ```
 
 ### `Panel` (`ui/panel.tsx`)
-Ink-framed `<section>` drawn with a measured SVG `<polygon>` (`2.5px` mitered stroke) and a top-edge cut label.
+Ink-framed `<section>` drawn with a measured SVG `<polygon>` (`2.5px` mitered stroke) and a top-edge cut label in `'expressive'` mode, or a crisp `1px solid var(--f-rule)` unnumbered exposure-sheet frame in `'quiet'` mode.
 
 ```tsx
 export type PanelShape = 'rect' | 'slant-bottom' | 'slant-top';
+export type PanelVariant = 'expressive' | 'quiet';
 
 export interface PanelProps extends React.HTMLAttributes<HTMLElement> {
-  cut?: string | false; // undefined = automatic inside <Sheet autoCut>; false = unnumbered; string = explicit
-  shape?: PanelShape;   // default: 'rect'
-  label?: string;       // sets aria-label on the <section>
+  cut?: string | false;   // undefined = automatic inside <Sheet autoCut> for expressive, unnumbered for quiet; false = unnumbered; string = explicit
+  shape?: PanelShape;     // default: 'rect'
+  variant?: PanelVariant; // default: 'expressive'
+  label?: string;         // sets aria-label on the <section>
   children?: React.ReactNode;
 }
 ```
 
 ### `PanelPair` (`ui/panel-pair.tsx`)
-Stacks two related panels across a `12px` (`pair`) slanted gutter (`slant-bottom` over `slant-top` with `16px` diagonal rise). Accepts either `top` + `bottom` panel prop objects or two child nodes/panels.
+Stacks two related panels across a `12px` (`pair`) gutter (`slant-bottom` over `slant-top` with `16px` diagonal rise in `'expressive'` mode, or `rect` over `rect` in `'quiet'` mode). Accepts either `top` + `bottom` panel prop objects or two child nodes/panels.
 
 ```tsx
 export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -116,6 +118,7 @@ export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
   bottomCut?: string | false;
   topLabel?: string;
   bottomLabel?: string;
+  variant?: PanelVariant; // default: 'expressive'
   children?: React.ReactNode;
 }
 ```
@@ -161,27 +164,32 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 Accessible field with linked `<label>`, optional hint, and marker-flagged `role="alert"` error message.
 
 ```tsx
+export type InputDensity = 'comfortable' | 'compact';
+
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   hint?: string;
   error?: string;
+  density?: InputDensity; // default: 'comfortable'
   fieldClassName?: string;
 }
 ```
 
 ### `Badge` (`ui/badge.tsx`) & `Tag` (`ui/tag.tsx`)
-Both render `--f-marker` yellow backgrounds with `--f-marker-ink` text.
-- `Badge`: bordered (`2px solid var(--f-rule)`), supports `pop?: boolean` and `burst?: boolean` (14-ray SVG impact burst).
-- `Tag`: flat inline marker strip (`<Tag>Production</Tag>`).
+Both render `--f-marker` yellow backgrounds with `--f-marker-ink` text by default, and support non-color semantic states (`status?: 'neutral' | 'info' | 'success' | 'warning' | 'danger'`) with orthographic glyph prefixes (`[i]`, `[✓]`, `[!]`, `[×]`, or custom/suppressed via `glyph?: string | false`).
+- `Badge`: bordered (`2px solid var(--f-rule)`), supports `pop?: boolean`, `burst?: boolean` (14-ray SVG impact burst; defaults to `true` when `status` is omitted and `false` when `status` is set), `status?: BadgeStatus`, and `glyph?: string | false`.
+- `Tag`: flat inline marker strip (`<Tag>Production</Tag>` or `<Tag status="warning">Degraded</Tag>`).
 
 ---
 
 ## 5. Data & Visualization Components
 
 ### `Metric` & `Delta` (`ui/metric.tsx`)
-Headline KPI numeral (`tabular-nums`) with stepped count-up (`useCountUp`), screen-reader live region, directional marker delta (`▲` / `▼` / `=`), and optional `spark` slot.
+Headline KPI numeral (`tabular-nums`) with stepped count-up (`useCountUp`), screen-reader live region, directional marker delta (`▲` / `▼` / `=`), and optional `spark` slot. In `variant="quiet"`, renders `22px` tabular monospace numerals and defaults `motion` to `'cut'`.
 
 ```tsx
+export type MetricVariant = 'expressive' | 'quiet';
+
 export interface MetricProps {
   label: string;
   value: number;
@@ -192,6 +200,7 @@ export interface MetricProps {
   range?: number | string;
   note?: string;
   big?: boolean;                      // fluid clamp(36px, 6cqi, 56px) for C-01 hero metrics
+  variant?: MetricVariant;            // default: 'expressive'
   headingLevel?: 'h2' | 'h3' | 'h4' | 'div' | 'p'; // default: 'h2'
   motion?: MotionMode;
   spark?: React.ReactNode;            // pass <ToneSpark ... />
@@ -201,7 +210,7 @@ export interface MetricProps {
 Helper formatters exported from `metric.tsx`: `fmtMoney(v)`, `fmtPct(v)`, `fmtPPAbs(v)`.
 
 ### `ToneAreaChart` (`ui/tone-area-chart.tsx`)
-Primary time-series chart with 4-band 45° SVG screentone area fill, dashed comparison series, speech-balloon peak callout, keyboard crosshair navigation (`ArrowLeft`, `ArrowRight`, `Escape`), and collapsible `<details className="f12-tbl">` data table.
+Primary time-series chart with 4-band 45° SVG screentone area fill, dashed comparison series with hollow diamond registration markers (`.f12-compare-pt`) at labeled x-axis ticks and a diamond crosshair dot (`.f12-cross-dot2`), speech-balloon peak callout, keyboard crosshair navigation (`ArrowLeft`, `ArrowRight`, `Escape`), and collapsible `<details className="f12-tbl">` data table.
 
 ```tsx
 export interface ToneAreaDatum {
@@ -229,16 +238,20 @@ export interface ToneAreaChartProps {
 ```
 
 ### `ToneBarList` (`ui/tone-bar-list.tsx`)
-Interactive ranked comparison list with screentone fill bars. Selecting a row (`aria-pressed="true"`) inverts the row to `--f-ink` and switches its bar fill to `--f-marker`.
+Interactive ranked comparison list with screentone fill bars (`pattern?: 'dots' | 'hatch' | 'dense'`). Selecting a row (`aria-pressed="true"`) inverts the row to `--f-ink` and switches its bar fill to `--f-marker`.
 
 ```tsx
+export type ToneBarPattern = 'dots' | 'hatch' | 'dense';
+export type ToneBarListDensity = 'comfortable' | 'compact';
+
 export interface ToneBarItem {
   id: string;
   name: string;
   value: number;
   formattedValue?: string;
-  share?: number; // 0..1 ratio
-  badge?: string; // renders <Badge pop={changed} burst>
+  share?: number;          // 0..1 ratio
+  badge?: string;          // renders <Badge pop={changed} burst>
+  pattern?: ToneBarPattern; // default: 'dots'
 }
 
 export interface ToneBarListProps {
@@ -249,6 +262,7 @@ export interface ToneBarListProps {
   onSelect?: (id: string | null) => void;
   motion?: MotionMode;
   changed?: boolean;
+  density?: ToneBarListDensity; // default: 'comfortable'
   idPrefix?: string; // renders button id="int-${idPrefix}-${item.id}"
   className?: string;
 }
@@ -268,8 +282,8 @@ FRAME/12 wraps the five complex interactive primitives in accessible adapters th
    - Exports: `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogClose`.
    - Uses native `<dialog>` with `.showModal()`, `DialogTrigger asChild` support, conditional `aria-describedby` (omitted when `DialogDescription` is absent), single-fire `onOpenChange(false)`, `Escape` isolation with nested `Select`/`DropdownMenu` popups, pointer light-dismiss, `overscroll-behavior: contain`, screentone backdrop, and optional `cut="C-0X"` on `DialogContent`.
 2. **`Select` (`ui/select.tsx`):**
-   - Exports: `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectGroup`, `SelectLabel`, `SelectSeparator`.
-   - Built on `@radix-ui/react-select` with full WAI-ARIA listbox keyboard navigation (`ArrowUp`/`ArrowDown`/`Home`/`End`/`Enter`/`Space`/`Escape`, typeahead, focus restoration), portal theme inheritance (`.f12-dash` / `dialog[open]`), and native `<form>` `FormData` participation via `name` and `required`. Pass `label="Channel"` and `id="channel-select"` directly to `<Select>` for an automatically linked `<label>`.
+   - Exports: `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectGroup`, `SelectLabel`, `SelectSeparator`, `type SelectDensity`.
+   - Built on `@radix-ui/react-select` with full WAI-ARIA listbox keyboard navigation (`ArrowUp`/`ArrowDown`/`Home`/`End`/`Enter`/`Space`/`Escape`, typeahead, focus restoration), portal theme inheritance (`.f12-dash` / `dialog[open]`), `density?: 'comfortable' | 'compact'`, and native `<form>` `FormData` participation via `name` and `required`. Pass `label="Channel"` and `id="channel-select"` directly to `<Select>` for an automatically linked `<label>`.
 3. **`Tooltip` (`ui/tooltip.tsx`):**
    - Exports: `TooltipProvider`, `Tooltip`, `TooltipTrigger`, `TooltipContent`.
    - Opens on hover or keyboard focus, dismisses on `Escape`, links trigger to content via `aria-describedby`, and merges caller event handlers, `ref`, `className`, and `aria-describedby` when `asChild` is used.
@@ -277,5 +291,5 @@ FRAME/12 wraps the five complex interactive primitives in accessible adapters th
    - Exports: `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuLabel`, `DropdownMenuSeparator`, `DropdownMenuItem`, `DropdownMenuGroup`.
    - Built on `@radix-ui/react-dropdown-menu` with full WAI-ARIA menu keyboard navigation (`ArrowDown`/`ArrowUp`/`Home`/`End`/`Enter`/`Space`/`Escape`), focus restoration, and portal theme inheritance.
 5. **`Table` (`ui/table.tsx`):**
-   - Exports: `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`.
-   - Monospace uppercase headers with `2.5px` bottom ink rule, `scope="col"` by default on `TableHead`, and `tabular-nums` alignment.
+   - Exports: `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`, `type TableDensity`.
+   - Monospace uppercase headers with `2.5px` bottom ink rule, `scope="col"` by default on `TableHead`, `density?: 'comfortable' | 'compact'` (`<Table density="compact">`), and `tabular-nums` alignment.

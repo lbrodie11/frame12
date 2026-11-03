@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { Panel, type PanelProps } from './panel';
+import { Panel, type PanelProps, type PanelVariant } from './panel';
 
 export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: PanelVariant;
   top?: Omit<PanelProps, 'shape'>;
   bottom?: Omit<PanelProps, 'shape'>;
   topCut?: string | false;
@@ -15,6 +16,7 @@ export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(function PanelPair(
   {
+    variant,
     top,
     bottom,
     topCut,
@@ -30,10 +32,24 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
   const classes = `f12-pair${className ? ` ${className}` : ''}`;
 
   if (top && bottom) {
+    const topVariant = top.variant ?? variant ?? 'expressive';
+    const bottomVariant = bottom.variant ?? variant ?? 'expressive';
     return (
       <div ref={ref} className={classes} {...rest}>
-        <Panel cut={topCut} label={topLabel} {...top} shape="slant-bottom" />
-        <Panel cut={bottomCut} label={bottomLabel} {...bottom} shape="slant-top" />
+        <Panel
+          cut={topCut}
+          label={topLabel}
+          {...top}
+          variant={topVariant}
+          shape={topVariant === 'quiet' ? 'rect' : 'slant-bottom'}
+        />
+        <Panel
+          cut={bottomCut}
+          label={bottomLabel}
+          {...bottom}
+          variant={bottomVariant}
+          shape={bottomVariant === 'quiet' ? 'rect' : 'slant-top'}
+        />
       </div>
     );
   }
@@ -49,19 +65,28 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
 
   const renderSlot = (
     node: React.ReactNode,
-    shape: 'slant-bottom' | 'slant-top',
+    slantShape: 'slant-bottom' | 'slant-top',
     fallbackCut?: string | false,
     fallbackLabel?: string,
   ) => {
     if (React.isValidElement<PanelProps>(node) && node.type === Panel) {
+      const slotVariant = node.props.variant ?? variant ?? 'expressive';
+      const defaultShape = slotVariant === 'quiet' ? 'rect' : slantShape;
       return React.cloneElement(node, {
-        shape: node.props.shape && node.props.shape !== 'rect' ? node.props.shape : shape,
+        variant: slotVariant,
+        shape: node.props.shape && node.props.shape !== 'rect' ? node.props.shape : defaultShape,
         cut: node.props.cut ?? fallbackCut,
         label: node.props.label ?? fallbackLabel,
       });
     }
+    const slotVariant = variant ?? 'expressive';
     return (
-      <Panel shape={shape} cut={fallbackCut} label={fallbackLabel}>
+      <Panel
+        variant={slotVariant}
+        shape={slotVariant === 'quiet' ? 'rect' : slantShape}
+        cut={fallbackCut}
+        label={fallbackLabel}
+      >
         {node}
       </Panel>
     );

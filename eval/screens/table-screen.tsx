@@ -244,12 +244,12 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
 
   return (
     <main className="eval-screen-root">
-      <Sheet motion={motion} theme={theme} id="table-sheet">
+      <Sheet autoCut motion={motion} theme={theme} id="table-sheet">
         <header className="f12-hd">
           <div className="f12-hd-text">
             <p className="f12-eyebrow">
               Ledger Sheet · Live Dispatch Log
-              <Tag>{filteredRows.length} rows</Tag>
+              <Tag status="info">{filteredRows.length} rows</Tag>
               <Badge pop={changed} burst>
                 {fmtMoney(totalAmount)}
               </Badge>
@@ -288,7 +288,7 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
         </header>
 
         <Scene gutter="scene" layout="split" id="table-scene-primary">
-          <Panel cut="C-01" label="Filter controls and intervention ledger table">
+          <Panel label="Filter controls and intervention ledger table">
             <div
               style={{
                 display: 'flex',
@@ -296,14 +296,10 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
                 gap: 'var(--f-gutter-scene)',
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 'var(--f-gutter-pair)',
-                  alignItems: 'flex-end',
-                  justifyContent: 'space-between',
-                }}
+              <Panel
+                variant="quiet"
+                id="table-filter-quiet-panel"
+                label="Filter bar ledger"
               >
                 <div
                   style={{
@@ -311,88 +307,100 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
                     flexWrap: 'wrap',
                     gap: 'var(--f-gutter-pair)',
                     alignItems: 'flex-end',
-                    flex: 1,
+                    justifyContent: 'space-between',
                   }}
                 >
-                  <Input
-                    id="ledger-search"
-                    label="Search order or customer"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="ORD-9041 or Takahashi"
-                  />
-                  <Select
-                    id="ledger-channel-select"
-                    label="Filter by channel"
-                    value={channelFilter}
-                    onValueChange={(val) => {
-                      setChannelFilter(val);
-                      setActionNote(`Channel filter: ${val}`);
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 'var(--f-gutter-pair)',
+                      alignItems: 'flex-end',
+                      flex: 1,
                     }}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All channels</SelectItem>
-                      <SelectItem value="email">Abandoned-cart email</SelectItem>
-                      <SelectItem value="exit">Exit-intent offer</SelectItem>
-                      <SelectItem value="retry">Payment retry</SelectItem>
-                      <SelectItem value="stock">Back-in-stock alert</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <Input
+                      id="ledger-search"
+                      density="compact"
+                      label="Search order or customer"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="ORD-9041 or Takahashi"
+                    />
+                    <Select
+                      id="ledger-channel-select"
+                      density="compact"
+                      label="Filter by channel"
+                      value={channelFilter}
+                      onValueChange={(val) => {
+                        setChannelFilter(val);
+                        setActionNote(`Channel filter: ${val}`);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All channels</SelectItem>
+                        <SelectItem value="email">Abandoned-cart email</SelectItem>
+                        <SelectItem value="exit">Exit-intent offer</SelectItem>
+                        <SelectItem value="retry">Payment retry</SelectItem>
+                        <SelectItem value="stock">Back-in-stock alert</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 'var(--f-gutter-pair)',
-                    alignItems: 'center',
-                  }}
-                >
-                  <DropdownMenu>
-                    <DropdownMenuTrigger id="ledger-export-menu" variant="secondary">
-                      Export ledger
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuLabel>Export format</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        id="ledger-export-csv"
-                        onSelect={() =>
-                          setActionNote(`Exported ${filteredRows.length} rows as CSV`)
-                        }
-                      >
-                        Download CSV ({filteredRows.length} rows)
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        id="ledger-export-json"
-                        onSelect={() =>
-                          setActionNote(`Copied ${filteredRows.length} rows as JSON`)
-                        }
-                      >
-                        Copy JSON snapshot
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  <Button
-                    id="ledger-reset-btn"
-                    variant="secondary"
-                    onClick={() => {
-                      setStatusFilter('all');
-                      setChannelFilter('all');
-                      setSearchQuery('');
-                      setActionNote('Cleared all ledger filters');
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 'var(--f-gutter-pair)',
+                      alignItems: 'center',
                     }}
                   >
-                    Reset filters
-                  </Button>
-                </div>
-              </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger id="ledger-export-menu" variant="secondary">
+                        Export ledger
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuLabel>Export format</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          id="ledger-export-csv"
+                          onSelect={() =>
+                            setActionNote(`Exported ${filteredRows.length} rows as CSV`)
+                          }
+                        >
+                          Download CSV ({filteredRows.length} rows)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          id="ledger-export-json"
+                          onSelect={() =>
+                            setActionNote(`Copied ${filteredRows.length} rows as JSON`)
+                          }
+                        >
+                          Copy JSON snapshot
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
 
-              <Table>
+                    <Button
+                      id="ledger-reset-btn"
+                      variant="secondary"
+                      onClick={() => {
+                        setStatusFilter('all');
+                        setChannelFilter('all');
+                        setSearchQuery('');
+                        setActionNote('Cleared all ledger filters');
+                      }}
+                    >
+                      Reset filters
+                    </Button>
+                  </div>
+                </div>
+              </Panel>
+
+              <Table density="compact" id="table-ledger-compact">
                 <TableCaption>
                   Showing {filteredRows.length} of {LEDGER_ROWS.length} recorded dispatches
                 </TableCaption>
@@ -415,7 +423,17 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
                       <TableCell>{row.customer}</TableCell>
                       <TableCell>{row.channelLabel}</TableCell>
                       <TableCell>
-                        <Tag>{row.statusTag}</Tag>
+                        <Tag
+                          status={
+                            row.status === 'recovered'
+                              ? 'success'
+                              : row.status === 'pending'
+                                ? 'warning'
+                                : 'neutral'
+                          }
+                        >
+                          {row.statusTag}
+                        </Tag>
                       </TableCell>
                       <TableCell>{fmtMoney(row.amount)}</TableCell>
                       <TableCell>
@@ -450,7 +468,6 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
           <PanelPair
             id="table-kpis"
             top={{
-              cut: 'C-02',
               label: 'Filtered recovery total',
               children: (
                 <Metric
@@ -479,7 +496,6 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
               ),
             }}
             bottom={{
-              cut: 'C-03',
               label: 'Filtered recovery rate',
               children: (
                 <div
@@ -510,7 +526,7 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
         </Scene>
 
         <Scene gutter="change" layout="equal" id="table-scene-secondary">
-          <Panel cut="C-04" label="Recovered volume by channel">
+          <Panel label="Recovered volume by channel">
             <ToneBarList
               title="Volume by dispatch channel"
               subtitle="Click a channel bar to filter C-01 ledger rows"
@@ -527,7 +543,7 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
             />
           </Panel>
 
-          <Panel cut="C-05" label="Selected order audit inspector">
+          <Panel label="Selected order audit inspector">
             <div
               style={{
                 display: 'flex',
@@ -545,36 +561,52 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
                 }}
               >
                 <h2 className="f12-m-label">Dispatch Inspector · {inspectedRow.orderId}</h2>
-                <Tag>{inspectedRow.statusTag}</Tag>
+                <Tag
+                  status={
+                    inspectedRow.status === 'recovered'
+                      ? 'success'
+                      : inspectedRow.status === 'pending'
+                        ? 'warning'
+                        : 'neutral'
+                  }
+                >
+                  {inspectedRow.statusTag}
+                </Tag>
               </div>
 
-              <Table>
-                <TableCaption>Audit metadata for {inspectedRow.orderId}</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Field</TableHead>
-                    <TableHead>Value</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>Customer</TableCell>
-                    <TableCell>{inspectedRow.customer}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Channel</TableCell>
-                    <TableCell>{inspectedRow.channelLabel}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Dispatched at</TableCell>
-                    <TableCell>{inspectedRow.dispatchedAt}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Signature digest</TableCell>
-                    <TableCell>{inspectedRow.payloadHash}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+              <Panel
+                variant="quiet"
+                id="table-inspector-quiet-panel"
+                label="Selected order audit metadata"
+              >
+                <Table density="compact">
+                  <TableCaption>Audit metadata for {inspectedRow.orderId}</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Field</TableHead>
+                      <TableHead>Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>Customer</TableCell>
+                      <TableCell>{inspectedRow.customer}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Channel</TableCell>
+                      <TableCell>{inspectedRow.channelLabel}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Dispatched at</TableCell>
+                      <TableCell>{inspectedRow.dispatchedAt}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Signature digest</TableCell>
+                      <TableCell>{inspectedRow.payloadHash}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </Panel>
 
               <div
                 style={{

@@ -2,7 +2,19 @@
 
 import * as React from 'react';
 
+export type BadgeStatus = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+
+const BADGE_STATUS_GLYPHS: Record<BadgeStatus, string | undefined> = {
+  neutral: undefined,
+  info: '[i]',
+  success: '[✓]',
+  warning: '[!]',
+  danger: '[×]',
+};
+
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+  status?: BadgeStatus;
+  glyph?: string | false;
   pop?: boolean;
   burst?: boolean;
   children?: React.ReactNode;
@@ -32,17 +44,36 @@ export function Burst() {
 }
 
 export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(function Badge(
-  { pop = false, burst = true, className = '', children, ...rest },
+  { status, glyph, pop = false, burst, className = '', children, ...rest },
   ref,
 ) {
+  const showBurst = burst ?? status === undefined;
+  const statusClass = status ? ` f12-status-${status}` : '';
+  const resolvedGlyph =
+    glyph === false
+      ? undefined
+      : glyph !== undefined
+        ? glyph
+        : status
+          ? BADGE_STATUS_GLYPHS[status]
+          : undefined;
+
   return (
     <span
       ref={ref}
-      className={`f12-badge${pop ? ' f12-pop pop' : ''}${className ? ` ${className}` : ''}`}
+      className={`f12-badge${statusClass}${pop ? ' f12-pop pop' : ''}${className ? ` ${className}` : ''}`}
+      data-status={status}
       {...rest}
     >
-      {burst && <Burst />}
-      <span className="f12-badge-t">{children}</span>
+      {showBurst && <Burst />}
+      <span className="f12-badge-t">
+        {resolvedGlyph && (
+          <span className="f12-status-glyph" aria-hidden="true">
+            {resolvedGlyph}
+          </span>
+        )}
+        {children}
+      </span>
     </span>
   );
 });

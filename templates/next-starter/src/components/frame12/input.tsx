@@ -2,10 +2,13 @@
 
 import * as React from 'react';
 
+export type InputDensity = 'comfortable' | 'compact';
+
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   hint?: string;
   error?: string;
+  density?: InputDensity;
   fieldClassName?: string;
 }
 
@@ -15,6 +18,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
     label,
     hint,
     error,
+    density = 'comfortable',
     className = '',
     fieldClassName = '',
     'aria-describedby': userDescribedBy,
@@ -29,16 +33,20 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
   const errorId = error ? `${inputId}-error` : undefined;
   const describedBy =
     [userDescribedBy, hintId, errorId].filter(Boolean).join(' ') || undefined;
+  const isCompact = density === 'compact';
 
   return (
-    <div className={`f12-field${fieldClassName ? ` ${fieldClassName}` : ''}`}>
+    <div
+      className={`f12-field${isCompact ? ' f12-field-compact' : ''}${fieldClassName ? ` ${fieldClassName}` : ''}`}
+      data-density={isCompact ? 'compact' : undefined}
+    >
       <label htmlFor={inputId} className="f12-label">
         {label}
       </label>
       <input
         ref={ref}
         id={inputId}
-        className={`f12-input${className ? ` ${className}` : ''}`}
+        className={`f12-input${isCompact ? ' f12-input-compact' : ''}${className ? ` ${className}` : ''}`}
         aria-describedby={describedBy}
         aria-invalid={error ? true : userAriaInvalid}
         {...rest}

@@ -569,6 +569,126 @@ export default function StyleSheetPage() {
           </div>
         </Panel>
       </Scene>
+
+      <Scene gutter="scene" layout="equal">
+        <Panel label="Expressive vs Quiet design grammar">
+          <div className="f12-stack-pair">
+            <div className="f12-row-pair">
+              <Tag>Expressive vs. Quiet</Tag>
+              <span className="f12-mono-note">variant=&quot;expressive&quot; | &quot;quiet&quot;</span>
+            </div>
+            <h2 className="f12-section-title">Expressive vs. Quiet</h2>
+            <p className="f12-muted-copy">
+              Primary narrative cuts use Expressive 2.5px mitered ink frames and stepped count-up
+              metrics. Dense operational settings, filters, and subordinate subgroups use Quiet 1px
+              exposure-sheet rules (unnumbered by default) and compact 22px tabular numerals. When
+              every filter bar and preference card uses heavy 2.5px frames and cut numbers, the
+              storyboard hierarchy collapses into visual noise.
+            </p>
+            <Panel variant="quiet" label="Quiet exposure-sheet subgroup specimen">
+              <div className="f12-stack-pair">
+                <Metric
+                  variant="quiet"
+                  headingLevel="h3"
+                  label="Quiet operational metric"
+                  value={1842}
+                  format={(v) => `${Math.round(v)} events/s`}
+                  delta={0.042}
+                  deltaKind="pct"
+                  comparisonLabel="vs. baseline"
+                />
+                <Table density="compact">
+                  <TableCaption>Expressive and Quiet mode rules</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead scope="col">Mode</TableHead>
+                      <TableHead scope="col">Border &amp; Cut</TableHead>
+                      <TableHead scope="col">When to use</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>
+                        <strong>Expressive</strong>
+                      </TableCell>
+                      <TableCell>2.5px SVG polygon + C-01..C-0n</TableCell>
+                      <TableCell>Hero KPIs, primary charts, narrative storyboard beats</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>
+                        <strong>Quiet</strong>
+                      </TableCell>
+                      <TableCell>1px crisp rule, unnumbered</TableCell>
+                      <TableCell>Dense forms, filter bars, operational ledgers, nested subgroups</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </Panel>
+          </div>
+        </Panel>
+
+        <Panel label="Non-color semantic status and pattern grammar">
+          <div className="f12-stack-pair">
+            <div className="f12-row-pair">
+              <Tag>Semantic States &amp; Patterns</Tag>
+              <span className="f12-mono-note">Orthographic glyphs + screentone patterns</span>
+            </div>
+            <h2 className="f12-section-title">Semantic status &amp; patterns</h2>
+            <p className="f12-muted-copy">
+              Status never relies on red/amber/green color coding. Every state pairs an orthographic
+              glyph prefix with border weight, stroke style, and fill inversion—preserving 14:1+
+              contrast across Light, Dark, grayscale, and forced-colors modes.
+            </p>
+            <div className="f12-row-pair">
+              <Tag status="neutral">Neutral</Tag>
+              <Tag status="info">Info</Tag>
+              <Tag status="success">Healthy</Tag>
+              <Tag status="warning">Degraded</Tag>
+              <Tag status="danger">Critical</Tag>
+            </div>
+            <div className="f12-row-pair">
+              <Badge status="info">Syncing</Badge>
+              <Badge status="success">Verified</Badge>
+              <Badge status="warning">Drift</Badge>
+              <Badge status="danger">Blocked</Badge>
+            </div>
+            <ToneBarList
+              density="compact"
+              title="Multi-pattern screentone differentiation"
+              subtitle="dots · hatch · dense"
+              items={[
+                {
+                  id: 'dots',
+                  name: '45° Halftone Dots (pattern="dots")',
+                  value: 52,
+                  formattedValue: '52%',
+                  share: 0.52,
+                  pattern: 'dots',
+                },
+                {
+                  id: 'hatch',
+                  name: '45° Cross-Hatch Rules (pattern="hatch")',
+                  value: 31,
+                  formattedValue: '31%',
+                  share: 0.31,
+                  pattern: 'hatch',
+                },
+                {
+                  id: 'dense',
+                  name: 'Dense Stipple Screen (pattern="dense")',
+                  value: 17,
+                  formattedValue: '17%',
+                  share: 0.17,
+                  pattern: 'dense',
+                },
+              ]}
+              motion="cut"
+              idPrefix="sp-patterns"
+            />
+          </div>
+        </Panel>
+      </Scene>
     </Sheet>
   );
 }

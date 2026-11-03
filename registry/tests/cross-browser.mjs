@@ -105,7 +105,8 @@ for (const browserName of BROWSER_NAMES) {
 
       // Automatic cut numbering (<Sheet autoCut>): in Chromium read CDP layout snapshot; in Firefox & WebKit verify panel count, visible auto-cut badges, and reading order
       const panelOrder = await page.evaluate(() => {
-        const panels = [...document.querySelectorAll('#gallery-sheet .f12-panel')];
+        const panels = [...document.querySelectorAll('#gallery-sheet .f12-panel:not(.f12-panel-quiet)')];
+        const quietPanels = [...document.querySelectorAll('#gallery-sheet .f12-panel.f12-panel-quiet')];
         const cutEls = [...document.querySelectorAll('#gallery-sheet .f12-panel > .f12-cut')].filter(
           (e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0,
         );
@@ -129,6 +130,7 @@ for (const browserName of BROWSER_NAMES) {
         ).top;
         return {
           panelCount: panels.length,
+          quietPanelCount: quietPanels.length,
           visibleCutCount: cutEls.length,
           readingOrder,
           compVisibleCount: compVisibleCuts.length,
@@ -141,13 +143,14 @@ for (const browserName of BROWSER_NAMES) {
           : null;
       check(
         panelOrder.panelCount === 7 &&
+          panelOrder.quietPanelCount === 1 &&
           panelOrder.visibleCutCount === 7 &&
           panelOrder.readingOrder &&
           panelOrder.compVisibleCount === 7 &&
           panelOrder.slantTopPx === '8px' &&
           (browserName !== 'chromium' ||
             chromiumCuts.join(',') === 'C-01,C-02,C-03,C-04,C-05,C-06,C-07'),
-        `[${browserName} 1280px] <Sheet autoCut> panel count (7), reading order, slant-top position (8px), and skipped hidden/cut={false} panels`,
+        `[${browserName} 1280px] <Sheet autoCut> panel count (7 expressive + 1 unnumbered quiet), reading order, slant-top position (8px), and skipped hidden/cut={false}/quiet panels`,
         JSON.stringify({ ...panelOrder, chromiumCuts }),
       );
 

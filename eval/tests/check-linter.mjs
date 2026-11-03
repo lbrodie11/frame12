@@ -422,6 +422,29 @@ function check(ok, label, detail = '') {
     'linter [cut-order & explicit-cut-in-autocut]: resolves local prop object constants (PanelPair top={top}) at JSX use sites in DOM order',
     JSON.stringify(resLocalConst),
   );
+
+  const quietPanelsInNarrativeSheet = `
+    export const QuietAndNarrative = () => (
+      <Sheet>
+        <Panel cut="C-01" label="Hero">Hero</Panel>
+        <Panel variant="quiet" label="Subordinate filter ledger">Quiet subgroup</Panel>
+        <Panel cut="C-02" label="Secondary">Secondary</Panel>
+        <Panel variant="quiet" cut="C-03" label="Invalid numbered quiet panel">Bad</Panel>
+      </Sheet>
+    );
+  `;
+  const resQuiet = lintSource(
+    quietPanelsInNarrativeSheet,
+    'eval/screens/quiet-and-narrative.tsx',
+  );
+  check(
+    resQuiet.length === 1 &&
+      resQuiet[0].rule === 'cut-order' &&
+      resQuiet[0].message.includes('Quiet panels (<Panel variant="quiet">)') &&
+      resQuiet[0].snippet === 'cut="C-03"',
+    'linter [cut-order]: allows unnumbered <Panel variant="quiet"> subgroups between C-01 and C-02 and flags explicit cut on variant="quiet"',
+    JSON.stringify(resQuiet),
+  );
 }
 
 // 6. Rule 5: raw-shadcn-import

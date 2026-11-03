@@ -366,7 +366,12 @@ for (const screen of SCREENS) {
   const envSub = await page.innerText('#settings-status');
   await page.fill('#settings-threshold', '5');
   const hasAlert = await page.evaluate(() =>
-    Boolean(document.querySelector('.f12-error[role="alert"]')),
+    Boolean(
+      document.querySelector('.f12-error[role="alert"]') &&
+        document.querySelector('#settings-quiet-summary .f12-status-danger') &&
+        document.querySelector('#settings-quiet-summary.f12-panel-quiet .f12-metric-quiet') &&
+        document.querySelector('#settings-keys-table.f12-table-compact'),
+    ),
   );
   await page.fill('#settings-threshold', '15');
   await page.click('#settings-revoke-open');
@@ -390,7 +395,12 @@ for (const screen of SCREENS) {
   await page.click('#int-land-exit');
   await page.waitForTimeout(400);
   const hasCompareLine = await page.evaluate(() =>
-    Boolean(document.querySelector('.f12-chart .f12-l-focus')),
+    Boolean(
+      document.querySelector('.f12-chart .f12-l-focus') &&
+        document.querySelector('.f12-chart .f12-compare-pt') &&
+        document.querySelector('.f12-ints .f12-int-fill-dense') &&
+        document.querySelector('.f12-ints .f12-int-fill-hatch'),
+    ),
   );
   await page.click('#landing-trial-open');
   const dlgCut = await page.evaluate(
@@ -418,6 +428,16 @@ for (const screen of SCREENS) {
     () => document.querySelectorAll('#table-scene-primary .f12-table tbody tr').length,
   );
   await page.click('#ledger-reset-btn');
+  const quietPanelsOk = await page.evaluate(() => {
+    const filterQuiet = document.querySelector('#table-filter-quiet-panel');
+    const inspectorQuiet = document.querySelector('#table-inspector-quiet-panel');
+    return Boolean(
+      filterQuiet?.classList.contains('f12-panel-quiet') &&
+        !filterQuiet.querySelector('.f12-cut') &&
+        inspectorQuiet?.classList.contains('f12-panel-quiet') &&
+        !inspectorQuiet.querySelector('.f12-cut'),
+    );
+  });
   await page.click('#table-payload-open');
   const dlgCut = await page.evaluate(
     () => document.querySelector('dialog.f12-dialog[open] .f12-cut')?.textContent,
@@ -425,8 +445,12 @@ for (const screen of SCREENS) {
   await page.click('#table-payload-replay');
   const statusText = await page.innerText('#table-status');
   check(
-    wonRows === 5 && searchRows === 1 && dlgCut === 'C-06' && statusText.includes('Replayed webhook'),
-    'eval/table interactions: status filter, search input, reset, and C-06 webhook replay dialog',
+    wonRows === 5 &&
+      searchRows === 1 &&
+      quietPanelsOk &&
+      dlgCut === 'C-06' &&
+      statusText.includes('Replayed webhook'),
+    'eval/table interactions: status filter, search input, reset, Quiet subgroup panels inside <Sheet autoCut>, and C-06 webhook replay dialog',
   );
   await ctx.close();
 }

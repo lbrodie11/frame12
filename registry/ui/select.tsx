@@ -10,10 +10,13 @@ interface SelectFieldContextValue {
 
 const SelectFieldContext = React.createContext<SelectFieldContextValue | null>(null);
 
+export type SelectDensity = 'comfortable' | 'compact';
+
 export interface SelectProps
   extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root> {
   label?: string;
   id?: string;
+  density?: SelectDensity;
   className?: string;
 }
 
@@ -32,12 +35,14 @@ export function Select({
   form,
   label,
   id,
+  density = 'comfortable',
   className = '',
   children,
 }: SelectProps) {
   const [containerEl, setContainerEl] = React.useState<HTMLDivElement | null>(null);
   const rawId = React.useId().replace(/:/g, '');
   const triggerId = id || `f12-select-${rawId}`;
+  const isCompact = density === 'compact';
 
   const ctxValue = React.useMemo(
     () => ({ triggerId, containerEl }),
@@ -46,7 +51,11 @@ export function Select({
 
   return (
     <SelectFieldContext.Provider value={ctxValue}>
-      <div ref={setContainerEl} className={`f12-select${className ? ` ${className}` : ''}`}>
+      <div
+        ref={setContainerEl}
+        className={`f12-select${isCompact ? ' f12-select-compact' : ''}${className ? ` ${className}` : ''}`}
+        data-density={isCompact ? 'compact' : undefined}
+      >
         {label && (
           <label htmlFor={triggerId} className="f12-label">
             {label}

@@ -4,16 +4,18 @@ import * as React from 'react';
 import { useSize } from '@/hooks/use-on-twos';
 
 export type PanelShape = 'rect' | 'slant-bottom' | 'slant-top';
+export type PanelVariant = 'expressive' | 'quiet';
 
 export interface PanelProps extends React.HTMLAttributes<HTMLElement> {
   cut?: string | false;
   shape?: PanelShape;
+  variant?: PanelVariant;
   label?: string;
   children?: React.ReactNode;
 }
 
 export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
-  { cut, shape = 'rect', className = '', label, children, ...rest },
+  { cut, shape = 'rect', variant = 'expressive', className = '', label, children, ...rest },
   forwardedRef,
 ) {
   const innerRef = React.useRef<HTMLElement | null>(null);
@@ -63,32 +65,38 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
         ? '0.35,6.8 99.65,0.35 99.65,99.65 0.35,99.65'
         : '0.35,0.35 99.65,0.35 99.65,99.65 0.35,99.65';
 
+  const isQuiet = variant === 'quiet';
+  const showSvgFrame = !isQuiet || shape !== 'rect';
+  const variantClass = isQuiet ? ' f12-panel-quiet' : '';
+
   return (
     <section
       ref={setRefs}
-      className={`f12-panel f12-${shape}${className ? ` ${className}` : ''}`}
+      className={`f12-panel f12-${shape}${variantClass}${className ? ` ${className}` : ''}`}
+      data-variant={isQuiet ? 'quiet' : undefined}
       aria-label={label}
       {...rest}
     >
-      {w > 0 ? (
-        <svg className="f12-panel-frame" width={w} height={h} aria-hidden="true">
-          <polygon points={pts} />
-        </svg>
-      ) : (
-        <svg
-          className="f12-panel-frame"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <polygon vectorEffect="non-scaling-stroke" points={ssrPts} />
-        </svg>
-      )}
+      {showSvgFrame &&
+        (w > 0 ? (
+          <svg className="f12-panel-frame" width={w} height={h} aria-hidden="true">
+            <polygon points={pts} />
+          </svg>
+        ) : (
+          <svg
+            className="f12-panel-frame"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <polygon vectorEffect="non-scaling-stroke" points={ssrPts} />
+          </svg>
+        ))}
       {typeof cut === 'string' && cut.length > 0 ? (
         <span className="f12-cut" aria-hidden="true">
           {cut}
         </span>
-      ) : cut === undefined ? (
+      ) : cut === undefined && !isQuiet ? (
         <span className="f12-cut" data-autocut="" aria-hidden="true" />
       ) : null}
       <div className="f12-panel-body">{children}</div>

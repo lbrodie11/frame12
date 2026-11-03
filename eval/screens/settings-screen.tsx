@@ -151,7 +151,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
           <div className="f12-hd-text">
             <p className="f12-eyebrow">
               {workspaceName}
-              <Tag>{preset.label}</Tag>
+              <Tag status="info">{preset.label}</Tag>
               <Badge pop={changed} burst>
                 Cut Sheet 01
               </Badge>
@@ -230,6 +230,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
               >
                 <Input
                   id="settings-workspace-name"
+                  density="compact"
                   label="Workspace display name"
                   value={workspaceName}
                   onChange={(e) => setWorkspaceName(e.target.value)}
@@ -237,6 +238,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                 />
                 <Input
                   id="settings-threshold"
+                  density="compact"
                   label="Alert lift threshold (%)"
                   value={threshold}
                   onChange={(e) => setThreshold(e.target.value)}
@@ -255,6 +257,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
               >
                 <Input
                   id="settings-endpoint"
+                  density="compact"
                   label="Webhook endpoint URL"
                   value={endpoint}
                   onChange={(e) => setEndpoint(e.target.value)}
@@ -262,6 +265,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                 />
                 <Select
                   id="settings-channel"
+                  density="compact"
                   label="Primary delivery channel"
                   value={channel}
                   onValueChange={(val) => {
@@ -279,6 +283,34 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                   </SelectContent>
                 </Select>
               </div>
+
+              <Panel
+                variant="quiet"
+                id="settings-quiet-summary"
+                label="Exposure-sheet parameter summary"
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 'var(--f-gutter-pair)',
+                  }}
+                >
+                  <Metric
+                    variant="quiet"
+                    headingLevel="h3"
+                    label="Active signing keys"
+                    value={preset.keys.length}
+                    format={(v) => `${v} provisioned`}
+                    note="Subordinate Quiet exposure-sheet ledger"
+                  />
+                  <Tag status={thresholdError ? 'danger' : 'success'}>
+                    {thresholdError ? 'INVALID THRESHOLD' : 'VALIDATED'}
+                  </Tag>
+                </div>
+              </Panel>
 
               <div
                 style={{
@@ -404,7 +436,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                 </DropdownMenu>
               </div>
 
-              <Table>
+              <Table density="compact" id="settings-keys-table">
                 <TableCaption>Active HMAC signing keys for {preset.label}</TableCaption>
                 <TableHeader>
                   <TableRow>
@@ -421,7 +453,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                       <TableCell>{k.scope}</TableCell>
                       <TableCell>{k.created}</TableCell>
                       <TableCell>
-                        <Tag>{k.status}</Tag>
+                        <Tag status={k.status === 'ACTIVE' ? 'success' : 'warning'}>{k.status}</Tag>
                       </TableCell>
                     </TableRow>
                   ))}

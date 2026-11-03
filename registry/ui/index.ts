@@ -1,6 +1,6 @@
 export { Sheet, Pegs, type SheetProps } from './sheet';
 export { Scene, GUTTERS, type SceneGutter, type SceneLayout, type SceneProps } from './scene';
-export { Panel, type PanelShape, type PanelProps } from './panel';
+export { Panel, type PanelShape, type PanelVariant, type PanelProps } from './panel';
 export { PanelPair, type PanelPairProps } from './panel-pair';
 export {
   SegmentedControl,
@@ -8,9 +8,9 @@ export {
   type SegmentedControlProps,
 } from './segmented-control';
 export { Button, type ButtonVariant, type ButtonSize, type ButtonProps } from './button';
-export { Input, type InputProps } from './input';
-export { Badge, Burst, type BadgeProps } from './badge';
-export { Tag, type TagProps } from './tag';
+export { Input, type InputDensity, type InputProps } from './input';
+export { Badge, Burst, type BadgeStatus, type BadgeProps } from './badge';
+export { Tag, STATUS_GLYPHS, type SemanticStatus, type TagProps } from './tag';
 export {
   Metric,
   Delta,
@@ -20,6 +20,7 @@ export {
   type DeltaProps,
   type MetricProps,
   type MetricHeadingLevel,
+  type MetricVariant,
 } from './metric';
 export { Balloon, type BalloonProps } from './balloon';
 export {
@@ -34,6 +35,8 @@ export {
 } from './tone-area-chart';
 export {
   ToneBarList,
+  type ToneBarPattern,
+  type ToneBarDensity,
   type ToneBarItem,
   type ToneBarListProps,
 } from './tone-bar-list';
@@ -60,6 +63,7 @@ export {
   SelectGroup,
   SelectLabel,
   SelectSeparator,
+  type SelectDensity,
   type SelectProps,
   type SelectTriggerProps,
   type SelectValueProps,
@@ -102,4 +106,6 @@ export {
   TableHead,
   TableCell,
   TableCaption,
+  type TableDensity,
+  type TableProps,
 } from './table';

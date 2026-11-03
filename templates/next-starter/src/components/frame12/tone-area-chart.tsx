@@ -323,7 +323,24 @@ export function ToneAreaChart({
                 />
               ))}
               <path d={totalPath} className="f12-l-total" fill="none" />
-              {focusPath && <path d={focusPath} className="f12-l-focus" fill="none" />}
+              {focusPath && (
+                <>
+                  <path d={focusPath} className="f12-l-focus" fill="none" />
+                  {xLabels.map((i) => {
+                    const cv = safeData[i]?.compareValue;
+                    if (cv == null) return null;
+                    const cx = x(i);
+                    const cy = y(cv);
+                    return (
+                      <polygon
+                        key={`cmp-pt-${i}`}
+                        className="f12-compare-pt"
+                        points={`${cx.toFixed(1)},${(cy - 3.5).toFixed(1)} ${(cx + 3.5).toFixed(1)},${cy.toFixed(1)} ${cx.toFixed(1)},${(cy + 3.5).toFixed(1)} ${(cx - 3.5).toFixed(1)},${cy.toFixed(1)}`}
+                      />
+                    );
+                  })}
+                </>
+              )}
             </g>
 
             {showPeak && resolvedAnnotation && (
@@ -343,7 +360,10 @@ export function ToneAreaChart({
                 <line x1={x(hover)} x2={x(hover)} y1={pad.t - 4} y2={y(bottom)} />
                 <circle cx={x(hover)} cy={y(hd.value)} r="4.5" className="f12-cross-dot" />
                 {hasCompare && hd.compareValue != null && (
-                  <circle cx={x(hover)} cy={y(hd.compareValue)} r="4" className="f12-cross-dot2" />
+                  <polygon
+                    className="f12-cross-dot2"
+                    points={`${x(hover).toFixed(1)},${(y(hd.compareValue) - 4.5).toFixed(1)} ${(x(hover) + 4.5).toFixed(1)},${y(hd.compareValue).toFixed(1)} ${x(hover).toFixed(1)},${(y(hd.compareValue) + 4.5).toFixed(1)} ${(x(hover) - 4.5).toFixed(1)},${y(hd.compareValue).toFixed(1)}`}
+                  />
                 )}
               </g>
             )}

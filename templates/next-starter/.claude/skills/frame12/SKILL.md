@@ -94,6 +94,13 @@ Compose every screen like a production storyboard sheet:
 4. **Use `20px` (`gutter="scene"`) within a scene and `32px` (`gutter="change"`) between scenes:**
    - Keep panels that answer the same question in one `<Scene gutter="scene" layout="equal" | "three" | "split">`.
    - Start a new `<Scene>` for a new narrative beat (e.g., moving from hero KPIs to a filterable ledger or danger-zone configuration).
+5. **Balance Expressive vs. Quiet (`variant="expressive" | "quiet"`):**
+   - **Expressive (default):** `2.5px` mitered SVG polygon frames, sequential `C-01..C-0n` cut badges, `16px` diagonal `PanelPair` slants, `clamp(36px, 6cqi, 56px)` display numerals, and stepped `useCountUp` motion. Use for primary narrative beats, hero metrics, and focal charts.
+   - **Quiet (`variant="quiet"`):** Crisp `1px solid var(--f-rule)` exposure-sheet border, tighter interior padding, rectangular `PanelPair` slots, `22px` tabular monospace `Metric` numerals (`motion="cut"` by default), and **no cut badge by default** (`cut` omitted renders no `.f12-cut`, so Quiet panels never increment `<Sheet autoCut>` counters or require sequential `C-01..C-0n` cuts).
+   - **When Expressive becomes excessive:** Do not put `2.5px` Expressive frames and cut numbers on every nested filter group, operational form subsection, or dense configuration ledger. Use `<Panel variant="quiet">`, `<Metric variant="quiet">`, and `density="compact"` (`Table`, `Input`, `Select`, `ToneBarList`) for subordinate operational groups so the numbered Expressive panels retain clear visual hierarchy.
+6. **Non-color semantic status (`status` on `Tag` and `Badge`) & pattern differentiation:**
+   - Never invent red/green/amber pills. Pass `status="neutral" | "info" | "success" | "warning" | "danger"` to `<Tag>` or `<Badge>`, which pairs orthographic glyph prefixes (`[i]`, `[✓]`, `[!]`, `[×]`) with border weight, stroke style, and ink/marker fill inversion (`>= 14:1` contrast in light, dark, and `forced-colors`).
+   - Differentiate categorical bars in `<ToneBarList>` using `pattern: 'dots' | 'hatch' | 'dense'` on `ToneBarItem`, and rely on `<ToneAreaChart>`'s built-in diamond comparison markers (`.f12-compare-pt`) and dashed ink stroke for secondary series.
 
 ---
 

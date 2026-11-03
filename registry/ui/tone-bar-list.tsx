@@ -4,6 +4,9 @@ import * as React from 'react';
 import { type MotionMode } from '@/hooks/use-on-twos';
 import { Badge } from './badge';
 
+export type ToneBarPattern = 'dots' | 'hatch' | 'dense';
+export type ToneBarDensity = 'comfortable' | 'compact';
+
 export interface ToneBarItem {
   id: string;
   name: string;
@@ -11,6 +14,7 @@ export interface ToneBarItem {
   formattedValue?: string;
   share?: number;
   badge?: string;
+  pattern?: ToneBarPattern;
 }
 
 export interface ToneBarListProps {
@@ -21,6 +25,7 @@ export interface ToneBarListProps {
   onSelect?: (id: string | null) => void;
   motion?: MotionMode;
   changed?: boolean;
+  density?: ToneBarDensity;
   idPrefix?: string;
   className?: string;
 }
@@ -32,6 +37,7 @@ export function ToneBarList({
   selectedId = null,
   onSelect,
   changed = false,
+  density = 'comfortable',
   idPrefix,
   className = '',
 }: ToneBarListProps) {
@@ -39,9 +45,13 @@ export function ToneBarList({
   const resolvedPrefix = idPrefix ?? `f12-${autoId}`;
   const max = Math.max(1, ...items.map((r) => (Number.isFinite(r.value) ? r.value : 0)));
   const listKey = items.map((r) => `${r.id}:${r.value}`).join('|');
+  const isCompact = density === 'compact';
 
   return (
-    <div className={`f12-ints${className ? ` ${className}` : ''}`}>
+    <div
+      className={`f12-ints${isCompact ? ' f12-ints-compact' : ''}${className ? ` ${className}` : ''}`}
+      data-density={isCompact ? 'compact' : undefined}
+    >
       {(title || subtitle) && (
         <div className="f12-ints-hd">
           {title && <h3 className="f12-m-label">{title}</h3>}
@@ -53,6 +63,8 @@ export function ToneBarList({
           const on = selectedId === r.id;
           const safeVal = Number.isFinite(r.value) ? r.value : 0;
           const formatted = r.formattedValue ?? '$' + Math.round(safeVal).toLocaleString('en-US');
+          const patternClass =
+            r.pattern && r.pattern !== 'dots' ? ` f12-int-fill-${r.pattern}` : '';
           return (
             <li key={r.id}>
               <button
@@ -72,7 +84,8 @@ export function ToneBarList({
                 </span>
                 <span className="f12-int-bar" aria-hidden="true">
                   <span
-                    className="f12-int-fill"
+                    className={`f12-int-fill${patternClass}`}
+                    data-pattern={r.pattern ?? 'dots'}
                     style={{ width: `${Math.max(0, (safeVal / max) * 100)}%` }}
                   />
                 </span>

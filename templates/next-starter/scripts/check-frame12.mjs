@@ -359,7 +359,42 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
   const cutMatches = [];
 
-  function recordCut(rawCut, node, ownerTag, inAutoCut) {
+  function getObjectVariant(rawExpr, seenObjs = new Set()) {
+    const obj = unwrapExpression(rawExpr);
+    if (!obj || !ts.isObjectLiteralExpression(obj) || seenObjs.has(obj)) return null;
+    seenObjs.add(obj);
+    let variant = null;
+    for (const prop of obj.properties) {
+      if (ts.isSpreadAssignment(prop)) {
+        const sub = getObjectVariant(prop.expression, seenObjs);
+        if (sub !== null) variant = sub;
+      } else if (
+        ts.isPropertyAssignment(prop) &&
+        (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)) &&
+        prop.name.text === 'variant'
+      ) {
+        const val = getStringValue(prop.initializer);
+        if (val !== null) variant = val;
+      }
+    }
+    return variant;
+  }
+
+  function getElementVariant(attributes) {
+    let variant = null;
+    for (const prop of attributes.properties) {
+      if (ts.isJsxAttribute(prop) && prop.name.getText(sourceFile) === 'variant') {
+        const val = getStringValue(prop.initializer);
+        if (val !== null) variant = val;
+      } else if (ts.isJsxSpreadAttribute(prop)) {
+        const val = getObjectVariant(prop.expression);
+        if (val !== null) variant = val;
+      }
+    }
+    return variant;
+  }
+
+  function recordCut(rawCut, node, ownerTag, inAutoCut, isQuiet = false) {
     const start = node.getStart(sourceFile);
     const line = sourceFile.getLineAndCharacterOfPosition(start).line + 1;
     const snippet = node.getText(sourceFile);
@@ -371,6 +406,18 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
         file: filePath,
         line,
         message: 'Cut numbers are automatic inside <Sheet autoCut>; remove the cut prop.',
+        snippet,
+      });
+      return;
+    }
+
+    if (isQuiet && !isDialogContentCut) {
+      violations.push({
+        rule: 'cut-order',
+        file: filePath,
+        line,
+        message:
+          'Quiet panels (<Panel variant="quiet">) are subordinate operational groups and should not carry storyboard cut numbers; remove the cut prop or use variant="expressive".',
         snippet,
       });
       return;
@@ -395,14 +442,23 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     }
   }
 
-  function inspectObjectForCuts(rawExpr, ownerTag, inAutoCut, seenObjs = new Set()) {
+  function inspectObjectForCuts(
+    rawExpr,
+    ownerTag,
+    inAutoCut,
+    parentQuiet = false,
+    seenObjs = new Set(),
+  ) {
     const obj = unwrapExpression(rawExpr);
     if (!obj || !ts.isObjectLiteralExpression(obj) || seenObjs.has(obj)) return;
     seenObjs.add(obj);
 
+    const objVariant = getObjectVariant(obj);
+    const isQuiet = objVariant ? objVariant === 'quiet' : parentQuiet;
+
     for (const prop of obj.properties) {
       if (ts.isSpreadAssignment(prop)) {
-        inspectObjectForCuts(prop.expression, ownerTag, inAutoCut, seenObjs);
+        inspectObjectForCuts(prop.expression, ownerTag, inAutoCut, isQuiet, seenObjs);
         continue;
       }
       if (!ts.isPropertyAssignment(prop)) continue;
@@ -412,16 +468,17 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       if (CUT_PROP_NAMES.has(propName)) {
         const rawCut = getStringValue(prop.initializer);
         if (rawCut !== null) {
-          recordCut(rawCut, prop, ownerTag, inAutoCut);
+          recordCut(rawCut, prop, ownerTag, inAutoCut, isQuiet);
         }
       } else if (ownerTag === 'PanelPair' && (propName === 'top' || propName === 'bottom')) {
-        inspectObjectForCuts(prop.initializer, ownerTag, inAutoCut, seenObjs);
+        inspectObjectForCuts(prop.initializer, ownerTag, inAutoCut, isQuiet, seenObjs);
       }
     }
   }
 
   function inspectElementAttributes(attributes, ownerTag, inAutoCut) {
     const isCutOwner = CUT_OWNER_TAGS.has(ownerTag);
+    const isQuiet = isCutOwner && getElementVariant(attributes) === 'quiet';
     for (const prop of attributes.properties) {
       if (isCutOwner) {
         if (ts.isJsxAttribute(prop)) {
@@ -429,13 +486,13 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
           if (CUT_PROP_NAMES.has(attrName)) {
             const rawCut = getStringValue(prop.initializer);
             if (rawCut !== null) {
-              recordCut(rawCut, prop, ownerTag, inAutoCut);
+              recordCut(rawCut, prop, ownerTag, inAutoCut, isQuiet);
             }
           } else if (ownerTag === 'PanelPair' && (attrName === 'top' || attrName === 'bottom')) {
-            inspectObjectForCuts(prop.initializer, ownerTag, inAutoCut);
+            inspectObjectForCuts(prop.initializer, ownerTag, inAutoCut, isQuiet);
           }
         } else if (ts.isJsxSpreadAttribute(prop)) {
-          inspectObjectForCuts(prop.expression, ownerTag, inAutoCut);
+          inspectObjectForCuts(prop.expression, ownerTag, inAutoCut, isQuiet);
         }
       }
       // Traverse attribute initializer/expression for any nested JSX elements
