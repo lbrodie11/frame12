@@ -32,10 +32,7 @@ jobs:
       - name: Build all workspaces (lab, registry, eval, site, next-starter)
         run: npm run build
 
-      - name: Verify React 18 starter template (lint, typecheck & build)
-        run: npm --workspace=@frame12/next-starter run test
-
-      - name: Run full verification & cross-browser suite (unit, a11y, cross-browser, linter, eval, site)
+      - name: Run full verification & cross-browser suite (unit, a11y, cross-browser, linter, eval, site, next-starter)
         run: npm test
 
       - name: Run shadcn registry smoke-install verification (single-component & full kit)

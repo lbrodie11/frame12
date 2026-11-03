@@ -3,8 +3,10 @@
  * Reproducible laboratory performance baseline runner for @frame12/site.
  *
  * Runs 5 independent fresh browser-context loads per route against `next start`
- * under both unthrottled localhost and 4x CPU throttled conditions, plus an
- * optional `--font-delay-ms=<ms>` mode to simulate cold-network .woff2 font swaps.
+ * under both unthrottled localhost and 4x CPU throttled conditions, verifying
+ * SSR pre-hydration markup (`hasFoucScript`, `hasSheetMarkup`, `hasPanelPolygon`)
+ * and dark-on-first-paint (`firstPaintDark`), plus an optional `--font-delay-ms=<ms>`
+ * mode to simulate cold-network .woff2 font swaps.
  */
 import { spawn } from 'node:child_process';
 import net from 'node:net';
@@ -14,6 +16,7 @@ import { chromium } from 'playwright';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = resolve(ROOT, 'site');
+const NEXT_BIN = resolve(ROOT, 'node_modules/next/dist/bin/next');
 const RUNS = Number(process.env.F12_PERF_RUNS || 5);
 const fontDelayArg = process.argv.find((a) => a.startsWith('--font-delay-ms='));
 const FONT_DELAY_MS = fontDelayArg ? Number(fontDelayArg.split('=')[1]) : 0;
@@ -66,6 +69,30 @@ async function waitForServer(url, childProc, getExitError, timeoutMs = 20000) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
+async function stopServer(childProc) {
+  if (childProc.exitCode !== null || childProc.killed) return;
+  await new Promise((resolveStop) => {
+    const timer = setTimeout(() => {
+      try {
+        childProc.kill('SIGKILL');
+      } catch {
+        // ignore
+      }
+      resolveStop();
+    }, 2000);
+    childProc.once('close', () => {
+      clearTimeout(timer);
+      resolveStop();
+    });
+    try {
+      childProc.kill('SIGTERM');
+    } catch {
+      clearTimeout(timer);
+      resolveStop();
+    }
+  });
+}
+
 async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0 }) {
   const results = {};
   for (const route of ROUTES) {
@@ -75,6 +102,10 @@ async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0
     let jsBytes = 0;
     let jsChunks = 0;
     let htmlBytes = 0;
+    let hasFoucScript = false;
+    let hasSheetMarkup = false;
+    let hasPanelPolygon = false;
+    let firstPaintDark = false;
     let warnings = 0;
 
     for (let i = 0; i < RUNS; i++) {
@@ -103,7 +134,22 @@ async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0
           _clsSessionVal: 0,
           _clsFirstStart: -1,
           _clsPrevStart: -1,
+          firstPaintDark: null,
         };
+        document.addEventListener(
+          'DOMContentLoaded',
+          () => {
+            if (window.__f12Perf.firstPaintDark === null) {
+              const target = document.querySelector('.f12-sheet') || document.documentElement;
+              const sheetToken = getComputedStyle(target)
+                .getPropertyValue('--f-sheet')
+                .trim()
+                .toLowerCase();
+              window.__f12Perf.firstPaintDark = sheetToken === '#050505';
+            }
+          },
+          { once: true },
+        );
         new PerformanceObserver((list) => {
           for (const e of list.getEntries()) window.__f12Perf.lcp = e.startTime;
         }).observe({ type: 'largest-contentful-paint', buffered: true });
@@ -160,10 +206,41 @@ async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0
       if (i === 0) {
         const body = await resp.body();
         htmlBytes = body.byteLength;
+        const html = body.toString('utf8');
+        hasFoucScript =
+          html.includes('localStorage.getItem("color-scheme")') && html.includes('data-theme');
+        hasSheetMarkup = html.includes('f12-sheet');
+        hasPanelPolygon = html.includes('<polygon');
+        if (!hasFoucScript || !hasSheetMarkup || !hasPanelPolygon) {
+          throw new Error(
+            `Pre-hydration SSR check failed on ${route.path}: ${JSON.stringify({
+              hasFoucScript,
+              hasSheetMarkup,
+              hasPanelPolygon,
+            })}`,
+          );
+        }
       }
       await page.waitForTimeout(fontDelayMs > 0 ? fontDelayMs + 250 : 200);
 
-      const perf = await page.evaluate(() => window.__f12Perf);
+      const perf = await page.evaluate(() => {
+        const target = document.querySelector('.f12-sheet') || document.documentElement;
+        const sheetToken = getComputedStyle(target)
+          .getPropertyValue('--f-sheet')
+          .trim()
+          .toLowerCase();
+        return {
+          lcp: window.__f12Perf.lcp,
+          cls: window.__f12Perf.cls,
+          firstPaintDark: window.__f12Perf.firstPaintDark ?? sheetToken === '#050505',
+        };
+      });
+      if (!perf.firstPaintDark) {
+        throw new Error(`Dark first-paint check failed on ${route.path}`);
+      }
+      if (i === 0) {
+        firstPaintDark = Boolean(perf.firstPaintDark);
+      }
       lcpRuns.push(Math.round(perf.lcp));
       clsRuns.push(Number(perf.cls.toFixed(4)));
 
@@ -199,6 +276,10 @@ async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0
       jsKB: Number((jsBytes / 1024).toFixed(1)),
       jsChunks,
       htmlKB: Number((htmlBytes / 1024).toFixed(1)),
+      hasFoucScript,
+      hasSheetMarkup,
+      hasPanelPolygon,
+      firstPaintDark,
       warnings,
     };
   }
@@ -209,7 +290,7 @@ const requestedPort = process.env.F12_PERF_PORT ? Number(process.env.F12_PERF_PO
 const port = await getAvailablePort(requestedPort);
 
 let serverExitError = null;
-const server = spawn('npx', ['next', 'start', '-H', '127.0.0.1', '-p', String(port)], {
+const server = spawn(process.execPath, [NEXT_BIN, 'start', '-H', '127.0.0.1', '-p', String(port)], {
   cwd: SITE_DIR,
   stdio: ['ignore', 'ignore', 'pipe'],
 });
@@ -247,5 +328,5 @@ try {
     await browser.close();
   }
 } finally {
-  server.kill('SIGTERM');
+  await stopServer(server);
 }

@@ -107,6 +107,7 @@ interface DialogContextValue {
   setHasDescription: (present: boolean) => void;
   dialogRef: React.RefObject<HTMLDialogElement | null>;
   returnFocusRef: React.MutableRefObject<HTMLElement | null>;
+  captureTrigger: (triggerEl: HTMLElement) => void;
   restoreFocus: () => void;
 }
 
@@ -143,15 +144,59 @@ export function Dialog({
   const dialogRef = React.useRef<HTMLDialogElement | null>(null);
   const returnFocusRef = React.useRef<HTMLElement | null>(null);
   const preOpenActiveRef = React.useRef<Element | null>(null);
+  const triggerPreClickActiveRef = React.useRef<Element | null>(null);
+  const clearPendingTriggerListenersRef = React.useRef<(() => void) | null>(null);
   const rawId = React.useId().replace(/:/g, '');
   const titleId = `f12-dlg-title-${rawId}`;
   const descId = `f12-dlg-desc-${rawId}`;
 
+  const captureTrigger = React.useCallback((triggerEl: HTMLElement) => {
+    clearPendingTriggerListenersRef.current?.();
+    returnFocusRef.current = triggerEl;
+    triggerPreClickActiveRef.current =
+      typeof document !== 'undefined' ? document.activeElement : null;
+    if (typeof document === 'undefined') return;
+    const onOtherInteraction = (ev: Event) => {
+      if (openRef.current) {
+        cleanup();
+        return;
+      }
+      const target = ev.target as Node | null;
+      if (target && !triggerEl.contains(target)) {
+        if (returnFocusRef.current === triggerEl) {
+          returnFocusRef.current = null;
+          triggerPreClickActiveRef.current = null;
+        }
+        cleanup();
+      }
+    };
+    const cleanup = () => {
+      document.removeEventListener('pointerdown', onOtherInteraction, true);
+      document.removeEventListener('keydown', onOtherInteraction, true);
+      document.removeEventListener('focusin', onOtherInteraction, true);
+      if (clearPendingTriggerListenersRef.current === cleanup) {
+        clearPendingTriggerListenersRef.current = null;
+      }
+    };
+    clearPendingTriggerListenersRef.current = cleanup;
+    document.addEventListener('pointerdown', onOtherInteraction, true);
+    document.addEventListener('keydown', onOtherInteraction, true);
+    document.addEventListener('focusin', onOtherInteraction, true);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      clearPendingTriggerListenersRef.current?.();
+    };
+  }, []);
+
   const restoreFocus = React.useCallback(() => {
+    clearPendingTriggerListenersRef.current?.();
     const opener = returnFocusRef.current;
     const preOpenActive = preOpenActiveRef.current;
     returnFocusRef.current = null;
     preOpenActiveRef.current = null;
+    triggerPreClickActiveRef.current = null;
     if (!opener || !opener.isConnected || typeof opener.focus !== 'function') return;
     const active = typeof document !== 'undefined' ? document.activeElement : null;
     const el = dialogRef.current;
@@ -198,19 +243,29 @@ export function Dialog({
     const el = dialogRef.current;
     if (!el) return;
     if (open && !el.open) {
+      clearPendingTriggerListenersRef.current?.();
       if (typeof document !== 'undefined') {
+        const currentActive = document.activeElement;
         // Unconditionally capture document.activeElement immediately before showModal()
         // so controlled dialogs that open asynchronously always record the exact element
         // that native HTMLDialogElement.showModal() saves as its pre-open focus target.
-        preOpenActiveRef.current = document.activeElement;
+        preOpenActiveRef.current = currentActive;
+        if (
+          returnFocusRef.current &&
+          currentActive !== returnFocusRef.current &&
+          currentActive !== triggerPreClickActiveRef.current
+        ) {
+          returnFocusRef.current = null;
+          triggerPreClickActiveRef.current = null;
+        }
         if (
           !returnFocusRef.current &&
-          document.activeElement instanceof HTMLElement &&
-          document.activeElement !== document.body &&
-          document.activeElement !== document.documentElement &&
-          !el.contains(document.activeElement)
+          currentActive instanceof HTMLElement &&
+          currentActive !== document.body &&
+          currentActive !== document.documentElement &&
+          !el.contains(currentActive)
         ) {
-          returnFocusRef.current = document.activeElement;
+          returnFocusRef.current = currentActive;
         }
       }
       if (typeof el.showModal === 'function') el.showModal();
@@ -239,6 +294,7 @@ export function Dialog({
         setHasDescription,
         dialogRef,
         returnFocusRef,
+        captureTrigger,
         restoreFocus,
       }}
     >
@@ -276,7 +332,7 @@ export const DialogTrigger = React.forwardRef<HTMLButtonElement, DialogTriggerPr
     { asChild = false, onClick, className = '', children, ...rest },
     forwardedRef,
   ) {
-    const { setOpen, returnFocusRef } = useDialogContext();
+    const { setOpen, captureTrigger } = useDialogContext();
     const childRef = React.isValidElement(children) ? getElementRef(children) : undefined;
     const composedRef = React.useMemo(
       () => mergeRefs(forwardedRef, childRef),
@@ -299,7 +355,7 @@ export const DialogTrigger = React.forwardRef<HTMLButtonElement, DialogTriggerPr
           }
           if (!e.defaultPrevented) {
             if (e.currentTarget instanceof HTMLElement) {
-              returnFocusRef.current = e.currentTarget;
+              captureTrigger(e.currentTarget);
             }
             setOpen(true);
           }
@@ -314,7 +370,7 @@ export const DialogTrigger = React.forwardRef<HTMLButtonElement, DialogTriggerPr
           onClick?.(e);
           if (!e.defaultPrevented) {
             if (e.currentTarget instanceof HTMLElement) {
-              returnFocusRef.current = e.currentTarget;
+              captureTrigger(e.currentTarget);
             }
             setOpen(true);
           }

@@ -495,6 +495,7 @@ export function GalleryApp() {
 
 function UnitTestFixtures() {
   const [dlgOpen, setDlgOpen] = React.useState(false);
+  const [rejectTrigger, setRejectTrigger] = React.useState(false);
   const [closeCount, setCloseCount] = React.useState(0);
   const [vetoCount, setVetoCount] = React.useState(0);
   const [underOpen, setUnderOpen] = React.useState(false);
@@ -510,12 +511,16 @@ function UnitTestFixtures() {
   const progress = useOnTwos(tweenKey, tweenDuration, tweenMotion);
   const counted = useCountUp(countTarget, 'stepped', 500);
 
-  const handleDlgOpenChange = React.useCallback((next: boolean) => {
-    setDlgOpen(next);
-    if (!next) {
-      setCloseCount((c) => c + 1);
-    }
-  }, []);
+  const handleDlgOpenChange = React.useCallback(
+    (next: boolean) => {
+      if (next && rejectTrigger) return;
+      setDlgOpen(next);
+      if (!next) {
+        setCloseCount((c) => c + 1);
+      }
+    },
+    [rejectTrigger],
+  );
 
   const tipBtnRef = React.useCallback((node: HTMLButtonElement | null) => {
     if (node) setTipRefSet(true);
@@ -552,6 +557,16 @@ function UnitTestFixtures() {
           </DialogContent>
         </Dialog>
         <output id="test-dlg-close-count">{closeCount}</output>
+        <button
+          id="test-dlg-reject-toggle"
+          type="button"
+          onClick={() => setRejectTrigger((r) => !r)}
+        >
+          Toggle Reject Trigger ({rejectTrigger ? 'on' : 'off'})
+        </button>
+        <button id="test-dlg-prog-open" type="button" onClick={() => setDlgOpen(true)}>
+          Programmatic Open Controlled Dialog
+        </button>
 
         {/* Dialog without DialogDescription */}
         <Dialog>
