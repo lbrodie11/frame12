@@ -6,8 +6,8 @@ import { Panel, type PanelProps } from './panel';
 export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
   top?: Omit<PanelProps, 'shape'>;
   bottom?: Omit<PanelProps, 'shape'>;
-  topCut?: string;
-  bottomCut?: string;
+  topCut?: string | false;
+  bottomCut?: string | false;
   topLabel?: string;
   bottomLabel?: string;
   children?: React.ReactNode;
@@ -32,8 +32,8 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
   if (top && bottom) {
     return (
       <div ref={ref} className={classes} {...rest}>
-        <Panel {...top} shape="slant-bottom" />
-        <Panel {...bottom} shape="slant-top" />
+        <Panel cut={topCut} label={topLabel} {...top} shape="slant-bottom" />
+        <Panel cut={bottomCut} label={bottomLabel} {...bottom} shape="slant-top" />
       </div>
     );
   }
@@ -50,7 +50,7 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
   const renderSlot = (
     node: React.ReactNode,
     shape: 'slant-bottom' | 'slant-top',
-    fallbackCut?: string,
+    fallbackCut?: string | false,
     fallbackLabel?: string,
   ) => {
     if (React.isValidElement<PanelProps>(node) && node.type === Panel) {

@@ -4,6 +4,17 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Automatic Cut Numbering (`<Sheet autoCut>`):**
+  - Added `autoCut?: boolean` (default `false`) to `Sheet` (`registry/ui/sheet.tsx`), setting `data-autocut` and `--f12-autocut-display: block` on `.f12-sheet` when `true` (`--f12-autocut-display: none` when `false`) and resetting CSS counter `f12-cut` (`registry/styles/frame12.css`).
+  - Updated `Panel` (`registry/ui/panel.tsx`) and `PanelPair` (`registry/ui/panel-pair.tsx`) `cut` / `topCut` / `bottomCut` props to `string | false`: omitting `cut` renders `<span className="f12-cut" data-autocut aria-hidden="true" />` numbered via `counter(f12-cut, decimal-leading-zero)` inside `<Sheet autoCut>` (hidden outside `autoCut`), `cut={false}` suppresses the cut badge entirely, and explicit string cuts render as before (with a dev-only `console.warn` once when mixed inside `<Sheet autoCut>`).
+  - Added the `explicit-cut-in-autocut` static linter rule in `scripts/check-frame12.mjs` to catch hand-numbered `<Panel>` or `<PanelPair>` cuts inside `<Sheet autoCut>`.
+- **Registry & Distribution Modernization (Work Package 2):**
+  - Migrated all 19 individual component manifests in `registry/registry.json` (`site/public/r/*.json`) to declare shared dependencies (`frame12-styles`, `use-on-twos`, `panel`, `button`, `badge`) via `registryDependencies` instead of duplicating `styles/frame12.css` and `hooks/use-on-twos.ts` inside every payload.
+  - Added `frame12-base` (`type: "registry:base"`) and three `type: "registry:font"` manifests (`font-dela-gothic-one`, `font-zen-kaku-gothic-new`, `font-m-plus-1-code`), plus root `/registry.json` `include` composition validated by `npx shadcn registry validate`.
+  - Added static `/llms.txt` and `/llms-full.txt` routes (`site/app/llms.txt/route.ts`, `site/app/llms-full.txt/route.ts`) generated directly from `skills/frame12/SKILL.md`, `skills/frame12/references/*.md`, `registry/registry.json`, and `site/src/lib/catalog.ts`.
+
 ### Changed
 
 - **`SegmentedControl` Keyboard Navigation & Focus Contrast (`registry/ui/segmented-control.tsx`, `registry/styles/frame12.css`):**

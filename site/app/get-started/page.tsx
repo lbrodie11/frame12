@@ -25,9 +25,9 @@ const TRACK_OPTIONS: Array<{ value: SetupTrack; label: string; unit: string }> =
 const LAYOUT_FONT_SNIPPET = `import { Dela_Gothic_One, Zen_Kaku_Gothic_New, M_PLUS_1_Code } from 'next/font/google';
 import '@/styles/frame12.css';
 
-const displayFont = Dela_Gothic_One({ weight: '400', subsets: ['latin'], variable: '--font-f-display', display: 'swap' });
-const bodyFont = Zen_Kaku_Gothic_New({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-f-body', display: 'swap' });
-const monoFont = M_PLUS_1_Code({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-f-mono', display: 'swap' });
+const displayFont = Dela_Gothic_One({ weight: '400', subsets: ['latin'], variable: '--font-dela-gothic-one', display: 'swap' });
+const bodyFont = Zen_Kaku_Gothic_New({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-zen-kaku-gothic-new', display: 'swap' });
+const monoFont = M_PLUS_1_Code({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-m-plus-1-code', display: 'swap' });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -52,7 +52,7 @@ import {
 
 export default function RecoveryPage() {
   return (
-    <Sheet pegs motion="stepped">
+    <Sheet autoCut pegs motion="stepped">
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">Fernwood Supply Co. <Tag>Live</Tag></p>
@@ -61,7 +61,7 @@ export default function RecoveryPage() {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-01" label="Recovered revenue over time">
+        <Panel label="Recovered revenue over time">
           <Metric label="Recovered revenue" value={120054} format={fmtCurrency} big />
           <ToneAreaChart
             data={[
@@ -75,8 +75,8 @@ export default function RecoveryPage() {
           />
         </Panel>
         <PanelPair
-          top={{ cut: 'C-02', label: 'Incremental profit', children: <Metric label="Incremental profit" value={38420} format={fmtCurrency} /> }}
-          bottom={{ cut: 'C-03', label: 'Conversion lift', children: <Metric label="Conversion lift" value={55} format={(v) => \`+\${Math.round(v)} bps\`} /> }}
+          top={{ label: 'Incremental profit', children: <Metric label="Incremental profit" value={38420} format={fmtCurrency} /> }}
+          bottom={{ label: 'Conversion lift', children: <Metric label="Conversion lift" value={55} format={(v) => \`+\${Math.round(v)} bps\`} /> }}
         />
       </Scene>
     </Sheet>
@@ -95,7 +95,7 @@ export default function GetStartedPage() {
   const [track, setTrack] = React.useState<SetupTrack>('new');
 
   return (
-    <Sheet pegs motion={motion}>
+    <Sheet autoCut pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -118,7 +118,7 @@ export default function GetStartedPage() {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-01" label="Step 1: Project setup and self-hosted fonts">
+        <Panel label="Step 1: Project setup and self-hosted fonts">
           <div className="f12-stack-scene">
             <div className="f12-stack-pair">
               <div className="f12-row-pair">
@@ -132,12 +132,12 @@ export default function GetStartedPage() {
               <h2 className="f12-section-title">
                 {track === 'new'
                   ? 'Scaffold Next.js and bind the three font variables'
-                  : 'Bind --font-f-display, --font-f-body, and --font-f-mono in app/layout.tsx'}
+                  : 'Bind --font-dela-gothic-one, --font-zen-kaku-gothic-new, and --font-m-plus-1-code'}
               </h2>
               <p className="f12-body-copy">
                 {track === 'new'
-                  ? 'Create a fresh Next.js App Router project with TypeScript, then load the display, body, and monospace typefaces through next/font/google so fonts are self-hosted at build time.'
-                  : 'In your existing app/layout.tsx, bind the three CSS custom properties (--font-f-display, --font-f-body, --font-f-mono) on <html> so every FRAME/12 component picks up the exact type scale without touching your existing font classes.'}
+                  ? 'Create a fresh Next.js App Router project with TypeScript, then load the display, body, and monospace typefaces through next/font/google (or install frame12-base.json) so fonts are self-hosted at build time.'
+                  : 'In your existing app/layout.tsx, bind --font-dela-gothic-one, --font-zen-kaku-gothic-new, and --font-m-plus-1-code on <html> (or install frame12-base.json) so frame12.css resolves --font-f-display, --font-f-body, and --font-f-mono with their fallback stacks intact.'}
               </p>
             </div>
 
@@ -165,7 +165,6 @@ export default function GetStartedPage() {
 
         <PanelPair
           top={{
-            cut: 'C-02',
             label: 'Step 2: Add components via shadcn CLI',
             children: (
               <div className="f12-stack-pair">
@@ -193,7 +192,6 @@ export default function GetStartedPage() {
             ),
           }}
           bottom={{
-            cut: 'C-03',
             label: 'Step 3: Choose standalone CSS or Tailwind v4',
             children: (
               <div className="f12-stack-pair">
@@ -205,7 +203,11 @@ export default function GetStartedPage() {
                   Every component works standalone with{' '}
                   <code className="f12-code-inline">frame12.css</code>. Using Tailwind v4? Import{' '}
                   <code className="f12-code-inline">frame12-tailwind.css</code> for{' '}
-                  <code className="f12-code-inline">@theme</code> token utilities:
+                  <code className="f12-code-inline">@theme</code> token utilities. Put any custom{' '}
+                  <code className="f12-code-inline">--f-*</code> overrides in your own stylesheet
+                  (never edit <code className="f12-code-inline">frame12.css</code> directly), and pass{' '}
+                  <code className="f12-code-inline">--overwrite</code> when adding or upgrading
+                  components later:
                 </p>
                 <CopyCommand
                   id="start-copy-styles-only"
@@ -219,23 +221,24 @@ export default function GetStartedPage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-04" label="Step 4: Compose your first Sheet, Scene, and Panel">
+        <Panel label="Step 4: Compose your first Sheet, Scene, and Panel">
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <div className="f12-stack-pair">
                 <div className="f12-row-pair">
                   <Tag>Step 4 · First Storyboard Screen</Tag>
                   <span className="f12-mono-note">
-                    Sheet → Scene (gutter=&quot;scene&quot;, layout=&quot;split&quot;) → Panel + PanelPair
+                    Sheet (autoCut) → Scene (gutter=&quot;scene&quot;, layout=&quot;split&quot;) → Panel + PanelPair
                   </span>
                 </div>
                 <h2 className="f12-section-title">
                   Compose your first Sheet + Scene + Panel
                 </h2>
                 <p className="f12-body-copy">
-                  Number each panel sequentially in reading order starting at cut 01. Place your
-                  establishing chart in the wide left column and pair coupled KPIs across a 12px
-                  slanted gutter on the right.
+                  Enable <code className="f12-code-inline">&lt;Sheet autoCut&gt;</code> so panels
+                  number automatically in reading order starting at cut 01. Place your establishing
+                  chart in the wide left column and pair coupled KPIs across a 12px slanted gutter
+                  on the right.
                 </p>
               </div>
               <Link href="/components" className="f12-link-btn" id="start-link-components">
@@ -253,7 +256,7 @@ export default function GetStartedPage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-05" label="Step 5: Enforce grammar with ESLint and check-frame12.mjs">
+        <Panel label="Step 5: Enforce grammar with ESLint and check-frame12.mjs">
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <div className="f12-stack-pair">

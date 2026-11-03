@@ -125,7 +125,7 @@ export default function MotionPage() {
   );
 
   return (
-    <Sheet pegs motion="stepped">
+    <Sheet autoCut pegs motion="stepped">
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -160,7 +160,7 @@ export default function MotionPage() {
       </header>
 
       <Scene gutter="scene" layout="equal">
-        <Panel cut="C-01" label="Stepped on twos (12fps)">
+        <Panel label="Stepped on twos (12fps)">
           <div className="f12-stack-scene f12-m-stepped">
             <div className="f12-row-between">
               <div className="f12-stack-pair">
@@ -233,7 +233,7 @@ export default function MotionPage() {
           </div>
         </Panel>
 
-        <Panel cut="C-02" label="Comparison stage: Smooth (60fps) or Cut (0ms)">
+        <Panel label="Comparison stage: Smooth (60fps) or Cut (0ms)">
           <div className={`f12-stack-scene f12-m-${compareMotion}`}>
             <div className="f12-row-between">
               <div className="f12-stack-pair">
@@ -340,7 +340,7 @@ export default function MotionPage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-03" label="Exposure sheet film strip">
+        <Panel label="Exposure sheet film strip">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>Exposure Sheet</Tag>
@@ -361,7 +361,7 @@ export default function MotionPage() {
       </Scene>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-04" label="Motion grammar rules and timing table">
+        <Panel label="Motion grammar rules and timing table">
           <div className="f12-stack-pair">
             <h2 className="f12-section-title">Where each motion grammar belongs</h2>
             <p className="f12-muted-copy">
@@ -419,7 +419,7 @@ export default function MotionPage() {
           </div>
         </Panel>
 
-        <Panel cut="C-05" label="useOnTwos hook implementation">
+        <Panel label="useOnTwos hook implementation">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>Hook API</Tag>

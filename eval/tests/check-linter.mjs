@@ -176,6 +176,252 @@ function check(ok, label, detail = '') {
     res2.length === 2 && res2.every((v) => v.rule === 'cut-order'),
     'linter [cut-order]: flags non-C-01 start and malformed C-3 label',
   );
+
+  const explicitInAutoCut = `
+    import { Sheet, Panel, PanelPair, Dialog, DialogContent } from '@/components/frame12';
+    export const AutoBad = () => (
+      <Sheet autoCut>
+        <Panel cut="C-01" label="First">One</Panel>
+        <Panel cut={'C-02'} label="Second">Two</Panel>
+        <PanelPair
+          topCut="C-03"
+          bottom={{ cut: 'C-04', label: 'Bottom', children: 'Four' }}
+        />
+        <Dialog>
+          <DialogContent cut="C-05">Allowed on DialogContent</DialogContent>
+        </Dialog>
+      </Sheet>
+    );
+  `;
+  const resAutoBad = lintSource(explicitInAutoCut, 'eval/screens/bad-autocut.tsx');
+  check(
+    resAutoBad.length === 4 &&
+      resAutoBad.every(
+        (v) =>
+          v.rule === 'explicit-cut-in-autocut' &&
+          v.message === 'Cut numbers are automatic inside <Sheet autoCut>; remove the cut prop.',
+      ),
+    'linter [explicit-cut-in-autocut]: flags cut="...", cut={\'...\'}, topCut="...", and cut: \'...\' inside <Sheet autoCut> while allowing DialogContent cut',
+    JSON.stringify(resAutoBad),
+  );
+
+  const cleanAutoCut = `
+    import { Sheet, Panel, PanelPair, Dialog, DialogContent } from '@/components/frame12';
+    export const AutoGood = () => (
+      <Sheet autoCut>
+        <Panel label="First">One</Panel>
+        <Panel cut={false} label="Unnumbered">Skip</Panel>
+        <PanelPair topLabel="Top" bottomLabel="Bottom">
+          <div>Two</div>
+          <div>Three</div>
+        </PanelPair>
+        <Dialog>
+          <DialogContent cut="C-04">Dialog cut stays explicit</DialogContent>
+        </Dialog>
+      </Sheet>
+    );
+  `;
+  const resAutoGood = lintSource(cleanAutoCut, 'eval/screens/good-autocut.tsx');
+  check(
+    resAutoGood.length === 0,
+    'linter [explicit-cut-in-autocut]: clean <Sheet autoCut> with cut={false} and DialogContent cut passes with 0 violations',
+    JSON.stringify(resAutoGood),
+  );
+
+  const nestedSheetScope = `
+    import { Sheet, Panel } from '@/components/frame12';
+    export const NestedSheets = () => (
+      <Sheet autoCut>
+        <Panel label="Auto outer">One</Panel>
+        <Sheet>
+          <Panel cut="C-01" label="Explicit inside nested non-auto Sheet">Inner 1</Panel>
+          <Panel cut="C-02" label="Explicit inside nested non-auto Sheet">Inner 2</Panel>
+        </Sheet>
+      </Sheet>
+    );
+  `;
+  const resNestedScope = lintSource(nestedSheetScope, 'eval/screens/nested-sheets.tsx');
+  check(
+    resNestedScope.length === 0,
+    'linter [explicit-cut-in-autocut]: nested non-auto <Sheet> inside <Sheet autoCut> permits sequential explicit cuts',
+    JSON.stringify(resNestedScope),
+  );
+
+  const callbackArrowInTags = `
+    import { Sheet, Panel, Dialog, DialogContent } from '@/components/frame12';
+    export const CallbackTags = () => (
+      <Sheet onClick={() => {}} autoCut>
+        <Panel onClick={() => {}} cut="C-01" label="Should fail">One</Panel>
+        <Dialog>
+          <DialogContent onClick={() => {}} cut="C-08">Allowed after arrow callback</DialogContent>
+        </Dialog>
+      </Sheet>
+    );
+  `;
+  const resCallbackTags = lintSource(callbackArrowInTags, 'eval/screens/callback-tags.tsx');
+  check(
+    resCallbackTags.length === 1 &&
+      resCallbackTags[0].rule === 'explicit-cut-in-autocut' &&
+      resCallbackTags[0].snippet === 'cut="C-01"',
+    'linter [explicit-cut-in-autocut]: brace-aware JSX scanning detects autoCut after onClick={() => {}} on <Sheet> and allows cut after onClick={() => {}} on <DialogContent>',
+    JSON.stringify(resCallbackTags),
+  );
+
+  const quotedSheetInsideAutoCut = `
+    import { Sheet, Panel } from '@/components/frame12';
+    export const QuotedSheetInAuto = () => (
+      <Sheet autoCut>
+        <code>{"<Sheet>"}</code>
+        <Panel cut="C-01" label="Must still fail inside autoCut">One</Panel>
+      </Sheet>
+    );
+  `;
+  const resQuotedInAuto = lintSource(quotedSheetInsideAutoCut, 'eval/screens/quoted-in-auto.tsx');
+  check(
+    resQuotedInAuto.length === 1 &&
+      resQuotedInAuto[0].rule === 'explicit-cut-in-autocut' &&
+      resQuotedInAuto[0].snippet === 'cut="C-01"',
+    'linter [explicit-cut-in-autocut]: quoted {"<Sheet>"} string inside <Sheet autoCut> does not clobber autoCut scope',
+    JSON.stringify(resQuotedInAuto),
+  );
+
+  const quotedAutoCutOutside = `
+    import { Sheet, Panel } from '@/components/frame12';
+    const help = "<Sheet autoCut>";
+    export const QuotedAutoOutside = () => (
+      <Sheet title={help}>
+        <Panel cut="C-01" label="Allowed outside autoCut">One</Panel>
+      </Sheet>
+    );
+  `;
+  const resQuotedOutside = lintSource(quotedAutoCutOutside, 'eval/screens/quoted-outside.tsx');
+  check(
+    resQuotedOutside.length === 0,
+    'linter [explicit-cut-in-autocut]: quoted "<Sheet autoCut>" string does not falsely activate autoCut scope',
+    JSON.stringify(resQuotedOutside),
+  );
+
+  const spreadDialogAndPanelInAutoCut = `
+    import { Sheet, Panel, Dialog, DialogContent } from '@/components/frame12';
+    export const SpreadInAuto = () => (
+      <Sheet autoCut>
+        <Dialog>
+          <DialogContent {...{ cut: 'C-08' }}>Allowed spread cut on DialogContent</DialogContent>
+        </Dialog>
+        <Panel {...{ cut: 'C-01' }} label="Forbidden spread cut on Panel">One</Panel>
+      </Sheet>
+    );
+  `;
+  const resSpreadInAuto = lintSource(spreadDialogAndPanelInAutoCut, 'eval/screens/spread-in-auto.tsx');
+  check(
+    resSpreadInAuto.length === 1 &&
+      resSpreadInAuto[0].rule === 'explicit-cut-in-autocut' &&
+      resSpreadInAuto[0].snippet === "cut: 'C-01'",
+    'linter [explicit-cut-in-autocut]: resolves innermost enclosing tag for spread properties ({...{ cut: "C-08" }} exempt on DialogContent, flagged on Panel)',
+    JSON.stringify(resSpreadInAuto),
+  );
+
+  const jsxProseAndRegexQuotes = `
+    import { Sheet, Panel } from '@/components/frame12';
+    const hasDoubleQuote = /"/.test('x');
+    const fakeSheetRegex = /<Sheet autoCut>/;
+    export const ProseAndRegexInAuto = () => (
+      <Sheet autoCut>
+        <p>'Tis ready for inspection</p>
+        {/"/.test('x') && <Panel cut="C-01" label="Must fail after prose quote and regex literal">One</Panel>}
+      </Sheet>
+    );
+    export const ProseAndRegexLegacy = () => (
+      <Sheet title={String(hasDoubleQuote && fakeSheetRegex)}>
+        <p>'Tis legacy sheet</p>
+        <Panel cut="C-02" label="Must fail cut-order starting at C-02">Two</Panel>
+      </Sheet>
+    );
+  `;
+  const resProseAndRegex = lintSource(jsxProseAndRegexQuotes, 'eval/screens/prose-regex.tsx');
+  check(
+    resProseAndRegex.length === 2 &&
+      resProseAndRegex[0].rule === 'explicit-cut-in-autocut' &&
+      resProseAndRegex[0].snippet === 'cut="C-01"' &&
+      resProseAndRegex[1].rule === 'cut-order' &&
+      resProseAndRegex[1].snippet === 'cut="C-02"',
+    'linter [cut-order & explicit-cut-in-autocut]: distinguishes JSX text quotes (<p>\'Tis ready</p>) and regex literals (/"/.test(\'x\')) from JS strings',
+    JSON.stringify(resProseAndRegex),
+  );
+
+  const selfClosingSheetChildren = `
+    import { Sheet, Panel } from '@/components/frame12';
+    export const SelfClosingAuto = () => (
+      <Sheet autoCut children={<Panel cut="C-01" label="Forbidden in self-closing autoCut Sheet" />} />
+    );
+    export const SelfClosingNestedNonAuto = () => (
+      <Sheet autoCut>
+        <Sheet children={<Panel cut="C-01" label="Allowed in nested self-closing non-auto Sheet" />} />
+      </Sheet>
+    );
+  `;
+  const resSelfClosingSheet = lintSource(
+    selfClosingSheetChildren,
+    'eval/screens/self-closing-sheet.tsx',
+  );
+  check(
+    resSelfClosingSheet.length === 1 &&
+      resSelfClosingSheet[0].rule === 'explicit-cut-in-autocut' &&
+      resSelfClosingSheet[0].line === 4,
+    'linter [explicit-cut-in-autocut]: tracks self-closing <Sheet> boundaries for JSX-valued children props in both directions',
+    JSON.stringify(resSelfClosingSheet),
+  );
+
+  const noWhitespaceReturnAndUnrelatedMarkup = `
+    import { Sheet, Panel } from '@/components/frame12';
+    const Clip = (_props: { cut?: string }) => null;
+    export function NoSpaceReturn() {
+      return<Sheet autoCut>
+        <Clip cut="C-01" />
+        <div data-cut="C-01" />
+        <Panel cut="C-01" label="Forbidden on Panel">One</Panel>
+      </Sheet>;
+    }
+  `;
+  const resNoSpaceAndUnrelated = lintSource(
+    noWhitespaceReturnAndUnrelatedMarkup,
+    'eval/screens/no-space-unrelated.tsx',
+  );
+  check(
+    resNoSpaceAndUnrelated.length === 1 &&
+      resNoSpaceAndUnrelated[0].rule === 'explicit-cut-in-autocut' &&
+      resNoSpaceAndUnrelated[0].line === 8,
+    'linter [explicit-cut-in-autocut]: TypeScript AST handles return<Sheet autoCut> without whitespace and ignores unrelated <Clip cut="C-01" /> and <div data-cut="C-01" />',
+    JSON.stringify(resNoSpaceAndUnrelated),
+  );
+
+  const localPropConstantsInAutoAndLegacy = `
+    import { Sheet, Panel, PanelPair } from '@/components/frame12';
+    const topAuto = { cut: 'C-02', label: 'Top', children: 'Top' };
+    export const LocalConstInAuto = () => (
+      <Sheet autoCut>
+        <PanelPair top={topAuto} bottom={{ label: 'Bottom', children: 'Bottom' }} />
+      </Sheet>
+    );
+    const topValid = { cut: 'C-02', label: 'Top', children: 'Top' };
+    export const LocalConstMixedValid = () => (
+      <Sheet>
+        <Panel cut="C-01">First</Panel>
+        <PanelPair top={topValid} bottom={{ cut: 'C-03', label: 'Bottom', children: 'Bottom' }} />
+      </Sheet>
+    );
+  `;
+  const resLocalConst = lintSource(
+    localPropConstantsInAutoAndLegacy,
+    'eval/screens/local-const-cuts.tsx',
+  );
+  check(
+    resLocalConst.length === 1 &&
+      resLocalConst[0].rule === 'explicit-cut-in-autocut' &&
+      resLocalConst[0].snippet === "cut: 'C-02'",
+    'linter [cut-order & explicit-cut-in-autocut]: resolves local prop object constants (PanelPair top={top}) at JSX use sites in DOM order',
+    JSON.stringify(resLocalConst),
+  );
 }
 
 // 6. Rule 5: raw-shadcn-import

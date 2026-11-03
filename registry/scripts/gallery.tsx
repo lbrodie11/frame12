@@ -61,6 +61,166 @@ const MOTION_OPTIONS: Array<{ value: MotionMode; label: string; unit: string }> 
   { value: 'cut', label: 'Cut', unit: '0ms' },
 ];
 
+function AdapterScenePanels({
+  range,
+  channel,
+  setChannel,
+  setLastAction,
+  summary,
+}: {
+  range: number;
+  channel: string;
+  setChannel: (v: string) => void;
+  setLastAction: (v: string) => void;
+  summary: {
+    revenue: number;
+    rows: Array<{ id: string; name: string; share: number; value: number }>;
+  };
+}) {
+  return (
+    <>
+      <Panel label="Interactive primitive adapters">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h2 className="f12-m-label">Primitive Adapters</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
+            <form
+              id="gal-select-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                setLastAction(`Form channel: ${String(fd.get('recoveryChannel') ?? '')}`);
+              }}
+            >
+              <Select
+                id="gal-select"
+                name="recoveryChannel"
+                label="Recovery channel"
+                value={channel}
+                onValueChange={(v) => {
+                  setChannel(v);
+                  setLastAction(`Channel: ${v}`);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">Abandoned-cart email</SelectItem>
+                  <SelectItem value="exit">Exit-intent offer</SelectItem>
+                  <SelectItem value="stock">Back-in-stock alert</SelectItem>
+                </SelectContent>
+              </Select>
+            </form>
+
+            <Dialog>
+              <DialogTrigger id="gal-dialog-open" variant="secondary">
+                Inspect cut sheet
+              </DialogTrigger>
+              <DialogContent cut="C-08">
+                <DialogHeader>
+                  <DialogTitle>Cut Sheet Inspection</DialogTitle>
+                  <DialogDescription>
+                    Every panel in FRAME/12 is numbered in reading order and framed with 2.5px
+                    ink rules.
+                  </DialogDescription>
+                </DialogHeader>
+                <p style={{ margin: 0, fontSize: '14px' }}>
+                  Active range: {range} days · Channel: {channel}
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger id="gal-dialog-menu-trigger" variant="secondary" size="sm">
+                      Nested menu ▼
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuLabel>Cut actions</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        id="gal-dialog-menu-item"
+                        onSelect={() => setLastAction('Nested menu action')}
+                      >
+                        Verify cut order
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <DialogFooter>
+                  <DialogClose id="gal-dialog-close" variant="primary">
+                    Confirm cut
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger id="gal-tooltip-trigger">Spacing note</TooltipTrigger>
+                <TooltipContent>Held for 2 frames at 24fps (83.33ms)</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger id="gal-menu-trigger" variant="secondary">
+                Export sheet
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>Format</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  id="gal-menu-csv"
+                  onSelect={() => setLastAction('Exported CSV')}
+                >
+                  Download CSV ledger
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  id="gal-menu-json"
+                  onSelect={() => setLastAction('Exported JSON')}
+                >
+                  Copy JSON snapshot
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel label="Tabular ledger adapter">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <h2 className="f12-m-label">Intervention Ledger</h2>
+          <Table>
+            <TableCaption>Summary for the last {range} days</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Intervention</TableHead>
+                <TableHead>Share</TableHead>
+                <TableHead>Recovered</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {summary.rows
+                .slice(0, 3)
+                .map((r: { id: string; name: string; share: number; value: number }) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{r.name}</TableCell>
+                    <TableCell>{(r.share * 100).toFixed(0)}%</TableCell>
+                    <TableCell>{fmtMoney(r.value)}</TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell>Total</TableCell>
+                <TableCell>100%</TableCell>
+                <TableCell>{fmtMoney(summary.revenue)}</TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </div>
+      </Panel>
+    </>
+  );
+}
+
 export function GalleryApp() {
   const [range, setRange] = React.useState<number>(30);
   const [motion, setMotion] = React.useState<MotionMode>('stepped');
@@ -123,7 +283,7 @@ export function GalleryApp() {
 
   return (
     <main className="gallery-root">
-      <Sheet motion={motion} theme={theme} id="gallery-sheet">
+      <Sheet autoCut motion={motion} theme={theme} id="gallery-sheet">
         <header className="f12-hd">
           <div className="f12-hd-text">
             <p className="f12-eyebrow">
@@ -173,7 +333,7 @@ export function GalleryApp() {
         </header>
 
         <Scene gutter="scene" layout="split" id="scene-primary">
-          <Panel cut="C-01" className="c01" label="Recovered revenue over time">
+          <Panel className="c01" label="Recovered revenue over time">
             <div className="f12-c01-hd">
               <Metric
                 label="Recovered revenue"
@@ -217,7 +377,6 @@ export function GalleryApp() {
           <PanelPair
             id="panel-pair-kpis"
             top={{
-              cut: 'C-02',
               label: 'Incremental profit',
               children: (
                 <Metric
@@ -241,7 +400,6 @@ export function GalleryApp() {
               ),
             }}
             bottom={{
-              cut: 'C-03',
               label: 'Conversion lift',
               children: (
                 <Metric
@@ -268,7 +426,7 @@ export function GalleryApp() {
         </Scene>
 
         <Scene gutter="change" layout="equal" id="scene-secondary">
-          <Panel cut="C-04" label="Revenue by intervention">
+          <Panel label="Revenue by intervention">
             <ToneBarList
               title="Revenue by intervention"
               subtitle={`Last ${range} days · share of recovered revenue`}
@@ -281,7 +439,7 @@ export function GalleryApp() {
             />
           </Panel>
 
-          <Panel cut="C-05" label="Controls and annotations">
+          <Panel label="Controls and annotations">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h2 className="f12-m-label">Controls &amp; Annotations</h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
@@ -349,144 +507,13 @@ export function GalleryApp() {
         </Scene>
 
         <Scene gutter="pair" layout="equal" id="scene-adapters">
-          <Panel cut="C-06" label="Interactive primitive adapters">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h2 className="f12-m-label">Primitive Adapters</h2>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
-                <form
-                  id="gal-select-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    setLastAction(`Form channel: ${String(fd.get('recoveryChannel') ?? '')}`);
-                  }}
-                >
-                  <Select
-                    id="gal-select"
-                    name="recoveryChannel"
-                    label="Recovery channel"
-                    value={channel}
-                    onValueChange={(v) => {
-                      setChannel(v);
-                      setLastAction(`Channel: ${v}`);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="email">Abandoned-cart email</SelectItem>
-                      <SelectItem value="exit">Exit-intent offer</SelectItem>
-                      <SelectItem value="stock">Back-in-stock alert</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </form>
-
-                <Dialog>
-                  <DialogTrigger id="gal-dialog-open" variant="secondary">
-                    Inspect cut sheet
-                  </DialogTrigger>
-                  <DialogContent cut="C-08">
-                    <DialogHeader>
-                      <DialogTitle>Cut Sheet Inspection</DialogTitle>
-                      <DialogDescription>
-                        Every panel in FRAME/12 is numbered in reading order and framed with 2.5px
-                        ink rules.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <p style={{ margin: 0, fontSize: '14px' }}>
-                      Active range: {range} days · Channel: {channel}
-                    </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger id="gal-dialog-menu-trigger" variant="secondary" size="sm">
-                          Nested menu ▼
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuLabel>Cut actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            id="gal-dialog-menu-item"
-                            onSelect={() => setLastAction('Nested menu action')}
-                          >
-                            Verify cut order
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    <DialogFooter>
-                      <DialogClose id="gal-dialog-close" variant="primary">
-                        Confirm cut
-                      </DialogClose>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger id="gal-tooltip-trigger">Spacing note</TooltipTrigger>
-                    <TooltipContent>Held for 2 frames at 24fps (83.33ms)</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger id="gal-menu-trigger" variant="secondary">
-                    Export sheet
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuLabel>Format</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      id="gal-menu-csv"
-                      onSelect={() => setLastAction('Exported CSV')}
-                    >
-                      Download CSV ledger
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      id="gal-menu-json"
-                      onSelect={() => setLastAction('Exported JSON')}
-                    >
-                      Copy JSON snapshot
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          </Panel>
-
-          <Panel cut="C-07" label="Tabular ledger adapter">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <h2 className="f12-m-label">Intervention Ledger</h2>
-              <Table>
-                <TableCaption>Summary for the last {range} days</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Intervention</TableHead>
-                    <TableHead>Share</TableHead>
-                    <TableHead>Recovered</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {summary.rows
-                    .slice(0, 3)
-                    .map((r: { id: string; name: string; share: number; value: number }) => (
-                      <TableRow key={r.id}>
-                        <TableCell>{r.name}</TableCell>
-                        <TableCell>{(r.share * 100).toFixed(0)}%</TableCell>
-                        <TableCell>{fmtMoney(r.value)}</TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-                <TableFooter>
-                  <TableRow>
-                    <TableCell>Total</TableCell>
-                    <TableCell>100%</TableCell>
-                    <TableCell>{fmtMoney(summary.revenue)}</TableCell>
-                  </TableRow>
-                </TableFooter>
-              </Table>
-            </div>
-          </Panel>
+          <AdapterScenePanels
+            range={range}
+            channel={channel}
+            setChannel={setChannel}
+            setLastAction={setLastAction}
+            summary={summary}
+          />
         </Scene>
       </Sheet>
     </main>
@@ -775,7 +802,7 @@ function UnitTestFixtures() {
 
         {/* Zero-width hidden Panel for SSR fallback polygon test */}
         <div id="test-panel-ssr" style={{ display: 'none' }}>
-          <Panel cut="C-99" label="SSR fallback panel">
+          <Panel label="SSR fallback panel">
             SSR Content
           </Panel>
         </div>
@@ -787,13 +814,94 @@ function UnitTestFixtures() {
           </Balloon>
         </div>
       </Sheet>
+
+      {/* Automatic cut numbering (<Sheet autoCut>) fixture matrix */}
+      <div id="fixture-autocut-matrix">
+        {/* 1. Composition: nested wrappers, PanelPair (slant-top), .map(), hidden panel, cut={false} */}
+        <Sheet autoCut pegs={false} id="fixture-autocut-composition">
+          <Scene gutter="pair" layout="stack">
+            <NestedAutoPanelWrapper />
+            <PanelPair
+              id="fixture-autocut-pair"
+              top={{ label: 'Auto Pair Top', children: 'Top body' }}
+              bottom={{ label: 'Auto Pair Bottom (slant-top)', children: 'Bottom body' }}
+            />
+            {['Mapped First', 'Mapped Second'].map((item) => (
+              <Panel key={item} label={item}>
+                {item}
+              </Panel>
+            ))}
+            <Panel style={{ display: 'none' }} label="Hidden via display none">
+              Skipped by CSS counter
+            </Panel>
+            {false && <Panel label="Conditionally unrendered">Skipped</Panel>}
+            <Panel id="fixture-autocut-false" cut={false} label="Unnumbered panel">
+              Explicit cut false
+            </Panel>
+            <Panel id="fixture-autocut-final" label="Final panel after skips">
+              Continues numbering at C-07
+            </Panel>
+          </Scene>
+        </Sheet>
+
+        {/* 2. Nested non-auto Sheet inside auto Sheet */}
+        <Sheet autoCut pegs={false} id="fixture-nested-outer-auto">
+          <Scene gutter="pair" layout="stack">
+            <Panel label="Outer auto before">Outer 1</Panel>
+            <Sheet pegs={false} id="fixture-nested-inner-nonauto">
+              <Scene gutter="pair" layout="stack">
+                <Panel label="Inner non-auto default panel">Unnumbered inside non-auto Sheet</Panel>
+                <Panel
+                  {...({ ['c' + 'ut']: 'C-01' } as { cut?: string })}
+                  label="Inner non-auto explicit panel"
+                >
+                  Explicit C-01 inside non-auto Sheet
+                </Panel>
+              </Scene>
+            </Sheet>
+            <Panel label="Outer auto after">Outer 2 continues at C-02</Panel>
+          </Scene>
+        </Sheet>
+
+        {/* 3. Nested auto Sheet inside non-auto Sheet */}
+        <Sheet pegs={false} id="fixture-nested-outer-nonauto">
+          <Scene gutter="pair" layout="stack">
+            <Panel label="Outer non-auto before">Unnumbered outer 1</Panel>
+            <Sheet autoCut pegs={false} id="fixture-nested-inner-auto">
+              <Scene gutter="pair" layout="stack">
+                <Panel label="Inner auto 1">Inner C-01</Panel>
+                <Panel label="Inner auto 2">Inner C-02</Panel>
+              </Scene>
+            </Sheet>
+            <Panel label="Outer non-auto after">Unnumbered outer 2</Panel>
+          </Scene>
+        </Sheet>
+      </div>
     </div>
   );
 }
 
-const rootEl = document.getElementById('root');
+function NestedAutoPanelWrapper() {
+  return (
+    <div className="nested-wrapper-outer">
+      <div className="nested-wrapper-inner">
+        <Panel label="Nested wrapper panel A">Nested A</Panel>
+        <Panel label="Nested wrapper panel B">Nested B</Panel>
+      </div>
+    </div>
+  );
+}
+
+const rootEl = typeof document !== 'undefined' ? document.getElementById('root') : null;
 if (rootEl) {
-  const RD = (window as unknown as { ReactDOM: { createRoot: (el: HTMLElement) => { render: (node: React.ReactNode) => void } } }).ReactDOM;
+  const RD = (window as unknown as {
+    ReactDOM: {
+      createRoot: (el: HTMLElement) => {
+        render: (node: React.ReactNode) => void;
+        unmount?: () => void;
+      };
+    };
+  }).ReactDOM;
   RD.createRoot(rootEl).render(<GalleryApp />);
   (window as unknown as { __mountUnitFixtures?: () => void }).__mountUnitFixtures = () => {
     let host = document.getElementById('unit-fixtures-root');
@@ -803,5 +911,44 @@ if (rootEl) {
       document.body.appendChild(host);
     }
     RD.createRoot(host).render(<UnitTestFixtures />);
+  };
+  (
+    window as unknown as {
+      __testAutoCutWarning?: (envMode: 'development' | 'production') => Promise<string[]>;
+    }
+  ).__testAutoCutWarning = async (envMode: 'development' | 'production') => {
+    const win = window as unknown as { __F12_NODE_ENV__?: string };
+    const prevEnv = win.__F12_NODE_ENV__;
+    win.__F12_NODE_ENV__ = envMode;
+    const warnings: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(String).join(' '));
+    };
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = RD.createRoot(host);
+    try {
+      const explicitProp = { ['c' + 'ut']: 'C-09' } as { cut?: string };
+      function WarnFixture({ tick }: { tick: number }) {
+        return (
+          <Sheet autoCut pegs={false}>
+            <Panel {...explicitProp} label={`Warn panel ${tick}`}>
+              Mixed cut {tick}
+            </Panel>
+          </Sheet>
+        );
+      }
+      root.render(<WarnFixture tick={1} />);
+      await new Promise((r) => setTimeout(r, 40));
+      root.render(<WarnFixture tick={2} />);
+      await new Promise((r) => setTimeout(r, 40));
+      return warnings;
+    } finally {
+      root.unmount?.();
+      host.remove();
+      console.warn = origWarn;
+      win.__F12_NODE_ENV__ = prevEnv;
+    }
   };
 }

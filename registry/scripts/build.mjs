@@ -2,8 +2,11 @@
 // FRAME/12 components and adapters) and runs the shadcn registry JSON build.
 import { build } from 'esbuild';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import React from 'react';
+import { renderToString } from 'react-dom/server';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
@@ -79,10 +82,55 @@ const res = await build({
   target: ['es2019'],
   charset: 'utf8',
   legalComments: 'none',
+  define: {
+    'process.env.NODE_ENV': 'window.__F12_NODE_ENV__',
+  },
+  banner: {
+    js: 'window.__F12_NODE_ENV__ = window.__F12_NODE_ENV__ || "development";',
+  },
   plugins: [reactGlobalPlugin],
 });
 
 const js = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
+
+const ssrAliasPlugin = {
+  name: 'ssr-alias',
+  setup(b) {
+    b.onResolve({ filter: /^@\/hooks\/(.*)$/ }, (args) => {
+      const sub = args.path.replace(/^@\/hooks\//, '');
+      return { path: resolve(rootDir, 'hooks', `${sub}.ts`) };
+    });
+    b.onResolve({ filter: /^@\/components\/frame12$/ }, () => ({
+      path: resolve(rootDir, 'ui/index.ts'),
+    }));
+    b.onResolve({ filter: /^@\/components\/frame12\/(.*)$/ }, (args) => {
+      const sub = args.path.replace(/^@\/components\/frame12\//, '');
+      return { path: resolve(rootDir, 'ui', `${sub}.tsx`) };
+    });
+    b.onResolve({ filter: /^@\/components\/ui\/(.*)$/ }, (args) => {
+      const sub = args.path.replace(/^@\/components\/ui\//, '');
+      return { path: resolve(rootDir, 'ui', `${sub}.tsx`) };
+    });
+  },
+};
+
+const ssrBuild = await build({
+  entryPoints: [resolve(rootDir, 'scripts/gallery.tsx')],
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  write: false,
+  external: ['react', 'react-dom'],
+  plugins: [ssrAliasPlugin],
+});
+const req = createRequire(import.meta.url);
+const ssrMod = { exports: {} };
+new Function('exports', 'require', 'module', ssrBuild.outputFiles[0].text)(
+  ssrMod.exports,
+  req,
+  ssrMod,
+);
+const ssrHtml = renderToString(React.createElement(ssrMod.exports.GalleryApp));
 
 const html = `<!doctype html>
 <html lang="en">
@@ -99,7 +147,7 @@ ${css}
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">${ssrHtml}</div>
 <script src="${REACT}"></script>
 <script src="${REACT_DOM}"></script>
 <script>

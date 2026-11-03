@@ -25,7 +25,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
   const installCmd = `npx shadcn@latest add ${entry.registryUrl}`;
 
   return (
-    <Sheet pegs motion={motion}>
+    <Sheet autoCut pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -44,7 +44,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
       </header>
 
       <Scene gutter="scene" layout="equal">
-        <Panel cut="C-01" label={`${entry.title} light theme preview`}>
+        <Panel label={`${entry.title} light theme preview`}>
           <div className="f12-stack-pair">
             <div className="f12-row-between">
               <div className="f12-row-pair">
@@ -57,7 +57,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
           </div>
         </Panel>
 
-        <Panel cut="C-02" label={`${entry.title} dark theme preview`}>
+        <Panel label={`${entry.title} dark theme preview`}>
           <div className="f12-stack-pair">
             <div className="f12-row-between">
               <div className="f12-row-pair">
@@ -72,7 +72,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
       </Scene>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-03" label={`${entry.title} installation and usage`}>
+        <Panel label={`${entry.title} installation and usage`}>
           <div className="f12-stack-scene">
             <div className="f12-stack-pair">
               <h2 className="f12-section-title">Install & copy-in source</h2>
@@ -99,7 +99,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
           </div>
         </Panel>
 
-        <Panel cut="C-04" label={`${entry.title} accessibility and grammar notes`}>
+        <Panel label={`${entry.title} accessibility and grammar notes`}>
           <div className="f12-stack-scene">
             <div className="f12-stack-pair">
               <div className="f12-row-pair">
@@ -135,7 +135,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-05" label={`${entry.title} props reference`}>
+        <Panel label={`${entry.title} props reference`}>
           <div className="f12-stack-pair">
             <h2 className="f12-section-title">Props & TypeScript API</h2>
             <Table>

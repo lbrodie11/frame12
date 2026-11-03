@@ -31,6 +31,11 @@ npx shadcn@latest add https://frame12.dev/r/tone-area-chart.json
 
 > **Local / Self-Hosted Registry:** `https://frame12.dev` is the live production registry origin (`NEXT_PUBLIC_SITE_URL`). When working offline or locally, serve `site/public/r/` (`npm --workspace=@frame12/site run dev`) and pass `http://localhost:3000/r/frame12.json` to `npx shadcn@latest add`, or start from `templates/next-starter/`.
 
+> **Safe Upgrades & Non-Interactive Agent Installs (`--overwrite`):**
+> 1. **Do not edit `styles/frame12.css` directly:** Place any custom token overrides in your own stylesheet (e.g., `app/globals.css`) so future `shadcn add` runs never hit a modified-file conflict on `frame12.css`.
+> 2. **Pass `--overwrite` when adding components after an update:** Because every individual component manifest depends on `frame12-styles` (`styles/frame12.css`), running `npx shadcn@latest add <url> -y` without `--overwrite` when `styles/frame12.css` differs locally will skip installation in non-interactive shells and still exit with code `0`.
+> 3. **Verify installed files on disk:** Coding agents MUST check that `components/frame12/<name>.tsx` (and `styles/frame12.css`) exist on disk after running `shadcn add`, rather than trusting exit code `0`.
+
 Import `styles/frame12.css` (or `styles/frame12-tailwind.css` for Tailwind CSS v4 `@theme` mappings) once at the root of your application. Every component works standalone with `frame12.css` without requiring Tailwind.
 
 ---
@@ -53,9 +58,9 @@ Every screen, component, and stylesheet MUST pass these 8 rules (`node scripts/c
      - `20px` (`gutter="scene"` / `--f-gutter-scene`): panels and columns within the same scene.
      - `32px` (`gutter="change"` / `--f-gutter-change`): separation between scenes on a `Sheet`.
    - Never use arbitrary gaps (`8px`, `16px`, `24px`, `gap-4`, `gap-6`) in `Scene`, panel layouts, or inline `gap` styles.
-3. **Sequential cut numbers (`cut-order`):**
-   - Number every `Panel` (and modal `DialogContent` cut) sequentially in reading order starting at `C-01` (`C-01`, `C-02`, `C-03`, `C-04`…).
-   - Visual order, reading order (top-to-bottom, left-to-right), and DOM order MUST match. Never skip, duplicate, or reverse cut numbers.
+3. **Automatic cut numbers (`explicit-cut-in-autocut` & `cut-order`):**
+   - Use `<Sheet autoCut>` and don't write cut numbers. Use `cut={false}` for panels that shouldn't be numbered. Only `DialogContent` takes an explicit cut (`<DialogContent cut="C-0X">`).
+   - Visual order, reading order (top-to-bottom, left-to-right), and DOM order MUST match. Never pass an explicit `cut` prop on a `Panel` or `PanelPair` inside `<Sheet autoCut>` (`explicit-cut-in-autocut`); on legacy sheets without `autoCut`, explicit cuts must start at `C-01` and increment sequentially (`cut-order`).
 4. **Marker yellow discipline (`marker-misuse`):**
    - `--f-marker` (`#ffd60a`) is a highlighter. It may **only** be used as a `background` / `background-color` paired with `--f-marker-ink` (`#121212`) text, or as an inked target dot (`.f12-peak-dot`, `.f12-cross-dot`) with a `2px` `--f-rule` stroke.
    - Never use `--f-marker` as a text color, line stroke, chart series color, or standalone border.
@@ -80,12 +85,12 @@ Every screen, component, and stylesheet MUST pass these 8 rules (`node scripts/c
 
 Compose every screen like a production storyboard sheet:
 
-1. **Wrap the page in `<Sheet>`:**
-   - `<Sheet pegs motion={motion} theme={theme}>` renders the registration pegs at the top edge and establishes a `32px` vertical rhythm between `<header className="f12-hd">` and each `<Scene>`.
+1. **Wrap the page in `<Sheet autoCut>`:**
+   - `<Sheet autoCut pegs motion={motion} theme={theme}>` renders the registration pegs at the top edge, numbers every `<Panel>` automatically in DOM reading order (`C-01`, `C-02`, `C-03`…) via CSS counters, and establishes a `32px` vertical rhythm between `<header className="f12-hd">` and each `<Scene>`.
 2. **Establish the scene in `C-01`:**
-   - The first panel (`cut="C-01"`) is the establishing shot. Give it dominant visual weight using `<Scene gutter="scene" layout="split">` (`2fr 1fr` on desktop, single-column stack under `760px`) or a full-width `<Scene gutter="scene" layout="stack">`.
+   - The first `<Panel>` inside `<Sheet autoCut>` is automatically numbered `C-01` as the establishing shot. Give it dominant visual weight using `<Scene gutter="scene" layout="split">` (`2fr 1fr` on desktop, single-column stack under `760px`) or a full-width `<Scene gutter="scene" layout="stack">`.
 3. **Pair secondary KPIs or coupled controls with `<PanelPair>`:**
-   - Place `<PanelPair top={{ cut: 'C-02', ... }} bottom={{ cut: 'C-03', ... }} />` in the secondary column of a `split` scene (or alongside a detail panel). `PanelPair` draws a `16px` diagonal slant across a `12px` (`pair`) gutter (`slant-bottom` over `slant-top`).
+   - Place `<PanelPair top={{ label: '...', children: ... }} bottom={{ label: '...', children: ... }} />` in the secondary column of a `split` scene (or alongside a detail panel). Inside `<Sheet autoCut>`, both halves are numbered automatically (`C-02`, `C-03`) across a `16px` diagonal slant and `12px` (`pair`) gutter (`slant-bottom` over `slant-top`). Use `cut={false}` on any subordinate panel that shouldn't be numbered.
 4. **Use `20px` (`gutter="scene"`) within a scene and `32px` (`gutter="change"`) between scenes:**
    - Keep panels that answer the same question in one `<Scene gutter="scene" layout="equal" | "three" | "split">`.
    - Start a new `<Scene>` for a new narrative beat (e.g., moving from hero KPIs to a filterable ledger or danger-zone configuration).
@@ -98,9 +103,9 @@ When you installed the full kit (`frame12.json`) or started from `templates/next
 
 | UI Need | FRAME/12 Component | Forbidden Raw Alternative |
 | --- | --- | --- |
-| Page shell & registration pegs | `Sheet` | Custom wrapper divs with hard-coded padding |
+| Page shell & registration pegs | `Sheet` (`autoCut`) | Custom wrapper divs with hard-coded padding |
 | Multi-column / stacked grid | `Scene` (`gutter="pair" \| "scene" \| "change"`, `layout="split" \| "equal" \| "three" \| "stack"`) | Arbitrary CSS grid or Tailwind `gap-4` / `gap-6` |
-| Framed section / card | `Panel` (`cut="C-01"`, `label="..."`) | shadcn `Card`, bordered `<div>` |
+| Framed section / card | `Panel` (`label="..."`, `cut={false}` if unnumbered) | shadcn `Card`, bordered `<div>` |
 | Vertically paired KPIs / panels | `PanelPair` (`top`, `bottom`, 12px slanted gutter) | Two stacked cards with `gap-4` |
 | Mode, range, or status switcher | `SegmentedControl` | shadcn `Tabs`, radio button pills |
 | Action button | `Button` (`variant="primary" \| "secondary" \| "marker"`) | Raw `<button>` or unadapted `@/components/ui/button` |
@@ -131,6 +136,6 @@ node scripts/check-frame12.mjs <your-files-or-directories>
 - [ ] **Zero `color-literal` errors:** All colors use `var(--f-*)` and all fonts use `var(--font-f-*)`.
 - [ ] **Zero `illegal-gutter` errors:** Every `Scene` `gutter` and every flex/grid `gap` uses `12px` (`var(--f-gutter-pair)`), `20px` (`var(--f-gutter-scene)`), or `32px` (`var(--f-gutter-change)`).
 - [ ] **Zero `marker-misuse` errors:** `--f-marker` only appears as a background with `--f-marker-ink` foreground text.
-- [ ] **Zero `cut-order` errors:** Cuts start at `C-01` and increment sequentially (`C-01`, `C-02`, `C-03`…) in DOM order.
+- [ ] **Zero `explicit-cut-in-autocut` & `cut-order` errors:** Screens use `<Sheet autoCut>` with no hand-written panel cuts (using `cut={false}` when a panel shouldn't be numbered, and explicit `cut="C-0X"` only on `DialogContent`).
 - [ ] **Zero `raw-shadcn-import` errors:** All UI primitives and adapters come from FRAME/12.
 - [ ] **Both themes & viewports verified:** Light and dark themes meet WCAG AA contrast, and layouts have no horizontal overflow at `1280px` desktop or `390px` mobile widths.

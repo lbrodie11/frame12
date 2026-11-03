@@ -75,7 +75,7 @@ export default function HomePage() {
   );
 
   return (
-    <Sheet pegs motion={motion}>
+    <Sheet autoCut pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -103,7 +103,7 @@ export default function HomePage() {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-01" className="c01" label="Recovered revenue over time">
+        <Panel className="c01" label="Recovered revenue over time">
           <div className="f12-c01-hd">
             <Metric
               label="Recovered revenue"
@@ -146,7 +146,6 @@ export default function HomePage() {
 
         <PanelPair
           top={{
-            cut: 'C-02',
             label: 'Incremental profit',
             children: (
               <Metric
@@ -170,7 +169,6 @@ export default function HomePage() {
             ),
           }}
           bottom={{
-            cut: 'C-03',
             label: 'Conversion lift',
             children: (
               <Metric
@@ -197,7 +195,7 @@ export default function HomePage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-04" className="c04" label="Revenue by intervention">
+        <Panel className="c04" label="Revenue by intervention">
           <ToneBarList
             title="Revenue by intervention"
             subtitle={`Last ${s.range} days · share of recovered revenue`}
@@ -212,7 +210,7 @@ export default function HomePage() {
       </Scene>
 
       <Scene gutter="scene" layout="three">
-        <Panel cut="C-05" label="Signature 1: Panel grammar">
+        <Panel label="Signature 1: Panel grammar">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>01 · Layout</Tag>
@@ -234,7 +232,7 @@ export default function HomePage() {
           </div>
         </Panel>
 
-        <Panel cut="C-06" label="Signature 2: Screentone">
+        <Panel label="Signature 2: Screentone">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>02 · Surface</Tag>
@@ -259,7 +257,7 @@ export default function HomePage() {
           </div>
         </Panel>
 
-        <Panel cut="C-07" label="Signature 3: Motion on twos">
+        <Panel label="Signature 3: Motion on twos">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Badge burst={false}>03 · Timing</Badge>
@@ -281,7 +279,7 @@ export default function HomePage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-08" label="Install and explore">
+        <Panel label="Install and explore">
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <div className="f12-stack-pair">

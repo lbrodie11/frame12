@@ -126,7 +126,7 @@ export default function AgentsPage() {
   const currentPrompt = EXAMPLE_PROMPTS[activePrompt];
 
   return (
-    <Sheet pegs motion={motion}>
+    <Sheet autoCut pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -145,7 +145,7 @@ export default function AgentsPage() {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-01" label="Supported coding agents and skill installation">
+        <Panel label="Supported coding agents and skill installation">
           <div className="f12-stack-scene">
             <div className="f12-stack-pair">
               <div className="f12-row-pair">
@@ -207,7 +207,6 @@ export default function AgentsPage() {
 
         <PanelPair
           top={{
-            cut: 'C-02',
             label: 'Install skill and components',
             children: (
               <div className="f12-stack-pair">
@@ -227,7 +226,6 @@ export default function AgentsPage() {
             ),
           }}
           bottom={{
-            cut: 'C-03',
             label: 'Run static grammar checker',
             children: (
               <div className="f12-stack-pair">
@@ -251,7 +249,7 @@ export default function AgentsPage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-04" label="The 8 non-negotiable rules">
+        <Panel label="The 8 non-negotiable rules">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>Enforced Grammar</Tag>
@@ -291,7 +289,7 @@ export default function AgentsPage() {
       </Scene>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-05" label="Worked agent prompts">
+        <Panel label="Worked agent prompts">
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <div className="f12-stack-pair">
@@ -319,7 +317,7 @@ export default function AgentsPage() {
           </div>
         </Panel>
 
-        <Panel cut="C-06" label="Milestone 3 reproduction benchmark results">
+        <Panel label="Milestone 3 reproduction benchmark results">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Badge burst={false}>eval/RESULTS.md</Badge>

@@ -164,6 +164,7 @@
   flex-direction: column;
   gap: var(--f-gutter-change); /* 32px = scene change */
   box-shadow: var(--f-shadow-sheet);
+  counter-reset: f12-cut;
 }
 
 .f12-pegs {
@@ -317,6 +318,13 @@
   letter-spacing: 0.12em;
   background: var(--f-sheet);
   color: var(--f-ink);
+}
+.f12-cut[data-autocut] {
+  display: var(--f12-autocut-display, none);
+  counter-increment: f12-cut;
+}
+.f12-cut[data-autocut]::before {
+  content: "C-" counter(f12-cut, decimal-leading-zero);
 }
 .f12-panel.f12-slant-top > .f12-cut {
   top: 8px;

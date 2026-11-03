@@ -2,7 +2,7 @@
 // Covers viewports (1280px desktop, 768px container-query transition, 390px mobile),
 // themes (light, dark), preferences (reduced-motion, forced-colors), and all 19 components.
 
-import { launch, openGallery, check, finish } from './lib.mjs';
+import { launch, openGallery, getRenderedCuts, check, finish } from './lib.mjs';
 
 const BROWSER_NAMES = (process.env.BROWSERS || 'chromium,firefox,webkit')
   .split(',')
@@ -101,6 +101,54 @@ for (const browserName of BROWSER_NAMES) {
       check(
         compGeometry.docOverflow,
         `[${browserName} 1280px] zero horizontal document overflow`,
+      );
+
+      // Automatic cut numbering (<Sheet autoCut>): in Chromium read CDP layout snapshot; in Firefox & WebKit verify panel count, visible auto-cut badges, and reading order
+      const panelOrder = await page.evaluate(() => {
+        const panels = [...document.querySelectorAll('#gallery-sheet .f12-panel')];
+        const cutEls = [...document.querySelectorAll('#gallery-sheet .f12-panel > .f12-cut')].filter(
+          (e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0,
+        );
+        const rects = cutEls.map((e) => {
+          const r = e.getBoundingClientRect();
+          return { top: Math.round(r.top), left: Math.round(r.left) };
+        });
+        let readingOrder = rects.length === 7;
+        for (let i = 1; i < rects.length; i++) {
+          const prev = rects[i - 1];
+          const cur = rects[i];
+          const sameRow = Math.abs(cur.top - prev.top) < 40;
+          if (sameRow && cur.left < prev.left) readingOrder = false;
+          if (!sameRow && cur.top < prev.top - 40) readingOrder = false;
+        }
+        const compVisibleCuts = [
+          ...document.querySelectorAll('#fixture-autocut-composition .f12-panel > .f12-cut'),
+        ].filter((e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0);
+        const slantTopPx = getComputedStyle(
+          document.querySelector('#fixture-autocut-pair .f12-panel.f12-slant-top > .f12-cut'),
+        ).top;
+        return {
+          panelCount: panels.length,
+          visibleCutCount: cutEls.length,
+          readingOrder,
+          compVisibleCount: compVisibleCuts.length,
+          slantTopPx,
+        };
+      });
+      const chromiumCuts =
+        browserName === 'chromium'
+          ? await getRenderedCuts(page, { rootId: 'gallery-sheet', panelsOnly: true })
+          : null;
+      check(
+        panelOrder.panelCount === 7 &&
+          panelOrder.visibleCutCount === 7 &&
+          panelOrder.readingOrder &&
+          panelOrder.compVisibleCount === 7 &&
+          panelOrder.slantTopPx === '8px' &&
+          (browserName !== 'chromium' ||
+            chromiumCuts.join(',') === 'C-01,C-02,C-03,C-04,C-05,C-06,C-07'),
+        `[${browserName} 1280px] <Sheet autoCut> panel count (7), reading order, slant-top position (8px), and skipped hidden/cut={false} panels`,
+        JSON.stringify({ ...panelOrder, chromiumCuts }),
       );
 
       // SegmentedControl roving tabindex, modified-key guard, focus-only arrows, Space/Enter activation, and focus contrast

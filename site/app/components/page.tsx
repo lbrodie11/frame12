@@ -74,7 +74,7 @@ export default function ComponentsIndexPage() {
   );
 
   return (
-    <Sheet pegs motion={motion}>
+    <Sheet autoCut pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -91,7 +91,7 @@ export default function ComponentsIndexPage() {
       </header>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-01" label="Install full kit or individual components">
+        <Panel label="Install full kit or individual components">
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <div className="f12-stack-pair">
@@ -117,7 +117,7 @@ export default function ComponentsIndexPage() {
       </Scene>
 
       <Scene gutter="scene" layout="equal">
-        <Panel cut="C-02" label="Layout components">
+        <Panel label="Layout components">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>01 · Layout</Tag>
@@ -131,7 +131,7 @@ export default function ComponentsIndexPage() {
           </div>
         </Panel>
 
-        <Panel cut="C-03" label="Control components">
+        <Panel label="Control components">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>02 · Controls</Tag>
@@ -147,7 +147,7 @@ export default function ComponentsIndexPage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-04" label="Data and visualization components">
+        <Panel label="Data and visualization components">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>03 · Data & Charts</Tag>
@@ -165,7 +165,7 @@ export default function ComponentsIndexPage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-05" label="Motion hooks and primitive adapters">
+        <Panel label="Motion hooks and primitive adapters">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>04 · Hooks & Primitive Adapters</Tag>

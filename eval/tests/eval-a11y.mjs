@@ -6,6 +6,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { getRenderedCuts } from '../../registry/tests/lib.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EVAL_ROOT = resolve(__dirname, '..');
@@ -127,13 +128,15 @@ const GRAMMAR_DOM = () => {
   const pairs = [...document.querySelectorAll('.f12-pair')];
   const pairGaps = pairs.map((p) => parseFloat(getComputedStyle(p).gap));
 
-  const cutEls = [...document.querySelectorAll('.f12-panel > .f12-cut')];
+  const cutEls = [...document.querySelectorAll('.f12-panel > .f12-cut')].filter(
+    (e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0,
+  );
   const cuts = cutEls.map((e) => e.textContent.trim());
   const rects = cutEls.map((e) => {
     const r = e.getBoundingClientRect();
     return { top: Math.round(r.top), left: Math.round(r.left) };
   });
-  let readingOrder = true;
+  let readingOrder = rects.length > 0;
   for (let i = 1; i < rects.length; i++) {
     const prev = rects[i - 1];
     const cur = rects[i];
@@ -293,6 +296,7 @@ for (const screen of SCREENS) {
     const axe = await new AxeBuilder({ page }).analyze();
     const n = await page.evaluate(NAMES);
     const g = await page.evaluate(GRAMMAR_DOM);
+    g.cuts = await getRenderedCuts(page, { panelsOnly: true });
     const f = await focusMissesAll(page);
     const sw = await page.evaluate(() => document.documentElement.scrollWidth);
 

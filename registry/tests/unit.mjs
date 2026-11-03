@@ -1,7 +1,16 @@
 // Functional, component, adapter, hook, and grammar unit tests for @frame12/registry.
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { launch, openGallery, REGISTRY_ROOT, REPO_ROOT, check, finish } from './lib.mjs';
+import { pathToFileURL } from 'node:url';
+import {
+  launch,
+  openGallery,
+  getRenderedCuts,
+  REGISTRY_ROOT,
+  REPO_ROOT,
+  check,
+  finish,
+} from './lib.mjs';
 
 // 1. Static checks: Tokens (no hard-coded colors/fonts outside styles/), Registry JSONs, No named artists
 {
@@ -43,7 +52,7 @@ import { launch, openGallery, REGISTRY_ROOT, REPO_ROOT, check, finish } from './
     missingJson.join(', '),
   );
 
-  // Verify every registry item has explicit target paths, includes frame12.css, and has no conflicting shadcn registryDependencies
+  // Verify every registry item has explicit target paths (or font config), includes frame12-styles (directly or via registryDependencies), and has no conflicting bare shadcn registryDependencies
   const conflictingShadcnNames = new Set([
     'button',
     'input',
@@ -56,31 +65,42 @@ import { launch, openGallery, REGISTRY_ROOT, REPO_ROOT, check, finish } from './
   ]);
   const manifestIssues = [];
   for (const item of reg.items) {
-    if (!Array.isArray(item.files) || !item.files.every((f) => Boolean(f.target))) {
-      manifestIssues.push(`${item.name}: missing file target`);
+    if (item.type === 'registry:font') {
+      if (!item.font || !item.font.family || !item.font.variable) {
+        manifestIssues.push(`${item.name}: invalid registry:font metadata`);
+      }
+      continue;
     }
-    if (
-      item.name !== 'use-on-twos' &&
-      !item.files.some((f) => f.path === 'styles/frame12.css' && f.target === 'styles/frame12.css')
-    ) {
-      manifestIssues.push(`${item.name}: missing styles/frame12.css`);
+    if (!Array.isArray(item.files) || item.files.length === 0 || !item.files.every((f) => Boolean(f.target))) {
+      manifestIssues.push(`${item.name}: missing file target`);
+      continue;
+    }
+    const hasDirectStyles = item.files.some(
+      (f) => f.path === 'styles/frame12.css' && f.target === 'styles/frame12.css',
+    );
+    const hasDepStyles =
+      Array.isArray(item.registryDependencies) &&
+      item.registryDependencies.includes('https://frame12.dev/r/frame12-styles.json');
+    if (item.name !== 'use-on-twos' && !hasDirectStyles && !hasDepStyles) {
+      manifestIssues.push(`${item.name}: missing styles/frame12.css (direct or registryDependencies)`);
     }
     if (
       Array.isArray(item.registryDependencies) &&
       item.registryDependencies.some((d) => conflictingShadcnNames.has(d))
     ) {
-      manifestIssues.push(`${item.name}: conflicting registryDependencies`);
+      manifestIssues.push(`${item.name}: conflicting bare registryDependencies`);
     }
   }
   check(
     manifestIssues.length === 0,
-    'registry manifest: explicit targets, styles/frame12.css included, and zero conflicting registryDependencies',
+    'registry manifest: explicit targets, frame12-styles dependency/file included, registry:font valid, and zero conflicting bare registryDependencies',
     manifestIssues.join('; '),
   );
 }
 
 // 2. Browser tests against gallery.html
 const browser = await launch();
+const isChromium = browser.browserType().name() === 'chromium';
 const { ctx, page, errors } = await openGallery(browser);
 
 // Rule 2: Gutter grammar (only 12px, 20px, 32px)
@@ -112,14 +132,18 @@ const { ctx, page, errors } = await openGallery(browser);
 
 // Rule 3: Cut numbers in reading and DOM order
 {
-  const cuts = await page.evaluate(() => {
-    const els = [...document.querySelectorAll('.f12-panel > .f12-cut')];
-    const labels = els.map((e) => e.textContent.trim());
+  const labels = isChromium
+    ? await getRenderedCuts(page, { rootId: 'gallery-sheet', panelsOnly: true })
+    : null;
+  const orderInfo = await page.evaluate(() => {
+    const els = [...document.querySelectorAll('#gallery-sheet .f12-panel > .f12-cut')].filter(
+      (e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0,
+    );
     const rects = els.map((e) => {
       const r = e.getBoundingClientRect();
       return { top: Math.round(r.top), left: Math.round(r.left) };
     });
-    let readingOrder = true;
+    let readingOrder = els.length === 7;
     for (let i = 1; i < rects.length; i++) {
       const prev = rects[i - 1];
       const cur = rects[i];
@@ -127,12 +151,14 @@ const { ctx, page, errors } = await openGallery(browser);
       if (sameRow && cur.left < prev.left) readingOrder = false;
       if (!sameRow && cur.top < prev.top - 40) readingOrder = false;
     }
-    return { labels, readingOrder };
+    return { count: els.length, readingOrder };
   });
   check(
-    cuts.labels.join(',') === 'C-01,C-02,C-03,C-04,C-05,C-06,C-07' && cuts.readingOrder,
+    orderInfo.count === 7 &&
+      orderInfo.readingOrder &&
+      (!isChromium || labels.join(',') === 'C-01,C-02,C-03,C-04,C-05,C-06,C-07'),
     'rule 3: Cut numbers C-01..C-07 match DOM order and visual reading order',
-    cuts.labels.join(', '),
+    isChromium ? labels.join(', ') : `count=${orderInfo.count} readingOrder=${orderInfo.readingOrder}`,
   );
 }
 
@@ -409,7 +435,7 @@ await page.waitForSelector('#unit-test-fixtures');
     () => !document.querySelector('#test-controlled-dlg').open,
   );
   await page.focus('#test-dlg-prog-open');
-  await page.click('#test-dlg-prog-open');
+  await page.keyboard.press('Enter');
   await page.waitForSelector('#test-controlled-dlg[open]');
   await page.keyboard.press('Escape');
   await page.waitForSelector('#test-controlled-dlg:not([open])', { state: 'attached' });
@@ -525,8 +551,8 @@ await page.waitForSelector('#unit-test-fixtures');
 
 // 3b. TooltipTrigger asChild + DropdownMenuTrigger asChild + Input aria-describedby merging
 {
-  await page.focus('#test-tip-aschild-btn');
   await page.click('#test-tip-aschild-btn');
+  await page.focus('#test-tip-aschild-btn');
   const tipMerge = await page.evaluate(() => {
     const btn = document.querySelector('#test-tip-aschild-btn');
     const menuBtn = document.querySelector('#test-menu-aschild-btn');
@@ -745,6 +771,178 @@ await page.waitForSelector('#unit-test-fixtures');
     'CSS isolation: frame12.css does not leak global button or :focus-visible rules outside .f12-* components',
     JSON.stringify(extFocus),
   );
+
+  // Automatic cut numbering (<Sheet autoCut>) fixtures
+  {
+    const compCuts = isChromium ? await getRenderedCuts(page, 'fixture-autocut-composition') : null;
+    const slantTopPos = await page.evaluate(() => {
+      const visibleCuts = [
+        ...document.querySelectorAll('#fixture-autocut-composition .f12-panel > .f12-cut'),
+      ].filter((e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0);
+      const slantTopCut = document.querySelector(
+        '#fixture-autocut-pair .f12-panel.f12-slant-top > .f12-cut',
+      );
+      const rectCut = document.querySelector(
+        '#fixture-autocut-pair .f12-panel.f12-slant-bottom > .f12-cut',
+      );
+      const cutFalseSpan = document.querySelector('#fixture-autocut-false > .f12-cut');
+      return {
+        visibleCount: visibleCuts.length,
+        slantTopPx: slantTopCut ? getComputedStyle(slantTopCut).top : null,
+        rectTopPx: rectCut ? getComputedStyle(rectCut).top : null,
+        cutFalseHasSpan: Boolean(cutFalseSpan),
+      };
+    });
+    check(
+      slantTopPos.visibleCount === 7 &&
+        (!isChromium || compCuts.join(',') === 'C-01,C-02,C-03,C-04,C-05,C-06,C-07') &&
+        !slantTopPos.cutFalseHasSpan &&
+        slantTopPos.slantTopPx === '8px' &&
+        slantTopPos.rectTopPx === '-8px',
+      '<Sheet autoCut>: numbers nested wrappers, PanelPair (slant-top at top: 8px), and .map() while skipping display:none and cut={false}',
+      `cuts=${compCuts ? compCuts.join(',') : slantTopPos.visibleCount} pos=${JSON.stringify(slantTopPos)}`,
+    );
+
+    // Nested non-auto Sheet inside auto Sheet, and auto Sheet inside non-auto Sheet
+    if (isChromium) {
+      const outerAutoDirect = await getRenderedCuts(page, {
+        directSheetId: 'fixture-nested-outer-auto',
+      });
+      const innerNonAutoDirect = await getRenderedCuts(page, {
+        directSheetId: 'fixture-nested-inner-nonauto',
+      });
+      const outerNonAutoDirect = await getRenderedCuts(page, {
+        directSheetId: 'fixture-nested-outer-nonauto',
+      });
+      const innerAutoDirect = await getRenderedCuts(page, {
+        directSheetId: 'fixture-nested-inner-auto',
+      });
+      check(
+        outerAutoDirect.join(',') === 'C-01,C-02' &&
+          innerNonAutoDirect.join(',') === 'C-01' &&
+          outerNonAutoDirect.length === 0 &&
+          innerAutoDirect.join(',') === 'C-01,C-02',
+        '<Sheet autoCut> nesting: non-auto inside auto turns off auto-cuts and outer continues; auto inside non-auto numbers inner only',
+        JSON.stringify({
+          outerAutoDirect,
+          innerNonAutoDirect,
+          outerNonAutoDirect,
+          innerAutoDirect,
+        }),
+      );
+    } else {
+      const nestedCountInfo = await page.evaluate(() => {
+        const directVisibleCuts = (sheetId) =>
+          [...document.querySelectorAll(`#${sheetId} .f12-cut`)].filter((el) => {
+            const nearestFrame = el.closest('.f12-frame, .f12-sheet');
+            const frameWithId =
+              nearestFrame && nearestFrame.id
+                ? nearestFrame
+                : nearestFrame?.parentElement || null;
+            return (
+              frameWithId?.id === sheetId &&
+              getComputedStyle(el).display !== 'none' &&
+              el.getBoundingClientRect().width > 0
+            );
+          }).length;
+        return {
+          outerAutoCount: directVisibleCuts('fixture-nested-outer-auto'),
+          innerNonAutoCount: directVisibleCuts('fixture-nested-inner-nonauto'),
+          outerNonAutoCount: directVisibleCuts('fixture-nested-outer-nonauto'),
+          innerAutoCount: directVisibleCuts('fixture-nested-inner-auto'),
+        };
+      });
+      check(
+        nestedCountInfo.outerAutoCount === 2 &&
+          nestedCountInfo.innerNonAutoCount === 1 &&
+          nestedCountInfo.outerNonAutoCount === 0 &&
+          nestedCountInfo.innerAutoCount === 2,
+        '<Sheet autoCut> nesting: non-auto inside auto turns off auto-cuts and outer continues; auto inside non-auto numbers inner only',
+        JSON.stringify(nestedCountInfo),
+      );
+    }
+
+    // Open dialog with explicit cut="C-08": panel numbers in #gallery-sheet stay unchanged
+    await page.click('#gal-dialog-open');
+    await page.waitForSelector('dialog.f12-dialog[open]');
+    if (isChromium) {
+      const cutsWithOpenDialog = await getRenderedCuts(page, 'gallery-sheet');
+      const panelOnlyWithOpenDialog = await getRenderedCuts(page, {
+        rootId: 'gallery-sheet',
+        panelsOnly: true,
+      });
+      await page.click('#gal-dialog-close');
+      check(
+        panelOnlyWithOpenDialog.join(',') === 'C-01,C-02,C-03,C-04,C-05,C-06,C-07' &&
+          cutsWithOpenDialog.includes('C-08') &&
+          cutsWithOpenDialog.length === 8,
+        '<Sheet autoCut> + Dialog: opening explicit DialogContent cut="C-08" leaves panel numbers C-01..C-07 unchanged',
+        cutsWithOpenDialog.join(','),
+      );
+    } else {
+      const dlgInfo = await page.evaluate(() => {
+        const panelCuts = [...document.querySelectorAll('#gallery-sheet .f12-panel > .f12-cut')].filter(
+          (e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0,
+        ).length;
+        const dlgCut = document.querySelector('dialog.f12-dialog[open] .f12-cut')?.textContent?.trim();
+        return { panelCuts, dlgCut };
+      });
+      await page.click('#gal-dialog-close');
+      check(
+        dlgInfo.panelCuts === 7 && dlgInfo.dlgCut === 'C-08',
+        '<Sheet autoCut> + Dialog: opening explicit DialogContent cut="C-08" leaves panel count (7) unchanged',
+        JSON.stringify(dlgInfo),
+      );
+    }
+
+    // Dev warning fires once in development (even across re-renders) and zero times in production
+    const devWarnings = await page.evaluate(() => window.__testAutoCutWarning('development'));
+    const prodWarnings = await page.evaluate(() => window.__testAutoCutWarning('production'));
+    check(
+      devWarnings.length === 1 &&
+        devWarnings[0].includes('C-09') &&
+        prodWarnings.length === 0,
+      '<Sheet autoCut> mixing warning: logs console.warn once with cut value in development and zero times in production',
+      JSON.stringify({ devWarnings, prodWarnings }),
+    );
+  }
+}
+
+// With JavaScript disabled, auto cut numbers appear in the server-rendered HTML
+{
+  const noJsCtx = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    javaScriptEnabled: false,
+  });
+  const noJsPage = await noJsCtx.newPage();
+  await noJsPage.goto(pathToFileURL(resolve(REGISTRY_ROOT, 'dist/gallery.html')).href, {
+    waitUntil: 'load',
+  });
+  if (isChromium) {
+    const noJsCuts = await getRenderedCuts(noJsPage, {
+      rootId: 'gallery-sheet',
+      panelsOnly: true,
+    });
+    await noJsCtx.close();
+    check(
+      noJsCuts.join(',') === 'C-01,C-02,C-03,C-04,C-05,C-06,C-07',
+      '<Sheet autoCut> SSR (javaScriptEnabled: false): auto cut numbers C-01..C-07 appear in server-rendered HTML without JS',
+      noJsCuts.join(','),
+    );
+  } else {
+    const noJsCount = await noJsPage.evaluate(
+      () =>
+        [...document.querySelectorAll('#gallery-sheet .f12-panel > .f12-cut')].filter(
+          (e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0,
+        ).length,
+    );
+    await noJsCtx.close();
+    check(
+      noJsCount === 7,
+      '<Sheet autoCut> SSR (javaScriptEnabled: false): 7 visible auto-cut badges render in server-rendered HTML without JS',
+      `count=${noJsCount}`,
+    );
+  }
 }
 
 check(errors.length === 0, 'gallery unit run: zero console or page errors', errors[0] || '');
