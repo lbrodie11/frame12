@@ -55,7 +55,10 @@ export interface CochangeFinding {
   cochangeCount: number;
   fileACommits: number;
   fileBCommits: number;
+  /** Overlap ratio: cochangeCount / Math.min(fileACommits, fileBCommits) */
   couplingRatio: number;
+  /** Jaccard similarity: cochangeCount / (fileACommits + fileBCommits - cochangeCount) */
+  jaccardRatio: number;
   evidence: CochangeEvidence;
   reason: string;
 }

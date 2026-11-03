@@ -36,19 +36,13 @@ const frame12AliasPlugin = {
   },
 };
 
-// 1. Build React-free core, model, workload, plain renderer, fixture helper, and CLI
+// 1. Build React-free model, workload, plain renderer, fixture helper, and CLI
 await build({
   entryPoints: {
     'model/index': resolve(expRoot, 'src/model/index.ts'),
-    'core/types': resolve(expRoot, 'src/core/types.ts'),
-    'core/events': resolve(expRoot, 'src/core/events.ts'),
-    'core/validate': resolve(expRoot, 'src/core/validate.ts'),
-    'core/state': resolve(expRoot, 'src/core/state.ts'),
     'workload/git-history': resolve(expRoot, 'src/workload/git-history.ts'),
     'workload/repo-archaeology-adapter': resolve(expRoot, 'src/workload/repo-archaeology-adapter.ts'),
-    'workflows/git-history': resolve(expRoot, 'src/workflows/git-history.ts'),
     'render-plain/index': resolve(expRoot, 'src/render-plain/index.ts'),
-    'renderers/plain': resolve(expRoot, 'src/renderers/plain.ts'),
     'fixtures/create-fixture-repo': resolve(expRoot, 'fixtures/create-fixture-repo.ts'),
     cli: resolve(expRoot, 'src/cli.ts'),
     'bin/storyboard': resolve(expRoot, 'bin/storyboard.ts'),
@@ -63,11 +57,10 @@ await build({
   external: ['react', 'react-dom', 'react-dom/server', '../render-web/index.js', './render-web/index.js'],
 });
 
-// 2. Build Web HTML renderer entry point (bundles registry/ui components, keeps react & react-dom/server external)
+// 2. Build Web HTML renderer entry point (bundles direct registry/ui components, keeps react & react-dom/server external)
 await build({
   entryPoints: {
     'render-web/index': resolve(expRoot, 'src/render-web/index.tsx'),
-    'renderers/web': resolve(expRoot, 'src/renderers/web.tsx'),
   },
   outdir: distDir,
   bundle: true,
@@ -77,7 +70,7 @@ await build({
   jsx: 'automatic',
   sourcemap: false,
   plugins: [frame12AliasPlugin],
-  external: ['react', 'react-dom', 'react-dom/server', 'react/jsx-runtime', '@radix-ui/*'],
+  external: ['react', 'react-dom', 'react-dom/server', 'react/jsx-runtime'],
 });
 
 chmodSync(resolve(distDir, 'bin/storyboard.js'), 0o755);

@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import {
   SCHEMA_VERSION,
   validateEventStream,
+  validateResultSnapshot,
   type CochangeFinding,
   type HotFileSummary,
   type ReconstructedMetadata,
@@ -32,6 +33,8 @@ interface ParsedCliArgs {
   targetPath: string | null;
   maxCommits: number;
   topN: number;
+  includeNoise: boolean;
+  excludePatterns: string[];
   mode: 'storyboard' | 'baseline' | 'json' | 'events';
   reportPath: string | null;
   theme: 'light' | 'dark';
@@ -41,12 +44,17 @@ interface ParsedCliArgs {
   error?: string;
 }
 
+const MAX_COMMITS_LIMIT = 10000;
+const MAX_TOP_LIMIT = 100;
+
 function parseArgs(argv: string[]): ParsedCliArgs {
   const res: ParsedCliArgs = {
     command: 'run',
     targetPath: null,
     maxCommits: 60,
     topN: 5,
+    includeNoise: false,
+    excludePatterns: [],
     mode: 'storyboard',
     reportPath: null,
     theme: 'light',
@@ -82,19 +90,28 @@ function parseArgs(argv: string[]): ParsedCliArgs {
       res.mode = 'baseline';
     } else if (arg === '--no-color') {
       res.noColor = true;
+    } else if (arg === '--include-noise') {
+      res.includeNoise = true;
+    } else if (arg === '--exclude') {
+      const next = args[++i];
+      if (!next || next.startsWith('--')) {
+        res.error = 'Flag --exclude requires a path prefix or glob pattern.';
+        return res;
+      }
+      res.excludePatterns.push(next);
     } else if (arg === '--max-commits') {
       const next = args[++i];
       const n = Number(next);
-      if (!next || !Number.isInteger(n) || n < 1) {
-        res.error = `Invalid value for --max-commits: "${String(next)}". Must be a positive integer.`;
+      if (!next || !Number.isInteger(n) || n < 1 || n > MAX_COMMITS_LIMIT) {
+        res.error = `Invalid value for --max-commits: "${String(next)}". Must be an integer between 1 and ${MAX_COMMITS_LIMIT}.`;
         return res;
       }
       res.maxCommits = n;
     } else if (arg === '--top') {
       const next = args[++i];
       const n = Number(next);
-      if (!next || !Number.isInteger(n) || n < 1) {
-        res.error = `Invalid value for --top: "${String(next)}". Must be a positive integer.`;
+      if (!next || !Number.isInteger(n) || n < 1 || n > MAX_TOP_LIMIT) {
+        res.error = `Invalid value for --top: "${String(next)}". Must be an integer between 1 and ${MAX_TOP_LIMIT}.`;
         return res;
       }
       res.topN = n;
@@ -167,7 +184,12 @@ function reconstructSnapshotFromEvents(events: StoryboardEvent[]): ResultSnapsho
   const first = events[0]!;
   const last = events[events.length - 1]!;
   const repoLabel = String(first.payload.repoLabel ?? 'replayed-repo');
-  const maxCommits = typeof first.payload.maxCommits === 'number' ? first.payload.maxCommits : 60;
+  const maxCommits =
+    typeof first.payload.maxCommits === 'number' &&
+    Number.isInteger(first.payload.maxCommits) &&
+    first.payload.maxCommits >= 1
+      ? first.payload.maxCommits
+      : 60;
   let commitsExamined = 0;
   let uniqueFilesObserved = 0;
   let totalPairsObserved = 0;
@@ -216,7 +238,7 @@ function reconstructSnapshotFromEvents(events: StoryboardEvent[]): ResultSnapsho
   const status = (last.payload.status as ResultSnapshot['status']) ?? 'completed';
   const error = typeof last.payload.error === 'string' ? last.payload.error : undefined;
 
-  return {
+  const candidate: ResultSnapshot = {
     schemaVersion: SCHEMA_VERSION,
     runId: first.runId,
     status,
@@ -233,14 +255,20 @@ function reconstructSnapshotFromEvents(events: StoryboardEvent[]): ResultSnapsho
     ...(error ? { error } : {}),
     ...(reconstructed ? { reconstructed } : {}),
   };
+
+  const snapCheck = validateResultSnapshot(candidate);
+  if (!snapCheck.ok) {
+    throw new Error(`Reconstructed snapshot failed validation: ${snapCheck.error}`);
+  }
+  return snapCheck.snapshot;
 }
 
 const HELP_TEXT = [
   'FRAME/12 Terminal Storyboard CLI (0-experimental)',
   '',
   'Usage:',
-  '  storyboard run <repo-path> [--max-commits N] [--top N] [--events | --json | --baseline] [--report <out.html>] [--theme light|dark] [--replay <events.ndjson>]',
-  '  storyboard import-archaeology <json-path> [--report <out.html>] [--json | --baseline] [--theme light|dark]',
+  '  storyboard run <repo-path> [--max-commits N] [--top N] [--exclude <glob>] [--include-noise] [--events | --json | --baseline] [--report <out.html>] [--theme light|dark] [--replay <events.ndjson>]',
+  '  storyboard import-archaeology <json-path> [--report <out.html>] [--events | --json | --baseline] [--theme light|dark]',
 ].join('\n');
 
 export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<number> {
@@ -286,7 +314,12 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
     try {
       const rawJson = JSON.parse(readFileSync(filePath, 'utf8'));
       const converted = convertRepoArchaeologySnapshot(rawJson);
-      snapshot = converted.snapshot;
+      const snapCheck = validateResultSnapshot(converted.snapshot);
+      if (!snapCheck.ok) {
+        stderr(`Error validating converted archaeology snapshot: ${snapCheck.error}\n`);
+        return 2;
+      }
+      snapshot = snapCheck.snapshot;
       events = converted.events;
     } catch (err) {
       stderr(`Error converting Repo Archaeology JSON: ${(err as Error).message}\n`);
@@ -348,6 +381,8 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
         repoPath: parsed.targetPath!,
         maxCommits: parsed.maxCommits,
         topN: parsed.topN,
+        includeNoise: parsed.includeNoise,
+        excludePatterns: parsed.excludePatterns,
         signal: ac.signal,
         onEvent: (ev) => {
           if (parsed.mode === 'events') {
@@ -359,19 +394,29 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       });
       snapshot = result.snapshot;
       events = result.events;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      stderr(`Run failed: ${msg}\n`);
+      return 1;
     } finally {
       process.removeListener('SIGINT', onSigint);
     }
   }
 
-  // Write HTML report if requested
+  // Write HTML report if requested (inside error boundary so unwritable paths exit 1 cleanly)
   if (parsed.reportPath) {
-    const outPath = resolve(parsed.reportPath);
-    mkdirSync(dirname(outPath), { recursive: true });
-    const { renderWebReportHtml } = await import('./render-web/index.js');
-    const html = renderWebReportHtml(snapshot, events, { theme: parsed.theme });
-    writeFileSync(outPath, html, 'utf8');
-    stderr(`Wrote FRAME/12 HTML report: ${outPath}\n`);
+    try {
+      const outPath = resolve(parsed.reportPath);
+      mkdirSync(dirname(outPath), { recursive: true });
+      const { renderWebReportHtml } = await import('./render-web/index.js');
+      const html = renderWebReportHtml(snapshot, events, { theme: parsed.theme });
+      writeFileSync(outPath, html, 'utf8');
+      stderr(`Wrote FRAME/12 HTML report: ${outPath}\n`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      stderr(`Error writing HTML report: ${msg}\n`);
+      return 1;
+    }
   }
 
   // Output to stdout based on mode

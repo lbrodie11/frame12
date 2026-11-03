@@ -3,14 +3,14 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { Badge } from '@/components/frame12/badge';
+import { Balloon } from '@/components/frame12/balloon';
+import { Metric } from '@/components/frame12/metric';
+import { Panel } from '@/components/frame12/panel';
+import { PanelPair } from '@/components/frame12/panel-pair';
+import { Scene } from '@/components/frame12/scene';
+import { Sheet } from '@/components/frame12/sheet';
 import {
-  Badge,
-  Balloon,
-  Metric,
-  Panel,
-  PanelPair,
-  Scene,
-  Sheet,
   Table,
   TableBody,
   TableCaption,
@@ -18,12 +18,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tag,
-  ToneBarList,
-  type ToneBarItem,
-} from '@/components/frame12';
+} from '@/components/frame12/table';
+import { Tag } from '@/components/frame12/tag';
+import { ToneBarList, type ToneBarItem } from '@/components/frame12/tone-bar-list';
 import {
-  StoryboardStreamValidator,
+  validateEventStream,
   type ResultSnapshot,
   type StepExecutionRecord,
   type StoryboardEvent,
@@ -68,59 +67,18 @@ const REPORT_LAYOUT_CSS = [
   '@media (max-width: 760px) { .f12-table th, .f12-table td { padding: 6px 6px 6px 0; font-size: 11px; overflow-wrap: anywhere; word-break: break-word; } .f12-mono-code, .f12-int-name { overflow-wrap: anywhere; word-break: break-word; } }',
 ].join('\n');
 
-function extractSteps(events: StoryboardEvent[], snapshot: ResultSnapshot): StepExecutionRecord[] {
-  if (events.length > 0) {
-    const validator = new StoryboardStreamValidator();
-    for (const ev of events) {
-      const res = validator.push(ev);
-      if (!res.ok) break;
-    }
-    const fin = validator.finalize();
-    if (fin.ok && fin.steps.length > 0) {
-      return fin.steps;
-    }
+function extractSteps(events: StoryboardEvent[]): {
+  steps: StepExecutionRecord[];
+  snapshotOnly: boolean;
+} {
+  if (events.length === 0) {
+    return { steps: [], snapshotOnly: true };
   }
-  return [
-    {
-      stepId: 'validate-repo',
-      title: 'Validate target repository',
-      startedAt: snapshot.startedAt,
-      finishedAt: snapshot.finishedAt,
-      status: snapshot.status === 'failed' ? 'error' : 'ok',
-      summary: `repo: ${snapshot.repoLabel}`,
-      metrics: {},
-    },
-    {
-      stepId: 'read-history',
-      title: 'Read commit history',
-      startedAt: snapshot.startedAt,
-      finishedAt: snapshot.finishedAt,
-      status: snapshot.status === 'completed' ? 'ok' : 'skipped',
-      summary: `${snapshot.commitsExamined} commits · ${snapshot.uniqueFilesObserved} files`,
-      metrics: {
-        commitsExamined: snapshot.commitsExamined,
-        uniqueFilesObserved: snapshot.uniqueFilesObserved,
-      },
-    },
-    {
-      stepId: 'pair-cochanges',
-      title: 'Pair co-changing files',
-      startedAt: snapshot.startedAt,
-      finishedAt: snapshot.finishedAt,
-      status: snapshot.status === 'completed' ? 'ok' : 'skipped',
-      summary: `${snapshot.totalPairsObserved} pairs observed`,
-      metrics: { totalPairsObserved: snapshot.totalPairsObserved },
-    },
-    {
-      stepId: 'rank-findings',
-      title: 'Rank coupled file pairs',
-      startedAt: snapshot.startedAt,
-      finishedAt: snapshot.finishedAt,
-      status: snapshot.status === 'completed' ? 'ok' : 'skipped',
-      summary: `${snapshot.findings.length} findings ranked`,
-      metrics: {},
-    },
-  ];
+  const validated = validateEventStream(events);
+  if (!validated.ok) {
+    throw new Error(`Invalid event stream passed to renderWebReportHtml: ${validated.error}`);
+  }
+  return { steps: validated.steps, snapshotOnly: false };
 }
 
 function StoryboardReportView({
@@ -135,7 +93,7 @@ function StoryboardReportView({
   const safeRepo = sanitizeTerminalText(snapshot.repoLabel);
   const safeRunId = sanitizeTerminalText(snapshot.runId);
   const safeStatus = sanitizeTerminalText(snapshot.status.toUpperCase());
-  const steps = extractSteps(events, snapshot);
+  const { steps, snapshotOnly } = extractSteps(events);
   const topFinding = snapshot.findings[0];
   const topHotFile = snapshot.hotFiles[0];
 
@@ -177,6 +135,9 @@ function StoryboardReportView({
               {snapshot.reconstructed && (
                 <Badge burst={false}>RECONSTRUCTED SNAPSHOT · NOT LIVE EVENTS</Badge>
               )}
+              {snapshotOnly && !snapshot.reconstructed && (
+                <Badge burst={false}>SNAPSHOT ONLY · NO LIVE EVENT STREAM</Badge>
+              )}
             </div>
             <h1 className="f12-title">Co-Change Storyboard: {safeRepo}</h1>
             <p className="f12-sub">
@@ -207,7 +168,7 @@ function StoryboardReportView({
               </Balloon>
               <ToneBarList
                 title="Coupled File Pairs by Shared Commits"
-                subtitle="Screentone bar width = co-change count · percentage = coupling ratio"
+                subtitle="Bar width = shared commits · percentage = overlap (shared ÷ commits of less-changed file)"
                 items={toneItems}
                 motion="cut"
                 idPrefix="cochange"
@@ -272,13 +233,14 @@ function StoryboardReportView({
                 <Table>
                   <TableCaption>
                     Historical file co-change evidence for {safeRepo} ({snapshot.commitsExamined}{' '}
-                    commits inspected).
+                    commits inspected). Overlap = shared ÷ commits of less-changed file; Jaccard =
+                    shared ÷ union.
                   </TableCaption>
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>
                       <TableHead>Coupled File Pair</TableHead>
-                      <TableHead>Shared Commits</TableHead>
+                      <TableHead>Coupling &amp; Directional Counts</TableHead>
                       <TableHead>Supporting Commit SHAs</TableHead>
                       <TableHead>Why Review Together</TableHead>
                     </TableRow>
@@ -288,7 +250,16 @@ function StoryboardReportView({
                       const id = sanitizeTerminalText(f.id);
                       const fileA = sanitizeTerminalText(f.files[0]);
                       const fileB = sanitizeTerminalText(f.files[1]);
-                      const pct = Math.round(f.couplingRatio * 100);
+                      const overlapPct = Math.round(f.couplingRatio * 100);
+                      const unionCommits = Math.max(
+                        1,
+                        f.fileACommits + f.fileBCommits - f.cochangeCount,
+                      );
+                      const jaccardRatio =
+                        typeof f.jaccardRatio === 'number' && Number.isFinite(f.jaccardRatio)
+                          ? f.jaccardRatio
+                          : Math.min(1, Math.round((f.cochangeCount / unionCommits) * 100) / 100);
+                      const jaccardPct = Math.round(jaccardRatio * 100);
                       const shas = f.evidence.commitShas
                         .map((s) => sanitizeTerminalText(s))
                         .join(', ');
@@ -304,10 +275,12 @@ function StoryboardReportView({
                           </TableCell>
                           <TableCell>
                             <div className="f12-mono-code">
-                              {f.cochangeCount} commits ({pct}%)
+                              {f.cochangeCount} shared ({overlapPct}% overlap · {jaccardPct}%
+                              Jaccard)
                             </div>
                             <div className="f12-mono-note">
-                              individual: {f.fileACommits}, {f.fileBCommits}
+                              {fileA}: {f.cochangeCount}/{f.fileACommits} · {fileB}:{' '}
+                              {f.cochangeCount}/{f.fileBCommits}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -330,41 +303,52 @@ function StoryboardReportView({
         <Scene gutter="scene" layout="equal">
           <Panel cut="C-05" label="Execution Storyboard Step Log">
             <div className="f12-report-stack">
-              <h2 className="f12-sec-title">Execution Storyboard Step Log</h2>
-              <Table>
-                <TableCaption>
-                  Semantic workflow steps executed during run {safeRunId}.
-                </TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order</TableHead>
-                    <TableHead>Semantic Step ID</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Summary</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {steps.map((s, idx) => (
-                    <TableRow key={s.stepId}>
-                      <TableCell>
-                        <span className="f12-mono-code">{`Step ${idx + 1}`}</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="f12-mono-code">{sanitizeTerminalText(s.stepId)}</div>
-                        <div className="f12-mono-note">{sanitizeTerminalText(s.title)}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Tag>{sanitizeTerminalText(s.status.toUpperCase())}</Tag>
-                      </TableCell>
-                      <TableCell>
-                        <span className="f12-mono-note">
-                          {sanitizeTerminalText(s.summary ?? '—')}
-                        </span>
-                      </TableCell>
+              <div className="f12-report-meta-row">
+                <h2 className="f12-sec-title">Execution Storyboard Step Log</h2>
+                {snapshotOnly && <Badge burst={false}>SNAPSHOT ONLY · NO LIVE EVENT STREAM</Badge>}
+              </div>
+              {snapshotOnly ? (
+                <p className="f12-body-copy">
+                  Rendered from a standalone ResultSnapshot without an accompanying StoryboardEvent
+                  stream. Step-level execution timing and intermediate progress events were not
+                  recorded for this artifact.
+                </p>
+              ) : (
+                <Table>
+                  <TableCaption>
+                    Semantic workflow steps executed during run {safeRunId}.
+                  </TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Semantic Step ID</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Summary</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {steps.map((s, idx) => (
+                      <TableRow key={s.stepId}>
+                        <TableCell>
+                          <span className="f12-mono-code">{`Step ${idx + 1}`}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="f12-mono-code">{sanitizeTerminalText(s.stepId)}</div>
+                          <div className="f12-mono-note">{sanitizeTerminalText(s.title)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Tag>{sanitizeTerminalText(s.status.toUpperCase())}</Tag>
+                        </TableCell>
+                        <TableCell>
+                          <span className="f12-mono-note">
+                            {sanitizeTerminalText(s.summary ?? '—')}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </div>
           </Panel>
 
@@ -397,9 +381,10 @@ function StoryboardReportView({
                 )}
                 <li className="f12-action-item">
                   <p className="f12-body-copy">
-                    <strong>2. Scope qualification:</strong> Co-change coupling is historical evidence of
-                    lockstep edits across commits—not proof of a defect. Bulk commits (&gt;50 files) are
-                    excluded to reduce formatting noise.
+                    <strong>2. Scope qualification:</strong> Overlap measures shared commits divided
+                    by the less-frequently changed file&apos;s commits; Jaccard measures shared
+                    commits divided by the union of both files&apos; commits. Bulk commits (&gt;50
+                    files) and lockfile/binary/generated paths are excluded by default.
                   </p>
                 </li>
                 {snapshot.reconstructed && (

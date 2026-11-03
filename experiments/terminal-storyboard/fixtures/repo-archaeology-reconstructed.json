@@ -4,10 +4,92 @@
   "toolVersion": "0.3.0",
   "repoName": "payments-service-archaeology",
   "generatedAt": "2026-10-28T16:45:00.000Z",
-  "windowCommits": 80,
-  "commitsAnalyzed": 74,
-  "filesAnalyzed": 28,
-  "totalCoupledPairs": 19,
+  "meta": {
+    "repoName": "payments-service-archaeology",
+    "generatedAt": "2026-10-28T16:45:00.000Z",
+    "windowCommits": 80,
+    "commitsAnalyzed": 74,
+    "filesAnalyzed": 28,
+    "totalCoupledPairs": 19
+  },
+  "changed": true,
+  "totalSuggestions": 3,
+  "evaluation": {
+    "precisionEstimate": 0.91,
+    "recallWindow": "80-commits",
+    "noiseExcluded": true
+  },
+  "families": [
+    {
+      "familyId": "settlement-ledger",
+      "members": ["src/settlement/payout-runner.ts", "src/settlement/reconcile-ledger.ts"],
+      "cohesion": 0.82
+    },
+    {
+      "familyId": "webhooks-schema",
+      "members": ["src/api/routes/webhooks.ts", "src/domain/events/schema.ts"],
+      "cohesion": 0.67
+    },
+    {
+      "familyId": "balances-storage",
+      "members": ["src/db/migrations/004_balances.sql", "src/db/queries/balances.ts"],
+      "cohesion": 0.8
+    }
+  ],
+  "suggestions": [
+    {
+      "id": "SUG-01",
+      "rank": 1,
+      "fileA": "src/settlement/payout-runner.ts",
+      "fileB": "src/settlement/reconcile-ledger.ts",
+      "sharedCommits": 9,
+      "fileACommits": 10,
+      "fileBCommits": 11,
+      "confidence": 0.9,
+      "jaccard": 0.75,
+      "jaccardOrCoupling": 0.9,
+      "commitShas": ["a19f02b", "b48c11e", "c77d30a", "d02e91f", "e83a44c", "f91b72d"],
+      "sampleMessages": [
+        "fix(settlement): sync payout batch status with ledger reconciliation",
+        "feat(settlement): add retry guard across payout runner and ledger"
+      ],
+      "note": "High historical lockstep: 9 of 10 payout-runner commits also modified reconcile-ledger."
+    },
+    {
+      "id": "SUG-02",
+      "rank": 2,
+      "fileA": "src/api/routes/webhooks.ts",
+      "fileB": "src/domain/events/schema.ts",
+      "sharedCommits": 6,
+      "fileACommits": 8,
+      "fileBCommits": 7,
+      "confidence": 0.86,
+      "jaccard": 0.67,
+      "jaccardOrCoupling": 0.86,
+      "commitShas": ["104a88c", "298b71d", "331e09a", "472f19b", "589c33e", "610d42f"],
+      "sampleMessages": [
+        "feat(webhooks): update event schema and route validator for v2 payloads"
+      ],
+      "note": "Webhook route handlers and event schema definitions evolve together."
+    },
+    {
+      "id": "SUG-03",
+      "rank": 3,
+      "fileA": "src/db/migrations/004_balances.sql",
+      "fileB": "src/db/queries/balances.ts",
+      "sharedCommits": 4,
+      "fileACommits": 4,
+      "fileBCommits": 5,
+      "confidence": 1.0,
+      "jaccard": 0.8,
+      "jaccardOrCoupling": 1.0,
+      "commitShas": ["712a90e", "845b11f", "903c44a", "998d01b"],
+      "sampleMessages": [
+        "feat(db): add available_balance index and query projection"
+      ],
+      "note": "SQL schema changes require matching query projection updates."
+    }
+  ],
   "cochangePairs": [
     {
       "rank": 1,

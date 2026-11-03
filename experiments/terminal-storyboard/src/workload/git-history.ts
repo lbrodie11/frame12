@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { basename, extname, posix, resolve } from 'node:path';
 import {
   SCHEMA_VERSION,
   StoryboardStreamValidator,
@@ -17,6 +17,9 @@ export interface GitHistoryWorkloadOptions {
   repoPath: string;
   maxCommits?: number;
   topN?: number;
+  includeNoise?: boolean;
+  excludePatterns?: string[];
+  timeoutMs?: number;
   signal?: AbortSignal;
   runId?: string;
   onEvent?: (event: StoryboardEvent) => void;
@@ -31,29 +34,85 @@ interface ParsedCommit {
 
 const COMMIT_MARKER = '__F12_COMMIT__\x00';
 const MAX_FILES_PER_COMMIT = 50;
+const MAX_SUBJECT_CHARS = 200;
+const MAX_FILEPATH_CHARS = 320;
+const MAX_STDERR_BYTES = 65536;
 
-function unquoteGitPath(line: string): string {
+const DEFAULT_NOISE_BASENAMES = new Set<string>([
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'bun.lockb',
+  'npm-shrinkwrap.json',
+  '.gitignore',
+  '.DS_Store',
+  'tsconfig.tsbuildinfo',
+]);
+
+const DEFAULT_NOISE_EXTENSIONS = new Set<string>([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.ico',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.pdf',
+  '.zip',
+  '.tar',
+  '.gz',
+  '.map',
+  '.lock',
+  '.tsbuildinfo',
+]);
+
+const DEFAULT_GENERATED_PREFIXES = [
+  'dist/',
+  'build/',
+  '.next/',
+  'node_modules/',
+  'coverage/',
+  'site/public/r/',
+];
+
+export function truncateText(input: string, maxChars: number): string {
+  const normalized = input.normalize('NFC');
+  const codePoints = Array.from(normalized);
+  if (codePoints.length <= maxChars) return normalized;
+  return `${codePoints.slice(0, Math.max(1, maxChars - 1)).join('')}…`;
+}
+
+/**
+ * Unquotes a Git C-escaped path (when Git wraps paths containing quotes, tabs,
+ * backslashes, or control characters in double quotes) while preserving astral
+ * Unicode code points (emoji/CJK) and normalizing to NFC.
+ */
+export function unquoteGitPath(line: string): string {
   const cleaned = line.replace(/\r$/, '');
   if (cleaned.length >= 2 && cleaned.startsWith('"') && cleaned.endsWith('"')) {
     const inner = cleaned.slice(1, -1);
     const bytes: number[] = [];
-    for (let i = 0; i < inner.length; i++) {
+    for (let i = 0; i < inner.length; ) {
       const ch = inner[i]!;
       if (ch === '\\' && i + 1 < inner.length) {
         const next = inner[i + 1]!;
         if (next >= '0' && next <= '7') {
           let oct = next;
-          i += 1;
-          if (i + 1 < inner.length && inner[i + 1]! >= '0' && inner[i + 1]! <= '7') {
-            oct += inner[++i]!;
-            if (i + 1 < inner.length && inner[i + 1]! >= '0' && inner[i + 1]! <= '7') {
-              oct += inner[++i]!;
+          i += 2;
+          if (i < inner.length && inner[i]! >= '0' && inner[i]! <= '7') {
+            oct += inner[i]!;
+            i += 1;
+            if (i < inner.length && inner[i]! >= '0' && inner[i]! <= '7') {
+              oct += inner[i]!;
+              i += 1;
             }
           }
           bytes.push(parseInt(oct, 8) & 0xff);
           continue;
         }
-        i += 1;
         const escMap: Record<string, number> = {
           a: 0x07,
           b: 0x08,
@@ -67,16 +126,65 @@ function unquoteGitPath(line: string): string {
         };
         if (escMap[next] !== undefined) {
           bytes.push(escMap[next]!);
-        } else {
-          bytes.push(...Buffer.from(next, 'utf8'));
+          i += 2;
+          continue;
         }
+        const cp = inner.codePointAt(i + 1)!;
+        const fullChar = String.fromCodePoint(cp);
+        bytes.push(...Buffer.from(fullChar, 'utf8'));
+        i += 1 + fullChar.length;
       } else {
-        bytes.push(...Buffer.from(ch, 'utf8'));
+        const cp = inner.codePointAt(i)!;
+        const fullChar = String.fromCodePoint(cp);
+        bytes.push(...Buffer.from(fullChar, 'utf8'));
+        i += fullChar.length;
       }
     }
-    return Buffer.from(bytes).toString('utf8');
+    return truncateText(Buffer.from(bytes).toString('utf8').normalize('NFC'), MAX_FILEPATH_CHARS);
   }
-  return cleaned;
+  return truncateText(cleaned.normalize('NFC'), MAX_FILEPATH_CHARS);
+}
+
+function matchesPattern(filePath: string, pattern: string): boolean {
+  const normPattern = pattern.trim().replace(/\\/g, '/');
+  if (!normPattern) return false;
+  if (filePath === normPattern || filePath.startsWith(normPattern.endsWith('/') ? normPattern : `${normPattern}/`)) {
+    return true;
+  }
+  if (normPattern.includes('*')) {
+    const escaped = normPattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*\*/g, '.*')
+      .replace(/\*/g, '[^/]*');
+    const re = new RegExp(`^${escaped}$`);
+    return re.test(filePath);
+  }
+  return posix.basename(filePath) === normPattern || filePath.includes(normPattern);
+}
+
+export function shouldFilterNoiseFile(
+  filePath: string,
+  includeNoise = false,
+  excludePatterns: string[] = [],
+): boolean {
+  const norm = filePath.replace(/\\/g, '/');
+  for (const pat of excludePatterns) {
+    if (matchesPattern(norm, pat)) return true;
+  }
+  if (includeNoise) return false;
+
+  const base = posix.basename(norm);
+  if (DEFAULT_NOISE_BASENAMES.has(base)) return true;
+
+  const ext = extname(base).toLowerCase();
+  if (DEFAULT_NOISE_EXTENSIONS.has(ext)) return true;
+
+  for (const prefix of DEFAULT_GENERATED_PREFIXES) {
+    if (norm.startsWith(prefix) || norm.includes(`/${prefix}`)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function parseCommitRecord(raw: string): ParsedCommit | null {
@@ -88,16 +196,26 @@ function parseCommitRecord(raw: string): ParsedCommit | null {
   const files = Array.from(
     new Set(lines.map((l) => unquoteGitPath(l)).filter((l) => l.length > 0)),
   ).sort();
-  return { sha: sha.trim(), date: date.trim(), subject: subject.trim(), files };
+  return {
+    sha: truncateText(sha.trim(), 40),
+    date: truncateText(date.trim(), 40),
+    subject: truncateText(subject.trim(), MAX_SUBJECT_CHARS),
+    files,
+  };
 }
 
 export async function runGitHistoryWorkload(
   options: GitHistoryWorkloadOptions,
 ): Promise<{ snapshot: ResultSnapshot; events: StoryboardEvent[] }> {
   const resolvedPath = resolve(options.repoPath);
-  const repoLabel = basename(resolvedPath) || resolvedPath;
-  const maxCommits = Math.max(1, options.maxCommits ?? 60);
-  const topN = Math.max(1, options.topN ?? 5);
+  const repoLabel = truncateText(basename(resolvedPath) || resolvedPath, 80);
+  const maxCommits = Math.min(10000, Math.max(1, Math.floor(options.maxCommits ?? 60)));
+  const topN = Math.min(100, Math.max(1, Math.floor(options.topN ?? 5)));
+  const includeNoise = Boolean(options.includeNoise);
+  const excludePatterns = options.excludePatterns ?? [];
+  const envTimeout = Number(process.env.F12_GIT_TIMEOUT_MS);
+  const timeoutMs =
+    options.timeoutMs ?? (Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 30_000);
   const runId = options.runId ?? `run-${Date.now().toString(36)}`;
   const startedAt = new Date().toISOString();
   const validator = new StoryboardStreamValidator();
@@ -130,8 +248,9 @@ export async function runGitHistoryWorkload(
   };
 
   const finishEarly = (status: RunEndStatus, stepStatus: StepEndStatus, reason: string): ResultSnapshot => {
-    if (activeStep) emit('step-end', activeStep, { status: stepStatus, summary: reason });
-    emit('run-end', null, { status, summary: reason, ...(status === 'failed' ? { error: reason } : {}) });
+    const safeReason = truncateText(reason, 300);
+    if (activeStep) emit('step-end', activeStep, { status: stepStatus, summary: safeReason });
+    emit('run-end', null, { status, summary: safeReason, ...(status === 'failed' ? { error: safeReason } : {}) });
     return {
       schemaVersion: SCHEMA_VERSION,
       runId,
@@ -146,208 +265,326 @@ export async function runGitHistoryWorkload(
       findings: [],
       hotFiles: [],
       warnings,
-      ...(status === 'failed' ? { error: reason } : {}),
+      ...(status === 'failed' ? { error: safeReason } : {}),
     };
   };
 
   const runGit = (args: string[], onChunk?: (chunk: string) => void) =>
-    new Promise<{ code: number; stdout: string; stderr: string; aborted: boolean }>((res) => {
-      if (options.signal?.aborted) return res({ code: 130, stdout: '', stderr: 'Aborted', aborted: true });
-      const child = spawn('git', ['-c', 'core.quotePath=false', '-C', resolvedPath, ...args], {
-        shell: false,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
+    new Promise<{ code: number; stdout: string; stderr: string; aborted: boolean; timedOut: boolean }>((res) => {
+      if (options.signal?.aborted) {
+        return res({ code: 130, stdout: '', stderr: 'Aborted', aborted: true, timedOut: false });
+      }
+      const child = spawn(
+        'git',
+        [
+          '-c',
+          'core.quotePath=false',
+          '-c',
+          'core.precomposeUnicode=true',
+          '-C',
+          resolvedPath,
+          ...args,
+        ],
+        {
+          shell: false,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      );
       child.stdout.setEncoding('utf8');
       child.stderr.setEncoding('utf8');
       let stdout = '';
       let stderr = '';
       let aborted = false;
+      let timedOut = false;
+      let killTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const terminateChild = () => {
+        try {
+          child.kill('SIGTERM');
+        } catch {
+          // ignore
+        }
+        if (!killTimer) {
+          killTimer = setTimeout(() => {
+            try {
+              child.kill('SIGKILL');
+            } catch {
+              // ignore
+            }
+          }, 200);
+          killTimer.unref?.();
+        }
+      };
+
+      const timeoutTimer = setTimeout(() => {
+        timedOut = true;
+        terminateChild();
+      }, timeoutMs);
+      timeoutTimer.unref?.();
+
       const onAbort = () => {
         aborted = true;
-        child.kill('SIGTERM');
+        terminateChild();
       };
       options.signal?.addEventListener('abort', onAbort, { once: true });
+
+      const cleanupTimers = () => {
+        clearTimeout(timeoutTimer);
+        if (killTimer) clearTimeout(killTimer);
+        options.signal?.removeEventListener('abort', onAbort);
+      };
+
       child.stdout.on('data', (str: string) => {
-        if (!onChunk) stdout += str;
+        if (!onChunk && stdout.length < MAX_STDERR_BYTES) stdout += str;
         onChunk?.(str);
       });
       child.stderr.on('data', (str: string) => {
-        stderr += str;
+        if (stderr.length < MAX_STDERR_BYTES) {
+          stderr += str.slice(0, MAX_STDERR_BYTES - stderr.length);
+        }
       });
       child.on('error', (err) => {
-        options.signal?.removeEventListener('abort', onAbort);
-        res({ code: 1, stdout, stderr: err.message, aborted });
+        cleanupTimers();
+        res({ code: 1, stdout, stderr: err.message, aborted, timedOut });
       });
       child.on('close', (code) => {
-        options.signal?.removeEventListener('abort', onAbort);
-        res({ code: code ?? 1, stdout, stderr, aborted: aborted || Boolean(options.signal?.aborted) });
+        cleanupTimers();
+        res({
+          code: code ?? 1,
+          stdout,
+          stderr,
+          aborted: aborted || Boolean(options.signal?.aborted),
+          timedOut,
+        });
       });
     });
 
-  emit('run-start', null, { repoLabel, repoPath: resolvedPath, maxCommits, topN });
+  try {
+    emit('run-start', null, { repoLabel, repoPath: resolvedPath, maxCommits, topN });
 
-  // Step 1: validate-repo
-  emit('step-start', 'validate-repo', { title: 'Validate target repository', repoLabel });
-  if (!existsSync(resolvedPath)) {
-    const msg = `Repository path does not exist: ${resolvedPath}`;
-    return { snapshot: finishEarly('failed', 'error', msg), events };
-  }
-  const revParse = await runGit(['rev-parse', '--is-inside-work-tree']);
-  if (revParse.aborted) return { snapshot: finishEarly('canceled', 'skipped', 'Canceled during repo validation'), events };
-  if (revParse.code !== 0 || revParse.stdout.trim() !== 'true') {
-    const msg = `Not a valid git repository (${resolvedPath}): ${revParse.stderr.trim() || 'git rev-parse failed'}`;
-    return { snapshot: finishEarly('failed', 'error', msg), events };
-  }
-  emit('step-end', 'validate-repo', { status: 'ok', summary: `repo: ${repoLabel}` });
+    // Step 1: validate-repo
+    emit('step-start', 'validate-repo', { title: 'Validate target repository', repoLabel });
+    if (!existsSync(resolvedPath)) {
+      const msg = `Repository path does not exist: ${resolvedPath}`;
+      return { snapshot: finishEarly('failed', 'error', msg), events };
+    }
+    const revParse = await runGit(['rev-parse', '--is-inside-work-tree']);
+    if (revParse.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled during repo validation'), events };
+    }
+    if (revParse.timedOut) {
+      return {
+        snapshot: finishEarly('failed', 'error', `Git repository validation timed out after ${timeoutMs}ms`),
+        events,
+      };
+    }
+    if (revParse.code !== 0 || revParse.stdout.trim() !== 'true') {
+      const msg = `Not a valid git repository (${resolvedPath}): ${revParse.stderr.trim() || 'git rev-parse failed'}`;
+      return { snapshot: finishEarly('failed', 'error', msg), events };
+    }
+    emit('step-end', 'validate-repo', { status: 'ok', summary: `repo: ${repoLabel}` });
 
-  // Step 2: read-history
-  emit('step-start', 'read-history', { title: 'Read commit history', maxCommits });
-  const commits: ParsedCommit[] = [];
-  let carry = '';
-  const logRes = await runGit(
-    ['log', '--no-color', `-n`, String(maxCommits), '--pretty=format:__F12_COMMIT__%x00%h%x00%aI%x00%s', '--name-only'],
-    (chunk) => {
-      carry += chunk;
-      const parts = carry.split(COMMIT_MARKER);
-      carry = parts.pop() ?? '';
-      for (const part of parts) {
+    // Step 2: read-history
+    emit('step-start', 'read-history', { title: 'Read commit history', maxCommits });
+    const commits: ParsedCommit[] = [];
+    let carry = '';
+    let lastProgressCommits = 0;
+    let lastProgressTime = Date.now();
+    let emittedInitialProgress = false;
+
+    const logRes = await runGit(
+      ['log', '--no-color', `-n`, String(maxCommits), '--pretty=format:__F12_COMMIT__%x00%h%x00%aI%x00%s', '--name-only'],
+      (chunk) => {
+        carry += chunk;
+        const parts = carry.split(COMMIT_MARKER);
+        carry = parts.pop() ?? '';
+        for (const part of parts) {
+          const parsed = parseCommitRecord(part);
+          if (parsed) commits.push(parsed);
+        }
+        const now = Date.now();
+        if (
+          parts.length > 0 &&
+          !options.signal?.aborted &&
+          (!emittedInitialProgress ||
+            commits.length - lastProgressCommits >= 250 ||
+            now - lastProgressTime >= 1000)
+        ) {
+          emittedInitialProgress = true;
+          lastProgressCommits = commits.length;
+          lastProgressTime = now;
+          emit('step-progress', 'read-history', { commitsParsed: commits.length });
+        }
+      },
+    );
+    if (logRes.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while reading git history'), events };
+    }
+    if (logRes.timedOut) {
+      return {
+        snapshot: finishEarly('failed', 'error', `Reading git history timed out after ${timeoutMs}ms`),
+        events,
+      };
+    }
+    if (carry.trim()) {
+      for (const part of carry.split(COMMIT_MARKER)) {
         const parsed = parseCommitRecord(part);
         if (parsed) commits.push(parsed);
       }
-      if (parts.length > 0 && !options.signal?.aborted) {
-        emit('step-progress', 'read-history', { commitsParsed: commits.length });
-      }
-    },
-  );
-  if (logRes.aborted) return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while reading git history'), events };
-  if (carry.trim()) {
-    for (const part of carry.split(COMMIT_MARKER)) {
-      const parsed = parseCommitRecord(part);
-      if (parsed) commits.push(parsed);
     }
-  }
-  const isUnbornEmptyRepo =
-    logRes.code !== 0 &&
-    commits.length === 0 &&
-    /does not have any commits yet/i.test(logRes.stderr);
-  if (logRes.code !== 0 && !isUnbornEmptyRepo) {
-    const msg = `Failed to read git history (${resolvedPath}): ${logRes.stderr.trim() || `git log exited with code ${logRes.code}`}`;
+    const isUnbornEmptyRepo =
+      logRes.code !== 0 &&
+      commits.length === 0 &&
+      /does not have any commits yet/i.test(logRes.stderr);
+    if (logRes.code !== 0 && !isUnbornEmptyRepo) {
+      const msg = `Failed to read git history (${resolvedPath}): ${logRes.stderr.trim() || `git log exited with code ${logRes.code}`}`;
+      return { snapshot: finishEarly('failed', 'error', msg), events };
+    }
+    if (commits.length === 0) {
+      const warn = 'Repository has no commits in the inspected history window.';
+      warnings.push(warn);
+      emit('warning', 'read-history', { message: warn });
+    }
+
+    const fileCommits = new Map<string, number>();
+    const nonBulkFileCommits = new Map<string, number>();
+    const filteredCommits: Array<{ sha: string; subject: string; rawCount: number; files: string[] }> = [];
+
+    for (const c of commits) {
+      const keptFiles = c.files.filter((f) => !shouldFilterNoiseFile(f, includeNoise, excludePatterns));
+      const isBulk = c.files.length > MAX_FILES_PER_COMMIT;
+      for (const f of keptFiles) {
+        fileCommits.set(f, (fileCommits.get(f) ?? 0) + 1);
+        if (!isBulk) {
+          nonBulkFileCommits.set(f, (nonBulkFileCommits.get(f) ?? 0) + 1);
+        }
+      }
+      filteredCommits.push({
+        sha: c.sha,
+        subject: c.subject,
+        rawCount: c.files.length,
+        files: keptFiles,
+      });
+    }
+
+    emit('metric', 'read-history', { name: 'commitsExamined', value: commits.length });
+    emit('metric', 'read-history', { name: 'uniqueFilesObserved', value: fileCommits.size });
+    emit('step-end', 'read-history', { status: 'ok', summary: `${commits.length} commits · ${fileCommits.size} files` });
+
+    // Step 3: pair-cochanges
+    emit('step-start', 'pair-cochanges', { title: 'Pair co-changing files' });
+    const pairMap = new Map<string, { files: [string, string]; count: number; shas: string[]; subjects: string[] }>();
+    let lastPairProgressTime = Date.now();
+    for (let idx = 0; idx < filteredCommits.length; idx++) {
+      const c = filteredCommits[idx]!;
+      if (c.rawCount > MAX_FILES_PER_COMMIT) {
+        const w = `Skipped bulk commit ${c.sha} touching ${c.rawCount} files.`;
+        warnings.push(w);
+        emit('warning', 'pair-cochanges', { message: w, sha: c.sha });
+        continue;
+      }
+      for (let i = 0; i < c.files.length; i++) {
+        for (let j = i + 1; j < c.files.length; j++) {
+          const fA = c.files[i]!;
+          const fB = c.files[j]!;
+          const key = `${fA}\x00${fB}`;
+          const cur = pairMap.get(key) ?? { files: [fA, fB], count: 0, shas: [], subjects: [] };
+          cur.count += 1;
+          if (cur.shas.length < 8) cur.shas.push(c.sha);
+          if (cur.subjects.length < 3 && c.subject) cur.subjects.push(c.subject);
+          pairMap.set(key, cur);
+        }
+      }
+      const now = Date.now();
+      if ((idx + 1) % 500 === 0 || now - lastPairProgressTime >= 1000) {
+        lastPairProgressTime = now;
+        emit('step-progress', 'pair-cochanges', {
+          commitsProcessed: idx + 1,
+          pairsObserved: pairMap.size,
+        });
+      }
+    }
+    emit('metric', 'pair-cochanges', { name: 'totalPairsObserved', value: pairMap.size });
+    emit('step-end', 'pair-cochanges', { status: 'ok', summary: `${pairMap.size} co-change pairs observed` });
+
+    // Step 4: rank-findings
+    emit('step-start', 'rank-findings', { title: 'Rank coupled file pairs and evidence' });
+    const minThreshold = commits.length >= 3 ? 2 : 1;
+    const candidates = Array.from(pairMap.values())
+      .filter((p) => p.count >= minThreshold)
+      .map((p) => {
+        const fileACommits = Math.max(p.count, nonBulkFileCommits.get(p.files[0]) ?? p.count);
+        const fileBCommits = Math.max(p.count, nonBulkFileCommits.get(p.files[1]) ?? p.count);
+        const minCommits = Math.max(1, Math.min(fileACommits, fileBCommits));
+        const unionCommits = Math.max(1, fileACommits + fileBCommits - p.count);
+        const couplingRatio = Math.min(1, Math.round((p.count / minCommits) * 100) / 100);
+        const jaccardRatio = Math.min(1, Math.round((p.count / unionCommits) * 100) / 100);
+        return { ...p, fileACommits, fileBCommits, unionCommits, couplingRatio, jaccardRatio };
+      })
+      .sort((a, b) =>
+        b.count !== a.count
+          ? b.count - a.count
+          : b.jaccardRatio !== a.jaccardRatio
+            ? b.jaccardRatio - a.jaccardRatio
+            : b.couplingRatio !== a.couplingRatio
+              ? b.couplingRatio - a.couplingRatio
+              : a.files[0].localeCompare(b.files[0]) || a.files[1].localeCompare(b.files[1]),
+      )
+      .slice(0, topN);
+
+    const findings: CochangeFinding[] = candidates.map((c, idx) => {
+      const id = `F-${String(idx + 1).padStart(2, '0')}`;
+      const overlapPct = Math.round(c.couplingRatio * 100);
+      const jaccardPct = Math.round(c.jaccardRatio * 100);
+      const finding: CochangeFinding = {
+        id,
+        files: c.files,
+        cochangeCount: c.count,
+        fileACommits: c.fileACommits,
+        fileBCommits: c.fileBCommits,
+        couplingRatio: c.couplingRatio,
+        jaccardRatio: c.jaccardRatio,
+        evidence: { commitShas: c.shas, sampleSubjects: c.subjects, count: c.count },
+        reason: `Co-changed in ${c.count} commits (${overlapPct}% overlap [shared ÷ commits of less-changed file], ${jaccardPct}% Jaccard [${c.count}/${c.unionCommits} union]; directional: ${c.files[0]} ${c.count}/${c.fileACommits}, ${c.files[1]} ${c.count}/${c.fileBCommits} across ${c.shas.slice(0, 3).join(', ')}); inspect together before modifying either file in isolation.`,
+      };
+      emit('finding', 'rank-findings', { finding });
+      return finding;
+    });
+
+    const hotFiles: HotFileSummary[] = Array.from(fileCommits.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 6)
+      .map(([file, count]) => ({
+        file,
+        commits: count,
+        share: commits.length > 0 ? Math.min(1, Math.round((count / commits.length) * 100) / 100) : 0,
+      }));
+
+    emit('step-end', 'rank-findings', { status: 'ok', summary: `${findings.length} findings ranked` });
+    emit('run-end', null, {
+      status: 'completed',
+      summary: `${findings.length} findings from ${commits.length} commits`,
+      hotFiles,
+    });
+
+    const snapshot: ResultSnapshot = {
+      schemaVersion: SCHEMA_VERSION,
+      runId,
+      status: 'completed',
+      repoLabel,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      maxCommits,
+      commitsExamined: commits.length,
+      uniqueFilesObserved: fileCommits.size,
+      totalPairsObserved: pairMap.size,
+      findings,
+      hotFiles,
+      warnings,
+    };
+    return { snapshot, events };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     return { snapshot: finishEarly('failed', 'error', msg), events };
   }
-  if (commits.length === 0) {
-    const warn = 'Repository has no commits in the inspected history window.';
-    warnings.push(warn);
-    emit('warning', 'read-history', { message: warn });
-  }
-  const fileCommits = new Map<string, number>();
-  const nonBulkFileCommits = new Map<string, number>();
-  for (const c of commits) {
-    const isBulk = c.files.length > MAX_FILES_PER_COMMIT;
-    for (const f of c.files) {
-      fileCommits.set(f, (fileCommits.get(f) ?? 0) + 1);
-      if (!isBulk) {
-        nonBulkFileCommits.set(f, (nonBulkFileCommits.get(f) ?? 0) + 1);
-      }
-    }
-  }
-  emit('metric', 'read-history', { name: 'commitsExamined', value: commits.length });
-  emit('metric', 'read-history', { name: 'uniqueFilesObserved', value: fileCommits.size });
-  emit('step-end', 'read-history', { status: 'ok', summary: `${commits.length} commits · ${fileCommits.size} files` });
-
-  // Step 3: pair-cochanges
-  emit('step-start', 'pair-cochanges', { title: 'Pair co-changing files' });
-  const pairMap = new Map<string, { files: [string, string]; count: number; shas: string[]; subjects: string[] }>();
-  for (const c of commits) {
-    if (c.files.length > MAX_FILES_PER_COMMIT) {
-      const w = `Skipped bulk commit ${c.sha} touching ${c.files.length} files.`;
-      warnings.push(w);
-      emit('warning', 'pair-cochanges', { message: w, sha: c.sha });
-      continue;
-    }
-    for (let i = 0; i < c.files.length; i++) {
-      for (let j = i + 1; j < c.files.length; j++) {
-        const fA = c.files[i]!;
-        const fB = c.files[j]!;
-        const key = `${fA}\x00${fB}`;
-        const cur = pairMap.get(key) ?? { files: [fA, fB], count: 0, shas: [], subjects: [] };
-        cur.count += 1;
-        if (cur.shas.length < 8) cur.shas.push(c.sha);
-        if (cur.subjects.length < 4 && c.subject) cur.subjects.push(c.subject);
-        pairMap.set(key, cur);
-      }
-    }
-  }
-  emit('metric', 'pair-cochanges', { name: 'totalPairsObserved', value: pairMap.size });
-  emit('step-end', 'pair-cochanges', { status: 'ok', summary: `${pairMap.size} co-change pairs observed` });
-
-  // Step 4: rank-findings
-  emit('step-start', 'rank-findings', { title: 'Rank coupled file pairs and evidence' });
-  const minThreshold = commits.length >= 3 ? 2 : 1;
-  const candidates = Array.from(pairMap.values())
-    .filter((p) => p.count >= minThreshold)
-    .map((p) => {
-      const fileACommits = nonBulkFileCommits.get(p.files[0]) ?? p.count;
-      const fileBCommits = nonBulkFileCommits.get(p.files[1]) ?? p.count;
-      const minCommits = Math.max(1, Math.min(fileACommits, fileBCommits));
-      const couplingRatio = Math.min(1, Math.round((p.count / minCommits) * 100) / 100);
-      return { ...p, fileACommits, fileBCommits, couplingRatio };
-    })
-    .sort((a, b) =>
-      b.count !== a.count
-        ? b.count - a.count
-        : b.couplingRatio !== a.couplingRatio
-          ? b.couplingRatio - a.couplingRatio
-          : a.files[0].localeCompare(b.files[0]) || a.files[1].localeCompare(b.files[1]),
-    )
-    .slice(0, topN);
-
-  const findings: CochangeFinding[] = candidates.map((c, idx) => {
-    const id = `F-${String(idx + 1).padStart(2, '0')}`;
-    const pct = Math.round(c.couplingRatio * 100);
-    const finding: CochangeFinding = {
-      id,
-      files: c.files,
-      cochangeCount: c.count,
-      fileACommits: c.fileACommits,
-      fileBCommits: c.fileBCommits,
-      couplingRatio: c.couplingRatio,
-      evidence: { commitShas: c.shas, sampleSubjects: c.subjects, count: c.count },
-      reason: `Co-changed in ${c.count} commits (${pct}% coupling across ${c.shas.slice(0, 3).join(', ')}); inspect together before modifying either file in isolation.`,
-    };
-    emit('finding', 'rank-findings', { finding });
-    return finding;
-  });
-
-  const hotFiles: HotFileSummary[] = Array.from(fileCommits.entries())
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 6)
-    .map(([file, count]) => ({
-      file,
-      commits: count,
-      share: commits.length > 0 ? Math.round((count / commits.length) * 100) / 100 : 0,
-    }));
-
-  emit('step-end', 'rank-findings', { status: 'ok', summary: `${findings.length} findings ranked` });
-  emit('run-end', null, {
-    status: 'completed',
-    summary: `${findings.length} findings from ${commits.length} commits`,
-    hotFiles,
-  });
-
-  const snapshot: ResultSnapshot = {
-    schemaVersion: SCHEMA_VERSION,
-    runId,
-    status: 'completed',
-    repoLabel,
-    startedAt,
-    finishedAt: new Date().toISOString(),
-    maxCommits,
-    commitsExamined: commits.length,
-    uniqueFilesObserved: fileCommits.size,
-    totalPairsObserved: pairMap.size,
-    findings,
-    hotFiles,
-    warnings,
-  };
-  return { snapshot, events };
 }

@@ -15,7 +15,7 @@ export interface PlainRenderOptions {
  */
 export function sanitizeTerminalText(input: unknown): string {
   if (input === null || input === undefined) return '';
-  const raw = String(input);
+  const raw = String(input).normalize('NFC');
 
   return (
     raw
@@ -43,9 +43,13 @@ export function sanitizeTerminalText(input: unknown): string {
 export function shouldUseColor(options: PlainRenderOptions = {}): boolean {
   const env = options.env ?? (typeof process !== 'undefined' ? process.env : {});
   if (options.noColor === true) return false;
-  if (!options.isTTY) return false;
   if (env.NO_COLOR !== undefined && env.NO_COLOR !== '') return false;
   if (env.TERM === 'dumb') return false;
+  if (env.FORCE_COLOR !== undefined && env.FORCE_COLOR !== '' && env.FORCE_COLOR !== '0') {
+    return true;
+  }
+  if (env.CI === 'true' || env.CI === '1') return false;
+  if (!options.isTTY) return false;
   return true;
 }
 
@@ -58,25 +62,95 @@ export function resolveColumns(options: PlainRenderOptions = {}): number {
   return Math.max(40, Math.floor(raw));
 }
 
+function isZeroWidthCodePoint(cp: number): boolean {
+  if (cp <= 0x1f || (cp >= 0x7f && cp <= 0x9f)) return true;
+  if (cp >= 0x0300 && cp <= 0x036f) return true; // Combining Diacritical Marks
+  if (cp >= 0x1ab0 && cp <= 0x1aff) return true;
+  if (cp >= 0x1dc0 && cp <= 0x1dff) return true;
+  if (cp >= 0x20d0 && cp <= 0x20ff) return true;
+  if (cp >= 0xfe20 && cp <= 0xfe2f) return true;
+  if (cp >= 0xfe00 && cp <= 0xfe0f) return true; // Variation Selectors
+  if (cp >= 0x200b && cp <= 0x200f) return true; // ZWSP, ZWNJ, ZWJ, LRM, RLM
+  if (cp === 0xfeff) return true;
+  return false;
+}
+
+function isDoubleWidthCodePoint(cp: number): boolean {
+  return (
+    cp >= 0x1100 &&
+    (cp <= 0x115f ||
+      cp === 0x2329 ||
+      cp === 0x232a ||
+      (cp >= 0x2e80 && cp <= 0xa4cf && cp !== 0x303f) ||
+      (cp >= 0xac00 && cp <= 0xd7a3) ||
+      (cp >= 0xf900 && cp <= 0xfaff) ||
+      (cp >= 0xfe10 && cp <= 0xfe19) ||
+      (cp >= 0xfe30 && cp <= 0xfe6f) ||
+      (cp >= 0xff00 && cp <= 0xff60) ||
+      (cp >= 0xffe0 && cp <= 0xffe6) ||
+      (cp >= 0x1f000 && cp <= 0x1faff) ||
+      (cp >= 0x20000 && cp <= 0x3fffd))
+  );
+}
+
+export function getCodePointDisplayWidth(cp: number): number {
+  if (isZeroWidthCodePoint(cp)) return 0;
+  if (isDoubleWidthCodePoint(cp)) return 2;
+  return 1;
+}
+
 /**
- * Wraps a single logical line so that every physical line is <= maxCols characters.
+ * Computes the terminal column display width of a string, ignoring any SGR
+ * escape sequences and accounting for zero-width combining marks and 2-column
+ * East Asian / emoji code points.
+ */
+export function getDisplayWidth(str: string): number {
+  const withoutAnsi = str.replace(/\x1b\[[0-9;]*m/g, '');
+  let width = 0;
+  for (const ch of withoutAnsi) {
+    const cp = ch.codePointAt(0)!;
+    width += getCodePointDisplayWidth(cp);
+  }
+  return width;
+}
+
+function sliceTokenByDisplayWidth(token: string, maxCols: number): string[] {
+  const chunks: string[] = [];
+  let current = '';
+  let currentWidth = 0;
+  for (const ch of token) {
+    const w = getCodePointDisplayWidth(ch.codePointAt(0)!);
+    if (currentWidth + w > maxCols && current.length > 0) {
+      chunks.push(current);
+      current = ch;
+      currentWidth = w;
+    } else {
+      current += ch;
+      currentWidth += w;
+    }
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks.length > 0 ? chunks : [''];
+}
+
+/**
+ * Wraps a single logical line so that every physical line has display width <= maxCols.
  */
 export function wrapLineToWidth(line: string, maxCols: number, continuationIndent = '     '): string[] {
   const width = Math.max(40, maxCols);
-  if (line.length <= width) return [line];
+  if (getDisplayWidth(line) <= width) return [line];
 
-  const indent = continuationIndent.length < width - 10 ? continuationIndent : '  ';
+  const indent = getDisplayWidth(continuationIndent) < width - 10 ? continuationIndent : '  ';
+  const indentWidth = getDisplayWidth(indent);
   const words = line.split(' ');
   const lines: string[] = [];
   let current = '';
 
   const pushHardWrappedToken = (token: string, prefix: string) => {
-    const avail = Math.max(10, width - prefix.length);
-    let offset = 0;
-    while (offset < token.length) {
-      const slice = token.slice(offset, offset + avail);
+    const prefixW = getDisplayWidth(prefix);
+    const avail = Math.max(10, width - prefixW);
+    for (const slice of sliceTokenByDisplayWidth(token, avail)) {
       lines.push(prefix + slice);
-      offset += avail;
     }
   };
 
@@ -84,7 +158,7 @@ export function wrapLineToWidth(line: string, maxCols: number, continuationInden
     const prefix = lines.length === 0 && current.length === 0 ? '' : current.length === 0 ? indent : '';
     const candidate = current.length === 0 ? prefix + word : `${current} ${word}`;
 
-    if (candidate.length <= width) {
+    if (getDisplayWidth(candidate) <= width) {
       current = candidate;
     } else {
       if (current.length > 0) {
@@ -92,7 +166,8 @@ export function wrapLineToWidth(line: string, maxCols: number, continuationInden
         current = '';
       }
       const nextPrefix = lines.length === 0 ? '' : indent;
-      if (nextPrefix.length + word.length <= width) {
+      const nextPrefixWidth = lines.length === 0 ? 0 : indentWidth;
+      if (nextPrefixWidth + getDisplayWidth(word) <= width) {
         current = nextPrefix + word;
       } else {
         pushHardWrappedToken(word, nextPrefix);
@@ -125,15 +200,18 @@ function formatCutNumber(index1Based: number): string {
 
 /**
  * Stateful append-only plain terminal narrator for live or replayed StoryboardEvents.
- * Assigns cut numbers dynamically in presentation order as step-start events arrive.
+ * Emits cut headers immediately on step-start, throttled progress lines on step-progress,
+ * and completion lines on step-end without cursor redraws or spinners.
  */
 export class PlainStreamPrinter {
   private readonly maxCols: number;
   private readonly isReplay: boolean;
+  private readonly useColor: boolean;
   private readonly writeLine: (line: string) => void;
   private stepCutNumber = new Map<string, string>();
   private stepTitle = new Map<string, string>();
-  private stepWarnings = new Map<string, string[]>();
+  private stepLastProgressCount = new Map<string, number>();
+  private stepLastProgressTs = new Map<string, number>();
   private nextCutIndex = 1;
 
   constructor(
@@ -142,7 +220,12 @@ export class PlainStreamPrinter {
   ) {
     this.maxCols = resolveColumns(options);
     this.isReplay = Boolean(options.isReplay);
+    this.useColor = shouldUseColor(options);
     this.writeLine = writeLine;
+  }
+
+  private styleBold(text: string): string {
+    return this.useColor ? `\x1b[1m${text}\x1b[22m` : text;
   }
 
   private emitLines(lines: string[]): void {
@@ -159,7 +242,7 @@ export class PlainStreamPrinter {
       const replayTag = this.isReplay ? '[REPLAY] ' : '';
       const reconTag = event.payload.reconstructed ? '[RECONSTRUCTED] ' : '';
       const header = `${replayTag}${reconTag}FRAME/12 STORYBOARD · ${repoLabel}${maxCommits ? ` (window: ${maxCommits} commits)` : ''}`;
-      this.emitLines([header, '-'.repeat(Math.min(this.maxCols, 64))]);
+      this.emitLines([this.styleBold(header), '-'.repeat(Math.min(this.maxCols, 64))]);
       return;
     }
 
@@ -169,38 +252,50 @@ export class PlainStreamPrinter {
         this.stepCutNumber.set(stepId, formatCutNumber(this.nextCutIndex));
         this.nextCutIndex += 1;
       }
-      this.stepTitle.set(stepId, sanitizeTerminalText(event.payload.title ?? stepId));
-      this.stepWarnings.set(stepId, []);
+      const cutLabel = this.stepCutNumber.get(stepId)!;
+      const title = sanitizeTerminalText(event.payload.title ?? stepId);
+      this.stepTitle.set(stepId, title);
+      this.stepLastProgressCount.set(stepId, 0);
+      this.stepLastProgressTs.set(stepId, Date.parse(event.ts) || Date.now());
+      this.emitLines([`${this.styleBold(cutLabel)} ${title} [${stepId}]`]);
+      return;
+    }
+
+    if (event.type === 'step-progress' && event.stepId) {
+      const stepId = sanitizeTerminalText(event.stepId);
+      const count =
+        typeof event.payload.commitsParsed === 'number'
+          ? event.payload.commitsParsed
+          : typeof event.payload.commitsProcessed === 'number'
+            ? event.payload.commitsProcessed
+            : 0;
+      const prevCount = this.stepLastProgressCount.get(stepId) ?? 0;
+      const nowTs = Date.parse(event.ts) || Date.now();
+      const prevTs = this.stepLastProgressTs.get(stepId) ?? 0;
+      if (count - prevCount >= 500 || nowTs - prevTs >= 1000) {
+        this.stepLastProgressCount.set(stepId, count);
+        this.stepLastProgressTs.set(stepId, nowTs);
+        const detail =
+          typeof event.payload.commitsParsed === 'number'
+            ? `${event.payload.commitsParsed} commits read...`
+            : `${count} commits processed...`;
+        this.emitLines([`     Progress: ${sanitizeTerminalText(detail)}`]);
+      }
       return;
     }
 
     if (event.type === 'warning') {
       const msg = sanitizeTerminalText(event.payload.message ?? 'Warning');
-      if (event.stepId) {
-        const list = this.stepWarnings.get(event.stepId) ?? [];
-        list.push(msg);
-        this.stepWarnings.set(event.stepId, list);
-      } else {
-        this.emitLines([`     WARN: ${msg}`]);
-      }
+      this.emitLines([`     Warning: ${msg}`]);
       return;
     }
 
     if (event.type === 'step-end' && event.stepId) {
       const stepId = sanitizeTerminalText(event.stepId);
       const cutLabel = this.stepCutNumber.get(stepId) ?? formatCutNumber(this.nextCutIndex++);
-      const title = this.stepTitle.get(stepId) ?? stepId;
       const status = sanitizeTerminalText(String(event.payload.status ?? 'ok').toUpperCase());
       const summary = event.payload.summary ? ` · ${sanitizeTerminalText(event.payload.summary)}` : '';
-      const lines = [
-        `${cutLabel} ${title} [${stepId}]`,
-        `     Status: ${status}${summary}`,
-      ];
-      const warns = this.stepWarnings.get(stepId) ?? [];
-      for (const w of warns) {
-        lines.push(`     Warning: ${w}`);
-      }
-      this.emitLines(lines);
+      this.emitLines([`     Status: ${status}${summary} (${cutLabel} complete)`]);
     }
   }
 }
@@ -213,6 +308,7 @@ export function renderPlainSummary(
   options: PlainRenderOptions = {},
 ): string {
   const maxCols = resolveColumns(options);
+  const useColor = shouldUseColor(options);
   const lines: string[] = [];
   const prefix = options.isReplay ? '[REPLAY] ' : '';
 
@@ -234,16 +330,32 @@ export function renderPlainSummary(
       lines.push('  No coupled file pairs met the co-change threshold in this commit window.');
     }
   } else {
-    for (const f of snapshot.findings) {
+    for (let idx = 0; idx < snapshot.findings.length; idx++) {
+      const f = snapshot.findings[idx]!;
       const id = sanitizeTerminalText(f.id);
       const fileA = sanitizeTerminalText(f.files[0]);
       const fileB = sanitizeTerminalText(f.files[1]);
-      const pct = Math.round(f.couplingRatio * 100);
+      const overlapPct = Math.round(f.couplingRatio * 100);
+      const unionCommits = Math.max(1, f.fileACommits + f.fileBCommits - f.cochangeCount);
+      const jaccardRatio =
+        typeof f.jaccardRatio === 'number' && Number.isFinite(f.jaccardRatio)
+          ? f.jaccardRatio
+          : Math.min(1, Math.round((f.cochangeCount / unionCommits) * 100) / 100);
+      const jaccardPct = Math.round(jaccardRatio * 100);
       const shas = f.evidence.commitShas.map((s) => sanitizeTerminalText(s)).join(', ');
       const reason = sanitizeTerminalText(f.reason);
-      lines.push(`  ${id}  ${fileA} <-> ${fileB}`);
+      const primaryBadge =
+        idx === 0
+          ? useColor
+            ? ' \x1b[1;33m[★ PRIMARY]\x1b[0m'
+            : ' [★ PRIMARY]'
+          : '';
+      lines.push(`  ${id}  ${fileA} <-> ${fileB}${primaryBadge}`);
       lines.push(
-        `        Co-changes: ${f.cochangeCount} commits (${pct}% coupling · file commits: ${f.fileACommits}, ${f.fileBCommits})`,
+        `        Co-changes: ${f.cochangeCount} commits (${overlapPct}% overlap [shared ÷ commits of less-changed file] · ${jaccardPct}% Jaccard [${f.cochangeCount}/${unionCommits} union])`,
+      );
+      lines.push(
+        `        Directional: ${fileA} (${f.cochangeCount}/${f.fileACommits}) · ${fileB} (${f.cochangeCount}/${f.fileBCommits})`,
       );
       lines.push(`        Commits: ${shas}`);
       lines.push(`        Why: ${reason}`);
@@ -320,10 +432,21 @@ export function renderBaseline(
       const id = sanitizeTerminalText(f.id);
       const fileA = sanitizeTerminalText(f.files[0]);
       const fileB = sanitizeTerminalText(f.files[1]);
-      const pct = Math.round(f.couplingRatio * 100);
+      const overlapPct = Math.round(f.couplingRatio * 100);
+      const unionCommits = Math.max(1, f.fileACommits + f.fileBCommits - f.cochangeCount);
+      const jaccardRatio =
+        typeof f.jaccardRatio === 'number' && Number.isFinite(f.jaccardRatio)
+          ? f.jaccardRatio
+          : Math.min(1, Math.round((f.cochangeCount / unionCommits) * 100) / 100);
+      const jaccardPct = Math.round(jaccardRatio * 100);
       const shas = f.evidence.commitShas.map((s) => sanitizeTerminalText(s)).join(', ');
       const reason = sanitizeTerminalText(f.reason);
-      lines.push(`${id}: ${fileA} + ${fileB} (${f.cochangeCount} shared commits, ${pct}% coupling)`);
+      lines.push(
+        `${id}: ${fileA} + ${fileB} (${f.cochangeCount} shared commits, ${overlapPct}% overlap [shared ÷ commits of less-changed file], ${jaccardPct}% Jaccard [${f.cochangeCount}/${unionCommits} union])`,
+      );
+      lines.push(
+        `  Directional: ${fileA} (${f.cochangeCount}/${f.fileACommits}) | ${fileB} (${f.cochangeCount}/${f.fileBCommits})`,
+      );
       lines.push(`  Commits: ${shas}`);
       lines.push(`  Reason: ${reason}`);
     }

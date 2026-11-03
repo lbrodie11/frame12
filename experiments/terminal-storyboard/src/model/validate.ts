@@ -6,6 +6,8 @@ import {
   STEP_END_STATUSES,
   type CochangeFinding,
   type EventType,
+  type HotFileSummary,
+  type ReconstructedMetadata,
   type ResultSnapshot,
   type RunEndStatus,
   type StepEndStatus,
@@ -15,6 +17,11 @@ import {
 const EVENT_TYPE_SET = new Set<string>(EVENT_TYPES);
 const STEP_STATUS_SET = new Set<string>(STEP_END_STATUSES);
 const RUN_STATUS_SET = new Set<string>(RUN_END_STATUSES);
+const NON_NEGATIVE_METRIC_NAMES = new Set<string>([
+  'commitsExamined',
+  'uniqueFilesObserved',
+  'totalPairsObserved',
+]);
 
 // Cut numbers (C-01, C-02, etc.) are strictly presentation labels assigned by renderers.
 // Domain stepId values must never use cut-number syntax.
@@ -41,6 +48,70 @@ function isValidIsoTimestamp(val: unknown): val is string {
 
 function utf8ByteLength(str: string): number {
   return new TextEncoder().encode(str).byteLength;
+}
+
+export function validateHotFiles(
+  raw: unknown,
+  label = 'hotFiles',
+): { ok: true; value: HotFileSummary[] } | { ok: false; error: string } {
+  if (!Array.isArray(raw)) {
+    return { ok: false, error: `${label} must be an array.` };
+  }
+  const out: HotFileSummary[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const item = raw[i];
+    if (!isPlainObject(item)) {
+      return { ok: false, error: `${label}[${i}] must be an object.` };
+    }
+    if (!isNonEmptyString(item.file)) {
+      return { ok: false, error: `${label}[${i}].file must be a non-empty string.` };
+    }
+    if (!isFiniteNumber(item.commits) || !Number.isInteger(item.commits) || item.commits < 1) {
+      return { ok: false, error: `${label}[${i}].commits must be a positive integer.` };
+    }
+    const share = item.share !== undefined ? item.share : 0;
+    if (!isFiniteNumber(share) || share < 0 || share > 1) {
+      return { ok: false, error: `${label}[${i}].share must be a finite number between 0 and 1.` };
+    }
+    out.push({
+      file: item.file,
+      commits: item.commits,
+      share,
+    });
+  }
+  return { ok: true, value: out };
+}
+
+export function validateReconstructedMetadata(
+  raw: unknown,
+  label = 'reconstructed',
+): { ok: true; value: ReconstructedMetadata } | { ok: false; error: string } {
+  if (!isPlainObject(raw)) {
+    return { ok: false, error: `${label} must be an object.` };
+  }
+  if (!isNonEmptyString(raw.source)) {
+    return { ok: false, error: `${label}.source must be a non-empty string.` };
+  }
+  const ver = raw.originalSchemaVersion;
+  const validVer =
+    isNonEmptyString(ver) || (isFiniteNumber(ver) && Number.isInteger(ver) && ver >= 1);
+  if (!validVer) {
+    return {
+      ok: false,
+      error: `${label}.originalSchemaVersion must be a positive integer or non-empty string.`,
+    };
+  }
+  if (!isNonEmptyString(raw.note)) {
+    return { ok: false, error: `${label}.note must be a non-empty string.` };
+  }
+  return {
+    ok: true,
+    value: {
+      source: raw.source,
+      originalSchemaVersion: ver as number | string,
+      note: raw.note,
+    },
+  };
 }
 
 export function validateEvent(
@@ -150,6 +221,20 @@ export function validateEvent(
         error: `Event "run-end" requires payload.status in [${RUN_END_STATUSES.join(', ')}], got "${String(status)}".`,
       };
     }
+    if (raw.payload.hotFiles !== undefined) {
+      const hfRes = validateHotFiles(raw.payload.hotFiles, 'run-end.payload.hotFiles');
+      if (!hfRes.ok) return hfRes;
+    }
+    if (
+      raw.payload.reconstructed !== undefined &&
+      typeof raw.payload.reconstructed !== 'boolean'
+    ) {
+      const rcRes = validateReconstructedMetadata(
+        raw.payload.reconstructed,
+        'run-end.payload.reconstructed',
+      );
+      if (!rcRes.ok) return rcRes;
+    }
   }
 
   if (eventType === 'finding') {
@@ -172,6 +257,14 @@ export function validateEvent(
         ok: false,
         error: 'Event "metric" requires payload.value to be a finite number or string.',
       };
+    }
+    if (NON_NEGATIVE_METRIC_NAMES.has(raw.payload.name)) {
+      if (!isFiniteNumber(val) || !Number.isInteger(val) || val < 0) {
+        return {
+          ok: false,
+          error: `Event "metric" (${raw.payload.name}) requires a non-negative integer value, got "${String(val)}".`,
+        };
+      }
     }
   }
 
@@ -359,6 +452,14 @@ export class StoryboardStreamValidator {
     return { ok: true, event: ev };
   }
 
+  public getOpenSteps(): string[] {
+    return Array.from(this.openSteps);
+  }
+
+  public isEnded(): boolean {
+    return this.runEnded;
+  }
+
   public finalize():
     | {
         ok: true;
@@ -406,7 +507,10 @@ export function validateEventStream(
   return validator.finalize();
 }
 
-function validateFinding(raw: unknown, index: number): { ok: true; value: CochangeFinding } | { ok: false; error: string } {
+function validateFinding(
+  raw: unknown,
+  index: number,
+): { ok: true; value: CochangeFinding } | { ok: false; error: string } {
   if (!isPlainObject(raw)) {
     return { ok: false, error: `findings[${index}] must be an object.` };
   }
@@ -432,6 +536,12 @@ function validateFinding(raw: unknown, index: number): { ok: true; value: Cochan
   }
   if (!isFiniteNumber(raw.couplingRatio) || raw.couplingRatio < 0 || raw.couplingRatio > 1) {
     return { ok: false, error: `findings[${index}].couplingRatio must be a finite number between 0 and 1.` };
+  }
+  const unionCommits = Math.max(1, raw.fileACommits + raw.fileBCommits - raw.cochangeCount);
+  const computedJaccard = Math.min(1, Math.max(0, Math.round((raw.cochangeCount / unionCommits) * 100) / 100));
+  const jaccardRatio = raw.jaccardRatio !== undefined ? raw.jaccardRatio : computedJaccard;
+  if (!isFiniteNumber(jaccardRatio) || jaccardRatio < 0 || jaccardRatio > 1) {
+    return { ok: false, error: `findings[${index}].jaccardRatio must be a finite number between 0 and 1.` };
   }
   if (!isPlainObject(raw.evidence)) {
     return { ok: false, error: `findings[${index}].evidence must be an object.` };
@@ -465,6 +575,7 @@ function validateFinding(raw: unknown, index: number): { ok: true; value: Cochan
       fileACommits: raw.fileACommits,
       fileBCommits: raw.fileBCommits,
       couplingRatio: raw.couplingRatio,
+      jaccardRatio,
       evidence: {
         commitShas: raw.evidence.commitShas as string[],
         sampleSubjects: raw.evidence.sampleSubjects as string[],
@@ -502,17 +613,17 @@ export function validateResultSnapshot(
   if (!isValidIsoTimestamp(raw.startedAt) || !isValidIsoTimestamp(raw.finishedAt)) {
     return { ok: false, error: 'ResultSnapshot requires valid ISO-8601 startedAt and finishedAt timestamps.' };
   }
-  if (!isFiniteNumber(raw.maxCommits) || raw.maxCommits < 1) {
-    return { ok: false, error: 'ResultSnapshot requires finite maxCommits >= 1.' };
+  if (!isFiniteNumber(raw.maxCommits) || !Number.isInteger(raw.maxCommits) || raw.maxCommits < 1) {
+    return { ok: false, error: 'ResultSnapshot requires finite integer maxCommits >= 1.' };
   }
-  if (!isFiniteNumber(raw.commitsExamined) || raw.commitsExamined < 0) {
-    return { ok: false, error: 'ResultSnapshot requires finite commitsExamined >= 0.' };
+  if (!isFiniteNumber(raw.commitsExamined) || !Number.isInteger(raw.commitsExamined) || raw.commitsExamined < 0) {
+    return { ok: false, error: 'ResultSnapshot requires finite integer commitsExamined >= 0.' };
   }
-  if (!isFiniteNumber(raw.uniqueFilesObserved) || raw.uniqueFilesObserved < 0) {
-    return { ok: false, error: 'ResultSnapshot requires finite uniqueFilesObserved >= 0.' };
+  if (!isFiniteNumber(raw.uniqueFilesObserved) || !Number.isInteger(raw.uniqueFilesObserved) || raw.uniqueFilesObserved < 0) {
+    return { ok: false, error: 'ResultSnapshot requires finite integer uniqueFilesObserved >= 0.' };
   }
-  if (!isFiniteNumber(raw.totalPairsObserved) || raw.totalPairsObserved < 0) {
-    return { ok: false, error: 'ResultSnapshot requires finite totalPairsObserved >= 0.' };
+  if (!isFiniteNumber(raw.totalPairsObserved) || !Number.isInteger(raw.totalPairsObserved) || raw.totalPairsObserved < 0) {
+    return { ok: false, error: 'ResultSnapshot requires finite integer totalPairsObserved >= 0.' };
   }
   if (!Array.isArray(raw.findings)) {
     return { ok: false, error: 'ResultSnapshot.findings must be an array.' };
@@ -525,13 +636,25 @@ export function validateResultSnapshot(
     findings.push(fRes.value);
   }
 
-  if (!Array.isArray(raw.hotFiles)) {
-    return { ok: false, error: 'ResultSnapshot.hotFiles must be an array.' };
-  }
+  const hfRes = validateHotFiles(raw.hotFiles, 'ResultSnapshot.hotFiles');
+  if (!hfRes.ok) return hfRes;
+
   if (!Array.isArray(raw.warnings) || !raw.warnings.every((w) => typeof w === 'string')) {
     return { ok: false, error: 'ResultSnapshot.warnings must be a string[].' };
   }
 
-  const snapshot = raw as unknown as ResultSnapshot;
+  let reconstructed: ReconstructedMetadata | undefined;
+  if (raw.reconstructed !== undefined) {
+    const rcRes = validateReconstructedMetadata(raw.reconstructed, 'ResultSnapshot.reconstructed');
+    if (!rcRes.ok) return rcRes;
+    reconstructed = rcRes.value;
+  }
+
+  const snapshot: ResultSnapshot = {
+    ...(raw as unknown as ResultSnapshot),
+    findings,
+    hotFiles: hfRes.value,
+    ...(reconstructed ? { reconstructed } : {}),
+  };
   return { ok: true, snapshot, value: snapshot };
 }
