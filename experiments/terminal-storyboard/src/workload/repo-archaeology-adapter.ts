@@ -1,3 +1,4 @@
+import { posix } from 'node:path';
 import {
   SCHEMA_VERSION,
   StoryboardStreamValidator,
@@ -7,21 +8,48 @@ import {
   type ResultSnapshot,
   type StoryboardEvent,
 } from '../model/index.js';
-import { truncateText } from './git-history.js';
+import { describeCochangeRelationship, truncateText } from './git-history.js';
+
+export interface RepoArchaeologyEvidenceView {
+  hash: string;
+  date?: string;
+  author?: string;
+  subject?: string;
+}
 
 export interface RepoArchaeologySuggestion {
   id?: string;
   rank?: number;
-  fileA: string;
-  fileB: string;
+  // Authentic diff.schema.json / common.schema.json fields:
+  from?: string;
+  to?: string;
+  relationship?: string;
+  why?: string;
+  shared?: number;
+  fromChanges?: number;
+  toChanges?: number;
+  confidence?: number;
+  reverseConfidence?: number;
+  score?: number;
+  weighted?: boolean;
+  lastTogether?: string;
+  crossesDirectories?: boolean;
+  evidence?: RepoArchaeologyEvidenceView[];
+  alsoLinkedFrom?: string[];
+  // Compatibility aliases:
+  target?: string;
+  companion?: string;
+  fileA?: string;
+  fileB?: string;
   sharedCommits?: number;
   cochangeCount?: number;
+  targetCommits?: number;
+  companionCommits?: number;
   fileACommits?: number;
   fileBCommits?: number;
   jaccardOrCoupling?: number;
   jaccard?: number;
-  confidence?: number;
-  commitShas: string[];
+  commitShas?: string[];
   sampleMessages?: string[];
   note?: string;
   reason?: string;
@@ -29,7 +57,7 @@ export interface RepoArchaeologySuggestion {
 
 export interface RepoArchaeologyRawSnapshot {
   schemaVersion: number;
-  tool?: string;
+  tool?: string | { name?: string; version?: string };
   toolVersion?: string;
   repoName?: string;
   generatedAt?: string;
@@ -37,18 +65,54 @@ export interface RepoArchaeologyRawSnapshot {
   commitsAnalyzed?: number;
   filesAnalyzed?: number;
   totalCoupledPairs?: number;
-  changed?: boolean;
+  base?: string;
+  changed?: boolean | Array<Record<string, unknown>>;
   totalSuggestions?: number;
   meta?: {
+    tool?: string;
+    root?: string;
     repoName?: string;
     generatedAt?: string;
-    windowCommits?: number;
+    commitsRead?: number;
     commitsAnalyzed?: number;
+    sweepsSkipped?: number;
+    subjectSkipped?: number;
+    renamesFollowed?: number;
+    files?: number;
     filesAnalyzed?: number;
+    oldestCommit?: string;
+    newestCommit?: string;
+    windowCommits?: number;
     totalCoupledPairs?: number;
+    settings?: {
+      maxCommits?: number;
+      maxFilesPerCommit?: number;
+      minShared?: number;
+      minConfidence?: number;
+      ignore?: string[];
+      useDefaultIgnores?: boolean;
+    };
+    warnings?: string[];
   };
-  evaluation?: Record<string, unknown>;
-  families?: Array<Record<string, unknown>>;
+  evaluation?: {
+    targetBranchRef?: string;
+    headSha?: string;
+    mergeBaseSha?: string;
+    baselineSha?: string;
+    commitsAnalyzed?: number;
+    effectiveOptions?: {
+      minShared?: number;
+      minConfidence?: number;
+      maxCommits?: number;
+      maxFilesPerCommit?: number;
+    };
+    [key: string]: unknown;
+  };
+  families?: Array<{
+    id?: string;
+    members?: Array<string | { path?: string; changes?: number }>;
+    [key: string]: unknown;
+  }>;
   suggestions?: RepoArchaeologySuggestion[];
   cochangePairs?: RepoArchaeologySuggestion[];
   hotspots?: Array<{
@@ -82,8 +146,8 @@ function requirePositiveInt(val: unknown, fieldName: string, defaultVal?: number
 /**
  * Converts a completed Repo Archaeology (schemaVersion: 1) JSON snapshot into
  * a ResultSnapshot + synthetic event stream explicitly labeled as reconstructed.
- * Supports both the published `meta`/`suggestions`/`changed`/`families`/`evaluation`
- * contract and `cochangePairs`.
+ * Supports the published Repo Archaeology v1 `diff --json` contract (`diff.schema.json`
+ * + `common.schema.json`) as well as legacy `fileA`/`fileB`/`cochangePairs` aliases.
  */
 export function convertRepoArchaeologySnapshot(rawInput: unknown): {
   snapshot: ResultSnapshot;
@@ -104,23 +168,53 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
     typeof raw.meta === 'object' && raw.meta !== null && !Array.isArray(raw.meta)
       ? raw.meta
       : {};
+  const settings =
+    typeof meta.settings === 'object' && meta.settings !== null && !Array.isArray(meta.settings)
+      ? meta.settings
+      : {};
+  const evaluation =
+    typeof raw.evaluation === 'object' && raw.evaluation !== null && !Array.isArray(raw.evaluation)
+      ? raw.evaluation
+      : {};
+  const evalOpts =
+    typeof evaluation.effectiveOptions === 'object' &&
+    evaluation.effectiveOptions !== null &&
+    !Array.isArray(evaluation.effectiveOptions)
+      ? evaluation.effectiveOptions
+      : {};
 
   const rawRepoName = meta.repoName ?? raw.repoName;
   if (rawRepoName !== undefined && typeof rawRepoName !== 'string') {
     throw new Error('Invalid Repo Archaeology "repoName": must be a string.');
   }
-  const repoLabel = truncateText(rawRepoName?.trim() || 'archaeology-snapshot', 80);
+  if (meta.root !== undefined && typeof meta.root !== 'string') {
+    throw new Error('Invalid Repo Archaeology "meta.root": must be a string.');
+  }
+  const rootBasename =
+    typeof meta.root === 'string' && meta.root.trim().length > 0
+      ? posix.basename(meta.root.trim().replace(/\\/g, '/').replace(/\/+$/, ''))
+      : '';
+  const repoLabel = truncateText(
+    rawRepoName?.trim() || rootBasename || 'archaeology-snapshot',
+    80,
+  );
 
-  const rawGeneratedAt = meta.generatedAt ?? raw.generatedAt;
+  const rawGeneratedAt =
+    meta.generatedAt ??
+    raw.generatedAt ??
+    (typeof meta.newestCommit === 'string' ? `${meta.newestCommit}T00:00:00.000Z` : undefined);
   const ts =
     typeof rawGeneratedAt === 'string' && !Number.isNaN(Date.parse(rawGeneratedAt))
-      ? rawGeneratedAt
+      ? new Date(Date.parse(rawGeneratedAt)).toISOString()
       : '2026-11-02T00:00:00.000Z';
 
   const runId = `reconstructed-${repoLabel.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
-  const rawCommitsAnalyzed = meta.commitsAnalyzed ?? raw.commitsAnalyzed;
-  const rawWindowCommits = meta.windowCommits ?? raw.windowCommits;
+  const rawCommitsAnalyzed =
+    meta.commitsAnalyzed ?? evaluation.commitsAnalyzed ?? raw.commitsAnalyzed;
+  const rawWindowCommits =
+    settings.maxCommits ?? evalOpts.maxCommits ?? meta.commitsRead ?? meta.windowCommits ?? raw.windowCommits;
+
   const commitsExamined = requireNonNegativeInt(
     rawCommitsAnalyzed ?? rawWindowCommits,
     'commitsAnalyzed',
@@ -128,7 +222,7 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
   );
   const maxCommits = requirePositiveInt(
     rawWindowCommits ?? (commitsExamined > 0 ? commitsExamined : 50),
-    'windowCommits',
+    'maxCommits',
     50,
   );
 
@@ -143,57 +237,97 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
   }
 
   const uniqueFilesObserved = requireNonNegativeInt(
-    meta.filesAnalyzed ?? raw.filesAnalyzed,
-    'filesAnalyzed',
+    meta.files ?? meta.filesAnalyzed ?? raw.filesAnalyzed,
+    'files',
     0,
   );
   const totalPairsObserved = requireNonNegativeInt(
     meta.totalCoupledPairs ?? raw.totalCoupledPairs ?? raw.totalSuggestions,
-    'totalCoupledPairs',
+    'totalSuggestions',
     pairsInput.length,
   );
+
+  const derivedFileTouches = new Map<string, number>();
 
   const findings: CochangeFinding[] = pairsInput.map((pair, idx) => {
     if (typeof pair !== 'object' || pair === null || Array.isArray(pair)) {
       throw new Error(`Invalid Repo Archaeology suggestion at index ${idx}: must be an object.`);
     }
-    if (typeof pair.fileA !== 'string' || !pair.fileA.trim() || typeof pair.fileB !== 'string' || !pair.fileB.trim()) {
-      throw new Error(`Invalid Repo Archaeology suggestion at index ${idx}: fileA and fileB must be non-empty strings.`);
-    }
-
-    const sharedCommits = requirePositiveInt(
-      pair.sharedCommits ?? pair.cochangeCount,
-      `suggestions[${idx}].sharedCommits`,
-    );
-    const rawFileACommits = requirePositiveInt(
-      pair.fileACommits,
-      `suggestions[${idx}].fileACommits`,
-      sharedCommits,
-    );
-    const rawFileBCommits = requirePositiveInt(
-      pair.fileBCommits,
-      `suggestions[${idx}].fileBCommits`,
-      sharedCommits,
-    );
-
+    const rawFileA = pair.from ?? pair.target ?? pair.fileA;
+    const rawFileB = pair.to ?? pair.companion ?? pair.fileB;
     if (
-      !Array.isArray(pair.commitShas) ||
-      pair.commitShas.length === 0 ||
-      !pair.commitShas.every((s) => typeof s === 'string' && s.trim().length > 0)
+      typeof rawFileA !== 'string' ||
+      !rawFileA.trim() ||
+      typeof rawFileB !== 'string' ||
+      !rawFileB.trim()
     ) {
       throw new Error(
-        `Invalid Repo Archaeology suggestion at index ${idx}: commitShas must be a non-empty array of commit SHA strings.`,
+        `Invalid Repo Archaeology suggestion at index ${idx}: from/fileA and to/fileB must be non-empty strings.`,
       );
     }
 
-    const cleanFileA = truncateText(pair.fileA.trim(), 320);
-    const cleanFileB = truncateText(pair.fileB.trim(), 320);
+    const sharedCommits = requirePositiveInt(
+      pair.shared ?? pair.sharedCommits ?? pair.cochangeCount,
+      `suggestions[${idx}].shared`,
+    );
+    const rawFileACommits = requirePositiveInt(
+      pair.fromChanges ?? pair.targetCommits ?? pair.fileACommits,
+      `suggestions[${idx}].fromChanges`,
+      sharedCommits,
+    );
+    const rawFileBCommits = requirePositiveInt(
+      pair.toChanges ?? pair.companionCommits ?? pair.fileBCommits,
+      `suggestions[${idx}].toChanges`,
+      sharedCommits,
+    );
+
+    // Extract commit hashes and sample subjects from either `evidence: EvidenceView[]` or `commitShas: string[]`
+    let shas: string[] = [];
+    let subjects: string[] = [];
+    if (Array.isArray(pair.evidence) && pair.evidence.length > 0) {
+      for (const ev of pair.evidence) {
+        if (typeof ev !== 'object' || ev === null || typeof ev.hash !== 'string' || !ev.hash.trim()) {
+          throw new Error(
+            `Invalid Repo Archaeology suggestion at index ${idx}: evidence items must contain a non-empty hash string.`,
+          );
+        }
+        if (shas.length < 8) shas.push(truncateText(ev.hash.trim(), 40));
+        if (subjects.length < 3 && typeof ev.subject === 'string' && ev.subject.trim()) {
+          subjects.push(truncateText(ev.subject.trim(), 200));
+        }
+      }
+    } else if (
+      Array.isArray(pair.commitShas) &&
+      pair.commitShas.length > 0 &&
+      pair.commitShas.every((s) => typeof s === 'string' && s.trim().length > 0)
+    ) {
+      shas = pair.commitShas.slice(0, 8).map((s) => truncateText(s.trim(), 40));
+      if (Array.isArray(pair.sampleMessages)) {
+        subjects = pair.sampleMessages.slice(0, 3).map((m) => truncateText(String(m), 200));
+      }
+    } else {
+      throw new Error(
+        `Invalid Repo Archaeology suggestion at index ${idx}: commitShas must be a non-empty array of commit SHA strings (or non-empty evidence array).`,
+      );
+    }
+
+    const cleanFileA = truncateText(rawFileA.trim(), 320);
+    const cleanFileB = truncateText(rawFileB.trim(), 320);
     const isOrdered = cleanFileA.localeCompare(cleanFileB) <= 0;
     const sortedFiles: [string, string] = isOrdered
       ? [cleanFileA, cleanFileB]
       : [cleanFileB, cleanFileA];
     const fileACommits = Math.max(sharedCommits, isOrdered ? rawFileACommits : rawFileBCommits);
     const fileBCommits = Math.max(sharedCommits, isOrdered ? rawFileBCommits : rawFileACommits);
+
+    derivedFileTouches.set(
+      sortedFiles[0],
+      Math.max(derivedFileTouches.get(sortedFiles[0]) ?? 0, fileACommits),
+    );
+    derivedFileTouches.set(
+      sortedFiles[1],
+      Math.max(derivedFileTouches.get(sortedFiles[1]) ?? 0, fileBCommits),
+    );
 
     const minCommits = Math.max(1, Math.min(fileACommits, fileBCommits));
     const unionCommits = Math.max(1, fileACommits + fileBCommits - sharedCommits);
@@ -202,17 +336,41 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
     const computedJaccard = Math.min(1, Math.round((sharedCommits / unionCommits) * 100) / 100);
 
     const rawRatio = pair.confidence ?? pair.jaccardOrCoupling;
-    if (rawRatio !== undefined && (typeof rawRatio !== 'number' || !Number.isFinite(rawRatio) || rawRatio < 0 || rawRatio > 1)) {
+    if (
+      rawRatio !== undefined &&
+      (typeof rawRatio !== 'number' || !Number.isFinite(rawRatio) || rawRatio < 0 || rawRatio > 1)
+    ) {
       throw new Error(`Invalid Repo Archaeology ratio at suggestions[${idx}]: must be a number in 0..1.`);
     }
+    const rawRevRatio = pair.reverseConfidence;
+    if (
+      rawRevRatio !== undefined &&
+      (typeof rawRevRatio !== 'number' ||
+        !Number.isFinite(rawRevRatio) ||
+        rawRevRatio < 0 ||
+        rawRevRatio > 1)
+    ) {
+      throw new Error(
+        `Invalid Repo Archaeology reverseConfidence at suggestions[${idx}]: must be a number in 0..1.`,
+      );
+    }
     const rawJaccard = pair.jaccard;
-    if (rawJaccard !== undefined && (typeof rawJaccard !== 'number' || !Number.isFinite(rawJaccard) || rawJaccard < 0 || rawJaccard > 1)) {
+    if (
+      rawJaccard !== undefined &&
+      (typeof rawJaccard !== 'number' || !Number.isFinite(rawJaccard) || rawJaccard < 0 || rawJaccard > 1)
+    ) {
       throw new Error(`Invalid Repo Archaeology jaccard at suggestions[${idx}]: must be a number in 0..1.`);
     }
 
+    // Overlap is shared / min(fileACommits, fileBCommits), which equals max(confidence, reverseConfidence)
+    const maxDirectionalConfidence =
+      rawRatio !== undefined && rawRevRatio !== undefined
+        ? Math.max(rawRatio, rawRevRatio)
+        : rawRatio;
+
     const couplingRatio =
-      rawRatio !== undefined
-        ? Math.min(1, Math.max(0, Math.round(rawRatio * 100) / 100))
+      maxDirectionalConfidence !== undefined
+        ? Math.min(1, Math.max(0, Math.round(maxDirectionalConfidence * 100) / 100))
         : computedOverlap;
     const jaccardRatio =
       rawJaccard !== undefined
@@ -220,14 +378,17 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
         : computedJaccard;
 
     const id = `F-${String(idx + 1).padStart(2, '0')}`;
-    const shas = pair.commitShas.slice(0, 8).map((s) => truncateText(s.trim(), 40));
-    const subjects = Array.isArray(pair.sampleMessages)
-      ? pair.sampleMessages.slice(0, 3).map((m) => truncateText(String(m), 200))
-      : [];
-    const reasonText = (pair.note ?? pair.reason)?.trim();
+    const rel = describeCochangeRelationship({
+      files: sortedFiles,
+      cochangeCount: sharedCommits,
+      fileACommits,
+      fileBCommits,
+      jaccardRatio,
+      sampleSubjects: subjects,
+    });
+    const customReason = (pair.why ?? pair.note ?? pair.reason)?.trim();
     const reason = truncateText(
-      reasonText ||
-        `Reconstructed from Repo Archaeology: co-changed in ${sharedCommits} commits (${Math.round(couplingRatio * 100)}% overlap, ${Math.round(jaccardRatio * 100)}% Jaccard).`,
+      customReason ? `${rel.patternLabel}: ${customReason}` : `${rel.patternLabel}: ${rel.summary}`,
       320,
     );
 
@@ -248,28 +409,72 @@ export function convertRepoArchaeologySnapshot(rawInput: unknown): {
     };
   });
 
-  const hotFiles: HotFileSummary[] = (Array.isArray(raw.hotspots) ? raw.hotspots : []).map((h, idx) => {
-    if (typeof h !== 'object' || h === null || typeof h.path !== 'string' || !h.path.trim()) {
-      throw new Error(`Invalid hotspot at hotspots[${idx}]: path must be a non-empty string.`);
+  if (Array.isArray(raw.families)) {
+    for (const fam of raw.families) {
+      if (fam && typeof fam === 'object' && Array.isArray(fam.members)) {
+        for (const m of fam.members) {
+          if (
+            typeof m === 'object' &&
+            m !== null &&
+            typeof m.path === 'string' &&
+            m.path.trim() &&
+            typeof m.changes === 'number' &&
+            Number.isInteger(m.changes) &&
+            m.changes >= 1
+          ) {
+            const p = truncateText(m.path.trim(), 320);
+            derivedFileTouches.set(p, Math.max(derivedFileTouches.get(p) ?? 0, m.changes));
+          }
+        }
+      }
     }
-    const touches = requirePositiveInt(h.touches, `hotspots[${idx}].touches`);
-    return {
-      file: truncateText(h.path.trim(), 320),
-      commits: touches,
-      share: commitsExamined > 0 ? Math.min(1, Math.round((touches / commitsExamined) * 100) / 100) : 0,
-    };
-  });
+  }
+
+  const hotFiles: HotFileSummary[] = Array.isArray(raw.hotspots)
+    ? raw.hotspots.map((h, idx) => {
+        if (typeof h !== 'object' || h === null || typeof h.path !== 'string' || !h.path.trim()) {
+          throw new Error(`Invalid hotspot at hotspots[${idx}]: path must be a non-empty string.`);
+        }
+        const touches = requirePositiveInt(h.touches, `hotspots[${idx}].touches`);
+        return {
+          file: truncateText(h.path.trim(), 320),
+          commits: touches,
+          share:
+            commitsExamined > 0
+              ? Math.min(1, Math.round((touches / commitsExamined) * 100) / 100)
+              : 0,
+        };
+      })
+    : Array.from(derivedFileTouches.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 6)
+        .map(([file, touches]) => ({
+          file,
+          commits: touches,
+          share:
+            commitsExamined > 0
+              ? Math.min(1, Math.round((touches / commitsExamined) * 100) / 100)
+              : 0,
+        }));
 
   const reconstructedNote =
     'Reconstructed from a completed Repo Archaeology (schemaVersion: 1) analysis, not live events';
 
   const inputWarnings: string[] = [];
-  if (raw.warnings !== undefined) {
-    if (!Array.isArray(raw.warnings) || !raw.warnings.every((w) => typeof w === 'string' && w.trim().length > 0)) {
-      throw new Error('Invalid Repo Archaeology "warnings": must be an array of non-empty strings.');
-    }
-    for (const w of raw.warnings) {
-      inputWarnings.push(truncateText(w.trim(), 300));
+  for (const warnList of [meta.warnings, raw.warnings]) {
+    if (warnList !== undefined) {
+      if (
+        !Array.isArray(warnList) ||
+        !warnList.every((w) => typeof w === 'string' && w.trim().length > 0)
+      ) {
+        throw new Error(
+          'Invalid Repo Archaeology "warnings": must be an array of non-empty strings.',
+        );
+      }
+      for (const w of warnList) {
+        const cleanW = truncateText(w.trim(), 300);
+        if (!inputWarnings.includes(cleanW)) inputWarnings.push(cleanW);
+      }
     }
   }
 

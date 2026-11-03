@@ -1,146 +1,263 @@
 {
   "schemaVersion": 1,
-  "tool": "repo-archaeology",
-  "toolVersion": "0.3.0",
-  "repoName": "payments-service-archaeology",
-  "generatedAt": "2026-10-28T16:45:00.000Z",
+  "tool": {
+    "name": "repo-archaeology",
+    "version": "0.3.0"
+  },
   "meta": {
-    "repoName": "payments-service-archaeology",
-    "generatedAt": "2026-10-28T16:45:00.000Z",
-    "windowCommits": 80,
+    "tool": "repo-archaeology",
+    "root": "/workspace/payments-service-archaeology",
+    "commitsRead": 80,
     "commitsAnalyzed": 74,
-    "filesAnalyzed": 28,
-    "totalCoupledPairs": 19
+    "sweepsSkipped": 2,
+    "subjectSkipped": 0,
+    "renamesFollowed": 3,
+    "files": 28,
+    "oldestCommit": "2026-09-01",
+    "newestCommit": "2026-10-28",
+    "settings": {
+      "maxCommits": 80,
+      "maxFilesPerCommit": 50,
+      "minShared": 2,
+      "minConfidence": 0.4,
+      "ignore": [],
+      "useDefaultIgnores": true
+    },
+    "warnings": [
+      "Excluded 2 automated lockfile-only commits from co-change counts."
+    ]
   },
-  "changed": true,
-  "totalSuggestions": 3,
+  "base": "origin/main",
   "evaluation": {
-    "precisionEstimate": 0.91,
-    "recallWindow": "80-commits",
-    "noiseExcluded": true
+    "targetBranchRef": "origin/main",
+    "headSha": "a19f02b",
+    "mergeBaseSha": "712a90e",
+    "commitsAnalyzed": 74,
+    "effectiveOptions": {
+      "minShared": 2,
+      "minConfidence": 0.4,
+      "maxCommits": 80,
+      "maxFilesPerCommit": 50
+    }
   },
-  "families": [
+  "changed": [
     {
-      "familyId": "settlement-ledger",
-      "members": ["src/settlement/payout-runner.ts", "src/settlement/reconcile-ledger.ts"],
-      "cohesion": 0.82
+      "path": "src/settlement/payout-runner.ts",
+      "deleted": false,
+      "sources": ["branch"],
+      "hasHistory": true
     },
     {
-      "familyId": "webhooks-schema",
-      "members": ["src/api/routes/webhooks.ts", "src/domain/events/schema.ts"],
-      "cohesion": 0.67
+      "path": "src/api/routes/webhooks.ts",
+      "deleted": false,
+      "sources": ["branch"],
+      "hasHistory": true
     },
     {
-      "familyId": "balances-storage",
-      "members": ["src/db/migrations/004_balances.sql", "src/db/queries/balances.ts"],
-      "cohesion": 0.8
+      "path": "src/db/migrations/004_balances.sql",
+      "deleted": false,
+      "sources": ["branch"],
+      "hasHistory": true
     }
   ],
+  "totalSuggestions": 19,
   "suggestions": [
     {
-      "id": "SUG-01",
-      "rank": 1,
-      "fileA": "src/settlement/payout-runner.ts",
-      "fileB": "src/settlement/reconcile-ledger.ts",
-      "sharedCommits": 9,
-      "fileACommits": 10,
-      "fileBCommits": 11,
+      "from": "src/settlement/payout-runner.ts",
+      "to": "src/settlement/reconcile-ledger.ts",
+      "relationship": "direct",
+      "why": "9 of 10 payout-runner commits also modified reconcile-ledger.",
+      "shared": 9,
+      "fromChanges": 10,
+      "toChanges": 11,
       "confidence": 0.9,
-      "jaccard": 0.75,
-      "jaccardOrCoupling": 0.9,
-      "commitShas": ["a19f02b", "b48c11e", "c77d30a", "d02e91f", "e83a44c", "f91b72d"],
-      "sampleMessages": [
-        "fix(settlement): sync payout batch status with ledger reconciliation",
-        "feat(settlement): add retry guard across payout runner and ledger"
+      "reverseConfidence": 0.82,
+      "score": 0.88,
+      "weighted": true,
+      "lastTogether": "2026-10-28",
+      "crossesDirectories": false,
+      "evidence": [
+        {
+          "hash": "a19f02b",
+          "date": "2026-10-28",
+          "author": "Alice Chen",
+          "subject": "fix(settlement): sync payout batch status with ledger reconciliation"
+        },
+        {
+          "hash": "b48c11e",
+          "date": "2026-10-24",
+          "author": "Alice Chen",
+          "subject": "feat(settlement): add retry guard across payout runner and ledger"
+        },
+        {
+          "hash": "c77d30a",
+          "date": "2026-10-19",
+          "author": "Devon Park",
+          "subject": "refactor(settlement): unify idempotency token format"
+        },
+        {
+          "hash": "d02e91f",
+          "date": "2026-10-14",
+          "author": "Alice Chen",
+          "subject": "fix(settlement): handle partial settlement rollback"
+        },
+        {
+          "hash": "e83a44c",
+          "date": "2026-10-08",
+          "author": "Devon Park",
+          "subject": "feat(settlement): record fee adjustments in ledger"
+        },
+        {
+          "hash": "f91b72d",
+          "date": "2026-10-02",
+          "author": "Alice Chen",
+          "subject": "chore(settlement): tighten batch cursor pagination"
+        }
       ],
-      "note": "High historical lockstep: 9 of 10 payout-runner commits also modified reconcile-ledger."
+      "alsoLinkedFrom": []
     },
     {
-      "id": "SUG-02",
-      "rank": 2,
-      "fileA": "src/api/routes/webhooks.ts",
-      "fileB": "src/domain/events/schema.ts",
-      "sharedCommits": 6,
-      "fileACommits": 8,
-      "fileBCommits": 7,
-      "confidence": 0.86,
-      "jaccard": 0.67,
-      "jaccardOrCoupling": 0.86,
-      "commitShas": ["104a88c", "298b71d", "331e09a", "472f19b", "589c33e", "610d42f"],
-      "sampleMessages": [
-        "feat(webhooks): update event schema and route validator for v2 payloads"
+      "from": "src/api/routes/webhooks.ts",
+      "to": "src/domain/events/schema.ts",
+      "relationship": "indirect",
+      "why": "Webhook route handlers and event schema definitions evolve together.",
+      "shared": 6,
+      "fromChanges": 8,
+      "toChanges": 7,
+      "confidence": 0.75,
+      "reverseConfidence": 0.86,
+      "score": 0.79,
+      "weighted": true,
+      "lastTogether": "2026-10-25",
+      "crossesDirectories": true,
+      "evidence": [
+        {
+          "hash": "104a88c",
+          "date": "2026-10-25",
+          "author": "Devon Park",
+          "subject": "feat(webhooks): update event schema and route validator for v2 payloads"
+        },
+        {
+          "hash": "298b71d",
+          "date": "2026-10-20",
+          "author": "Devon Park",
+          "subject": "fix(webhooks): validate dispute_opened event payload"
+        },
+        {
+          "hash": "331e09a",
+          "date": "2026-10-15",
+          "author": "Alice Chen",
+          "subject": "feat(webhooks): add payout_failed webhook event type"
+        },
+        {
+          "hash": "472f19b",
+          "date": "2026-10-11",
+          "author": "Devon Park",
+          "subject": "refactor(webhooks): share Zod envelope parser"
+        },
+        {
+          "hash": "589c33e",
+          "date": "2026-10-05",
+          "author": "Alice Chen",
+          "subject": "fix(webhooks): reject unknown schema version headers"
+        },
+        {
+          "hash": "610d42f",
+          "date": "2026-09-29",
+          "author": "Devon Park",
+          "subject": "feat(webhooks): initial webhook ingestion route and event schema"
+        }
       ],
-      "note": "Webhook route handlers and event schema definitions evolve together."
+      "alsoLinkedFrom": []
     },
     {
-      "id": "SUG-03",
-      "rank": 3,
-      "fileA": "src/db/migrations/004_balances.sql",
-      "fileB": "src/db/queries/balances.ts",
-      "sharedCommits": 4,
-      "fileACommits": 4,
-      "fileBCommits": 5,
+      "from": "src/db/migrations/004_balances.sql",
+      "to": "src/db/queries/balances.ts",
+      "relationship": "ghost",
+      "why": "SQL schema changes require matching query projection updates.",
+      "shared": 4,
+      "fromChanges": 4,
+      "toChanges": 5,
       "confidence": 1.0,
-      "jaccard": 0.8,
-      "jaccardOrCoupling": 1.0,
-      "commitShas": ["712a90e", "845b11f", "903c44a", "998d01b"],
-      "sampleMessages": [
-        "feat(db): add available_balance index and query projection"
+      "reverseConfidence": 0.8,
+      "score": 0.92,
+      "weighted": true,
+      "lastTogether": "2026-10-22",
+      "crossesDirectories": true,
+      "evidence": [
+        {
+          "hash": "712a90e",
+          "date": "2026-10-22",
+          "author": "Alice Chen",
+          "subject": "feat(db): add available_balance index and query projection"
+        },
+        {
+          "hash": "845b11f",
+          "date": "2026-10-16",
+          "author": "Alice Chen",
+          "subject": "fix(db): include pending_hold column in balance query"
+        },
+        {
+          "hash": "903c44a",
+          "date": "2026-10-09",
+          "author": "Devon Park",
+          "subject": "feat(db): add currency_code constraint to balances table"
+        },
+        {
+          "hash": "998d01b",
+          "date": "2026-09-18",
+          "author": "Alice Chen",
+          "subject": "feat(db): create balances migration and query module"
+        }
       ],
-      "note": "SQL schema changes require matching query projection updates."
+      "alsoLinkedFrom": []
     }
   ],
-  "cochangePairs": [
+  "families": [
     {
-      "rank": 1,
-      "fileA": "src/settlement/payout-runner.ts",
-      "fileB": "src/settlement/reconcile-ledger.ts",
-      "sharedCommits": 9,
-      "fileACommits": 10,
-      "fileBCommits": 11,
-      "jaccardOrCoupling": 0.9,
-      "commitShas": ["a19f02b", "b48c11e", "c77d30a", "d02e91f", "e83a44c", "f91b72d"],
-      "sampleMessages": [
-        "fix(settlement): sync payout batch status with ledger reconciliation",
-        "feat(settlement): add retry guard across payout runner and ledger"
+      "id": "FAM-01",
+      "label": "settlement/*",
+      "stem": "settlement",
+      "fileName": "payout-runner.ts",
+      "parentDir": "src/settlement",
+      "why": "Co-evolving settlement runner, ledger reconciler, and batch types",
+      "members": [
+        {
+          "path": "src/settlement/reconcile-ledger.ts",
+          "dir": "src/settlement",
+          "variant": "reconcile-ledger",
+          "changes": 11,
+          "connections": 2
+        },
+        {
+          "path": "src/settlement/payout-runner.ts",
+          "dir": "src/settlement",
+          "variant": "payout-runner",
+          "changes": 10,
+          "connections": 2
+        },
+        {
+          "path": "src/api/routes/webhooks.ts",
+          "dir": "src/api/routes",
+          "variant": "webhooks",
+          "changes": 8,
+          "connections": 1
+        }
       ],
-      "note": "High historical lockstep: 9 of 10 payout-runner commits also modified reconcile-ledger."
-    },
-    {
-      "rank": 2,
-      "fileA": "src/api/routes/webhooks.ts",
-      "fileB": "src/domain/events/schema.ts",
-      "sharedCommits": 6,
-      "fileACommits": 8,
-      "fileBCommits": 7,
-      "jaccardOrCoupling": 0.86,
-      "commitShas": ["104a88c", "298b71d", "331e09a", "472f19b", "589c33e", "610d42f"],
-      "sampleMessages": [
-        "feat(webhooks): update event schema and route validator for v2 payloads"
-      ],
-      "note": "Webhook route handlers and event schema definitions evolve together."
-    },
-    {
-      "rank": 3,
-      "fileA": "src/db/migrations/004_balances.sql",
-      "fileB": "src/db/queries/balances.ts",
-      "sharedCommits": 4,
-      "fileACommits": 4,
-      "fileBCommits": 5,
-      "jaccardOrCoupling": 1.0,
-      "commitShas": ["712a90e", "845b11f", "903c44a", "998d01b"],
-      "sampleMessages": [
-        "feat(db): add available_balance index and query projection"
-      ],
-      "note": "SQL schema changes require matching query projection updates."
+      "commitsTouchingTwoOrMore": 9,
+      "commitsTouchingAll": 3,
+      "lastTogether": "2026-10-28",
+      "qualifyingPairs": 2,
+      "possiblePairs": 3,
+      "complete": false,
+      "relationshipKinds": ["direct", "indirect"],
+      "peakScore": 0.88,
+      "maxPairShared": 9,
+      "evidence": [],
+      "allMemberEvidence": [],
+      "relationships": [],
+      "changedMembers": ["src/settlement/payout-runner.ts", "src/api/routes/webhooks.ts"],
+      "suggestedMembers": ["src/settlement/reconcile-ledger.ts"]
     }
-  ],
-  "hotspots": [
-    { "path": "src/settlement/reconcile-ledger.ts", "touches": 11 },
-    { "path": "src/settlement/payout-runner.ts", "touches": 10 },
-    { "path": "src/api/routes/webhooks.ts", "touches": 8 }
-  ],
-  "warnings": [
-    "Excluded 2 automated lockfile-only commits from co-change counts."
   ]
 }

@@ -76,7 +76,27 @@ const DEFAULT_GENERATED_PREFIXES = [
   'node_modules/',
   'coverage/',
   'site/public/r/',
+  'templates/',
 ];
+
+const DOC_OR_RELEASE_META_BASENAMES = new Set<string>([
+  'readme.md',
+  'changelog.md',
+  'package.json',
+  'license',
+  'license.md',
+  'contributing.md',
+]);
+
+const GENERIC_BARREL_BASENAMES = new Set<string>([
+  'index.ts',
+  'index.tsx',
+  'index.js',
+  'index.mjs',
+  'route.ts',
+  'page.tsx',
+  'layout.tsx',
+]);
 
 export function truncateText(input: string, maxChars: number): string {
   const normalized = input.normalize('NFC');
@@ -145,21 +165,149 @@ export function unquoteGitPath(line: string): string {
   return truncateText(cleaned.normalize('NFC'), MAX_FILEPATH_CHARS);
 }
 
-function matchesPattern(filePath: string, pattern: string): boolean {
-  const normPattern = pattern.trim().replace(/\\/g, '/');
+export function globToRegExp(pattern: string): RegExp {
+  const norm = pattern.trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\/+/, '');
+  const regexStr = norm
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\/\*\*\//g, '__GLOBSTAR_MID__')
+    .replace(/\/\*\*$/g, '__GLOBSTAR_END__')
+    .replace(/^\*\*\//g, '__GLOBSTAR_START__')
+    .replace(/\*\*/g, '__GLOBSTAR_ANY__')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\?/g, '[^/]')
+    .replace(/__GLOBSTAR_MID__/g, '(?:/.*)?/')
+    .replace(/__GLOBSTAR_END__/g, '(?:/.*)?')
+    .replace(/__GLOBSTAR_START__/g, '(?:.*/)?')
+    .replace(/__GLOBSTAR_ANY__/g, '.*');
+  return new RegExp(`^${regexStr}$`);
+}
+
+export function matchesPattern(filePath: string, pattern: string): boolean {
+  const normPath = filePath.trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\/+/, '');
+  const normPattern = pattern.trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\/+/, '');
   if (!normPattern) return false;
-  if (filePath === normPattern || filePath.startsWith(normPattern.endsWith('/') ? normPattern : `${normPattern}/`)) {
+  if (
+    normPath === normPattern ||
+    normPath.startsWith(normPattern.endsWith('/') ? normPattern : `${normPattern}/`)
+  ) {
     return true;
   }
-  if (normPattern.includes('*')) {
-    const escaped = normPattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-      .replace(/\*\*/g, '.*')
-      .replace(/\*/g, '[^/]*');
-    const re = new RegExp(`^${escaped}$`);
-    return re.test(filePath);
+  if (normPattern.includes('*') || normPattern.includes('?')) {
+    return globToRegExp(normPattern).test(normPath);
   }
-  return posix.basename(filePath) === normPattern || filePath.includes(normPattern);
+  return posix.basename(normPath) === normPattern || normPath.includes(normPattern);
+}
+
+export function isTestOrVerificationPath(filePath: string): boolean {
+  const norm = filePath.replace(/\\/g, '/');
+  const base = posix.basename(norm);
+  if (/(?:^|\/)(?:tests?|__tests__|e2e|spec)\//i.test(norm)) return true;
+  if (/\.(?:test|spec|e2e)\.[^.]+$/i.test(base)) return true;
+  if (/(?:-|_)(?:test|spec|verify)\.[^.]+$/i.test(base)) return true;
+  return false;
+}
+
+/**
+ * Filters obvious low-signal co-change pairs by default (unless --include-noise is passed):
+ * 1. Test / verification scripts paired with source files or other test files.
+ * 2. Routine documentation / release metadata pairs (e.g. README.md + package.json, CHANGELOG.md + package.json, *.md + *.md).
+ * 3. Exact-basename mirror copies across workspace directories (e.g. registry/ui/dialog.tsx + site/.../dialog.tsx).
+ */
+export function shouldFilterLowSignalPair(
+  fileA: string,
+  fileB: string,
+  includeNoise = false,
+): boolean {
+  if (includeNoise) return false;
+  const normA = fileA.replace(/\\/g, '/');
+  const normB = fileB.replace(/\\/g, '/');
+  const baseA = posix.basename(normA);
+  const baseB = posix.basename(normB);
+  const lowerA = baseA.toLowerCase();
+  const lowerB = baseB.toLowerCase();
+
+  // 1. Test or verification files paired with code or tests
+  if (isTestOrVerificationPath(normA) || isTestOrVerificationPath(normB)) {
+    return true;
+  }
+
+  // 2. Routine documentation / release metadata pairs
+  if (DOC_OR_RELEASE_META_BASENAMES.has(lowerA) && DOC_OR_RELEASE_META_BASENAMES.has(lowerB)) {
+    return true;
+  }
+  if (extname(lowerA) === '.md' && extname(lowerB) === '.md') {
+    return true;
+  }
+  if (
+    (extname(lowerA) === '.md' && lowerB === 'package.json') ||
+    (extname(lowerB) === '.md' && lowerA === 'package.json')
+  ) {
+    return true;
+  }
+
+  // 3. Exact-basename mirror copies across different directory trees
+  if (baseA === baseB && !GENERIC_BARREL_BASENAMES.has(lowerA)) {
+    return true;
+  }
+
+  return false;
+}
+
+export interface CochangeRelationshipSummary {
+  patternLabel: 'Mutual lockstep' | 'One-way dependency' | 'Shared feature surface';
+  summary: string;
+  actionHint: string;
+}
+
+export function describeCochangeRelationship(params: {
+  files: [string, string];
+  cochangeCount: number;
+  fileACommits: number;
+  fileBCommits: number;
+  jaccardRatio?: number;
+  sampleSubjects?: string[];
+}): CochangeRelationshipSummary {
+  const [fileA, fileB] = params.files;
+  const baseA = posix.basename(fileA);
+  const baseB = posix.basename(fileB);
+  const shared = params.cochangeCount;
+  const countA = Math.max(shared, params.fileACommits);
+  const countB = Math.max(shared, params.fileBCommits);
+  const unionCommits = Math.max(1, countA + countB - shared);
+  const jaccard =
+    typeof params.jaccardRatio === 'number' && Number.isFinite(params.jaccardRatio)
+      ? params.jaccardRatio
+      : Math.min(1, Math.round((shared / unionCommits) * 100) / 100);
+  const jaccardPct = Math.round(jaccard * 100);
+
+  if (countA === shared && countB === shared) {
+    return {
+      patternLabel: 'Mutual lockstep',
+      summary: `Always modified together across all ${shared} commits (${jaccardPct}% Jaccard); verify shared exports and state before editing either file.`,
+      actionHint: `Inspect ${fileB} whenever modifying ${fileA} (both files changed together in ${shared} of ${shared} commits).`,
+    };
+  }
+
+  if (Math.min(countA, countB) === shared) {
+    const isADependent = countA <= countB;
+    const depBase = isADependent ? baseA : baseB;
+    const depPath = isADependent ? fileA : fileB;
+    const hubBase = isADependent ? baseB : baseA;
+    const hubPath = isADependent ? fileB : fileA;
+    const hubTotal = Math.max(countA, countB);
+    const soloCommits = hubTotal - shared;
+    return {
+      patternLabel: 'One-way dependency',
+      summary: `${depBase} never changed without ${hubBase} (${shared}/${shared} commits), while ${hubBase} had ${soloCommits} independent commit${soloCommits === 1 ? '' : 's'} (${shared}/${hubTotal}, ${jaccardPct}% Jaccard).`,
+      actionHint: `When editing ${depPath}, always check ${hubPath} for matching schema or contract updates (${shared} of ${hubTotal} combined commits).`,
+    };
+  }
+
+  return {
+    patternLabel: 'Shared feature surface',
+    summary: `Modified together in ${shared} of ${unionCommits} combined commits (${jaccardPct}% Jaccard; ${baseA} ${shared}/${countA}, ${baseB} ${shared}/${countB}); check shared interfaces when editing either file.`,
+    actionHint: `Review ${fileA} and ${fileB} together when touching shared types, styles, or handlers (${shared} of ${unionCommits} commits).`,
+  };
 }
 
 export function shouldFilterNoiseFile(
@@ -555,8 +703,16 @@ export async function runGitHistoryWorkload(
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
     }
     const minThreshold = commits.length >= 3 ? 2 : 1;
+    let filteredLowSignalPairs = 0;
     const candidates = Array.from(pairMap.values())
-      .filter((p) => p.count >= minThreshold)
+      .filter((p) => {
+        if (p.count < minThreshold) return false;
+        if (shouldFilterLowSignalPair(p.files[0], p.files[1], includeNoise)) {
+          filteredLowSignalPairs += 1;
+          return false;
+        }
+        return true;
+      })
       .map((p) => {
         const fileACommits = Math.max(p.count, nonBulkFileCommits.get(p.files[0]) ?? p.count);
         const fileBCommits = Math.max(p.count, nonBulkFileCommits.get(p.files[1]) ?? p.count);
@@ -577,6 +733,15 @@ export async function runGitHistoryWorkload(
       )
       .slice(0, topN);
 
+    if (filteredLowSignalPairs > 0) {
+      const lowSigWarn = `Filtered ${filteredLowSignalPairs} low-signal test/doc/mirror pair(s) (pass --include-noise to include).`;
+      warnings.push(lowSigWarn);
+      emit('warning', 'rank-findings', { message: lowSigWarn, filteredLowSignalPairs });
+      if (options.signal?.aborted) {
+        return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
+      }
+    }
+
     const findings: CochangeFinding[] = [];
     for (let idx = 0; idx < candidates.length; idx++) {
       if (options.signal?.aborted) {
@@ -584,8 +749,14 @@ export async function runGitHistoryWorkload(
       }
       const c = candidates[idx]!;
       const id = `F-${String(idx + 1).padStart(2, '0')}`;
-      const overlapPct = Math.round(c.couplingRatio * 100);
-      const jaccardPct = Math.round(c.jaccardRatio * 100);
+      const rel = describeCochangeRelationship({
+        files: c.files,
+        cochangeCount: c.count,
+        fileACommits: c.fileACommits,
+        fileBCommits: c.fileBCommits,
+        jaccardRatio: c.jaccardRatio,
+        sampleSubjects: c.subjects,
+      });
       const finding: CochangeFinding = {
         id,
         files: c.files,
@@ -595,7 +766,7 @@ export async function runGitHistoryWorkload(
         couplingRatio: c.couplingRatio,
         jaccardRatio: c.jaccardRatio,
         evidence: { commitShas: c.shas, sampleSubjects: c.subjects, count: c.count },
-        reason: `Co-changed in ${c.count} commits (${overlapPct}% overlap [shared ÷ commits of less-changed file], ${jaccardPct}% Jaccard [${c.count}/${c.unionCommits} union]; directional: ${c.files[0]} ${c.count}/${c.fileACommits}, ${c.files[1]} ${c.count}/${c.fileBCommits} across ${c.shas.slice(0, 3).join(', ')}); inspect together before modifying either file in isolation.`,
+        reason: `${rel.patternLabel}: ${rel.summary}`,
       };
       emit('finding', 'rank-findings', { finding });
       if (options.signal?.aborted) {
@@ -604,8 +775,20 @@ export async function runGitHistoryWorkload(
       findings.push(finding);
     }
 
-    const hotFiles: HotFileSummary[] = Array.from(fileCommits.entries())
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    const allHotEntries = Array.from(fileCommits.entries()).sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+    );
+    const filteredHotEntries = includeNoise
+      ? allHotEntries
+      : allHotEntries.filter(([file]) => {
+          const base = posix.basename(file).toLowerCase();
+          if (isTestOrVerificationPath(file)) return false;
+          if (DOC_OR_RELEASE_META_BASENAMES.has(base) || extname(base) === '.md') return false;
+          return true;
+        });
+    const hotFiles: HotFileSummary[] = (
+      filteredHotEntries.length > 0 ? filteredHotEntries : allHotEntries
+    )
       .slice(0, 6)
       .map(([file, count]) => ({
         file,

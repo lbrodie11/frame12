@@ -16,7 +16,13 @@ import {
   validateEventStream,
   validateResultSnapshot,
 } from '../dist/model/index.js';
-import { runGitHistoryWorkload, unquoteGitPath } from '../dist/workload/git-history.js';
+import {
+  globToRegExp,
+  matchesPattern,
+  runGitHistoryWorkload,
+  shouldFilterLowSignalPair,
+  unquoteGitPath,
+} from '../dist/workload/git-history.js';
 import { convertRepoArchaeologySnapshot } from '../dist/workload/repo-archaeology-adapter.js';
 import {
   PlainStreamPrinter,
@@ -444,6 +450,58 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         rmSync(tmpRepo, { recursive: true, force: true });
       }
     });
+
+    it('matches multi-segment ** globs in --exclude and filters low-signal test/doc/mirror pairs by default', () => {
+      // Multi-segment ** glob matching
+      assert.equal(
+        matchesPattern(
+          'templates/next-starter/src/components/frame12/dialog.tsx',
+          'templates/next-starter/src/**',
+        ),
+        true,
+      );
+      assert.equal(
+        globToRegExp('templates/next-starter/src/**').test(
+          'templates/next-starter/src/components/frame12/dialog.tsx',
+        ),
+        true,
+      );
+      assert.equal(matchesPattern('src/deep/nested/foo.test.ts', '**/*.test.*'), true);
+      assert.equal(matchesPattern('src/deep/nested/foo.ts', '**/*.test.*'), false);
+
+      // Low-signal pair filtering (code+test, doc/release metadata, exact-basename mirror copies)
+      assert.equal(
+        shouldFilterLowSignalPair(
+          'experiments/terminal-storyboard/src/workload/git-history.ts',
+          'experiments/terminal-storyboard/tests/storyboard.test.mjs',
+        ),
+        true,
+      );
+      assert.equal(
+        shouldFilterLowSignalPair('site/app/site.css', 'site/scripts/site-verify.mjs'),
+        true,
+      );
+      assert.equal(shouldFilterLowSignalPair('README.md', 'package.json'), true);
+      assert.equal(shouldFilterLowSignalPair('CHANGELOG.md', 'package.json'), true);
+      assert.equal(
+        shouldFilterLowSignalPair(
+          'registry/ui/dialog.tsx',
+          'templates/next-starter/src/components/frame12/dialog.tsx',
+        ),
+        true,
+      );
+      // Real architectural code pairs are NOT filtered
+      assert.equal(
+        shouldFilterLowSignalPair('src/commands/map.ts', 'src/map/template.ts'),
+        false,
+      );
+      assert.equal(
+        shouldFilterLowSignalPair('registry/ui/dialog.tsx', 'registry/ui/tooltip.tsx'),
+        false,
+      );
+      // Passing includeNoise=true disables low-signal pair filtering
+      assert.equal(shouldFilterLowSignalPair('README.md', 'package.json', true), false);
+    });
   });
 
   // ===========================================================================
@@ -461,9 +519,9 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       assert.equal(/\bC-01\b/.test(baselineText), false);
 
       // Both Plain, Baseline, and HTML explicitly label overlap and Jaccard
-      assert.match(plainText, /overlap \[shared ÷ commits of less-changed file\]/);
+      assert.match(plainText, /overlap \[shared ÷\s+commits of less-changed file\]/);
       assert.match(plainText, /Jaccard/);
-      assert.match(baselineText, /overlap \[shared ÷ commits of less-changed file\]/);
+      assert.match(baselineText, /overlap \[shared ÷\s+commits of less-changed file\]/);
       assert.match(htmlText, /shared ÷ commits of less-changed file/);
 
       for (const finding of snapshot.findings) {
@@ -1182,6 +1240,52 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
               return document.documentElement.scrollWidth > window.innerWidth;
             });
             assert.equal(overflow, false, `Horizontal overflow detected in ${theme}/${viewport.label}`);
+
+            // Verify zero inert interactive controls (<button>, <input>, <select>, <textarea>, <a href>)
+            const interactiveCount = await page.evaluate(() => {
+              return document.querySelectorAll('button, input, select, textarea, a[href]').length;
+            });
+            assert.equal(
+              interactiveCount,
+              0,
+              `Expected 0 interactive controls in static HTML report (${theme}/${viewport.label}), found ${interactiveCount}`,
+            );
+
+            // Verify zero bounding-box collisions between bar labels/counts and screentone bars
+            const barCollisions = await page.evaluate(() => {
+              const items = Array.from(document.querySelectorAll('.f12-static-bar-item'));
+              const collisions = [];
+              const overlaps = (a, b) =>
+                a.left < b.right - 1 &&
+                a.right > b.left + 1 &&
+                a.top < b.bottom - 1 &&
+                a.bottom > b.top + 1;
+              for (const item of items) {
+                const head = item.querySelector('.f12-static-bar-head');
+                const bar = item.querySelector('.f12-int-bar');
+                const val = item.querySelector('.f12-int-val');
+                if (head && bar) {
+                  const hr = head.getBoundingClientRect();
+                  const br = bar.getBoundingClientRect();
+                  if (overlaps(hr, br)) {
+                    collisions.push(`head overlaps bar: ${head.textContent}`);
+                  }
+                }
+                if (val && bar) {
+                  const vr = val.getBoundingClientRect();
+                  const br = bar.getBoundingClientRect();
+                  if (overlaps(vr, br)) {
+                    collisions.push(`val overlaps bar: ${val.textContent}`);
+                  }
+                }
+              }
+              return collisions;
+            });
+            assert.deepEqual(
+              barCollisions,
+              [],
+              `Bar label/track collisions in ${theme}/${viewport.label}: ${barCollisions.join('; ')}`,
+            );
 
             const axeResults = await new AxeBuilder({ page })
               .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
