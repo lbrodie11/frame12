@@ -24,13 +24,7 @@ for (const browserName of BROWSER_NAMES) {
       await page.evaluate(() => window.__mountUnitFixtures && window.__mountUnitFixtures());
       await page.waitForSelector('#unit-test-fixtures', { timeout: 5000 });
 
-      check(
-        errors.length === 0,
-        `[${browserName} 1280px light] zero console/page errors`,
-        errors.join('; '),
-      );
-
-      // Sheet & Panel composition + PanelPair 16px slant geometry
+      // Sheet & Panel composition + PanelPair 16px slant geometry + host-style reset protection
       const compGeometry = await page.evaluate(() => {
         const sheet = document.getElementById('gallery-sheet');
         const sheetStyle = getComputedStyle(sheet);
@@ -57,20 +51,46 @@ for (const browserName of BROWSER_NAMES) {
         const botSlantDrop =
           botPts.length === 4 ? Math.round(botPts[0][1] - botPts[1][1]) : -1;
 
+        // Verify .f12-dash :where(h2, h3, p, ul) protects against host element margins while preserving .f12-sub (8px) and .f12-delta (14px) margin-top
+        const hostStyle = document.createElement('style');
+        hostStyle.id = 'host-leak-test';
+        hostStyle.textContent = 'p, h2, h3, ul { margin: 16px 0; }';
+        document.head.appendChild(hostStyle);
+        const eyebrowCs = getComputedStyle(document.querySelector('.f12-eyebrow'));
+        const subCs = getComputedStyle(document.querySelector('.f12-sub'));
+        const deltaCs = getComputedStyle(document.querySelector('.f12-delta'));
+        const eyebrowMarginTop = eyebrowCs.marginTop;
+        const eyebrowMarginBottom = eyebrowCs.marginBottom;
+        const subMarginTop = subCs.marginTop;
+        const subMarginBottom = subCs.marginBottom;
+        const deltaMarginTop = deltaCs.marginTop;
+        hostStyle.remove();
+
         return {
           containerType: sheetStyle.containerType,
           sheetBg: sheetStyle.backgroundColor,
           sideBySide: c01Rect.right <= pairRect.left + 1,
           topSlantDrop,
           botSlantDrop,
+          eyebrowMarginTop,
+          eyebrowMarginBottom,
+          subMarginTop,
+          subMarginBottom,
+          deltaMarginTop,
           docOverflow:
             document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
         };
       });
 
       check(
-        compGeometry.containerType === 'inline-size' && compGeometry.sideBySide,
-        `[${browserName} 1280px] Sheet container-type: inline-size & Scene 2-column split layout`,
+        compGeometry.containerType === 'inline-size' &&
+          compGeometry.sideBySide &&
+          compGeometry.eyebrowMarginTop === '0px' &&
+          compGeometry.eyebrowMarginBottom === '0px' &&
+          compGeometry.subMarginTop === '8px' &&
+          compGeometry.subMarginBottom === '0px' &&
+          compGeometry.deltaMarginTop === '14px',
+        `[${browserName} 1280px] Sheet container-type, 2-col Scene split, and .f12-dash host-style protection (.f12-delta 14px preserved)`,
         JSON.stringify(compGeometry),
       );
       check(
@@ -83,51 +103,114 @@ for (const browserName of BROWSER_NAMES) {
         `[${browserName} 1280px] zero horizontal document overflow`,
       );
 
-      // SegmentedControl keyboard navigation (ArrowRight, End, Home)
+      // SegmentedControl roving tabindex, modified-key guard, focus-only arrows, Space/Enter activation, and focus contrast
       await page.focus('#mo-stepped');
-      await page.keyboard.press('ArrowRight');
-      const afterRight = await page.evaluate(() => ({
-        smoothPressed: document.getElementById('mo-smooth')?.getAttribute('aria-pressed'),
+      await page.keyboard.press('Alt+ArrowRight');
+      const afterAltRight = await page.evaluate(() => ({
         activeId: document.activeElement?.id,
+        steppedTabIndex: document.getElementById('mo-stepped')?.tabIndex,
+        smoothTabIndex: document.getElementById('mo-smooth')?.tabIndex,
+        cutTabIndex: document.getElementById('mo-cut')?.tabIndex,
+      }));
+      await page.keyboard.press('ArrowRight');
+      const afterRightFocusOnly = await page.evaluate(() => {
+        const smooth = document.getElementById('mo-smooth');
+        return {
+          activeId: document.activeElement?.id,
+          steppedPressed: document.getElementById('mo-stepped')?.getAttribute('aria-pressed'),
+          smoothPressed: smooth?.getAttribute('aria-pressed'),
+          smoothTabIndex: smooth?.tabIndex,
+          steppedTabIndex: document.getElementById('mo-stepped')?.tabIndex,
+          smoothOutlineColor: smooth ? getComputedStyle(smooth).outlineColor : '',
+        };
+      });
+      await page.keyboard.press('Space');
+      const afterSpaceActivate = await page.evaluate(() => ({
+        smoothPressed: document.getElementById('mo-smooth')?.getAttribute('aria-pressed'),
       }));
       await page.keyboard.press('End');
-      const afterEnd = await page.evaluate(() => ({
+      const afterEndFocusOnly = await page.evaluate(() => ({
+        activeId: document.activeElement?.id,
+        smoothStillPressed: document.getElementById('mo-smooth')?.getAttribute('aria-pressed'),
         cutPressed: document.getElementById('mo-cut')?.getAttribute('aria-pressed'),
-        activeId: document.activeElement?.id,
       }));
+      await page.keyboard.press('Enter');
       await page.keyboard.press('Home');
-      const afterHome = await page.evaluate(() => ({
-        steppedPressed: document.getElementById('mo-stepped')?.getAttribute('aria-pressed'),
+      await page.keyboard.press('Space');
+      const afterHomeActivate = await page.evaluate(() => ({
         activeId: document.activeElement?.id,
+        steppedPressed: document.getElementById('mo-stepped')?.getAttribute('aria-pressed'),
       }));
       check(
-        afterRight.smoothPressed === 'true' &&
-          afterRight.activeId === 'mo-smooth' &&
-          afterEnd.cutPressed === 'true' &&
-          afterEnd.activeId === 'mo-cut' &&
-          afterHome.steppedPressed === 'true' &&
-          afterHome.activeId === 'mo-stepped',
-        `[${browserName}] SegmentedControl keyboard navigation (ArrowRight/End/Home) updates selection & focus`,
+        afterAltRight.activeId === 'mo-stepped' &&
+          afterAltRight.steppedTabIndex === 0 &&
+          afterAltRight.smoothTabIndex === -1 &&
+          afterAltRight.cutTabIndex === -1 &&
+          afterRightFocusOnly.activeId === 'mo-smooth' &&
+          afterRightFocusOnly.steppedPressed === 'true' &&
+          afterRightFocusOnly.smoothPressed === 'false' &&
+          afterRightFocusOnly.smoothTabIndex === 0 &&
+          afterRightFocusOnly.steppedTabIndex === -1 &&
+          afterRightFocusOnly.smoothOutlineColor === 'rgb(18, 18, 18)' &&
+          afterSpaceActivate.smoothPressed === 'true' &&
+          afterEndFocusOnly.activeId === 'mo-cut' &&
+          afterEndFocusOnly.smoothStillPressed === 'true' &&
+          afterEndFocusOnly.cutPressed === 'false' &&
+          afterHomeActivate.activeId === 'mo-stepped' &&
+          afterHomeActivate.steppedPressed === 'true',
+        `[${browserName}] SegmentedControl roving tabindex, Alt+Arrow guard, focus-only Arrow/Home/End, Space/Enter activation, and 18.7:1 ink focus ring`,
+        JSON.stringify({
+          afterAltRight,
+          afterRightFocusOnly,
+          afterSpaceActivate,
+          afterEndFocusOnly,
+          afterHomeActivate,
+        }),
       );
 
-      // Dialog focus trapping, nested DropdownMenu Escape isolation, and focus restoration
-      await page.focus('#gal-dialog-open');
+      // Dialog modal focus containment, background inertness, nested DropdownMenu Escape isolation, and focus restoration
+      // Focus #input-store before clicking #gal-dialog-open to verify WebKit pointer-click focus restoration
+      await page.focus('#input-store');
       await page.click('#gal-dialog-open');
       await page.waitForSelector('dialog.f12-dialog[open]', { timeout: 3000 });
 
-      const focusInsideDialog = await page.evaluate(() => {
+      const modalContainment = await page.evaluate(() => {
         const dlg = document.querySelector('dialog.f12-dialog[open]');
-        return Boolean(dlg && dlg.contains(document.activeElement));
+        if (!dlg) return { isModal: false, initialInside: false };
+        window.__dlgInitialFocus = document.activeElement;
+        const isModal = dlg.matches(':modal');
+        const initialInside = dlg.contains(document.activeElement);
+        return { isModal, initialInside };
+      });
+      await page.keyboard.press(browserName === 'webkit' ? 'Alt+Tab' : 'Tab');
+      const focusAfterTab = await page.evaluate(() => {
+        const dlg = document.querySelector('dialog.f12-dialog[open]');
+        const afterTabEl = document.activeElement;
+        // Also verify background controls outside modal <dialog> cannot steal focus
+        document.getElementById('mo-smooth')?.focus();
+        const afterBgFocusAttempt = document.activeElement;
+        return Boolean(
+          dlg &&
+            dlg.contains(afterTabEl) &&
+            afterTabEl !== window.__dlgInitialFocus &&
+            dlg.contains(afterBgFocusAttempt),
+        );
       });
       check(
-        focusInsideDialog,
-        `[${browserName}] Dialog moves focus inside modal on open`,
+        modalContainment.isModal && modalContainment.initialInside && focusAfterTab,
+        `[${browserName}] Dialog opens as top-layer :modal, keeps Tab focus inside dialog, and makes background controls inert`,
+        JSON.stringify({ modalContainment, focusAfterTab }),
       );
 
-      // Open nested DropdownMenu inside Dialog
+      // Open nested DropdownMenu inside Dialog and verify it portals inside <dialog> and closes on first Escape
       await page.focus('#gal-dialog-menu-trigger');
       await page.keyboard.press('Enter');
       await page.waitForSelector('[role="menu"]', { timeout: 3000 });
+      const menuPortaledInDialog = await page.evaluate(() => {
+        const dlg = document.querySelector('dialog.f12-dialog[open]');
+        const menu = document.querySelector('[role="menu"]');
+        return Boolean(dlg && menu && dlg.contains(menu) && dlg.contains(document.activeElement));
+      });
       await page.keyboard.press('Escape');
       await page.waitForTimeout(80);
 
@@ -136,11 +219,12 @@ for (const browserName of BROWSER_NAMES) {
         dialogStillOpen: Boolean(document.querySelector('dialog.f12-dialog')?.open),
       }));
       check(
-        !afterFirstEsc.menuPresent && afterFirstEsc.dialogStillOpen,
-        `[${browserName}] Nested-overlay Escape closes inner DropdownMenu while keeping outer Dialog open`,
+        menuPortaledInDialog && !afterFirstEsc.menuPresent && afterFirstEsc.dialogStillOpen,
+        `[${browserName}] Nested DropdownMenu portals into <dialog> and first Escape closes only the menu`,
+        JSON.stringify({ menuPortaledInDialog, afterFirstEsc }),
       );
 
-      // Second Escape closes Dialog and restores focus to #gal-dialog-open
+      // Second Escape closes Dialog and restores focus to #gal-dialog-open (even when #input-store was focused pre-click)
       await page.keyboard.press('Escape');
       await page.waitForTimeout(80);
       const afterSecondEsc = await page.evaluate(() => ({
@@ -149,7 +233,7 @@ for (const browserName of BROWSER_NAMES) {
       }));
       check(
         !afterSecondEsc.dialogOpen && afterSecondEsc.activeId === 'gal-dialog-open',
-        `[${browserName}] Dialog Escape close restores focus to trigger (#gal-dialog-open)`,
+        `[${browserName}] Dialog Escape close restores focus to trigger (#gal-dialog-open) even after pre-click input focus`,
         JSON.stringify(afterSecondEsc),
       );
 
@@ -270,12 +354,18 @@ for (const browserName of BROWSER_NAMES) {
         JSON.stringify(textAndError),
       );
 
+      check(
+        errors.length === 0,
+        `[${browserName} 1280px light] zero console/page errors after all interactions`,
+        errors.join('; '),
+      );
+
       await ctx.close();
     }
 
     // 2. Targeted 768px Viewport & Container-Query Transition (<= 760px vs > 760px)
     {
-      const { ctx, page } = await openGallery(browser, {
+      const { ctx, page, errors } = await openGallery(browser, {
         w: 768,
         h: 900,
         scheme: 'light',
@@ -306,9 +396,10 @@ for (const browserName of BROWSER_NAMES) {
       check(
         cqTransition.stackedAtDefault768 &&
           cqTransition.splitAt768Container &&
-          cqTransition.overflowAt768,
-        `[${browserName} 768px] @container (max-width: 760px) transitions cleanly between 1-col (<=760px) and 2-col (768px) with zero overflow`,
-        JSON.stringify(cqTransition),
+          cqTransition.overflowAt768 &&
+          errors.length === 0,
+        `[${browserName} 768px] @container (max-width: 760px) transitions cleanly between 1-col (<=760px) and 2-col (768px) with zero overflow or errors`,
+        errors.length ? errors.join('; ') : JSON.stringify(cqTransition),
       );
 
       await ctx.close();
@@ -316,7 +407,7 @@ for (const browserName of BROWSER_NAMES) {
 
     // 3. Mobile (390x844) Dark Theme, Reduced Motion, and Table Overflow Containment
     {
-      const { ctx, page } = await openGallery(browser, {
+      const { ctx, page, errors } = await openGallery(browser, {
         w: 390,
         h: 844,
         scheme: 'dark',
@@ -359,9 +450,10 @@ for (const browserName of BROWSER_NAMES) {
           mobileState.indTransition === '0s' &&
           mobileState.stacked &&
           mobileState.noDocOverflow &&
-          mobileState.tableContained,
-        `[${browserName} 390px dark + reduced-motion] Dark tokens (#050505), transition: 0s, single-column stack, and Table overflow containment`,
-        JSON.stringify(mobileState),
+          mobileState.tableContained &&
+          errors.length === 0,
+        `[${browserName} 390px dark + reduced-motion] Dark tokens (#050505), transition: 0s, single-column stack, Table overflow containment, and zero errors`,
+        errors.length ? errors.join('; ') : JSON.stringify(mobileState),
       );
 
       await ctx.close();
@@ -369,7 +461,7 @@ for (const browserName of BROWSER_NAMES) {
 
     // 4. Forced-Colors Mode (supported natively by Chromium and Firefox in Playwright)
     if (browserName === 'chromium' || browserName === 'firefox') {
-      const { ctx, page } = await openGallery(browser, {
+      const { ctx, page, errors } = await openGallery(browser, {
         w: 1280,
         h: 900,
         scheme: 'light',
@@ -390,9 +482,10 @@ for (const browserName of BROWSER_NAMES) {
         fcState.matchesFC &&
           fcState.tagBorder === '1px' &&
           fcState.rngMixBlend === 'normal' &&
-          fcState.rngBorder === '2px',
-        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders and disables mix-blend-mode`,
-        JSON.stringify(fcState),
+          fcState.rngBorder === '2px' &&
+          errors.length === 0,
+        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, disables mix-blend-mode, and has zero errors`,
+        errors.length ? errors.join('; ') : JSON.stringify(fcState),
       );
 
       await ctx.close();

@@ -4,9 +4,9 @@
 - **Measurement Environment:**
   - OS: macOS (Apple Silicon)
   - Node.js: `v20.19.0`, npm: `10.8.2`
-  - Next.js Production Build: `next build` + `next start` (`Next.js 14.2.35`, static/SSG routes)
-  - Browser Harness: Playwright `1.55.0` (`Chromium 1248`, `1280×900`, `colorScheme: 'dark'`)
-  - Methodology: **5 independent fresh browser-context runs per route** recording `PerformanceObserver('largest-contentful-paint')`, `PerformanceObserver('layout-shift')` (`!hadRecentInput`), network JavaScript bytes (`/_next/static/**/*.js`), SSR HTML byte size & pre-hydration content presence, console/hydration warnings, and a **clearly labeled laboratory interaction latency proxy** (click + double `requestAnimationFrame` next-paint completion time in ms).
+  - Next.js Production Build: `next build` + `next start` (`Next.js 14.2.35`, static/SSG routes on localhost)
+  - Browser Harness: Playwright `1.64.1` resolved (`^1.55.0` declared; `Chromium 1248`, `1280×900`, `colorScheme: 'dark'`)
+  - Methodology: **5 independent fresh browser-context runs per route** under both **unthrottled localhost (Apple Silicon)** and **4× CPU throttled (`Emulation.setCPUThrottlingRate({ rate: 4 })`)** conditions, recording `PerformanceObserver('largest-contentful-paint')`, `PerformanceObserver('layout-shift')` (`!hadRecentInput`), network JavaScript bytes (`/_next/static/**/*.js`), SSR HTML byte size & pre-hydration content presence, console/hydration warnings, and a **clearly labeled laboratory interaction latency proxy** (click + double `requestAnimationFrame` next-paint completion time in ms).
 
 ---
 
@@ -32,7 +32,7 @@ Route (app)                              Route JS   First Load JS (gzipped)
 
 ## 2. Five-Run Laboratory Measurements Across Representative Routes
 
-### Summary Table (Medians Across 5 Runs)
+### 2.1 Summary Table — Unthrottled Localhost (Apple Silicon, 5-Run Medians)
 
 | Route | LCP Median (ms) | CLS Median | First Load JS (Next Build) | Uncompressed Static JS (`/_next/static/*.js`) | SSR HTML Size | Pre-Hydration Theme & Content | Console / Hydration Warnings | Lab Interaction Next-Paint Proxy Median (ms) |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |
@@ -43,6 +43,18 @@ Route (app)                              Route JS   First Load JS (gzipped)
 | `/agents` | **32.0 ms** | **0.0000** | 150 kB | 614.4 KB (14 chunks) | 29.5 KB | Dark on frame 0 (`FOUC_SCRIPT` + skill/linter rule reference) | 0 / 0 | 7.3 ms |
 | `/get-started` | **32.0 ms** | **0.0000** | 148 kB | 614.4 KB (14 chunks) | 30.1 KB | Dark on frame 0 (`FOUC_SCRIPT` + step-by-step install guide) | 0 / 0 | 15.7 ms |
 | `/components/panel` | **32.0 ms** | **0.0000** | 149 kB | 637.8 KB (15 chunks) | 25.2 KB | Dark on frame 0 (`FOUC_SCRIPT` + live `Panel` specimen + props table) | 0 / 0 | 15.6 ms |
+
+### 2.2 Summary Table — 4× CPU Throttled (`Emulation.setCPUThrottlingRate({ rate: 4 })`, 5-Run Medians)
+
+| Route | 4× CPU LCP Median (ms) | 4× CPU LCP 5-Run Raw (ms) | 4× CPU CLS Median | 4× CPU Lab Interaction Proxy Median (ms) | 4× CPU Interaction 5-Run Raw (ms) | Console / Hydration Warnings |
+| --- | ---: | --- | ---: | ---: | --- | ---: |
+| `/` | **92.0 ms** | `[252, 92, 136, 88, 92]` | **0.0003** | **24.5 ms** | `[27.7, 23.7, 23.4, 24.5, 30.0]` | 0 / 0 |
+| `/motion` | **100.0 ms** | `[108, 100, 100, 96, 108]` | **0.0003** | **16.6 ms** | `[15.2, 16.5, 34.1, 16.6, 34.5]` | 0 / 0 |
+| `/components` | **84.0 ms** | `[96, 84, 84, 80, 84]` | **0.0000** | **15.2 ms** | `[17.1, 14.6, 15.2, 19.2, 14.9]` | 0 / 0 |
+| `/style-sheet` | **100.0 ms** | `[100, 100, 96, 104, 100]` | **0.0001** | **34.2 ms** | `[34.8, 32.8, 34.2, 38.3, 32.3]` | 0 / 0 |
+| `/agents` | **72.0 ms** | `[68, 72, 72, 72, 72]` | **0.0000** | **14.9 ms** | `[14.9, 13.6, 18.3, 18.7, 14.3]` | 0 / 0 |
+| `/get-started` | **84.0 ms** | `[84, 76, 96, 80, 84]` | **0.0000** | **16.7 ms** | `[16.7, 20.3, 12.0, 30.5, 12.4]` | 0 / 0 |
+| `/components/panel` | **80.0 ms** | `[80, 76, 80, 76, 80]` | **0.0000** | **18.4 ms** | `[14.6, 14.9, 18.4, 32.5, 18.5]` | 0 / 0 |
 
 ---
 

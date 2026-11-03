@@ -138,10 +138,10 @@
   container-type: inline-size;
   position: relative;
 }
-:where(.f12-dash) :where(h2, h3, p, ul) {
+.f12-dash :where(h2, h3, p, ul) {
   margin: 0;
 }
-:where(.f12-dash) :where(ul) {
+.f12-dash :where(ul) {
   list-style: none;
   padding: 0;
 }
@@ -417,8 +417,11 @@
   text-transform: uppercase;
 }
 .f12-rng-btn:focus-visible {
-  outline: 3px solid var(--f-marker);
+  outline: 3px solid var(--f-ink);
   outline-offset: -6px;
+}
+.f12-rng:not(:has(.f12-rng-ind)) .f12-rng-btn[aria-pressed="true"]:focus-visible {
+  outline-color: var(--f-panel);
 }
 
 /* ===================================================================== Button & Input */

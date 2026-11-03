@@ -142,13 +142,16 @@ export function Dialog({
 
   const dialogRef = React.useRef<HTMLDialogElement | null>(null);
   const returnFocusRef = React.useRef<HTMLElement | null>(null);
+  const preOpenActiveRef = React.useRef<Element | null>(null);
   const rawId = React.useId().replace(/:/g, '');
   const titleId = `f12-dlg-title-${rawId}`;
   const descId = `f12-dlg-desc-${rawId}`;
 
   const restoreFocus = React.useCallback(() => {
     const opener = returnFocusRef.current;
+    const preOpenActive = preOpenActiveRef.current;
     returnFocusRef.current = null;
+    preOpenActiveRef.current = null;
     if (!opener || !opener.isConnected || typeof opener.focus !== 'function') return;
     const active = typeof document !== 'undefined' ? document.activeElement : null;
     const el = dialogRef.current;
@@ -156,6 +159,7 @@ export function Dialog({
       !active ||
       active === document.body ||
       active === document.documentElement ||
+      active === preOpenActive ||
       (el && el.contains(active))
     ) {
       opener.focus({ preventScroll: true });
@@ -165,16 +169,17 @@ export function Dialog({
   const setOpen = React.useCallback(
     (next: boolean) => {
       if (openRef.current === next) return;
-      if (
-        next &&
-        !returnFocusRef.current &&
-        typeof document !== 'undefined' &&
-        document.activeElement instanceof HTMLElement &&
-        document.activeElement !== document.body &&
-        document.activeElement !== document.documentElement &&
-        (!dialogRef.current || !dialogRef.current.contains(document.activeElement))
-      ) {
-        returnFocusRef.current = document.activeElement;
+      if (next && typeof document !== 'undefined') {
+        preOpenActiveRef.current = document.activeElement;
+        if (
+          !returnFocusRef.current &&
+          document.activeElement instanceof HTMLElement &&
+          document.activeElement !== document.body &&
+          document.activeElement !== document.documentElement &&
+          (!dialogRef.current || !dialogRef.current.contains(document.activeElement))
+        ) {
+          returnFocusRef.current = document.activeElement;
+        }
       }
       openRef.current = next;
       if (!isControlled) setUncontrolledOpen(next);
@@ -188,15 +193,19 @@ export function Dialog({
     const el = dialogRef.current;
     if (!el) return;
     if (open && !el.open) {
-      if (
-        !returnFocusRef.current &&
-        typeof document !== 'undefined' &&
-        document.activeElement instanceof HTMLElement &&
-        document.activeElement !== document.body &&
-        document.activeElement !== document.documentElement &&
-        !el.contains(document.activeElement)
-      ) {
-        returnFocusRef.current = document.activeElement;
+      if (typeof document !== 'undefined') {
+        if (!preOpenActiveRef.current) {
+          preOpenActiveRef.current = document.activeElement;
+        }
+        if (
+          !returnFocusRef.current &&
+          document.activeElement instanceof HTMLElement &&
+          document.activeElement !== document.body &&
+          document.activeElement !== document.documentElement &&
+          !el.contains(document.activeElement)
+        ) {
+          returnFocusRef.current = document.activeElement;
+        }
       }
       if (typeof el.showModal === 'function') el.showModal();
       else el.setAttribute('open', '');

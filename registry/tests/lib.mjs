@@ -1,6 +1,6 @@
 // Shared Playwright harness for @frame12/registry tests.
 import { chromium, firefox, webkit } from 'playwright';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -13,13 +13,27 @@ mkdirSync(RUN, { recursive: true });
 mkdirSync(OUT, { recursive: true });
 
 const shim = process.env.F12_REACT_UMD ? readFileSync(process.env.F12_REACT_UMD, 'utf8') : null;
+const localReactPath = resolve(REPO_ROOT, 'node_modules/react/umd/react.production.min.js');
+const localReactDomPath = resolve(
+  REPO_ROOT,
+  'node_modules/react-dom/umd/react-dom.production.min.js',
+);
+const localReactUmd = existsSync(localReactPath) ? readFileSync(localReactPath, 'utf8') : null;
+const localReactDomUmd = existsSync(localReactDomPath)
+  ? readFileSync(localReactDomPath, 'utf8')
+  : null;
 
 export const outPath = (name) => resolve(OUT, name);
 
 export const ENGINES = { chromium, firefox, webkit };
 
 export async function launch(browserName = process.env.BROWSER || 'chromium') {
-  const engine = ENGINES[browserName] || chromium;
+  if (!Object.prototype.hasOwnProperty.call(ENGINES, browserName)) {
+    throw new Error(
+      `Unknown browser engine "${browserName}". Expected one of: ${Object.keys(ENGINES).join(', ')}`,
+    );
+  }
+  const engine = ENGINES[browserName];
   if (engine === chromium) {
     return chromium.launch({
       executablePath: process.env.CHROME_PATH || undefined,
@@ -65,6 +79,25 @@ export async function openGallery(
         return route.fulfill({ status: 200, contentType: 'application/javascript', body: shim });
       }
       return route.abort();
+    });
+  } else if (localReactUmd && localReactDomUmd) {
+    await page.route('**/*cdnjs.cloudflare.com/**', (route) => {
+      const u = route.request().url();
+      if (u.includes('react-dom')) {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/javascript',
+          body: localReactDomUmd,
+        });
+      }
+      if (u.includes('/react/')) {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/javascript',
+          body: localReactUmd,
+        });
+      }
+      return route.continue();
     });
   }
   const galleryPath = resolve(REGISTRY_ROOT, 'dist/gallery.html');

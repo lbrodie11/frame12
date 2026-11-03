@@ -31,6 +31,15 @@ export function SegmentedControl<T extends string | number = string | number>({
   const resolvedPrefix = idPrefix ?? `seg-${autoId}`;
   const wrap = React.useRef<HTMLDivElement | null>(null);
   const [ind, setInd] = React.useState<{ x: number; w: number } | null>(null);
+  const [focusedValue, setFocusedValue] = React.useState<T>(value);
+
+  React.useEffect(() => {
+    setFocusedValue(value);
+  }, [value]);
+
+  const activeFocusValue = options.some((o) => o.value === focusedValue)
+    ? focusedValue
+    : (options.find((o) => o.value === value)?.value ?? options[0]?.value);
 
   useIsoLayoutEffect(() => {
     const el = wrap.current?.querySelector<HTMLElement>('[aria-pressed="true"]');
@@ -56,6 +65,11 @@ export function SegmentedControl<T extends string | number = string | number>({
       ref={wrap}
       role="group"
       aria-label={ariaLabel}
+      onBlur={(e) => {
+        if (!wrap.current?.contains(e.relatedTarget as Node | null)) {
+          setFocusedValue(value);
+        }
+      }}
     >
       {ind && (
         <span
@@ -71,9 +85,11 @@ export function SegmentedControl<T extends string | number = string | number>({
           type="button"
           className="f12-rng-btn"
           aria-pressed={value === opt.value}
+          tabIndex={opt.value === activeFocusValue ? 0 : -1}
+          onFocus={() => setFocusedValue(opt.value)}
           onClick={() => onChange(opt.value)}
           onKeyDown={(e) => {
-            if (options.length === 0) return;
+            if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || options.length === 0) return;
             let nextIdx = -1;
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
               nextIdx = (idx + 1) % options.length;
@@ -87,7 +103,7 @@ export function SegmentedControl<T extends string | number = string | number>({
             if (nextIdx !== -1) {
               e.preventDefault();
               const nextOpt = options[nextIdx];
-              onChange(nextOpt.value);
+              setFocusedValue(nextOpt.value);
               const buttons = wrap.current?.querySelectorAll<HTMLButtonElement>('.f12-rng-btn');
               buttons?.[nextIdx]?.focus();
             }

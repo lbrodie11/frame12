@@ -184,7 +184,7 @@ FRAME/12 replaces subjective styling feedback with eight explicit rules—**five
 
 ```bash
 npm install
-npx playwright install chromium   # first time only, for automated browser verification
+npx playwright install --with-deps chromium firefox webkit # first time only, for automated cross-browser verification
 npm run build                     # builds lab, registry, eval, site, and templates/next-starter
 npm run lint:frame12              # runs static design-grammar checker across all workspaces
 npm test                          # runs sync checks, static linter, and Playwright a11y/functional suites
