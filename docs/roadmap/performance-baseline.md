@@ -6,7 +6,7 @@
   - Node.js: `v20.19.0`, npm: `10.8.2`
   - Next.js Production Build: `next build` + `next start` (`Next.js 14.2.35`, static/SSG routes on localhost)
   - Browser Harness: Playwright `1.64.1` resolved (`^1.55.0` declared; `Chromium 1248`, `1280×900`, `colorScheme: 'dark'`)
-  - Methodology: **5 independent fresh browser-context runs per route** under both **unthrottled localhost (Apple Silicon)** and **4× CPU throttled (`Emulation.setCPUThrottlingRate({ rate: 4 })`)** conditions, recording `PerformanceObserver('largest-contentful-paint')`, `PerformanceObserver('layout-shift')` (`!hadRecentInput`), network JavaScript bytes (`/_next/static/**/*.js`), SSR HTML byte size & pre-hydration content presence, console/hydration warnings, and a **clearly labeled laboratory interaction latency proxy** (click + double `requestAnimationFrame` next-paint completion time in ms).
+  - Methodology: **5 independent fresh browser-context runs per route** via `node scripts/measure-perf-baseline.mjs` under both **unthrottled localhost (Apple Silicon)** and **4× CPU throttled (`Emulation.setCPUThrottlingRate({ rate: 4 })`)** conditions, recording `PerformanceObserver('largest-contentful-paint')`, `PerformanceObserver('layout-shift')` (`!hadRecentInput`), network JavaScript bytes (`/_next/static/**/*.js`), SSR HTML byte size & pre-hydration content presence, console/hydration warnings, and a **clearly labeled laboratory interaction latency proxy** (click + double `requestAnimationFrame` next-paint completion time in ms).
 
 ---
 
@@ -55,6 +55,12 @@ Route (app)                              Route JS   First Load JS (gzipped)
 | `/agents` | **72.0 ms** | `[68, 72, 72, 72, 72]` | **0.0000** | **14.9 ms** | `[14.9, 13.6, 18.3, 18.7, 14.3]` | 0 / 0 |
 | `/get-started` | **84.0 ms** | `[84, 76, 96, 80, 84]` | **0.0000** | **16.7 ms** | `[16.7, 20.3, 12.0, 30.5, 12.4]` | 0 / 0 |
 | `/components/panel` | **80.0 ms** | `[80, 76, 80, 76, 80]` | **0.0000** | **18.4 ms** | `[14.6, 14.9, 18.4, 32.5, 18.5]` | 0 / 0 |
+
+### 2.3 Laboratory Scope Caveat: Localhost Font Delivery vs. Cold-Network Font-Swap CLS
+
+- **What Tables 2.1 and 2.2 Measure:** In both unthrottled and 4× CPU-throttled localhost runs against `next start`, `.woff2` webfont assets (`Dela Gothic One`, `Space Grotesk`, `Chakra Petch`, `IBM Plex Mono`) are served over loopback with near-zero network latency (`< 2 ms`). Because the fonts arrive before or during the initial render window, `font-display: swap` does not trigger a delayed fallback-to-webfont reflow, yielding near-zero laboratory CLS (`0.0000–0.0003`).
+- **Cold-Network Font-Swap Behavior on Production (`frame12.dev`):** On cold-cache network loads over real WAN latency (for example on `/motion`, where `Dela Gothic One` headlines swap in around `~700 ms`), fallback-to-webfont metric differences produce a single font-swap layout shift of **`~0.084–0.093`**—within Google's `< 0.10` "Good" Core Web Vitals threshold, but higher than our `< 0.05` internal target.
+- **Follow-Up Action:** In the subsequent performance/polish pass, `scripts/measure-perf-baseline.mjs` (`--font-delay-ms=400`) can inject a `300–500 ms` Playwright route delay on `*.woff2` requests to reproduce cold-network font-swap CLS deterministically in CI, paired with `size-adjust` / `ascent-override` / `descent-override` fallback-font metric descriptors to bring cold-network font-swap CLS below `0.05`.
 
 ---
 

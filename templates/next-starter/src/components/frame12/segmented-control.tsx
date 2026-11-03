@@ -34,6 +34,9 @@ export function SegmentedControl<T extends string | number = string | number>({
   const [focusedValue, setFocusedValue] = React.useState<T>(value);
 
   React.useEffect(() => {
+    if (typeof document !== 'undefined' && wrap.current?.contains(document.activeElement)) {
+      return;
+    }
     setFocusedValue(value);
   }, [value]);
 

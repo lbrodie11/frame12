@@ -155,6 +155,11 @@ export function Dialog({
     if (!opener || !opener.isConnected || typeof opener.focus !== 'function') return;
     const active = typeof document !== 'undefined' ? document.activeElement : null;
     const el = dialogRef.current;
+    // Note: In WebKit, pointer-clicking a <button> does not focus it, so native el.close()
+    // restores whichever element was focused prior to opening (`preOpenActive`). Treating
+    // `active === preOpenActive` as unhandled restores focus to `DialogTrigger` per WAI-ARIA
+    // modal dialog guidance (if a consumer intentionally wants focus on `preOpenActive` on
+    // close, they can focus it in a microtask/requestAnimationFrame after onOpenChange(false)).
     if (
       !active ||
       active === document.body ||

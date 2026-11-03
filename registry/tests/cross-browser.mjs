@@ -212,7 +212,14 @@ for (const browserName of BROWSER_NAMES) {
         return Boolean(dlg && menu && dlg.contains(menu) && dlg.contains(document.activeElement));
       });
       await page.keyboard.press('Escape');
-      await page.waitForTimeout(80);
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('[role="menu"]') &&
+          Boolean(document.querySelector('dialog.f12-dialog')?.open) &&
+          document.activeElement?.id === 'gal-dialog-menu-trigger',
+        null,
+        { timeout: 3000 },
+      );
 
       const afterFirstEsc = await page.evaluate(() => ({
         menuPresent: Boolean(document.querySelector('[role="menu"]')),
@@ -226,7 +233,13 @@ for (const browserName of BROWSER_NAMES) {
 
       // Second Escape closes Dialog and restores focus to #gal-dialog-open (even when #input-store was focused pre-click)
       await page.keyboard.press('Escape');
-      await page.waitForTimeout(80);
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('dialog.f12-dialog')?.open &&
+          document.activeElement?.id === 'gal-dialog-open',
+        null,
+        { timeout: 3000 },
+      );
       const afterSecondEsc = await page.evaluate(() => ({
         dialogOpen: Boolean(document.querySelector('dialog.f12-dialog')?.open),
         activeId: document.activeElement?.id,
@@ -241,7 +254,13 @@ for (const browserName of BROWSER_NAMES) {
       await page.click('#gal-dialog-open');
       await page.waitForSelector('dialog.f12-dialog[open]', { timeout: 3000 });
       await page.click('#gal-dialog-close');
-      await page.waitForTimeout(80);
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('dialog.f12-dialog')?.open &&
+          document.activeElement?.id === 'gal-dialog-open',
+        null,
+        { timeout: 3000 },
+      );
       const afterBtnClose = await page.evaluate(() => ({
         dialogOpen: Boolean(document.querySelector('dialog.f12-dialog')?.open),
         activeId: document.activeElement?.id,
@@ -252,52 +271,135 @@ for (const browserName of BROWSER_NAMES) {
         JSON.stringify(afterBtnClose),
       );
 
-      // Select keyboard navigation & Escape dismissal
-      await page.focus('#gal-select');
-      await page.keyboard.press('Enter');
-      await page.waitForSelector('[role="listbox"]', { timeout: 3000 });
-      await page.keyboard.press('ArrowDown');
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(80);
-      const selectAfterEsc = await page.evaluate(() => {
-        const form = document.getElementById('gal-select-form');
-        const fd = form ? new FormData(form) : null;
-        return {
-          listboxOpen: Boolean(document.querySelector('[role="listbox"]')),
-          activeId: document.activeElement?.id,
-          hiddenVal: fd ? fd.get('recoveryChannel') : null,
-        };
-      });
-      check(
-        !selectAfterEsc.listboxOpen &&
-          selectAfterEsc.activeId === 'gal-select' &&
-          selectAfterEsc.hiddenVal === 'email',
-        `[${browserName}] Select keyboard open/navigate/Escape & hidden form input sync`,
-        JSON.stringify(selectAfterEsc),
+      // Re-open Dialog after focusing #input-store and close via backdrop click (5, 5) -> verify focus returns to #gal-dialog-open
+      await page.focus('#input-store');
+      await page.click('#gal-dialog-open');
+      await page.waitForSelector('dialog.f12-dialog[open]', { timeout: 3000 });
+      await page.mouse.click(5, 5);
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('dialog.f12-dialog')?.open &&
+          document.activeElement?.id === 'gal-dialog-open',
+        null,
+        { timeout: 3000 },
       );
-
-      // DropdownMenu standalone keyboard navigation & Escape focus return
-      await page.focus('#gal-menu-trigger');
-      await page.keyboard.press('Enter');
-      await page.waitForSelector('[role="menu"]', { timeout: 3000 });
-      await page.keyboard.press('ArrowDown');
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(80);
-      const menuAfterEsc = await page.evaluate(() => ({
-        menuOpen: Boolean(document.querySelector('[role="menu"]')),
+      const afterBackdropClose = await page.evaluate(() => ({
+        dialogOpen: Boolean(document.querySelector('dialog.f12-dialog')?.open),
         activeId: document.activeElement?.id,
       }));
       check(
-        !menuAfterEsc.menuOpen && menuAfterEsc.activeId === 'gal-menu-trigger',
-        `[${browserName}] DropdownMenu keyboard open/ArrowDown/Escape & focus return`,
+        !afterBackdropClose.dialogOpen && afterBackdropClose.activeId === 'gal-dialog-open',
+        `[${browserName}] Dialog backdrop click close restores focus to trigger (#gal-dialog-open) after pre-click input focus`,
+        JSON.stringify(afterBackdropClose),
+      );
+
+      // Select keyboard navigation, highlighted item focus contrast, & Escape dismissal
+      await page.focus('#gal-select');
+      await page.keyboard.press('Enter');
+      await page.waitForSelector('[role="listbox"] .f12-select-item[data-highlighted]', {
+        timeout: 3000,
+      });
+      await page.keyboard.press('ArrowDown');
+      const selectHighlightedOutline = await page.evaluate(() => {
+        const item = document.querySelector('.f12-select-item[data-highlighted]');
+        return item ? getComputedStyle(item).outlineColor : '';
+      });
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('[role="listbox"]') &&
+          document.activeElement?.id === 'gal-select',
+        null,
+        { timeout: 3000 },
+      );
+      const selectAfterEsc = {
+        ...(await page.evaluate(() => {
+          const form = document.getElementById('gal-select-form');
+          const fd = form ? new FormData(form) : null;
+          return {
+            listboxOpen: Boolean(document.querySelector('[role="listbox"]')),
+            activeId: document.activeElement?.id,
+            hiddenVal: fd ? fd.get('recoveryChannel') : null,
+          };
+        })),
+        selectHighlightedOutline,
+      };
+      check(
+        !selectAfterEsc.listboxOpen &&
+          selectAfterEsc.activeId === 'gal-select' &&
+          selectAfterEsc.hiddenVal === 'email' &&
+          selectHighlightedOutline === 'rgb(255, 255, 255)',
+        `[${browserName}] Select keyboard open/navigate/Escape, highlighted item focus ring, & FormData sync`,
+        JSON.stringify(selectAfterEsc),
+      );
+
+      // DropdownMenu standalone keyboard navigation, highlighted item focus contrast, & Escape focus return
+      await page.focus('#gal-menu-trigger');
+      await page.keyboard.press('Enter');
+      await page.waitForSelector('[role="menu"] .f12-menu-item[data-highlighted]', {
+        timeout: 3000,
+      });
+      await page.keyboard.press('ArrowDown');
+      const menuHighlightedOutline = await page.evaluate(() => {
+        const item = document.querySelector('.f12-menu-item[data-highlighted]');
+        return item ? getComputedStyle(item).outlineColor : '';
+      });
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('[role="menu"]') &&
+          document.activeElement?.id === 'gal-menu-trigger',
+        null,
+        { timeout: 3000 },
+      );
+      const menuAfterEsc = {
+        ...(await page.evaluate(() => ({
+          menuOpen: Boolean(document.querySelector('[role="menu"]')),
+          activeId: document.activeElement?.id,
+        }))),
+        menuHighlightedOutline,
+      };
+      check(
+        !menuAfterEsc.menuOpen &&
+          menuAfterEsc.activeId === 'gal-menu-trigger' &&
+          menuHighlightedOutline === 'rgb(255, 255, 255)',
+        `[${browserName}] DropdownMenu keyboard open/ArrowDown/Escape, highlighted item focus ring, & focus return`,
         JSON.stringify(menuAfterEsc),
+      );
+
+      // ToneBarList selected row focus-visible outline contrast (--f-panel on --f-ink)
+      await page.focus('#int-gal-exit');
+      await page.keyboard.press('Space');
+      const barSelectedFocus = await page.evaluate(() => {
+        const row = document.getElementById('int-gal-exit');
+        if (!row) return { pressed: null, outlineColor: '', bgColor: '' };
+        const cs = getComputedStyle(row);
+        return {
+          pressed: row.getAttribute('aria-pressed'),
+          outlineColor: cs.outlineColor,
+          bgColor: cs.backgroundColor,
+        };
+      });
+      await page.keyboard.press('Space');
+      check(
+        barSelectedFocus.pressed === 'true' &&
+          barSelectedFocus.bgColor === 'rgb(18, 18, 18)' &&
+          barSelectedFocus.outlineColor === 'rgb(255, 255, 255)',
+        `[${browserName}] ToneBarList selected row (aria-pressed="true") switches focus-visible outline to --f-panel (18.7:1)`,
+        JSON.stringify(barSelectedFocus),
       );
 
       // Tooltip keyboard focus & Escape dismissal
       await page.focus('#gal-tooltip-trigger');
       await page.waitForSelector('#gal-tooltip-trigger + [role="tooltip"]', { timeout: 3000 });
       await page.keyboard.press('Escape');
-      await page.waitForTimeout(60);
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('#gal-tooltip-trigger + [role="tooltip"]') &&
+          document.activeElement?.id === 'gal-tooltip-trigger',
+        null,
+        { timeout: 3000 },
+      );
       const tipAfterEsc = await page.evaluate(() => ({
         tipVisible: Boolean(document.querySelector('#gal-tooltip-trigger + [role="tooltip"]')),
         activeId: document.activeElement?.id,
