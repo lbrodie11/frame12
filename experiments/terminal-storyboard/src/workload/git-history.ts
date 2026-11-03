@@ -361,15 +361,21 @@ export async function runGitHistoryWorkload(
 
   try {
     emit('run-start', null, { repoLabel, repoPath: resolvedPath, maxCommits, topN });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled before repo validation'), events };
+    }
 
     // Step 1: validate-repo
     emit('step-start', 'validate-repo', { title: 'Validate target repository', repoLabel });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled during repo validation'), events };
+    }
     if (!existsSync(resolvedPath)) {
       const msg = `Repository path does not exist: ${resolvedPath}`;
       return { snapshot: finishEarly('failed', 'error', msg), events };
     }
     const revParse = await runGit(['rev-parse', '--is-inside-work-tree']);
-    if (revParse.aborted) {
+    if (revParse.aborted || options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled during repo validation'), events };
     }
     if (revParse.timedOut) {
@@ -383,9 +389,15 @@ export async function runGitHistoryWorkload(
       return { snapshot: finishEarly('failed', 'error', msg), events };
     }
     emit('step-end', 'validate-repo', { status: 'ok', summary: `repo: ${repoLabel}` });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled before reading git history'), events };
+    }
 
     // Step 2: read-history
     emit('step-start', 'read-history', { title: 'Read commit history', maxCommits });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while reading git history'), events };
+    }
     const commits: ParsedCommit[] = [];
     let carry = '';
     let lastProgressCommits = 0;
@@ -417,7 +429,7 @@ export async function runGitHistoryWorkload(
         }
       },
     );
-    if (logRes.aborted) {
+    if (logRes.aborted || options.signal?.aborted) {
       return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while reading git history'), events };
     }
     if (logRes.timedOut) {
@@ -451,6 +463,9 @@ export async function runGitHistoryWorkload(
     const filteredCommits: Array<{ sha: string; subject: string; rawCount: number; files: string[] }> = [];
 
     for (const c of commits) {
+      if (options.signal?.aborted) {
+        return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while reading git history'), events };
+      }
       const keptFiles = c.files.filter((f) => !shouldFilterNoiseFile(f, includeNoise, excludePatterns));
       const isBulk = c.files.length > MAX_FILES_PER_COMMIT;
       for (const f of keptFiles) {
@@ -468,19 +483,37 @@ export async function runGitHistoryWorkload(
     }
 
     emit('metric', 'read-history', { name: 'commitsExamined', value: commits.length });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while reading git history'), events };
+    }
     emit('metric', 'read-history', { name: 'uniqueFilesObserved', value: fileCommits.size });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while reading git history'), events };
+    }
     emit('step-end', 'read-history', { status: 'ok', summary: `${commits.length} commits · ${fileCommits.size} files` });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled before pairing co-changing files'), events };
+    }
 
     // Step 3: pair-cochanges
     emit('step-start', 'pair-cochanges', { title: 'Pair co-changing files' });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while pairing co-changing files'), events };
+    }
     const pairMap = new Map<string, { files: [string, string]; count: number; shas: string[]; subjects: string[] }>();
     let lastPairProgressTime = Date.now();
     for (let idx = 0; idx < filteredCommits.length; idx++) {
+      if (options.signal?.aborted) {
+        return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while pairing co-changing files'), events };
+      }
       const c = filteredCommits[idx]!;
       if (c.rawCount > MAX_FILES_PER_COMMIT) {
         const w = `Skipped bulk commit ${c.sha} touching ${c.rawCount} files.`;
         warnings.push(w);
         emit('warning', 'pair-cochanges', { message: w, sha: c.sha });
+        if (options.signal?.aborted) {
+          return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while pairing co-changing files'), events };
+        }
         continue;
       }
       for (let i = 0; i < c.files.length; i++) {
@@ -502,13 +535,25 @@ export async function runGitHistoryWorkload(
           commitsProcessed: idx + 1,
           pairsObserved: pairMap.size,
         });
+        if (options.signal?.aborted) {
+          return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while pairing co-changing files'), events };
+        }
       }
     }
     emit('metric', 'pair-cochanges', { name: 'totalPairsObserved', value: pairMap.size });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while pairing co-changing files'), events };
+    }
     emit('step-end', 'pair-cochanges', { status: 'ok', summary: `${pairMap.size} co-change pairs observed` });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled before ranking findings'), events };
+    }
 
     // Step 4: rank-findings
     emit('step-start', 'rank-findings', { title: 'Rank coupled file pairs and evidence' });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
+    }
     const minThreshold = commits.length >= 3 ? 2 : 1;
     const candidates = Array.from(pairMap.values())
       .filter((p) => p.count >= minThreshold)
@@ -532,7 +577,12 @@ export async function runGitHistoryWorkload(
       )
       .slice(0, topN);
 
-    const findings: CochangeFinding[] = candidates.map((c, idx) => {
+    const findings: CochangeFinding[] = [];
+    for (let idx = 0; idx < candidates.length; idx++) {
+      if (options.signal?.aborted) {
+        return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
+      }
+      const c = candidates[idx]!;
       const id = `F-${String(idx + 1).padStart(2, '0')}`;
       const overlapPct = Math.round(c.couplingRatio * 100);
       const jaccardPct = Math.round(c.jaccardRatio * 100);
@@ -548,8 +598,11 @@ export async function runGitHistoryWorkload(
         reason: `Co-changed in ${c.count} commits (${overlapPct}% overlap [shared ÷ commits of less-changed file], ${jaccardPct}% Jaccard [${c.count}/${c.unionCommits} union]; directional: ${c.files[0]} ${c.count}/${c.fileACommits}, ${c.files[1]} ${c.count}/${c.fileBCommits} across ${c.shas.slice(0, 3).join(', ')}); inspect together before modifying either file in isolation.`,
       };
       emit('finding', 'rank-findings', { finding });
-      return finding;
-    });
+      if (options.signal?.aborted) {
+        return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
+      }
+      findings.push(finding);
+    }
 
     const hotFiles: HotFileSummary[] = Array.from(fileCommits.entries())
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -560,7 +613,13 @@ export async function runGitHistoryWorkload(
         share: commits.length > 0 ? Math.min(1, Math.round((count / commits.length) * 100) / 100) : 0,
       }));
 
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled while ranking findings'), events };
+    }
     emit('step-end', 'rank-findings', { status: 'ok', summary: `${findings.length} findings ranked` });
+    if (options.signal?.aborted) {
+      return { snapshot: finishEarly('canceled', 'skipped', 'Canceled before run completion'), events };
+    }
     emit('run-end', null, {
       status: 'completed',
       summary: `${findings.length} findings from ${commits.length} commits`,

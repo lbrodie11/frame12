@@ -99,17 +99,34 @@ export function getCodePointDisplayWidth(cp: number): number {
   return 1;
 }
 
+const graphemeSegmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+
+function getGraphemeClusterDisplayWidth(cluster: string): number {
+  let maxCpWidth = 0;
+  for (const ch of cluster) {
+    const cp = ch.codePointAt(0)!;
+    // Emoji skin-tone modifiers (U+1F3FB..U+1F3FF) and regional indicators (U+1F1E6..U+1F1FF)
+    // form a 2-column emoji cluster without adding extra columns beyond 2.
+    if (cp >= 0x1f1e6 && cp <= 0x1f1ff) {
+      maxCpWidth = Math.max(maxCpWidth, 2);
+      continue;
+    }
+    const w = getCodePointDisplayWidth(cp);
+    if (w > maxCpWidth) maxCpWidth = w;
+  }
+  return maxCpWidth;
+}
+
 /**
  * Computes the terminal column display width of a string, ignoring any SGR
- * escape sequences and accounting for zero-width combining marks and 2-column
- * East Asian / emoji code points.
+ * escape sequences and accounting for grapheme clusters, zero-width combining
+ * marks, and 2-column East Asian / emoji clusters.
  */
 export function getDisplayWidth(str: string): number {
   const withoutAnsi = str.replace(/\x1b\[[0-9;]*m/g, '');
   let width = 0;
-  for (const ch of withoutAnsi) {
-    const cp = ch.codePointAt(0)!;
-    width += getCodePointDisplayWidth(cp);
+  for (const { segment } of graphemeSegmenter.segment(withoutAnsi)) {
+    width += getGraphemeClusterDisplayWidth(segment);
   }
   return width;
 }
@@ -118,14 +135,14 @@ function sliceTokenByDisplayWidth(token: string, maxCols: number): string[] {
   const chunks: string[] = [];
   let current = '';
   let currentWidth = 0;
-  for (const ch of token) {
-    const w = getCodePointDisplayWidth(ch.codePointAt(0)!);
+  for (const { segment } of graphemeSegmenter.segment(token)) {
+    const w = getGraphemeClusterDisplayWidth(segment);
     if (currentWidth + w > maxCols && current.length > 0) {
       chunks.push(current);
-      current = ch;
+      current = segment;
       currentWidth = w;
     } else {
-      current += ch;
+      current += segment;
       currentWidth += w;
     }
   }
@@ -134,7 +151,8 @@ function sliceTokenByDisplayWidth(token: string, maxCols: number): string[] {
 }
 
 /**
- * Wraps a single logical line so that every physical line has display width <= maxCols.
+ * Wraps a single logical line so that every physical line has display width <= maxCols
+ * without splitting surrogate pairs or multi-codepoint grapheme clusters.
  */
 export function wrapLineToWidth(line: string, maxCols: number, continuationIndent = '     '): string[] {
   const width = Math.max(40, maxCols);
@@ -146,11 +164,14 @@ export function wrapLineToWidth(line: string, maxCols: number, continuationInden
   const lines: string[] = [];
   let current = '';
 
-  const pushHardWrappedToken = (token: string, prefix: string) => {
-    const prefixW = getDisplayWidth(prefix);
-    const avail = Math.max(10, width - prefixW);
-    for (const slice of sliceTokenByDisplayWidth(token, avail)) {
-      lines.push(prefix + slice);
+  const pushHardWrappedToken = (token: string, firstPrefix: string) => {
+    let remaining = token;
+    while (remaining.length > 0) {
+      const pfx = lines.length === 0 ? firstPrefix : indent;
+      const avail = Math.max(10, width - getDisplayWidth(pfx));
+      const [head, ...rest] = sliceTokenByDisplayWidth(remaining, avail);
+      lines.push(pfx + (head ?? ''));
+      remaining = rest.join('');
     }
   };
 

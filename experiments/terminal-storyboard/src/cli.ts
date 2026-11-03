@@ -14,6 +14,7 @@ import {
   PlainStreamPrinter,
   renderBaseline,
   renderPlainSummary,
+  sanitizeTerminalText,
   type PlainRenderOptions,
 } from './render-plain/index.js';
 import { runGitHistoryWorkload } from './workload/git-history.js';
@@ -274,6 +275,9 @@ const HELP_TEXT = [
 export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<number> {
   const stdout = io?.stdout ?? ((s: string) => process.stdout.write(s));
   const stderr = io?.stderr ?? ((s: string) => process.stderr.write(s));
+  const writeDiag = (message: string) => {
+    stderr(`${sanitizeTerminalText(message)}\n`);
+  };
   const isTTY = io?.isTTY ?? Boolean(process.stdout.isTTY);
   const env = io?.env ?? process.env;
   const envCols = env.COLUMNS !== undefined ? Number(env.COLUMNS) : Number.NaN;
@@ -285,7 +289,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
 
   const parsed = parseArgs(argv);
   if (parsed.error) {
-    stderr(`Error: ${parsed.error}\n`);
+    writeDiag(`Error: ${parsed.error}`);
     return 2;
   }
 
@@ -308,7 +312,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
   if (parsed.command === 'import-archaeology') {
     const filePath = resolve(parsed.targetPath!);
     if (!existsSync(filePath)) {
-      stderr(`Error: Archaeology JSON file not found: ${filePath}\n`);
+      writeDiag(`Error: Archaeology JSON file not found: ${filePath}`);
       return 1;
     }
     try {
@@ -316,13 +320,13 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       const converted = convertRepoArchaeologySnapshot(rawJson);
       const snapCheck = validateResultSnapshot(converted.snapshot);
       if (!snapCheck.ok) {
-        stderr(`Error validating converted archaeology snapshot: ${snapCheck.error}\n`);
+        writeDiag(`Error validating converted archaeology snapshot: ${snapCheck.error}`);
         return 2;
       }
       snapshot = snapCheck.snapshot;
       events = converted.events;
     } catch (err) {
-      stderr(`Error converting Repo Archaeology JSON: ${(err as Error).message}\n`);
+      writeDiag(`Error converting Repo Archaeology JSON: ${(err as Error).message}`);
       return 2;
     }
 
@@ -335,7 +339,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
   } else if (parsed.replayPath) {
     const filePath = resolve(parsed.replayPath);
     if (!existsSync(filePath)) {
-      stderr(`Error: Replay NDJSON file not found: ${filePath}\n`);
+      writeDiag(`Error: Replay NDJSON file not found: ${filePath}`);
       return 1;
     }
     try {
@@ -346,13 +350,13 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       const rawEvents = lines.map((l) => JSON.parse(l));
       const validated = validateEventStream(rawEvents);
       if (!validated.ok) {
-        stderr(`Error validating replay stream: ${validated.error}\n`);
+        writeDiag(`Error validating replay stream: ${validated.error}`);
         return 2;
       }
       events = validated.events;
       snapshot = reconstructSnapshotFromEvents(events);
     } catch (err) {
-      stderr(`Error reading replay file: ${(err as Error).message}\n`);
+      writeDiag(`Error reading replay file: ${(err as Error).message}`);
       return 2;
     }
 
@@ -396,7 +400,7 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       events = result.events;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      stderr(`Run failed: ${msg}\n`);
+      writeDiag(`Run failed: ${msg}`);
       return 1;
     } finally {
       process.removeListener('SIGINT', onSigint);
@@ -411,10 +415,10 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
       const { renderWebReportHtml } = await import('./render-web/index.js');
       const html = renderWebReportHtml(snapshot, events, { theme: parsed.theme });
       writeFileSync(outPath, html, 'utf8');
-      stderr(`Wrote FRAME/12 HTML report: ${outPath}\n`);
+      writeDiag(`Wrote FRAME/12 HTML report: ${outPath}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      stderr(`Error writing HTML report: ${msg}\n`);
+      writeDiag(`Error writing HTML report: ${msg}`);
       return 1;
     }
   }
@@ -429,11 +433,11 @@ export async function runCli(argv: string[], io?: Partial<CliIo>): Promise<numbe
   }
 
   if (snapshot.status === 'canceled') {
-    stderr('Run canceled (SIGINT).\n');
+    writeDiag('Run canceled (SIGINT).');
     return 130;
   }
   if (snapshot.status === 'failed') {
-    stderr(`Run failed: ${snapshot.error ?? 'Unknown error'}\n`);
+    writeDiag(`Run failed: ${snapshot.error ?? 'Unknown error'}`);
     return 1;
   }
   return 0;

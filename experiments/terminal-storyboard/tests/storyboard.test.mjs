@@ -25,6 +25,7 @@ import {
   renderPlainStoryboard,
   sanitizeTerminalText,
   shouldUseColor,
+  wrapLineToWidth,
 } from '../dist/render-plain/index.js';
 import { renderWebReportHtml } from '../dist/render-web/index.js';
 import { runCli } from '../dist/cli.js';
@@ -725,6 +726,25 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       assert.equal(getDisplayWidth('東京'), 4);
       assert.equal(getDisplayWidth('😀'), 2);
 
+      // Explicit boundary regression: 39 ASCII 'a' + '😀' (41 cells) and 30 '界' (60 cells) at width 40
+      const hasLoneSurrogate = (str) =>
+        /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(str);
+      const token39PlusEmoji = `${'a'.repeat(39)}😀`;
+      const token30Cjk = '界'.repeat(30);
+      for (const token of [token39PlusEmoji, token30Cjk, `  1. ${token39PlusEmoji} ↔ ${token30Cjk}`]) {
+        const wrapped = wrapLineToWidth(token, 40);
+        assert.ok(wrapped.length >= 2, `Expected "${token}" to wrap across >= 2 lines at width 40`);
+        for (const line of wrapped) {
+          assert.equal(hasLoneSurrogate(line), false, `Expected zero lone surrogates in wrapped line: "${line}"`);
+          assert.ok(
+            getDisplayWidth(line) <= 40,
+            `Expected getDisplayWidth(line) <= 40, got ${getDisplayWidth(line)} for "${line}"`,
+          );
+        }
+      }
+      assert.equal(wrapLineToWidth(token39PlusEmoji, 40)[0], 'a'.repeat(39));
+      assert.ok(wrapLineToWidth(token39PlusEmoji, 40)[1].endsWith('😀'));
+
       for (const colWidth of [40, 80, 120]) {
         let out = '';
         let err = '';
@@ -739,11 +759,75 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
         });
         assert.equal(code, 0);
         for (const line of [...out.split('\n'), ...err.split('\n')]) {
+          assert.equal(hasLoneSurrogate(line), false);
           assert.ok(
             getDisplayWidth(line) <= colWidth,
             `COLUMNS=${colWidth} line exceeded display width (${getDisplayWidth(line)}): "${line}"`,
           );
         }
+      }
+    });
+
+    it('sanitizes untrusted terminal escape sequences in replay, import-archaeology, and CLI error diagnostics written to stderr', async () => {
+      const tmpDir = mkdtempSync(join(tmpdir(), 'f12-diag-sanitize-'));
+      try {
+        // 1. Crafted replay NDJSON with CSI and OSC 8 sequences in invalid type/stepId
+        const badReplayPath = join(tmpDir, 'bad-replay.ndjson');
+        const maliciousEvent = {
+          ...fixtureResult.events[0],
+          type: 'evil-\x1b[31mRED\x1b[0m-\x1b]8;;https://evil.example\x07CLICK\x1b]8;;\x07\x08\r',
+        };
+        writeFileSync(badReplayPath, `${JSON.stringify(maliciousEvent)}\n`, 'utf8');
+
+        let replayErr = '';
+        const replayCode = await runCli(['run', '--replay', badReplayPath], {
+          stdout: () => {},
+          stderr: (s) => {
+            replayErr += s;
+          },
+        });
+        assert.equal(replayCode, 2);
+        assert.match(replayErr, /Error validating replay stream:/);
+        assert.equal(replayErr.includes('\x1b'), false, 'Expected 0 ESC bytes in replay stderr diagnostic');
+        assert.equal(replayErr.includes('\x08'), false, 'Expected 0 BS bytes in replay stderr diagnostic');
+        assert.equal(/\r(?!\n)/.test(replayErr), false, 'Expected 0 bare CR bytes in replay stderr diagnostic');
+
+        // 2. Crafted archaeology JSON with CSI and OSC 8 sequences in schemaVersion
+        const badArchPath = join(tmpDir, 'bad-arch.json');
+        writeFileSync(
+          badArchPath,
+          JSON.stringify({
+            schemaVersion: '\x1b[31m999\x1b[0m\x1b]8;;https://evil.example\x07LINK\x1b]8;;\x07\x08\r',
+          }),
+          'utf8',
+        );
+        let archErr = '';
+        const archCode = await runCli(['import-archaeology', badArchPath], {
+          stdout: () => {},
+          stderr: (s) => {
+            archErr += s;
+          },
+        });
+        assert.equal(archCode, 2);
+        assert.match(archErr, /Error converting Repo Archaeology JSON:/);
+        assert.equal(archErr.includes('\x1b'), false, 'Expected 0 ESC bytes in import-archaeology stderr diagnostic');
+        assert.equal(archErr.includes('\x08'), false, 'Expected 0 BS bytes in import-archaeology stderr diagnostic');
+        assert.equal(/\r(?!\n)/.test(archErr), false, 'Expected 0 bare CR bytes in import-archaeology stderr diagnostic');
+
+        // 3. CLI flag error echoing untrusted argument value
+        let flagErr = '';
+        const flagCode = await runCli(['run', '--unknown-\x1b[31mflag\x08\r'], {
+          stdout: () => {},
+          stderr: (s) => {
+            flagErr += s;
+          },
+        });
+        assert.equal(flagCode, 2);
+        assert.equal(flagErr.includes('\x1b'), false);
+        assert.equal(flagErr.includes('\x08'), false);
+        assert.equal(/\r(?!\n)/.test(flagErr), false);
+      } finally {
+        rmSync(tmpDir, { recursive: true, force: true });
       }
     });
   });
@@ -910,26 +994,36 @@ describe('FRAME/12 Terminal Storyboard PoC Suite', () => {
       }
     });
 
-    it('emits a single run-end (canceled) event with zero trailing events on AbortSignal / SIGINT', async () => {
-      const ac = new AbortController();
-      const captured = [];
-      const res = await runGitHistoryWorkload({
-        repoPath: fixture.repoDir,
-        maxCommits: 50,
-        signal: ac.signal,
-        onEvent: (ev) => {
-          captured.push(ev);
-          if (ev.type === 'step-start' && ev.stepId === 'read-history') {
-            ac.abort();
-          }
-        },
-      });
+    it('emits a single run-end (canceled) event with zero trailing events on AbortSignal across read-history, pair-cochanges, and rank-findings', async () => {
+      for (const targetStepId of ['read-history', 'pair-cochanges', 'rank-findings']) {
+        const ac = new AbortController();
+        const captured = [];
+        const res = await runGitHistoryWorkload({
+          repoPath: fixture.repoDir,
+          maxCommits: 50,
+          signal: ac.signal,
+          onEvent: (ev) => {
+            captured.push(ev);
+            if (ev.type === 'step-start' && ev.stepId === targetStepId) {
+              ac.abort();
+            }
+          },
+        });
 
-      assert.equal(res.snapshot.status, 'canceled');
-      const streamCheck = validateEventStream(captured);
-      assert.equal(streamCheck.ok, true);
-      assert.equal(streamCheck.runStatus, 'canceled');
-      assert.equal(captured[captured.length - 1].type, 'run-end');
+        assert.equal(
+          res.snapshot.status,
+          'canceled',
+          `Expected snapshot.status === 'canceled' when aborting on ${targetStepId}`,
+        );
+        const streamCheck = validateEventStream(captured);
+        assert.equal(streamCheck.ok, true, `Invalid event stream when aborting on ${targetStepId}: ${streamCheck.error}`);
+        assert.equal(streamCheck.runStatus, 'canceled');
+        const abortedStep = streamCheck.steps.find((s) => s.stepId === targetStepId);
+        assert.ok(abortedStep, `Expected ${targetStepId} step in stream`);
+        assert.equal(abortedStep.status, 'skipped');
+        assert.equal(captured[captured.length - 1].type, 'run-end');
+        assert.equal(captured[captured.length - 1].payload.status, 'canceled');
+      }
 
       const cliAc = new AbortController();
       cliAc.abort();
