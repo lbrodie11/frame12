@@ -99,13 +99,13 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
         return (
           <div className="f12-preview-sheet">
             <Scene gutter="scene" layout="equal">
-              <Panel label={`Left scene cell (${previewTheme})`}>
+              <Panel cut={false} label={`Left scene cell (${previewTheme})`}>
                 <div className="f12-stack-pair">
                   <Tag>20px · scene</Tag>
                   <p className="f12-body-copy">Left cell in a same-scene grid.</p>
                 </div>
               </Panel>
-              <Panel label={`Right scene cell (${previewTheme})`}>
+              <Panel cut={false} label={`Right scene cell (${previewTheme})`}>
                 <div className="f12-stack-pair">
                   <Tag>20px · scene</Tag>
                   <p className="f12-body-copy">Right cell in a same-scene grid.</p>
@@ -118,7 +118,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
       case 'panel':
         return (
           <div className="f12-preview-sheet">
-            <Panel label={`Mitered SVG ink panel (${previewTheme})`}>
+            <Panel cut={false} label={`Mitered SVG ink panel (${previewTheme})`}>
               <div className="f12-stack-pair">
                 <div className="f12-row-pair">
                   <Tag>2.5px Ink Polygon</Tag>
@@ -143,6 +143,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
           <div className="f12-preview-sheet">
             <PanelPair
               top={{
+                cut: false,
                 label: `Incremental profit (${previewTheme})`,
                 children: (
                   <Metric
@@ -157,6 +158,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
                 ),
               }}
               bottom={{
+                cut: false,
                 label: `Conversion lift (${previewTheme})`,
                 children: (
                   <Metric

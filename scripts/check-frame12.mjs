@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 // Automated design-grammar checker for FRAME/12.
 // Enforces:
-//   1. color-literal      — No hard-coded hex/rgb/hsl colors, CSS gradients, or font stacks outside token files
-//   2. illegal-gutter     — Only 12px (pair), 20px (scene), and 32px (change) gutters
-//   3. marker-misuse      — --f-marker / #ffd60a only as background paired with --f-marker-ink
-//   4. cut-order          — Sequential C-01, C-02, C-03... in DOM/reading order without gaps or duplicates
-//   5. raw-shadcn-import  — No raw @/components/ui/*, @radix-ui/*, or external chart/animation imports
+//   1. color-literal           — No hard-coded hex/rgb/hsl colors, CSS gradients, or font stacks outside token files
+//   2. illegal-gutter          — Only 12px (pair), 20px (scene), and 32px (change) gutters
+//   3. marker-misuse           — --f-marker / #ffd60a only as background paired with --f-marker-ink
+//   4. cut-order               — Sequential C-01, C-02, C-03... in DOM/reading order without gaps or duplicates
+//   5. explicit-cut-in-autocut — No explicit cut/topCut/bottomCut on Panel/PanelPair inside <Sheet autoCut>
+//   6. raw-shadcn-import       — No raw @/components/ui/*, @radix-ui/*, or external chart/animation imports
 
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
-import { resolve, relative, basename, extname } from 'node:path';
+import { createRequire } from 'node:module';
+import { resolve, relative, dirname, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css']);
@@ -69,6 +71,34 @@ const FORBIDDEN_EXTERNAL_PACKAGES = new Set([
   'framer-motion',
   'gsap',
 ]);
+
+const CUT_PROP_NAMES = new Set(['cut', 'topCut', 'bottomCut']);
+const CUT_OWNER_TAGS = new Set(['Panel', 'PanelPair', 'DialogContent']);
+
+let cachedTs = undefined;
+
+function loadTypeScript() {
+  if (cachedTs !== undefined) return cachedTs;
+  const __dir = dirname(fileURLToPath(import.meta.url));
+  const searchAnchors = [
+    import.meta.url,
+    resolve(process.cwd(), 'package.json'),
+    resolve(__dir, '../package.json'),
+    resolve(__dir, '../site/package.json'),
+    resolve(__dir, '../templates/next-starter/package.json'),
+  ];
+  for (const anchor of searchAnchors) {
+    try {
+      const req = createRequire(anchor);
+      cachedTs = req('typescript');
+      return cachedTs;
+    } catch {
+      // try next anchor
+    }
+  }
+  cachedTs = null;
+  return null;
+}
 
 /**
  * Replaces JS/CSS comments with spaces while preserving newlines and string literals
@@ -215,6 +245,264 @@ function extractBalancedBraces(src, openIdx) {
     }
   }
   return src.slice(openIdx + 1);
+}
+
+/**
+ * Uses the TypeScript compiler AST (`ts.createSourceFile(..., ScriptKind.TSX)`)
+ * to validate `cut-order` and `explicit-cut-in-autocut` across JSX elements,
+ * attributes, spread objects, and nested `<Sheet autoCut>` boundaries.
+ */
+function lintCutsWithTypeScript(ts, content, filePath, violations) {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    content,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    ts.ScriptKind.TSX,
+  );
+
+  function resolveLocalIdentifier(idNode, seenIds = new Set()) {
+    const name = idNode.text;
+    if (seenIds.has(name)) return null;
+    seenIds.add(name);
+
+    for (let cur = idNode.parent; cur; cur = cur.parent) {
+      const statements = ts.isSourceFile(cur)
+        ? cur.statements
+        : ts.isBlock(cur) || ts.isModuleBlock(cur)
+          ? cur.statements
+          : null;
+      if (!statements) continue;
+
+      for (const stmt of statements) {
+        if (!ts.isVariableStatement(stmt)) continue;
+        for (const decl of stmt.declarationList.declarations) {
+          if (ts.isIdentifier(decl.name) && decl.name.text === name && decl.initializer) {
+            if (ts.isIdentifier(decl.initializer)) {
+              return resolveLocalIdentifier(decl.initializer, seenIds);
+            }
+            return decl.initializer;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  function unwrapExpression(node) {
+    let cur = node;
+    while (cur) {
+      if (ts.isJsxExpression(cur)) {
+        cur = cur.expression;
+      } else if (
+        ts.isParenthesizedExpression(cur) ||
+        ts.isAsExpression(cur) ||
+        ts.isTypeAssertionExpression?.(cur) ||
+        ts.isSatisfiesExpression?.(cur) ||
+        ts.isNonNullExpression(cur)
+      ) {
+        cur = cur.expression;
+      } else if (ts.isIdentifier(cur)) {
+        cur = resolveLocalIdentifier(cur);
+      } else {
+        break;
+      }
+    }
+    return cur || null;
+  }
+
+  function getStringValue(node) {
+    const expr = unwrapExpression(node);
+    if (!expr) return null;
+    if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
+      return expr.text;
+    }
+    return null;
+  }
+
+  function getBooleanValue(node) {
+    const expr = unwrapExpression(node);
+    if (!expr) return null;
+    if (expr.kind === ts.SyntaxKind.TrueKeyword) return true;
+    if (expr.kind === ts.SyntaxKind.FalseKeyword) return false;
+    return null;
+  }
+
+  function getSheetAutoCut(attributes) {
+    let autoCut = false;
+    for (const prop of attributes.properties) {
+      if (ts.isJsxAttribute(prop) && prop.name.getText(sourceFile) === 'autoCut') {
+        if (!prop.initializer) {
+          autoCut = true;
+        } else {
+          const val = getBooleanValue(prop.initializer);
+          if (val !== null) autoCut = val;
+        }
+      } else if (ts.isJsxSpreadAttribute(prop)) {
+        const spreadObj = unwrapExpression(prop.expression);
+        if (spreadObj && ts.isObjectLiteralExpression(spreadObj)) {
+          for (const sp of spreadObj.properties) {
+            if (
+              ts.isPropertyAssignment(sp) &&
+              (ts.isIdentifier(sp.name) || ts.isStringLiteral(sp.name)) &&
+              sp.name.text === 'autoCut'
+            ) {
+              const val = getBooleanValue(sp.initializer);
+              if (val !== null) autoCut = val;
+            }
+          }
+        }
+      }
+    }
+    return autoCut;
+  }
+
+  const cutMatches = [];
+
+  function recordCut(rawCut, node, ownerTag, inAutoCut) {
+    const start = node.getStart(sourceFile);
+    const line = sourceFile.getLineAndCharacterOfPosition(start).line + 1;
+    const snippet = node.getText(sourceFile);
+    const isDialogContentCut = ownerTag === 'DialogContent';
+
+    if (inAutoCut && !isDialogContentCut) {
+      violations.push({
+        rule: 'explicit-cut-in-autocut',
+        file: filePath,
+        line,
+        message: 'Cut numbers are automatic inside <Sheet autoCut>; remove the cut prop.',
+        snippet,
+      });
+      return;
+    }
+
+    const parsed = rawCut.match(/^C-(\d{2,})$/);
+    if (!parsed) {
+      violations.push({
+        rule: 'cut-order',
+        file: filePath,
+        line,
+        message: `Malformed cut label "${rawCut}". Cut numbers must use two-digit format "C-01", "C-02", etc.`,
+        snippet,
+      });
+    } else if (!inAutoCut) {
+      cutMatches.push({
+        raw: rawCut,
+        num: parseInt(parsed[1], 10),
+        line,
+        snippet,
+      });
+    }
+  }
+
+  function inspectObjectForCuts(rawExpr, ownerTag, inAutoCut, seenObjs = new Set()) {
+    const obj = unwrapExpression(rawExpr);
+    if (!obj || !ts.isObjectLiteralExpression(obj) || seenObjs.has(obj)) return;
+    seenObjs.add(obj);
+
+    for (const prop of obj.properties) {
+      if (ts.isSpreadAssignment(prop)) {
+        inspectObjectForCuts(prop.expression, ownerTag, inAutoCut, seenObjs);
+        continue;
+      }
+      if (!ts.isPropertyAssignment(prop)) continue;
+      if (!ts.isIdentifier(prop.name) && !ts.isStringLiteral(prop.name)) continue;
+      const propName = prop.name.text;
+
+      if (CUT_PROP_NAMES.has(propName)) {
+        const rawCut = getStringValue(prop.initializer);
+        if (rawCut !== null) {
+          recordCut(rawCut, prop, ownerTag, inAutoCut);
+        }
+      } else if (ownerTag === 'PanelPair' && (propName === 'top' || propName === 'bottom')) {
+        inspectObjectForCuts(prop.initializer, ownerTag, inAutoCut, seenObjs);
+      }
+    }
+  }
+
+  function inspectElementAttributes(attributes, ownerTag, inAutoCut) {
+    const isCutOwner = CUT_OWNER_TAGS.has(ownerTag);
+    for (const prop of attributes.properties) {
+      if (isCutOwner) {
+        if (ts.isJsxAttribute(prop)) {
+          const attrName = prop.name.getText(sourceFile);
+          if (CUT_PROP_NAMES.has(attrName)) {
+            const rawCut = getStringValue(prop.initializer);
+            if (rawCut !== null) {
+              recordCut(rawCut, prop, ownerTag, inAutoCut);
+            }
+          } else if (ownerTag === 'PanelPair' && (attrName === 'top' || attrName === 'bottom')) {
+            inspectObjectForCuts(prop.initializer, ownerTag, inAutoCut);
+          }
+        } else if (ts.isJsxSpreadAttribute(prop)) {
+          inspectObjectForCuts(prop.expression, ownerTag, inAutoCut);
+        }
+      }
+      // Traverse attribute initializer/expression for any nested JSX elements
+      ts.forEachChild(prop, (child) => visit(child, inAutoCut));
+    }
+  }
+
+  function visit(node, inAutoCut) {
+    if (ts.isJsxElement(node)) {
+      const tagName = node.openingElement.tagName.getText(sourceFile);
+      const nextAutoCut =
+        tagName === 'Sheet' ? getSheetAutoCut(node.openingElement.attributes) : inAutoCut;
+      inspectElementAttributes(node.openingElement.attributes, tagName, nextAutoCut);
+      for (const child of node.children) {
+        visit(child, nextAutoCut);
+      }
+      return;
+    }
+
+    if (ts.isJsxSelfClosingElement(node)) {
+      const tagName = node.tagName.getText(sourceFile);
+      const nextAutoCut = tagName === 'Sheet' ? getSheetAutoCut(node.attributes) : inAutoCut;
+      inspectElementAttributes(node.attributes, tagName, nextAutoCut);
+      return;
+    }
+
+    ts.forEachChild(node, (child) => visit(child, inAutoCut));
+  }
+
+  visit(sourceFile, false);
+
+  if (cutMatches.length > 0) {
+    const seen = new Set();
+    for (let i = 0; i < cutMatches.length; i++) {
+      const cur = cutMatches[i];
+      const expectedNum = i + 1;
+      const expectedLabel = `C-${String(expectedNum).padStart(2, '0')}`;
+
+      if (i === 0 && cur.num !== 1) {
+        violations.push({
+          rule: 'cut-order',
+          file: filePath,
+          line: cur.line,
+          message: `First cut in file is "${cur.raw}", but cuts must start at "C-01".`,
+          snippet: cur.snippet,
+        });
+      } else if (seen.has(cur.num)) {
+        violations.push({
+          rule: 'cut-order',
+          file: filePath,
+          line: cur.line,
+          message: `Duplicate cut number "${cur.raw}". Expected "${expectedLabel}" in reading/DOM order.`,
+          snippet: cur.snippet,
+        });
+      } else if (cur.num !== expectedNum) {
+        const prevLabel = i > 0 ? cutMatches[i - 1].raw : 'start';
+        violations.push({
+          rule: 'cut-order',
+          file: filePath,
+          line: cur.line,
+          message: `Out-of-order or skipped cut "${cur.raw}" after "${prevLabel}". Expected sequential "${expectedLabel}".`,
+          snippet: cur.snippet,
+        });
+      }
+      seen.add(cur.num);
+    }
+  }
 }
 
 /**
@@ -507,76 +795,21 @@ export function lintSource(content, filePath = 'input.tsx') {
   }
 
   // =========================================================================
-  // 4. cut-order (Sequential C-01, C-02, C-03... in DOM order without gaps/dups)
+  // 4. cut-order & explicit-cut-in-autocut (via TypeScript TSX AST)
   // =========================================================================
   if (ext !== '.css') {
-    // Blank out multi-line template literals (e.g. documentation code snippets)
-    // while preserving line numbers so example strings are not treated as live JSX cuts.
-    const cutScan = stripped.replace(/`[\s\S]*?`/g, (match) =>
-      match.includes('\n') ? match.replace(/[^\n]/g, ' ') : match,
-    );
-    const cutMatches = [];
-    // Match JSX attributes cut="...", topCut="...", bottomCut="..." or object properties cut: '...'
-    const cutPropRegex =
-      /\b(?:cut|topCut|bottomCut)\s*(?:=\s*(?:['"]([^'"]+)['"]|\{\s*['"`]([^'"`]+)['"`]\s*\})|:\s*['"`]([^'"`]+)['"`])/g;
-    let m;
-    while ((m = cutPropRegex.exec(cutScan)) !== null) {
-      const rawCut = m[1] ?? m[2] ?? m[3] ?? '';
-      const line = lineNumberAt(content, m.index);
-      const parsed = rawCut.match(/^C-(\d{2,})$/);
-      if (!parsed) {
-        violations.push({
-          rule: 'cut-order',
-          file: filePath,
-          line,
-          message: `Malformed cut label "${rawCut}". Cut numbers must use two-digit format "C-01", "C-02", etc.`,
-          snippet: m[0],
-        });
-      } else {
-        cutMatches.push({
-          raw: rawCut,
-          num: parseInt(parsed[1], 10),
-          line,
-          snippet: m[0],
-        });
-      }
-    }
-
-    if (cutMatches.length > 0) {
-      const seen = new Set();
-      for (let i = 0; i < cutMatches.length; i++) {
-        const cur = cutMatches[i];
-        const expectedNum = i + 1;
-        const expectedLabel = `C-${String(expectedNum).padStart(2, '0')}`;
-
-        if (i === 0 && cur.num !== 1) {
-          violations.push({
-            rule: 'cut-order',
-            file: filePath,
-            line: cur.line,
-            message: `First cut in file is "${cur.raw}", but cuts must start at "C-01".`,
-            snippet: cur.snippet,
-          });
-        } else if (seen.has(cur.num)) {
-          violations.push({
-            rule: 'cut-order',
-            file: filePath,
-            line: cur.line,
-            message: `Duplicate cut number "${cur.raw}". Expected "${expectedLabel}" in reading/DOM order.`,
-            snippet: cur.snippet,
-          });
-        } else if (cur.num !== expectedNum) {
-          const prevLabel = i > 0 ? cutMatches[i - 1].raw : 'start';
-          violations.push({
-            rule: 'cut-order',
-            file: filePath,
-            line: cur.line,
-            message: `Out-of-order or skipped cut "${cur.raw}" after "${prevLabel}". Expected sequential "${expectedLabel}".`,
-            snippet: cur.snippet,
-          });
-        }
-        seen.add(cur.num);
-      }
+    const ts = loadTypeScript();
+    if (!ts) {
+      violations.push({
+        rule: 'cut-order',
+        file: filePath,
+        line: 1,
+        message:
+          'TypeScript ("typescript") is required to parse JSX/TSX for cut-order and explicit-cut-in-autocut checks. Install it with `npm install -D typescript`.',
+        snippet: '',
+      });
+    } else {
+      lintCutsWithTypeScript(ts, content, filePath, violations);
     }
   }
 

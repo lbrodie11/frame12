@@ -68,6 +68,7 @@ Top-level storyboard container with registration pegs and `32px` scene-change ve
 ```tsx
 export interface SheetProps extends React.HTMLAttributes<HTMLDivElement> {
   pegs?: boolean;              // default: true
+  autoCut?: boolean;           // default: false — enables CSS counter cut numbering (C-01, C-02…)
   motion?: MotionMode;         // default: 'stepped'
   theme?: 'light' | 'dark';    // optional explicit theme override
   sheetClassName?: string;
@@ -97,9 +98,9 @@ Ink-framed `<section>` drawn with a measured SVG `<polygon>` (`2.5px` mitered st
 export type PanelShape = 'rect' | 'slant-bottom' | 'slant-top';
 
 export interface PanelProps extends React.HTMLAttributes<HTMLElement> {
-  cut?: string;        // e.g. "C-01" — must follow sequential reading order
-  shape?: PanelShape;  // default: 'rect'
-  label?: string;      // sets aria-label on the <section>
+  cut?: string | false; // undefined = automatic inside <Sheet autoCut>; false = unnumbered; string = explicit
+  shape?: PanelShape;   // default: 'rect'
+  label?: string;       // sets aria-label on the <section>
   children?: React.ReactNode;
 }
 ```
@@ -111,8 +112,8 @@ Stacks two related panels across a `12px` (`pair`) slanted gutter (`slant-bottom
 export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
   top?: Omit<PanelProps, 'shape'>;
   bottom?: Omit<PanelProps, 'shape'>;
-  topCut?: string;
-  bottomCut?: string;
+  topCut?: string | false;
+  bottomCut?: string | false;
   topLabel?: string;
   bottomLabel?: string;
   children?: React.ReactNode;

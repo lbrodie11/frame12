@@ -6,7 +6,7 @@ import { useSize } from '@/hooks/use-on-twos';
 export type PanelShape = 'rect' | 'slant-bottom' | 'slant-top';
 
 export interface PanelProps extends React.HTMLAttributes<HTMLElement> {
-  cut?: string;
+  cut?: string | false;
   shape?: PanelShape;
   label?: string;
   children?: React.ReactNode;
@@ -17,6 +17,7 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
   forwardedRef,
 ) {
   const innerRef = React.useRef<HTMLElement | null>(null);
+  const warnedCutRef = React.useRef<string | null>(null);
   const setRefs = React.useCallback(
     (node: HTMLElement | null) => {
       innerRef.current = node;
@@ -28,6 +29,20 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
     },
     [forwardedRef],
   );
+
+  React.useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      if (typeof cut === 'string' && cut.length > 0 && warnedCutRef.current !== cut) {
+        const sheet = innerRef.current?.closest('.f12-sheet');
+        if (sheet && sheet.hasAttribute('data-autocut')) {
+          warnedCutRef.current = cut;
+          console.warn(
+            `[FRAME/12 Panel] Explicit cut "${cut}" used inside <Sheet autoCut>. Cut numbers are automatic inside <Sheet autoCut>; remove the cut prop or use cut={false}.`,
+          );
+        }
+      }
+    }
+  }, [cut]);
 
   const { w, h } = useSize(innerRef);
   const s = 1.25; // half of 2.5px stroke
@@ -69,11 +84,13 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
           <polygon vectorEffect="non-scaling-stroke" points={ssrPts} />
         </svg>
       )}
-      {cut && (
+      {typeof cut === 'string' && cut.length > 0 ? (
         <span className="f12-cut" aria-hidden="true">
           {cut}
         </span>
-      )}
+      ) : cut === undefined ? (
+        <span className="f12-cut" data-autocut="" aria-hidden="true" />
+      ) : null}
       <div className="f12-panel-body">{children}</div>
     </section>
   );

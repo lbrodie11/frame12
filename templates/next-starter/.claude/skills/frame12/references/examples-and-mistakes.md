@@ -49,7 +49,7 @@ export function WorkspaceSettingsScreen() {
   const changed = useChanged(env);
 
   return (
-    <Sheet motion={motion}>
+    <Sheet autoCut motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -69,7 +69,7 @@ export function WorkspaceSettingsScreen() {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-01" label="General profile and routing">
+        <Panel label="General profile and routing">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--f-gutter-scene)' }}>
             <Input
               id="ws-name"
@@ -105,7 +105,6 @@ export function WorkspaceSettingsScreen() {
 
         <PanelPair
           top={{
-            cut: 'C-02',
             label: 'Webhook delivery rate',
             children: (
               <Metric
@@ -120,7 +119,6 @@ export function WorkspaceSettingsScreen() {
             ),
           }}
           bottom={{
-            cut: 'C-03',
             label: 'Danger zone',
             children: (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--f-gutter-pair)' }}>
@@ -185,7 +183,7 @@ export function ProductLandingHero({ series, features }: {
   const changed = useChanged(windowDays);
 
   return (
-    <Sheet>
+    <Sheet autoCut>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -212,7 +210,7 @@ export function ProductLandingHero({ series, features }: {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-01" label="Live recovery trajectory">
+        <Panel label="Live recovery trajectory">
           <Metric
             label="Recovered checkout volume"
             value={148200}
@@ -225,7 +223,6 @@ export function ProductLandingHero({ series, features }: {
 
         <PanelPair
           top={{
-            cut: 'C-02',
             label: 'Net margin retained',
             children: (
               <Metric
@@ -238,7 +235,6 @@ export function ProductLandingHero({ series, features }: {
             ),
           }}
           bottom={{
-            cut: 'C-03',
             label: 'Feature contribution',
             children: (
               <ToneBarList
@@ -304,7 +300,7 @@ export function LedgerTableScreen({ rows }: {
   const total = filtered.reduce((acc, r) => acc + r.amount, 0);
 
   return (
-    <Sheet>
+    <Sheet autoCut>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">Recovery Ledger <Tag>{filtered.length} rows</Tag></p>
@@ -324,7 +320,7 @@ export function LedgerTableScreen({ rows }: {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-01" label="Filter controls and ledger table">
+        <Panel label="Filter controls and ledger table">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--f-gutter-pair)', marginBottom: 'var(--f-gutter-scene)' }}>
             <Input
               id="ledger-search"
@@ -374,12 +370,10 @@ export function LedgerTableScreen({ rows }: {
 
         <PanelPair
           top={{
-            cut: 'C-02',
             label: 'Filtered recovery sum',
             children: <Metric label="Filtered recovery" value={total} />,
           }}
           bottom={{
-            cut: 'C-03',
             label: 'Matching dispatches',
             children: (
               <Metric
@@ -404,8 +398,8 @@ export function LedgerTableScreen({ rows }: {
 | --- | --- | --- |
 | Writing `style={{ color: '#ef4444', gap: '16px' }}` | Violates Rule 1 (`color-literal`) and Rule 2 (`illegal-gutter`). FRAME/12 is strictly monochrome ink + marker yellow with `12px`/`20px`/`32px` gutters. | Use `var(--f-ink)` / `var(--f-ink-2)` and `gap: 'var(--f-gutter-pair)'` (`12px`) or `'var(--f-gutter-scene)'` (`20px`). Flag errors with `<Input error="..." />` or `<Badge>`. |
 | Using `color: 'var(--f-marker)'` or `borderColor: 'var(--f-marker)'` | Violates Rule 4 (`marker-misuse`). Marker yellow (`#ffd60a`) has `1.4:1` contrast against white paper and is illegible as text or line art. | Only use `background: 'var(--f-marker)'` paired with `color: 'var(--f-marker-ink)'`, or use `<Tag>`, `<Badge>`, or `<Button variant="marker">`. |
-| Numbering panels `C-01`, `C-03`, `C-02` or starting a second section at `C-01` | Violates Rule 3 (`cut-order`). Storyboard cuts must increment sequentially across the entire screen in DOM order. | Number panels `C-01`, `C-02`, `C-03`, `C-04`… top-to-bottom, left-to-right. |
-| Importing `Tabs` or `Card` from `@/components/ui/...` | Violates Rule 5 (`raw-shadcn-import`). Raw shadcn primitives lack `2.5px` mitered polygon frames and 12fps stepped motion. | Replace `Card` with `<Panel cut="C-0X">` and `Tabs` with `<SegmentedControl>`. |
+| Typing `cut="C-01"` on a `Panel` inside `<Sheet autoCut>` or numbering panels out of order | Violates Rule 3 (`explicit-cut-in-autocut` / `cut-order`). Hand-written cut numbers drift across nested components, `.map()`, and conditional panels. | Use `<Sheet autoCut>` and omit `cut` on `Panel` / `PanelPair` (use `cut={false}` for panels that shouldn't be numbered; only `DialogContent` takes an explicit `cut="C-0X"`). |
+| Importing `Tabs` or `Card` from `@/components/ui/...` | Violates Rule 5 (`raw-shadcn-import`). Raw shadcn primitives lack `2.5px` mitered polygon frames and 12fps stepped motion. | Replace `Card` with `<Panel label="...">` inside `<Sheet autoCut>` and `Tabs` with `<SegmentedControl>`. |
 | Animating hover states with `steps(3)` or running `.f12-enter` on initial mount | Violates Rule 5 (Motion on twos). Hover/focus must be instant; initial mount must render at rest. | Keep hover instant (`0ms`) and gate entrance animations with `const changed = useChanged(key)`. |
 
 ---

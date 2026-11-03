@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "font-m-plus-1-code",
+  "title": "M PLUS 1 Code (FRAME/12 Monospace Font)",
+  "description": "Monospace typeface (--font-m-plus-1-code -> --font-f-mono) for FRAME/12 cut labels, eyebrows, tabular metrics, and code.",
+  "type": "registry:font",
+  "font": {
+    "family": "'M PLUS 1 Code', monospace",
+    "provider": "google",
+    "import": "M_PLUS_1_Code",
+    "variable": "--font-m-plus-1-code",
+    "weight": [
+      "400",
+      "500",
+      "700"
+    ],
+    "subsets": [
+      "latin"
+    ]
+  }
+}

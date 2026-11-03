@@ -71,7 +71,7 @@ export default function StyleSheetPage() {
   const s90 = SUMMARIES[90];
 
   return (
-    <Sheet pegs motion={motion}>
+    <Sheet autoCut pegs motion={motion}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -88,7 +88,7 @@ export default function StyleSheetPage() {
       </header>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-01" label="The sheet in light mode">
+        <Panel label="The sheet in light mode">
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <div className="f12-stack-pair">
@@ -103,7 +103,7 @@ export default function StyleSheetPage() {
             <div className="f12-preview-frame f12-theme-light f12-m-cut">
               <div className="f12-preview-sheet">
                 <Scene gutter="scene" layout="split">
-                  <Panel label="Specimen primary revenue chart">
+                  <Panel cut={false} label="Specimen primary revenue chart">
                     <Metric
                       label="Recovered revenue"
                       value={s30.revenue}
@@ -131,6 +131,7 @@ export default function StyleSheetPage() {
                   </Panel>
                   <PanelPair
                     top={{
+                      cut: false,
                       label: 'Specimen incremental profit',
                       children: (
                         <Metric
@@ -154,6 +155,7 @@ export default function StyleSheetPage() {
                       ),
                     }}
                     bottom={{
+                      cut: false,
                       label: 'Specimen conversion lift',
                       children: (
                         <Metric
@@ -185,7 +187,7 @@ export default function StyleSheetPage() {
       </Scene>
 
       <Scene gutter="scene" layout="equal">
-        <Panel cut="C-02" label="Dark theme flashback variant">
+        <Panel label="Dark theme flashback variant">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>Dark · 7 Days</Tag>
@@ -228,7 +230,7 @@ export default function StyleSheetPage() {
           </div>
         </Panel>
 
-        <Panel cut="C-03" label="Phone 390px stack variant">
+        <Panel label="Phone 390px stack variant">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>Phone · 390px</Tag>
@@ -270,7 +272,7 @@ export default function StyleSheetPage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-04" label="Panel grammar diagram">
+        <Panel label="Panel grammar diagram">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>Panel Grammar</Tag>
@@ -289,7 +291,7 @@ export default function StyleSheetPage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-05" label="Six construction details">
+        <Panel label="Six construction details">
           <div className="f12-stack-scene">
             <div className="f12-stack-pair">
               <div className="f12-row-pair">
@@ -302,7 +304,7 @@ export default function StyleSheetPage() {
             <Scene gutter="scene" layout="three">
               <div className="f12-stack-pair">
                 <div className="f12-preview-frame f12-theme-light f12-m-cut">
-                  <Panel label="Cut number example">
+                  <Panel cut={false} label="Cut number example">
                     <p className="f12-body-copy">Panel content framed with 2.5px mitered ink.</p>
                   </Panel>
                 </div>
@@ -316,8 +318,13 @@ export default function StyleSheetPage() {
               <div className="f12-stack-pair">
                 <div className="f12-preview-frame f12-theme-light f12-m-cut">
                   <PanelPair
-                    top={{ label: 'Paired profit', children: <p className="f12-body-copy">Profit</p> }}
+                    top={{
+                      cut: false,
+                      label: 'Paired profit',
+                      children: <p className="f12-body-copy">Profit</p>,
+                    }}
                     bottom={{
+                      cut: false,
                       label: 'Paired conversion lift',
                       children: <p className="f12-body-copy">Conversion lift</p>,
                     }}
@@ -416,7 +423,7 @@ export default function StyleSheetPage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel cut="C-06" label="Motion on twos specimen">
+        <Panel label="Motion on twos specimen">
           <div className="f12-stack-scene">
             <div className="f12-stack-pair">
               <div className="f12-row-pair">
@@ -472,7 +479,7 @@ export default function StyleSheetPage() {
       </Scene>
 
       <Scene gutter="scene" layout="split">
-        <Panel cut="C-07" label="Typography specimen">
+        <Panel label="Typography specimen">
           <div className="f12-stack-scene">
             <div className="f12-row-pair">
               <Tag>Type Specimen</Tag>
@@ -498,7 +505,7 @@ export default function StyleSheetPage() {
           </div>
         </Panel>
 
-        <Panel cut="C-08" label="Palette token table">
+        <Panel label="Palette token table">
           <div className="f12-stack-pair">
             <div className="f12-row-pair">
               <Tag>Palette Tokens</Tag>

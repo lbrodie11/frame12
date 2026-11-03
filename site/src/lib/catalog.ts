@@ -52,6 +52,13 @@ const RAW_CATALOG: CatalogEntry[] = [
         description: 'Renders the three animation registration peg punch-holes along the top edge.',
       },
       {
+        name: 'autoCut',
+        type: 'boolean',
+        defaultValue: 'false',
+        description:
+          'Numbers child <Panel> and <PanelPair> elements automatically (C-01, C-02…) in DOM order via CSS counters.',
+      },
+      {
         name: 'motion',
         type: "'stepped' | 'smooth' | 'cut'",
         defaultValue: "'stepped'",
@@ -82,7 +89,7 @@ const RAW_CATALOG: CatalogEntry[] = [
 
 export function OverviewSheet() {
   return (
-    <Sheet pegs motion="stepped">
+    <Sheet autoCut pegs motion="stepped">
       <Scene gutter="scene" layout="stack">
         <Panel label="Establishing frame">
           <p>Storyboard sheet content</p>
@@ -144,9 +151,10 @@ export function SplitScene() {
     props: [
       {
         name: 'cut',
-        type: 'string',
+        type: 'string | false',
         defaultValue: 'undefined',
-        description: 'Sequential cut label (C-01, C-02…) set into the top ink frame line.',
+        description:
+          'Inside <Sheet autoCut>, omit to number automatically (C-01, C-02…) via CSS counters, or pass false to hide the cut badge. Outside <Sheet autoCut>, pass an explicit sequential string (C-01, C-02…).',
       },
       {
         name: 'shape',
@@ -166,7 +174,7 @@ export function SplitScene() {
       'Uses ResizeObserver on layout offsetWidth/offsetHeight so borders stay crisp at any viewport size.',
     ],
     grammarNotes: [
-      'Cut numbers must increment sequentially (C-01, C-02, C-03…) in reading and DOM order.',
+      'Inside <Sheet autoCut>, panels number automatically in DOM and reading order via CSS counters; pass cut={false} to suppress a cut on a panel, or pass explicit sequential cuts outside autoCut.',
       'Never replace Panel with a rounded card or drop-shadow box.',
     ],
     usageTemplate: `import { Panel, Metric, fmtCurrency } from '@/components/frame12';
@@ -202,9 +210,10 @@ export function RevenuePanel() {
       },
       {
         name: 'topCut / bottomCut',
-        type: 'string',
+        type: 'string | false',
         defaultValue: 'undefined',
-        description: 'Sequential cut numbers when passing two child elements directly.',
+        description:
+          'Cut labels (or false to hide) when passing two child elements directly; omit inside <Sheet autoCut> for automatic numbering.',
       },
     ],
     a11yNotes: [

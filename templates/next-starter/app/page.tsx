@@ -218,7 +218,7 @@ export default function StarterWorkspacePage() {
 
   return (
     <main style={{ maxWidth: 1280, margin: '0 auto', padding: '20px' }}>
-      <Sheet pegs motion={motion} theme={theme}>
+      <Sheet autoCut pegs motion={motion} theme={theme}>
         <header className="f12-hd">
           <div>
             <p className="f12-eyebrow">
@@ -267,7 +267,7 @@ export default function StarterWorkspacePage() {
 
         {/* Scene 1: Establishing shot (C-01) + Diagonal PanelPair (C-02 / C-03) */}
         <Scene gutter="scene" layout="split">
-          <Panel cut="C-01" label="Recovered revenue establishing shot">
+          <Panel label="Recovered revenue establishing shot">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--f-gutter-scene)' }}>
               <div className="f12-c01-hd">
                 <Metric
@@ -300,7 +300,6 @@ export default function StarterWorkspacePage() {
 
           <PanelPair
             top={{
-              cut: 'C-02',
               label: 'Recovery conversion rate',
               children: (
                 <Metric
@@ -316,7 +315,6 @@ export default function StarterWorkspacePage() {
               ),
             }}
             bottom={{
-              cut: 'C-03',
               label: 'Active carts in sequence',
               children: (
                 <Metric
@@ -343,7 +341,7 @@ export default function StarterWorkspacePage() {
 
         {/* Scene 2: Ranked interventions (C-04) + Dispatch configuration & modal (C-05) */}
         <Scene gutter="scene" layout="equal">
-          <Panel cut="C-04" label="Top recovery interventions">
+          <Panel label="Top recovery interventions">
             <ToneBarList
               title="Intervention attribution"
               subtitle={`Last ${windowDays} days · rotated 45° halftone screentone bars`}
@@ -354,7 +352,7 @@ export default function StarterWorkspacePage() {
             />
           </Panel>
 
-          <Panel cut="C-05" label="Webhook dispatch and guardrails">
+          <Panel label="Webhook dispatch and guardrails">
             <div
               style={{
                 display: 'flex',

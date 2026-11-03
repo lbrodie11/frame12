@@ -5,6 +5,7 @@ import { type MotionMode, useReducedMotion } from '@/hooks/use-on-twos';
 
 export interface SheetProps extends React.HTMLAttributes<HTMLDivElement> {
   pegs?: boolean;
+  autoCut?: boolean;
   motion?: MotionMode;
   theme?: 'light' | 'dark';
   sheetClassName?: string;
@@ -24,6 +25,7 @@ export function Pegs() {
 export const Sheet = React.forwardRef<HTMLDivElement, SheetProps>(function Sheet(
   {
     pegs = true,
+    autoCut = false,
     motion = 'stepped',
     theme,
     className = '',
@@ -38,10 +40,17 @@ export const Sheet = React.forwardRef<HTMLDivElement, SheetProps>(function Sheet
   const themeClass = theme ? ` f12-theme-${theme}` : '';
   const outerClass = `f12-dash f12-frame f12-m-${effectiveMotion}${themeClass}${className ? ` ${className}` : ''}`;
   const innerClass = `f12-sheet${sheetClassName ? ` ${sheetClassName}` : ''}`;
+  const innerStyle = {
+    '--f12-autocut-display': autoCut ? 'block' : 'none',
+  } as React.CSSProperties;
 
   return (
     <div ref={ref} className={outerClass} data-theme={theme} {...rest}>
-      <div className={innerClass}>
+      <div
+        className={innerClass}
+        data-autocut={autoCut ? '' : undefined}
+        style={innerStyle}
+      >
         {pegs && <Pegs />}
         {children}
       </div>

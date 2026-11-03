@@ -12,6 +12,8 @@
 //      with `tsc --noEmit`.
 
 import http from 'node:http';
+import { chromium } from 'playwright';
+import { getRenderedCuts } from '../registry/tests/lib.mjs';
 import {
   mkdtempSync,
   mkdirSync,
@@ -37,6 +39,29 @@ function check(ok, label, detail = '') {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  ' + detail : ''}`);
 }
 
+const CANONICAL_REGISTRY_PATH = resolve(REPO_ROOT, 'registry/registry.json');
+const CANONICAL_REGISTRY_RAW = readFileSync(CANONICAL_REGISTRY_PATH, 'utf8');
+const CANONICAL_ITEMS_BY_NAME = new Map(
+  (JSON.parse(CANONICAL_REGISTRY_RAW).items || []).map((item) => [item.name, item]),
+);
+
+function rewriteCanonicalValue(value, registryBaseUrl) {
+  if (typeof value === 'string') {
+    return value.replaceAll('https://frame12.dev/r/', `${registryBaseUrl}/`);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => rewriteCanonicalValue(item, registryBaseUrl));
+  }
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = rewriteCanonicalValue(v, registryBaseUrl);
+    }
+    return out;
+  }
+  return value;
+}
+
 function startRegistryServer() {
   return new Promise((resolveServer, rejectServer) => {
     const server = http.createServer((req, res) => {
@@ -53,8 +78,27 @@ function startRegistryServer() {
         res.end('Not found');
         return;
       }
+      const hostOrigin = `http://${req.headers.host || '127.0.0.1'}`;
+      const registryBaseUrl = `${hostOrigin}/r`;
+      let body;
+      if (fileName === 'registry.json') {
+        body = CANONICAL_REGISTRY_RAW.replaceAll('https://frame12.dev/r/', `${registryBaseUrl}/`);
+      } else {
+        const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+        const canonicalItem = CANONICAL_ITEMS_BY_NAME.get(parsed.name);
+        if (canonicalItem?.registryDependencies) {
+          parsed.registryDependencies = rewriteCanonicalValue(
+            canonicalItem.registryDependencies,
+            registryBaseUrl,
+          );
+        }
+        if (canonicalItem?.config) {
+          parsed.config = rewriteCanonicalValue(canonicalItem.config, registryBaseUrl);
+        }
+        body = JSON.stringify(parsed, null, 2);
+      }
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(readFileSync(filePath));
+      res.end(body);
     });
     server.listen(0, '127.0.0.1', () => {
       const addr = server.address();
@@ -454,7 +498,18 @@ console.log('R19_RUNTIME_OK:' + html.length);
     runRes.status !== 0 ? `${runRes.stdout}\n${runRes.stderr}` : runRes.stdout.trim(),
   );
 
-  // 7. Single-component consumer installation (/r/panel.json)
+  // 0. Validate registry schema (`registry.json` + `registry/registry.json`) with `shadcn registry validate`
+  const validateRes = await runAsync('npx', ['--yes', 'shadcn', 'registry', 'validate'], {
+    cwd: REPO_ROOT,
+    env: { ...process.env, CI: 'true' },
+  });
+  check(
+    validateRes.status === 0,
+    'npx shadcn registry validate passes across root registry.json and registry/registry.json (26 items)',
+    validateRes.status !== 0 ? `${validateRes.stdout}\n${validateRes.stderr}` : '',
+  );
+
+  // 7. Individual component consumer installation (/r/sheet.json + /r/panel.json via registryDependencies)
   const singleDir = mkdtempSync(join(tmpdir(), 'frame12-single-'));
   try {
     mkdirSync(join(singleDir, 'src/app'), { recursive: true });
@@ -480,10 +535,23 @@ console.log('R19_RUNTIME_OK:' + html.length);
       readFileSync(join(tempDir, 'components.json'), 'utf8'),
     );
 
+    const sheetUrl = `http://127.0.0.1:${port}/r/sheet.json`;
     const panelUrl = `http://127.0.0.1:${port}/r/panel.json`;
+    const baseUrl = `http://127.0.0.1:${port}/r/frame12-base.json`;
+
+    const viewBase = await runAsync('npx', ['--yes', 'shadcn', 'add', baseUrl, '--view'], {
+      cwd: singleDir,
+      env: { ...process.env, CI: 'true' },
+    });
+    check(
+      viewBase.status === 0 && viewBase.stdout.includes('frame12.css'),
+      'shadcn add --view on /r/frame12-base.json resolves base styles, hooks, and registry:font items',
+      viewBase.status !== 0 ? `${viewBase.stdout}\n${viewBase.stderr}` : '',
+    );
+
     const singleAdd = await runAsync(
       'npx',
-      ['--yes', 'shadcn', 'add', panelUrl, '--yes', '--overwrite'],
+      ['--yes', 'shadcn', 'add', sheetUrl, panelUrl, '--yes', '--overwrite'],
       {
         cwd: singleDir,
         env: {
@@ -493,24 +561,99 @@ console.log('R19_RUNTIME_OK:' + html.length);
         },
       },
     );
-    const hasSinglePanel =
+    const hasSingleFiles =
+      existsSync(join(singleDir, 'src/components/frame12/sheet.tsx')) &&
       existsSync(join(singleDir, 'src/components/frame12/panel.tsx')) &&
       existsSync(join(singleDir, 'src/hooks/use-on-twos.ts')) &&
       existsSync(join(singleDir, 'src/styles/frame12.css'));
     symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(singleDir, 'node_modules'), 'dir');
     writeFileSync(
       join(singleDir, 'src/app/single-check.tsx'),
-      `import * as React from 'react';\nimport '@/styles/frame12.css';\nimport { Panel } from '@/components/frame12/panel';\nexport function SingleCheck() {\n  return <Panel cut="C-01" label="Single">OK</Panel>;\n}\n`,
+      `import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import '@/styles/frame12.css';
+import { Sheet } from '@/components/frame12/sheet';
+import { Panel } from '@/components/frame12/panel';
+export function SingleCheck() {
+  return (
+    <Sheet autoCut>
+      <Panel label="First">One</Panel>
+      <Panel label="Second">Two</Panel>
+      <Panel cut={false} label="Unnumbered">None</Panel>
+      <Panel label="Third">Three</Panel>
+    </Sheet>
+  );
+}
+export function renderSingleHtml() {
+  return renderToStaticMarkup(<SingleCheck />);
+}
+`,
     );
     const singleTsc = spawnSync(tscBin, ['--noEmit', '-p', join(singleDir, 'tsconfig.json')], {
       cwd: singleDir,
       encoding: 'utf8',
     });
     check(
-      singleAdd.status === 0 && hasSinglePanel && singleTsc.status === 0,
-      'Single-component install (/r/panel.json) installs panel.tsx + use-on-twos.ts + frame12.css and passes tsc --noEmit',
+      singleAdd.status === 0 && hasSingleFiles && singleTsc.status === 0,
+      'Individual install (/r/sheet.json + /r/panel.json) resolves frame12-styles + use-on-twos via registryDependencies and passes tsc --noEmit',
       singleTsc.status !== 0 ? `${singleTsc.stdout}\n${singleTsc.stderr}` : '',
     );
+
+    // Bundle and render SingleCheck in Chromium to verify <Sheet autoCut> CSS counters from installed sheet.json + panel.json
+    const singleBundle = join(singleDir, 'single-ssr.cjs');
+    spawnSync(
+      esbuildBin,
+      [
+        join(singleDir, 'src/app/single-check.tsx'),
+        '--bundle',
+        '--platform=node',
+        '--format=cjs',
+        '--loader:.css=empty',
+        `--outfile=${singleBundle}`,
+      ],
+      { cwd: singleDir, encoding: 'utf8' },
+    );
+    const ssrRes = spawnSync(
+      process.execPath,
+      ['-e', `console.log(require(${JSON.stringify(singleBundle)}).renderSingleHtml())`],
+      { cwd: singleDir, encoding: 'utf8' },
+    );
+    const installedCss = readFileSync(join(singleDir, 'src/styles/frame12.css'), 'utf8');
+    const fontDelaManifest = JSON.parse(
+      readFileSync(resolve(REGISTRY_PUBLIC_DIR, 'font-dela-gothic-one.json'), 'utf8'),
+    );
+    const fontZenManifest = JSON.parse(
+      readFileSync(resolve(REGISTRY_PUBLIC_DIR, 'font-zen-kaku-gothic-new.json'), 'utf8'),
+    );
+    const fontMplusManifest = JSON.parse(
+      readFileSync(resolve(REGISTRY_PUBLIC_DIR, 'font-m-plus-1-code.json'), 'utf8'),
+    );
+    check(
+      fontDelaManifest.font?.variable === '--font-dela-gothic-one' &&
+        fontZenManifest.font?.variable === '--font-zen-kaku-gothic-new' &&
+        fontMplusManifest.font?.variable === '--font-m-plus-1-code' &&
+        installedCss.includes('--font-f-display: var(--font-dela-gothic-one, "Dela Gothic One")') &&
+        installedCss.includes('--font-f-body: var(--font-zen-kaku-gothic-new, "Zen Kaku Gothic New")') &&
+        installedCss.includes('--font-f-mono: var(--font-m-plus-1-code, "M PLUS 1 Code")'),
+      'registry:font items use distinct --font-<slug> variables and frame12.css resolves --font-f-* via var(--font-<slug>, fallback)',
+    );
+    const browser = await chromium.launch({
+      executablePath: process.env.CHROME_PATH || undefined,
+      args: ['--no-sandbox'],
+    });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(
+        `<!doctype html><html><head><style>${installedCss}</style></head><body>${ssrRes.stdout}</body></html>`,
+      );
+      const renderedCuts = await getRenderedCuts(page);
+      check(
+        renderedCuts.join(',') === 'C-01,C-02,C-03',
+        `Individual sheet.json + panel.json install renders <Sheet autoCut> CSS counters (${renderedCuts.join(', ')})`,
+      );
+    } finally {
+      await browser.close();
+    }
   } finally {
     rmSync(singleDir, { recursive: true, force: true });
   }
