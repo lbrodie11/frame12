@@ -32,7 +32,7 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 ### Requirements & Compatibility
 
 - **React & Next.js:** Tested on React `18.x` and type-checked/verified for React `19.x` (`element.props.ref` compatible) in Next.js `14+` App Router projects.
-- **Project setup:** An initialized `shadcn` project (`components.json` with a `@/*` path alias). Or start from a pre-configured repo in [`templates/next-starter/`](templates/next-starter/).
+- **Project setup:** An initialized `shadcn` project (`components.json` with a `@/*` path alias; tested with Radix-based `shadcn` styles such as `new-york` as well as `shadcn init -d` / `base-nova`). Or start from a pre-configured repo in [`templates/next-starter/`](templates/next-starter/).
 - **Styling:** Works standalone via scoped `.f12-*` CSS custom properties (`styles/frame12.css`). Tailwind CSS is optional (`styles/frame12-tailwind.css` is included if you want Tailwind v4 utility classes).
 - **Status:** `v0.1.0` (experimental initial release covering 14 core layout/data/control components and 5 accessible primitive adapters).
 

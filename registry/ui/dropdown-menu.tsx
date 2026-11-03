@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
-import { Button, type ButtonProps } from './button';
+import type { ButtonProps } from './button';
 
 interface DropdownMenuFieldContextValue {
   containerEl: HTMLDivElement | null;
@@ -61,11 +61,15 @@ export const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownM
         </DropdownMenuPrimitive.Trigger>
       );
     }
+    const classes = `f12-btn f12-btn-${variant} f12-btn-${size}${className ? ` ${className}` : ''}`;
     return (
-      <DropdownMenuPrimitive.Trigger asChild>
-        <Button ref={forwardedRef} variant={variant} size={size} className={className} {...rest}>
-          {children}
-        </Button>
+      <DropdownMenuPrimitive.Trigger
+        ref={forwardedRef}
+        type="button"
+        className={classes}
+        {...rest}
+      >
+        {children}
       </DropdownMenuPrimitive.Trigger>
     );
   },

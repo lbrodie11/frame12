@@ -166,7 +166,7 @@ try {
     JSON.stringify(
       {
         $schema: 'https://ui.shadcn.com/schema.json',
-        style: 'new-york',
+        style: 'base-nova',
         rsc: true,
         tsx: true,
         tailwind: {
@@ -241,6 +241,16 @@ try {
     missingFiles.length === 0,
     `shadcn add installed all ${expectedFiles.length} files to src/components/frame12, src/hooks, and src/styles`,
     missingFiles.join(', '),
+  );
+
+  // 3b. Assert shadcn's base-nova style codemod did not rewrite Radix triggers to Base UI `render={` prop
+  const installedDropdownMenu = readFileSync(
+    join(tempDir, 'src/components/frame12/dropdown-menu.tsx'),
+    'utf8',
+  );
+  check(
+    !installedDropdownMenu.includes('render={'),
+    'dropdown-menu.tsx is free of Base UI render={} rewrites under shadcn base-nova style',
   );
 
   // 4. Assert sentinel src/components/ui/button.tsx and src/components/ui/dialog.tsx are untouched
