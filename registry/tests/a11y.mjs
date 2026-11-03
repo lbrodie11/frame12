@@ -98,7 +98,7 @@ const NAMES = () => {
 async function focusMissesAll(page) {
   const totalFocusable = await page.evaluate(() => {
     const sel =
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]), summary, [tabindex="0"]';
+      'a[href], button:not([disabled]):not([tabindex="-1"]), input:not([disabled]), select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]), summary, [tabindex="0"]';
     return [...document.querySelectorAll(sel)].filter((el) => {
       if (el.closest('[inert], dialog:not([open])')) return false;
       const r = el.getBoundingClientRect();

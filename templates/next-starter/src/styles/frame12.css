@@ -138,13 +138,10 @@
   container-type: inline-size;
   position: relative;
 }
-.f12-dash h2,
-.f12-dash h3,
-.f12-dash p,
-.f12-dash ul {
+.f12-dash :where(h2, h3, p, ul) {
   margin: 0;
 }
-.f12-dash ul {
+.f12-dash :where(ul) {
   list-style: none;
   padding: 0;
 }
@@ -420,8 +417,11 @@
   text-transform: uppercase;
 }
 .f12-rng-btn:focus-visible {
-  outline: 3px solid var(--f-marker);
+  outline: 3px solid var(--f-ink);
   outline-offset: -6px;
+}
+.f12-rng:not(:has(.f12-rng-ind)) .f12-rng-btn[aria-pressed="true"]:focus-visible {
+  outline-color: currentColor;
 }
 
 /* ===================================================================== Button & Input */
@@ -925,6 +925,9 @@
   background: var(--f-ink);
   color: var(--f-panel);
 }
+.f12-int-row[aria-pressed="true"]:focus-visible {
+  outline-color: var(--f-panel);
+}
 .f12-int-row[aria-pressed="true"] .f12-int-bar {
   border-color: var(--f-panel);
 }
@@ -1088,6 +1091,12 @@ dialog.f12-dialog::backdrop {
   outline: 3px solid var(--f-ink);
   outline-offset: -3px;
 }
+.f12-select-item[data-highlighted]:focus-visible,
+.f12-select-item[aria-selected="true"]:focus-visible,
+.f12-select-item[data-state="checked"]:focus-visible {
+  outline: 2px solid var(--f-panel);
+  outline-offset: -4px;
+}
 .f12-select-item[data-disabled] {
   opacity: 0.5;
   cursor: not-allowed;
@@ -1186,6 +1195,10 @@ dialog.f12-dialog::backdrop {
   background: var(--f-ink);
   color: var(--f-panel);
   outline: none;
+}
+.f12-menu-item:focus-visible {
+  outline: 2px solid var(--f-panel);
+  outline-offset: -4px;
 }
 .f12-menu-item[data-disabled] {
   opacity: 0.5;

@@ -2,6 +2,19 @@
 
 All notable changes to **FRAME/12** are documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **`SegmentedControl` Keyboard Navigation & Focus Contrast (`registry/ui/segmented-control.tsx`, `registry/styles/frame12.css`):**
+  - Implemented roving `tabIndex` (`tabIndex={0}` on the active segment, `tabIndex={-1}` on inactive segments) so each `SegmentedControl` is a single Tab stop.
+  - Added `ArrowRight`/`ArrowDown`, `ArrowLeft`/`ArrowUp`, `Home`, and `End` keyboard navigation that moves focus between segment buttons (ignoring modified keystrokes with `Alt`, `Ctrl`, `Meta`, or `Shift`), while `Space` or `Enter` activates the focused segment (`aria-pressed="true"`).
+  - Updated `.f12-rng-btn:focus-visible` from `--f-marker` (`1.41:1` on unselected light-mode cells) to `3px solid var(--f-ink)` (`18.74:1` in light mode, `14.63:1` in dark mode, and automatically inverted by `.f12-rng-ind` `mix-blend-mode: difference` when selected).
+- **`Dialog` Cross-Browser Focus Restoration (`registry/ui/dialog.tsx`):**
+  - Tracked both the activating `DialogTrigger` (`returnFocusRef`) and pre-open `document.activeElement` (`preOpenActiveRef`) so closing a `<Dialog>` via `Escape`, `DialogClose`, or backdrop click reliably returns focus to the trigger across Chromium, Firefox, and WebKit (even when pointer clicks in WebKit leave a prior input focused), while respecting intentional consumer focus changes.
+- **`.f12-dash` Scoped Typography Reset (`registry/styles/frame12.css`):**
+  - Updated `.f12-dash h2, .f12-dash h3, .f12-dash p, .f12-dash ul` to `.f12-dash :where(h2, h3, p, ul)` (`(0, 1, 0)` specificity), preserving host-app style isolation against element selectors (`p, h2, h3, ul`) while allowing `.f12-delta { margin: 14px 0 0 }` to take effect (`14.00px` descender clearance under `.f12-m-value`).
+
 ## [0.1.0] - 2026-11-02
 
 Initial public release of **FRAME/12**, an interface design language, `shadcn`-compatible React + TypeScript component registry, and AI agent grammar toolkit built from sequential print page composition and `12fps` ("on twos") cel-animation production craft.

@@ -11,7 +11,8 @@
     "build": "npm run build:gallery && npm run build:registry",
     "test:unit": "node tests/unit.mjs",
     "test:a11y": "node tests/a11y.mjs",
-    "test": "npm run build:gallery && npm run test:unit && npm run test:a11y"
+    "test:cross-browser": "npm run build:gallery && node tests/cross-browser.mjs",
+    "test": "npm run build:gallery && npm run test:unit && npm run test:a11y && node tests/cross-browser.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.6",

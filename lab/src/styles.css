@@ -218,7 +218,7 @@ button { font: inherit; color: inherit; }
 .frame .rng-btn + .rng-btn { border-left: 2px solid var(--f-rule); }
 .frame .rng-n { font-family: var(--font-f-display); font-size: 18px; line-height: 1; }
 .frame .rng-u { font-family: var(--font-f-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
-.frame .rng-btn:focus-visible { outline: 3px solid var(--f-marker); outline-offset: -6px; }
+.frame .rng-btn:focus-visible { outline: 3px solid var(--f-ink); outline-offset: -6px; }
 
 /* scene grammar: 20px gutter = same scene, 12px = paired panels, 32px = scene change */
 .frame .scene { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }

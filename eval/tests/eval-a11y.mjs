@@ -3,7 +3,7 @@
 
 import { chromium } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -15,6 +15,15 @@ const DOCS_IMAGES = resolve(REPO_ROOT, 'docs/images');
 mkdirSync(DOCS_IMAGES, { recursive: true });
 
 const shim = process.env.F12_REACT_UMD ? readFileSync(process.env.F12_REACT_UMD, 'utf8') : null;
+const localReactPath = resolve(REPO_ROOT, 'node_modules/react/umd/react.production.min.js');
+const localReactDomPath = resolve(
+  REPO_ROOT,
+  'node_modules/react-dom/umd/react-dom.production.min.js',
+);
+const localReactUmd = existsSync(localReactPath) ? readFileSync(localReactPath, 'utf8') : null;
+const localReactDomUmd = existsSync(localReactDomPath)
+  ? readFileSync(localReactDomPath, 'utf8')
+  : null;
 
 let failures = 0;
 function check(ok, label, detail = '') {
@@ -227,6 +236,25 @@ async function openScreen(
         return route.fulfill({ status: 200, contentType: 'application/javascript', body: shim });
       }
       return route.abort();
+    });
+  } else if (localReactUmd && localReactDomUmd) {
+    await page.route('**/*', (route) => {
+      const u = route.request().url();
+      if (u.includes('cdnjs') && u.includes('react-dom')) {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/javascript',
+          body: localReactDomUmd,
+        });
+      }
+      if (u.includes('cdnjs') && u.includes('/react/')) {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/javascript',
+          body: localReactUmd,
+        });
+      }
+      return route.continue();
     });
   }
   const target = resolve(DIST_DIR, `${name}.html`);

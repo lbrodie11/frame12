@@ -401,6 +401,43 @@ await page.waitForSelector('#unit-test-fixtures');
     `counts=${countAfterBtn},${countAfterEsc},${countAfterBackdrop}`,
   );
 
+  // Rejected controlled DialogTrigger open followed by programmatic open from another focused control
+  // must discard the rejected trigger and restore focus to the control that was focused when opened.
+  await page.click('#test-dlg-reject-toggle');
+  await page.click('#test-dlg-aschild-btn');
+  const stayedClosedOnReject = await page.evaluate(
+    () => !document.querySelector('#test-controlled-dlg').open,
+  );
+  await page.focus('#test-dlg-prog-open');
+  await page.click('#test-dlg-prog-open');
+  await page.waitForSelector('#test-controlled-dlg[open]');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#test-controlled-dlg:not([open])', { state: 'attached' });
+  const afterRejectedThenProg = await page.evaluate(() => ({
+    activeId: document.activeElement?.id || '',
+  }));
+  await page.click('#test-dlg-reject-toggle');
+  check(
+    stayedClosedOnReject && afterRejectedThenProg.activeId === 'test-dlg-prog-open',
+    'Dialog controlled rejected open: discards rejected DialogTrigger capture when later opened programmatically from another focused control',
+    JSON.stringify({ stayedClosedOnReject, ...afterRejectedThenProg }),
+  );
+
+  // Conditionally mounted {open && <DialogContent>} closed via DialogClose restores focus to trigger
+  await page.click('#test-dlg-cond-open');
+  await page.waitForSelector('#test-cond-dlg[open]');
+  await page.click('#test-dlg-cond-close');
+  await page.waitForFunction(() => !document.querySelector('#test-cond-dlg'));
+  const afterCondClose = await page.evaluate(() => ({
+    unmounted: !document.querySelector('#test-cond-dlg'),
+    activeId: document.activeElement?.id || '',
+  }));
+  check(
+    afterCondClose.unmounted && afterCondClose.activeId === 'test-dlg-cond-open',
+    'Dialog conditionally mounted DialogContent: restores focus to trigger when DialogClose unmounts DialogContent',
+    JSON.stringify(afterCondClose),
+  );
+
   // Dialog without DialogDescription omits aria-describedby
   await page.click('#test-dlg-nodesc-open');
   const noDescAttr = await page.evaluate(() =>
