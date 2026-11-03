@@ -27,7 +27,7 @@ import {
   type StoryboardEvent,
 } from '../model/index.js';
 import { sanitizeTerminalText } from '../render-plain/index.js';
-import { describeCochangeRelationship } from '../workload/git-history.js';
+import { classifyCochangePair, describeCochangeRelationship } from '../workload/git-history.js';
 
 export interface WebReportOptions {
   theme?: 'light' | 'dark';
@@ -73,6 +73,17 @@ const REPORT_LAYOUT_CSS = [
   '.f12-static-bar-track-row > .f12-int-bar, .f12-static-bar-track-row > .f12-int-val { grid-area: auto; }',
   '.f12-hotspot-list { display: flex; flex-direction: column; gap: 0; padding: 0; margin: 0; list-style: none; border-top: 1px solid var(--f-grid); }',
   '.f12-hotspot-item { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--f-gutter-pair); padding: 6px 0; border-bottom: 1px solid var(--f-grid); font-size: 12px; }',
+  '.f12-finding-cards { display: flex; flex-direction: column; gap: var(--f-gutter-scene); padding: 0; margin: 0; list-style: none; }',
+  '.f12-finding-card { display: flex; flex-direction: column; gap: var(--f-gutter-pair); padding: 16px; border: 2px solid var(--f-rule); background: var(--f-panel); min-width: 0; }',
+  '.f12-finding-card-hero { border-width: 2.5px; }',
+  '.f12-finding-card-hd { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--f-gutter-pair); padding-bottom: 8px; border-bottom: 1px solid var(--f-grid); min-width: 0; }',
+  '.f12-finding-card-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--f-gutter-pair); }',
+  '.f12-finding-card-files { display: flex; flex-direction: column; gap: 0; padding: 8px 12px; border-left: 2.5px solid var(--f-rule); background: var(--f-desk); min-width: 0; }',
+  '.f12-finding-card-file-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0; min-width: 0; line-height: 1.5; }',
+  '.f12-finding-card-metrics { display: flex; flex-direction: column; gap: 0; padding: 8px 12px; border: 1px solid var(--f-grid); min-width: 0; }',
+  '.f12-finding-card-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--f-gutter-pair); min-width: 0; }',
+  '.f12-finding-card-col { display: flex; flex-direction: column; gap: 0; min-width: 0; }',
+  '.f12-finding-card-evidence { padding-top: 8px; border-top: 1px dashed var(--f-grid); display: flex; flex-direction: column; gap: 0; min-width: 0; }',
   '.f12-action-list { display: flex; flex-direction: column; gap: var(--f-gutter-pair); padding: 0; margin: 0; list-style: none; }',
   '.f12-action-item { border-left: 2.5px solid var(--f-rule); padding-left: 10px; display: flex; flex-direction: column; gap: 0; }',
   '.f12-tag, .f12-nowrap { white-space: nowrap; }',
@@ -81,7 +92,7 @@ const REPORT_LAYOUT_CSS = [
   '.f12-metric.big .f12-m-value { font-size: clamp(22px, 3.4cqi, 34px); line-height: 1.18; word-break: normal; overflow-wrap: break-word; }',
   '.f12-metric .f12-m-note { max-width: 68ch; }',
   '.f12-table td, .f12-title, .f12-sub { word-break: normal; overflow-wrap: break-word; }',
-  '@media (max-width: 760px) { .f12-static-bar-track-row { grid-template-columns: minmax(0, 1fr); } .f12-int-val { justify-content: flex-start; } .f12-table th, .f12-table td { padding: 6px 4px 6px 0; font-size: 11px; overflow-wrap: anywhere; word-break: break-word; } .f12-table .f12-mono-code, .f12-table .f12-mono-note, .f12-table .f12-body-copy, .f12-table .f12-path { overflow-wrap: anywhere; word-break: break-word; } }',
+  '@media (max-width: 760px) { .f12-static-bar-track-row { grid-template-columns: minmax(0, 1fr); } .f12-int-val { justify-content: flex-start; } .f12-finding-card { padding: 12px; } .f12-finding-card-body { grid-template-columns: minmax(0, 1fr); } .f12-table th, .f12-table td { padding: 6px 4px 6px 0; font-size: 11px; overflow-wrap: anywhere; word-break: break-word; } .f12-table .f12-mono-code, .f12-table .f12-mono-note, .f12-table .f12-body-copy, .f12-table .f12-path, .f12-finding-card .f12-path, .f12-finding-card .f12-mono-code, .f12-finding-card .f12-mono-note { overflow-wrap: anywhere; word-break: break-word; } }',
 ].join('\n');
 
 function extractSteps(events: StoryboardEvent[]): {
@@ -411,27 +422,19 @@ function StoryboardReportView({
                       : 'No file pairs met the co-change threshold in this commit window.'}
                 </p>
               ) : (
-                <Table>
-                  <TableCaption>
+                <>
+                  <p className="f12-mono-note">
                     Historical file co-change evidence for {safeRepo} ({snapshot.commitsExamined}{' '}
-                    commits inspected). Shared frequency shows shared commits out of combined union
-                    commits alongside per-file directional counts.
-                  </TableCaption>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Coupled File Pair</TableHead>
-                      <TableHead>Shared Commit Frequency</TableHead>
-                      <TableHead>Supporting Commit SHAs</TableHead>
-                      <TableHead>Pattern &amp; Why Review Together</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                    commits inspected). Each card presents shared commit counts, directional touch
+                    counts, observed commit history, and a suggested review action.
+                  </p>
+                  <ol className="f12-finding-cards" aria-label="Ranked co-change findings">
                     {snapshot.findings.map((f) => {
                       const id = sanitizeTerminalText(f.id);
                       const baseA = posix.basename(sanitizeTerminalText(f.files[0]));
                       const baseB = posix.basename(sanitizeTerminalText(f.files[1]));
                       const overlapPct = Math.round(f.couplingRatio * 100);
+                      const moreChangedCommits = Math.max(f.fileACommits, f.fileBCommits);
                       const unionCommits = Math.max(
                         1,
                         f.fileACommits + f.fileBCommits - f.cochangeCount,
@@ -452,51 +455,91 @@ function StoryboardReportView({
                         jaccardRatio,
                         sampleSubjects: f.evidence.sampleSubjects,
                       });
-                      const rawReason = sanitizeTerminalText(f.reason);
-                      const cleanedReason = rawReason.replace(
-                        /^(?:Mutual lockstep|One-way dependency|Shared feature surface):\s*/i,
-                        '',
-                      );
+                      const classification =
+                        f.classification ?? classifyCochangePair(f.files[0], f.files[1]);
+                      const classificationLabel =
+                        classification === 'test-companion'
+                          ? 'TEST COMPANION'
+                          : classification === 'docs-release'
+                            ? 'DOCS / RELEASE'
+                            : classification === 'workspace-mirror'
+                              ? 'WORKSPACE MIRROR'
+                              : classification === 'same-module'
+                                ? 'SAME MODULE'
+                                : 'CROSS-MODULE';
+
                       return (
-                        <TableRow key={id}>
-                          <TableCell>
-                            <Tag className={f.id === 'F-01' ? '' : 'f12-tag-muted'}>{id}</Tag>
-                          </TableCell>
-                          <TableCell>
-                            <div>{renderFormattedPath(f.files[0])}</div>
-                            <div>{renderFormattedPath(f.files[1])}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="f12-mono-code">
+                        <li
+                          key={id}
+                          className={
+                            f.id === 'F-01'
+                              ? 'f12-finding-card f12-finding-card-hero'
+                              : 'f12-finding-card'
+                          }
+                        >
+                          <div className="f12-finding-card-hd">
+                            <div className="f12-finding-card-badges">
+                              <Tag className={f.id === 'F-01' ? '' : 'f12-tag-muted'}>{id}</Tag>
+                              {f.id === 'F-01' && <Badge burst={false}>TOP PAIR · REVIEW</Badge>}
+                              <Badge burst={false} className="f12-badge-ink">
+                                {rel.patternLabel.toUpperCase()}
+                              </Badge>
+                              <Tag className="f12-tag-muted">{classificationLabel}</Tag>
+                            </div>
+                            <span className="f12-mono-code">
                               <strong>
-                                Changed together in {f.cochangeCount} of {unionCommits} commits
+                                {f.cochangeCount} shared commits · {f.cochangeCount}/
+                                {moreChangedCommits} touches of the more-changed file
                               </strong>
+                            </span>
+                          </div>
+
+                          <div className="f12-finding-card-files">
+                            <div className="f12-finding-card-file-row">
+                              {renderFormattedPath(f.files[0])}
                             </div>
-                            <div className="f12-mono-note">
-                              {baseA}: {f.cochangeCount}/{f.fileACommits} · {baseB}:{' '}
-                              {f.cochangeCount}/{f.fileBCommits} · {jaccardPct}% Jaccard (
-                              {overlapPct}% overlap)
+                            <div className="f12-finding-card-file-row">
+                              <span className="f12-pair-arrow">⇆</span>
+                              {renderFormattedPath(f.files[1])}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="f12-mono-code">{shas}</div>
+                          </div>
+
+                          <div className="f12-finding-card-metrics">
+                            <span className="f12-mono-code">
+                              Changed together in <strong>{f.cochangeCount}</strong> of{' '}
+                              <strong>{unionCommits}</strong> combined commits · {baseA}:{' '}
+                              {f.cochangeCount}/{f.fileACommits} · {baseB}: {f.cochangeCount}/
+                              {f.fileBCommits} · {jaccardPct}% Jaccard ({overlapPct}% overlap)
+                            </span>
+                          </div>
+
+                          <div className="f12-finding-card-body">
+                            <div className="f12-finding-card-col">
+                              <span className="f12-mono-note">OBSERVED HISTORY</span>
+                              <p className="f12-body-copy">{rel.summary}</p>
+                            </div>
+                            <div className="f12-finding-card-col">
+                              <span className="f12-mono-note">SUGGESTED REVIEW ACTION</span>
+                              <p className="f12-body-copy">{rel.actionHint}</p>
+                            </div>
+                          </div>
+
+                          <div className="f12-finding-card-evidence">
+                            <span className="f12-mono-code">
+                              <strong>Supporting commit SHAs:</strong> {shas}
+                            </span>
                             {f.evidence.sampleSubjects[0] && (
-                              <div className="f12-mono-note">
-                                &ldquo;{sanitizeTerminalText(f.evidence.sampleSubjects[0])}&rdquo;
-                              </div>
+                              <span className="f12-mono-note">
+                                Latest commit subject: &ldquo;
+                                {sanitizeTerminalText(f.evidence.sampleSubjects[0])}&rdquo;
+                              </span>
                             )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="f12-report-meta-row">
-                              <Tag className="f12-tag-ink">{rel.patternLabel.toUpperCase()}</Tag>
-                            </div>
-                            <div className="f12-body-copy">{cleanedReason}</div>
-                          </TableCell>
-                        </TableRow>
+                          </div>
+                        </li>
                       );
                     })}
-                  </TableBody>
-                </Table>
+                  </ol>
+                </>
               )}
             </div>
           </Panel>
@@ -567,11 +610,13 @@ function StoryboardReportView({
               <ul className="f12-action-list">
                 <li className="f12-action-item">
                   <p className="f12-body-copy">
-                    <strong>Default noise &amp; mirror filtering:</strong> Bulk sweep commits (&gt;50
-                    files), lockfiles, binary assets, build/template mirrors, and obvious
-                    code↔test or doc/release pairs are filtered by default so architectural
-                    co-changes surface first. Pass <code>--include-noise</code> to include all
-                    files.
+                    <strong>Default noise &amp; pair classification:</strong> Bulk sweep commits
+                    (&gt;50 files), lockfiles, and binary assets are filtered by default, while full
+                    co-change evidence is preserved and classified (<code>CROSS-MODULE</code>,{' '}
+                    <code>SAME MODULE</code>, <code>TEST COMPANION</code>, <code>DOCS / RELEASE</code>
+                    , or <code>WORKSPACE MIRROR</code>). Use <code>--exclude &lt;glob&gt;</code> to
+                    exclude specific paths or <code>--include-noise</code> to include lockfiles and
+                    bulk commits.
                   </p>
                 </li>
                 <li className="f12-action-item">
