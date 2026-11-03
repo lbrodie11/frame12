@@ -496,6 +496,7 @@ export function GalleryApp() {
 function UnitTestFixtures() {
   const [dlgOpen, setDlgOpen] = React.useState(false);
   const [rejectTrigger, setRejectTrigger] = React.useState(false);
+  const [condOpen, setCondOpen] = React.useState(false);
   const [closeCount, setCloseCount] = React.useState(0);
   const [vetoCount, setVetoCount] = React.useState(0);
   const [underOpen, setUnderOpen] = React.useState(false);
@@ -567,6 +568,21 @@ function UnitTestFixtures() {
         <button id="test-dlg-prog-open" type="button" onClick={() => setDlgOpen(true)}>
           Programmatic Open Controlled Dialog
         </button>
+
+        {/* Controlled Dialog that conditionally mounts DialogContent only while open */}
+        <Dialog open={condOpen} onOpenChange={setCondOpen}>
+          <DialogTrigger id="test-dlg-cond-open">Open Conditional DialogContent</DialogTrigger>
+          {condOpen && (
+            <DialogContent id="test-cond-dlg">
+              <DialogHeader>
+                <DialogTitle>Conditionally Mounted Dialog</DialogTitle>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose id="test-dlg-cond-close">Close Conditional</DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          )}
+        </Dialog>
 
         {/* Dialog without DialogDescription */}
         <Dialog>

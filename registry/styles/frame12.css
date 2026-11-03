@@ -421,7 +421,7 @@
   outline-offset: -6px;
 }
 .f12-rng:not(:has(.f12-rng-ind)) .f12-rng-btn[aria-pressed="true"]:focus-visible {
-  outline-color: var(--f-panel);
+  outline-color: currentColor;
 }
 
 /* ===================================================================== Button & Input */

@@ -157,7 +157,7 @@ export function Dialog({
       typeof document !== 'undefined' ? document.activeElement : null;
     if (typeof document === 'undefined') return;
     const onOtherInteraction = (ev: Event) => {
-      if (openRef.current) {
+      if (dialogRef.current?.open) {
         cleanup();
         return;
       }
@@ -231,8 +231,10 @@ export function Dialog({
           returnFocusRef.current = document.activeElement;
         }
       }
-      openRef.current = next;
-      if (!isControlled) setUncontrolledOpen(next);
+      if (!isControlled) {
+        openRef.current = next;
+        setUncontrolledOpen(next);
+      }
       onOpenChangeRef.current?.(next);
     },
     [isControlled],
@@ -241,7 +243,10 @@ export function Dialog({
   React.useEffect(() => {
     ensureDialogObserver();
     const el = dialogRef.current;
-    if (!el) return;
+    if (!el) {
+      if (!open) restoreFocus();
+      return;
+    }
     if (open && !el.open) {
       clearPendingTriggerListenersRef.current?.();
       if (typeof document !== 'undefined') {

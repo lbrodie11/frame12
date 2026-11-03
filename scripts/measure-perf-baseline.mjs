@@ -109,9 +109,11 @@ async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0
     let warnings = 0;
 
     for (let i = 0; i < RUNS; i++) {
+      // Use OS colorScheme: 'light' with saved localStorage 'color-scheme' = 'dark'
+      // so FOUC_SCRIPT is exercised overriding a light OS preference on frame 0.
       const context = await browser.newContext({
         viewport: { width: 1280, height: 900 },
-        colorScheme: 'dark',
+        colorScheme: 'light',
       });
       const page = await context.newPage();
 
@@ -128,6 +130,11 @@ async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0
       }
 
       await page.addInitScript(() => {
+        try {
+          localStorage.setItem('color-scheme', 'dark');
+        } catch {
+          // ignore
+        }
         window.__f12Perf = {
           lcp: 0,
           cls: 0,
@@ -135,21 +142,8 @@ async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0
           _clsFirstStart: -1,
           _clsPrevStart: -1,
           firstPaintDark: null,
+          lightFrames: 0,
         };
-        document.addEventListener(
-          'DOMContentLoaded',
-          () => {
-            if (window.__f12Perf.firstPaintDark === null) {
-              const target = document.querySelector('.f12-sheet') || document.documentElement;
-              const sheetToken = getComputedStyle(target)
-                .getPropertyValue('--f-sheet')
-                .trim()
-                .toLowerCase();
-              window.__f12Perf.firstPaintDark = sheetToken === '#050505';
-            }
-          },
-          { once: true },
-        );
         new PerformanceObserver((list) => {
           for (const e of list.getEntries()) window.__f12Perf.lcp = e.startTime;
         }).observe({ type: 'largest-contentful-paint', buffered: true });
@@ -173,6 +167,39 @@ async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0
             }
           }
         }).observe({ type: 'layout-shift', buffered: true });
+        const isDarkActive = () => {
+          if (!document.documentElement) return false;
+          if (document.documentElement.getAttribute('data-theme') !== 'dark') return false;
+          const target = document.querySelector('.f12-sheet') || document.documentElement;
+          const sheetToken = getComputedStyle(target)
+            .getPropertyValue('--f-sheet')
+            .trim()
+            .toLowerCase();
+          return !sheetToken || sheetToken === '#050505';
+        };
+        // Observe on `document` (which exists before <html> is parsed) so we sample
+        // the exact moment <body> is inserted before frame 0 can paint.
+        const mo = new MutationObserver(() => {
+          if (document.body && window.__f12Perf.firstPaintDark === null) {
+            window.__f12Perf.firstPaintDark = isDarkActive();
+            mo.disconnect();
+          }
+        });
+        mo.observe(document, { childList: true, subtree: true });
+        const checkFrame = () => {
+          if (document.body && ! window.__f12Perf._stopFrameCheck) {
+            if (window.__f12Perf.firstPaintDark === null) {
+              window.__f12Perf.firstPaintDark = isDarkActive();
+            }
+            if (!isDarkActive()) {
+              window.__f12Perf.lightFrames += 1;
+            }
+          }
+          if (!window.__f12Perf._stopFrameCheck) {
+            requestAnimationFrame(checkFrame);
+          }
+        };
+        requestAnimationFrame(checkFrame);
       });
 
       let runJsBytes = 0;
@@ -232,11 +259,16 @@ async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0
         return {
           lcp: window.__f12Perf.lcp,
           cls: window.__f12Perf.cls,
-          firstPaintDark: window.__f12Perf.firstPaintDark ?? sheetToken === '#050505',
+          firstPaintDark:
+            (window.__f12Perf.firstPaintDark ?? sheetToken === '#050505') &&
+            window.__f12Perf.lightFrames === 0,
+          lightFrames: window.__f12Perf.lightFrames,
         };
       });
       if (!perf.firstPaintDark) {
-        throw new Error(`Dark first-paint check failed on ${route.path}`);
+        throw new Error(
+          `Dark first-paint check failed on ${route.path} (lightFrames=${perf.lightFrames})`,
+        );
       }
       if (i === 0) {
         firstPaintDark = Boolean(perf.firstPaintDark);
@@ -245,6 +277,7 @@ async function measureMode(browser, port, { cpuThrottleRate = 1, fontDelayMs = 0
       clsRuns.push(Number(perf.cls.toFixed(4)));
 
       const latency = await page.evaluate(async (sel) => {
+        window.__f12Perf._stopFrameCheck = true;
         const el = document.querySelector(sel);
         if (!el) return null;
         const t0 = performance.now();
