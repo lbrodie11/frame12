@@ -1,4 +1,49 @@
+'use client';
+
 import * as React from 'react';
+
+function ScrollableDiagram({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  const ref = React.useRef<HTMLDivElement | null>(null);
+  const [overflowing, setOverflowing] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => {
+      const next = el.scrollWidth > el.clientWidth + 1;
+      setOverflowing((prev) => (prev === next ? prev : next));
+    };
+    check();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null;
+    if (ro) {
+      ro.observe(el);
+      if (el.firstElementChild) ro.observe(el.firstElementChild);
+    }
+    window.addEventListener('resize', check);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', check);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="sp-scroll"
+      tabIndex={overflowing ? 0 : undefined}
+      role={overflowing ? 'region' : undefined}
+      aria-label={overflowing ? label : undefined}
+    >
+      {children}
+    </div>
+  );
+}
 
 export function GrammarDiagram() {
   const sx = 0;
@@ -26,7 +71,7 @@ export function GrammarDiagram() {
   );
 
   return (
-    <div className="sp-scroll" tabIndex={0}>
+    <ScrollableDiagram label="Panel grammar diagram viewport">
       <svg
         viewBox="0 0 900 380"
         className="grammar"
@@ -61,7 +106,7 @@ export function GrammarDiagram() {
           related metrics
         </text>
       </svg>
-    </div>
+    </ScrollableDiagram>
   );
 }
 
@@ -78,7 +123,7 @@ export function FilmStripDiagram({ idPrefix = 'fm' }: { idPrefix?: string }) {
   const labels = ['7', '30', '90'];
 
   return (
-    <div className="sp-scroll" tabIndex={0}>
+    <ScrollableDiagram label={`Exposure sheet film strip (${idPrefix})`}>
       <svg
         viewBox={`0 0 ${poses.length * (fw + gap) + gap} ${fh + top * 2 + 24}`}
         className="film"
@@ -153,6 +198,6 @@ export function FilmStripDiagram({ idPrefix = 'fm' }: { idPrefix?: string }) {
           >{`${Math.round(i * 83.3)} ms`}</text>
         ))}
       </svg>
-    </div>
+    </ScrollableDiagram>
   );
 }

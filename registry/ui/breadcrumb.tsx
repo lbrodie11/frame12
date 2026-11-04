@@ -56,7 +56,6 @@ function mergeRefs<T>(
       }
     }
     activeCleanups = cleanups;
-    return runCleanups;
   };
 }
 
@@ -117,26 +116,29 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(functio
       >
         {items ? (
           <BreadcrumbList>
-            {items.map((item, idx) => {
-              const isLast = idx === items.length - 1;
-              const isCurrent = item.current ?? isLast;
-              return (
-                <React.Fragment key={idx}>
-                  <BreadcrumbItem>
-                    {isCurrent || !item.href ? (
-                      <BreadcrumbPage aria-current={isCurrent ? 'page' : false}>
-                        {item.label}
-                      </BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbLink href={item.href} onClick={item.onClick}>
-                        {item.label}
-                      </BreadcrumbLink>
-                    )}
-                  </BreadcrumbItem>
-                  {!isLast && <BreadcrumbSeparator>{separator}</BreadcrumbSeparator>}
-                </React.Fragment>
-              );
-            })}
+            {(() => {
+              const hasExplicitCurrent = items.some((entry) => entry.current === true);
+              return items.map((item, idx) => {
+                const isLast = idx === items.length - 1;
+                const isCurrent = item.current ?? (!hasExplicitCurrent && isLast);
+                return (
+                  <React.Fragment key={idx}>
+                    <BreadcrumbItem>
+                      {isCurrent || !item.href ? (
+                        <BreadcrumbPage aria-current={isCurrent ? 'page' : false}>
+                          {item.label}
+                        </BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbLink href={item.href} onClick={item.onClick}>
+                          {item.label}
+                        </BreadcrumbLink>
+                      )}
+                    </BreadcrumbItem>
+                    {!isLast && <BreadcrumbSeparator>{separator}</BreadcrumbSeparator>}
+                  </React.Fragment>
+                );
+              });
+            })()}
           </BreadcrumbList>
         ) : (
           children

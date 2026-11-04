@@ -1872,6 +1872,25 @@ function Wp5ToastControls({
             >
               Fire Dialog Toast
             </Button>
+            <Button
+              id="wp5-dialog-fire-nondismissible"
+              size="sm"
+              onClick={() => {
+                toast({
+                  id: 't-in-dialog-nondismissible',
+                  status: 'info',
+                  title: 'Locked inside dialog',
+                  dismissible: false,
+                  duration: 60000,
+                  action: {
+                    label: 'Acknowledge',
+                    onClick: () => {},
+                  },
+                });
+              }}
+            >
+              Fire Locked Toast
+            </Button>
           </div>
           <DialogFooter>
             <DialogClose id="wp5-dialog-toast-close" size="sm">
@@ -2171,6 +2190,14 @@ function Wp5UnitFixtures() {
                 { label: 'Preview', current: false },
               ]}
             />
+            <Breadcrumb
+              id="wp5-breadcrumb-mid-current"
+              items={[
+                { label: 'Workspace', href: '#ws' },
+                { label: 'Cut 04', href: '#c04', current: true },
+                { label: 'Next Cut', href: '#c05' },
+              ]}
+            />
             <Breadcrumb id="wp5-breadcrumb-compound" separator="▸" density="compact">
               <BreadcrumbList>
                 {showCleanupCrumb && (
@@ -2256,6 +2283,22 @@ function Wp5UnitFixtures() {
               boundaryCount={2}
               showSummary
             />
+            <Pagination id="wp5-pagination-anchor-attrs" ariaLabel="Anchor pagination">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationLink
+                    id="wp5-pagination-anchor-link"
+                    href="#dl-1"
+                    target="_self"
+                    rel="noreferrer"
+                    download="sheet-1.json"
+                    isActive
+                  >
+                    1
+                  </PaginationLink>
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
             <output
               id="wp5-pagination-ranges"
               data-small={JSON.stringify(rangeSmall)}

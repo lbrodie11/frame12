@@ -108,7 +108,6 @@ function mergeRefs<T>(
       }
     }
     activeCleanups = cleanups;
-    return runCleanups;
   };
 }
 

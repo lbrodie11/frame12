@@ -45,6 +45,8 @@ export interface ToastContextValue {
   density: ToastDensity;
   viewportPaused: boolean;
   documentHidden: boolean;
+  politeAnnouncement?: string;
+  assertiveAnnouncement?: string;
   setViewportPaused: (paused: boolean) => void;
   registerCustomViewport?: () => () => void;
   getRemainingDuration?: (id: string, fallback: number) => number;
@@ -118,6 +120,17 @@ function findTopmostModalDialog(): HTMLDialogElement | null {
   return null;
 }
 
+function extractActionAltText(action: ToastItem['action']): string | undefined {
+  if (!action || typeof action !== 'object') return undefined;
+  if (React.isValidElement<{ altText?: string }>(action)) {
+    return typeof action.props?.altText === 'string' ? action.props.altText : undefined;
+  }
+  if ('altText' in action && typeof (action as ToastActionDescriptor).altText === 'string') {
+    return (action as ToastActionDescriptor).altText;
+  }
+  return undefined;
+}
+
 function formatToastAnnouncement(item: ToastItem | undefined): string {
   if (!item) return '';
   const status = item.status ?? 'neutral';
@@ -128,11 +141,13 @@ function formatToastAnnouncement(item: ToastItem | undefined): string {
         ? item.srLabel
         : STATUS_SR_LABELS[status];
   const combined = `${extractTextContent(item.title)} ${extractTextContent(item.description)}`.trim();
-  if (!combined) return resolvedSrLabel ? `${resolvedSrLabel}` : '';
+  const altText = extractActionAltText(item.action);
+  const withAlt = altText ? `${combined}${combined ? ' ' : ''}(${altText})` : combined;
+  if (!withAlt) return resolvedSrLabel ? `${resolvedSrLabel}` : '';
   const needsPrefix =
     Boolean(resolvedSrLabel) &&
-    !(resolvedSrLabel && startsWithStatusLabel(combined, resolvedSrLabel, status));
-  return needsPrefix ? `${resolvedSrLabel}: ${combined}` : combined;
+    !(resolvedSrLabel && startsWithStatusLabel(withAlt, resolvedSrLabel, status));
+  return needsPrefix ? `${resolvedSrLabel}: ${withAlt}` : withAlt;
 }
 
 export interface ToastProviderProps {
@@ -155,6 +170,9 @@ export function ToastProvider({
   const [toasts, setToasts] = React.useState<ToastItem[]>([]);
   const toastsRef = React.useRef<ToastItem[]>([]);
   const remainingByIdRef = React.useRef<Map<string, number>>(new Map());
+  const announcedKeysRef = React.useRef<Set<string>>(new Set());
+  const activePoliteRef = React.useRef<{ id: string; key: string; text: string } | null>(null);
+  const activeAssertiveRef = React.useRef<{ id: string; key: string; text: string } | null>(null);
   const [viewportPaused, setViewportPaused] = React.useState(false);
   const [documentHidden, setDocumentHidden] = React.useState(false);
   const [customViewportCount, setCustomViewportCount] = React.useState(0);
@@ -201,6 +219,11 @@ export function ToastProvider({
       const next = current.filter((t) => t.id !== targetId);
       toastsRef.current = next;
       remainingByIdRef.current.delete(targetId);
+      for (const key of announcedKeysRef.current) {
+        if (key.startsWith(`${targetId}:`)) {
+          announcedKeysRef.current.delete(key);
+        }
+      }
       setToasts(() => [...toastsRef.current]);
       target.onDismiss?.(targetId);
     },
@@ -212,6 +235,9 @@ export function ToastProvider({
     if (current.length === 0) return;
     toastsRef.current = [];
     remainingByIdRef.current.clear();
+    announcedKeysRef.current.clear();
+    activePoliteRef.current = null;
+    activeAssertiveRef.current = null;
     setToasts(() => [...toastsRef.current]);
     for (const item of current) {
       item.onDismiss?.(item.id);
@@ -259,14 +285,59 @@ export function ToastProvider({
   );
   const queuedCount = Math.max(0, toasts.length - safeMaxVisible);
 
-  const latestPolite = React.useMemo(
-    () => [...visibleToasts].reverse().find((t) => (t.status ?? 'neutral') !== 'danger'),
-    [visibleToasts],
-  );
-  const latestAssertive = React.useMemo(
-    () => [...visibleToasts].reverse().find((t) => t.status === 'danger'),
-    [visibleToasts],
-  );
+  const { politeAnnouncement, assertiveAnnouncement } = React.useMemo(() => {
+    const politeCandidates = visibleToasts.filter((t) => (t.status ?? 'neutral') !== 'danger');
+    const assertiveCandidates = visibleToasts.filter((t) => t.status === 'danger');
+
+    const unannouncedPolite = politeCandidates.filter(
+      (t) => !announcedKeysRef.current.has(`${t.id}:${t.updateCount ?? 0}`),
+    );
+    if (unannouncedPolite.length > 0) {
+      for (const item of unannouncedPolite) {
+        announcedKeysRef.current.add(`${item.id}:${item.updateCount ?? 0}`);
+      }
+      const newest = unannouncedPolite[unannouncedPolite.length - 1];
+      activePoliteRef.current = {
+        id: newest.id,
+        key: `${newest.id}:${newest.updateCount ?? 0}`,
+        text: formatToastAnnouncement(newest),
+      };
+    } else if (
+      activePoliteRef.current &&
+      !politeCandidates.some(
+        (t) => `${t.id}:${t.updateCount ?? 0}` === activePoliteRef.current?.key,
+      )
+    ) {
+      activePoliteRef.current = null;
+    }
+
+    const unannouncedAssertive = assertiveCandidates.filter(
+      (t) => !announcedKeysRef.current.has(`${t.id}:${t.updateCount ?? 0}`),
+    );
+    if (unannouncedAssertive.length > 0) {
+      for (const item of unannouncedAssertive) {
+        announcedKeysRef.current.add(`${item.id}:${item.updateCount ?? 0}`);
+      }
+      const newest = unannouncedAssertive[unannouncedAssertive.length - 1];
+      activeAssertiveRef.current = {
+        id: newest.id,
+        key: `${newest.id}:${newest.updateCount ?? 0}`,
+        text: formatToastAnnouncement(newest),
+      };
+    } else if (
+      activeAssertiveRef.current &&
+      !assertiveCandidates.some(
+        (t) => `${t.id}:${t.updateCount ?? 0}` === activeAssertiveRef.current?.key,
+      )
+    ) {
+      activeAssertiveRef.current = null;
+    }
+
+    return {
+      politeAnnouncement: activePoliteRef.current?.text ?? '',
+      assertiveAnnouncement: activeAssertiveRef.current?.text ?? '',
+    };
+  }, [visibleToasts]);
 
   const ctxValue = React.useMemo<ToastContextValue>(
     () => ({
@@ -278,6 +349,8 @@ export function ToastProvider({
       density,
       viewportPaused,
       documentHidden,
+      politeAnnouncement,
+      assertiveAnnouncement,
       setViewportPaused,
       registerCustomViewport,
       getRemainingDuration,
@@ -295,6 +368,8 @@ export function ToastProvider({
       density,
       viewportPaused,
       documentHidden,
+      politeAnnouncement,
+      assertiveAnnouncement,
       registerCustomViewport,
       getRemainingDuration,
       setRemainingDuration,
@@ -309,12 +384,16 @@ export function ToastProvider({
   return (
     <ToastContext.Provider value={ctxValue}>
       {children}
-      <div className="f12-sr-only" aria-live="polite" aria-atomic="true">
-        {formatToastAnnouncement(latestPolite)}
-      </div>
-      <div className="f12-sr-only" aria-live="assertive" aria-atomic="true">
-        {formatToastAnnouncement(latestAssertive)}
-      </div>
+      {!renderViewport && !hasChildViewport && (
+        <>
+          <div className="f12-sr-only" aria-live="polite" aria-atomic="true">
+            {politeAnnouncement}
+          </div>
+          <div className="f12-sr-only" aria-live="assertive" aria-atomic="true">
+            {assertiveAnnouncement}
+          </div>
+        </>
+      )}
       {renderViewport && !hasChildViewport && (
         <DefaultViewportContext.Provider value={true}>
           <ToastViewport aria-label={label} />
@@ -386,8 +465,13 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
     const queuedCount = ctx?.queuedCount ?? 0;
     const setViewportPaused = ctx?.setViewportPaused;
 
+    const hasVisibleToasts = visibleToasts.length > 0;
+
     useIsomorphicLayoutEffect(() => {
-      if (typeof document === 'undefined') return;
+      if (!hasVisibleToasts || typeof document === 'undefined') {
+        setModalDialogHost((prev) => (prev === null ? prev : null));
+        return;
+      }
       const syncDialogHost = () => {
         const topmost = findTopmostModalDialog();
         const anchorDialog = anchorRef.current?.closest('dialog[open]') as HTMLDialogElement | null;
@@ -415,7 +499,7 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
         observer?.disconnect();
         document.removeEventListener('close', syncDialogHost, true);
       };
-    }, [visibleIdsKey]);
+    }, [hasVisibleToasts, visibleIdsKey]);
 
     // Reconcile focus and hover whenever visibleToasts changes so unmounting a toast
     // by click or keyboard never leaves the viewport stuck in a paused state.
@@ -616,10 +700,26 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
       </div>
     );
 
+    const portaledContent = (
+      <>
+        {ctx && (
+          <>
+            <div className="f12-sr-only" aria-live="polite" aria-atomic="true">
+              {ctx.politeAnnouncement ?? ''}
+            </div>
+            <div className="f12-sr-only" aria-live="assertive" aria-atomic="true">
+              {ctx.assertiveAnnouncement ?? ''}
+            </div>
+          </>
+        )}
+        {viewportNode}
+      </>
+    );
+
     return (
       <>
         <span ref={anchorRef} style={{ display: 'none' }} aria-hidden="true" />
-        {modalDialogHost ? createPortal(viewportNode, modalDialogHost) : viewportNode}
+        {modalDialogHost ? createPortal(portaledContent, modalDialogHost) : portaledContent}
       </>
     );
   },
@@ -757,10 +857,6 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(function Toast
     [forwardedRef],
   );
 
-  const resolvedRole = userRole ?? (status === 'danger' ? 'alert' : 'status');
-  const resolvedAriaLive =
-    userAriaLive ?? (status === 'danger' ? 'assertive' : 'polite');
-
   const resolvedGlyph =
     glyph === false
       ? undefined
@@ -794,9 +890,9 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(function Toast
       <div
         ref={setRefs}
         id={id}
-        role={resolvedRole}
-        aria-live={resolvedAriaLive}
-        aria-atomic="true"
+        role={userRole}
+        aria-live={userAriaLive}
+        aria-atomic={userRole || userAriaLive ? 'true' : undefined}
         data-status={status}
         data-paused={isPaused ? 'true' : 'false'}
         data-density={isCompact ? 'compact' : undefined}
@@ -892,7 +988,7 @@ export const ToastAction = React.forwardRef<HTMLButtonElement, ToastActionProps>
       <button
         ref={ref}
         type="button"
-        aria-label={userAriaLabel ?? altText}
+        aria-label={userAriaLabel}
         data-alt-text={altText}
         className={`f12-toast-action${className ? ` ${className}` : ''}`}
         {...rest}

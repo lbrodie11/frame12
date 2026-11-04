@@ -119,7 +119,6 @@ function mergeRefs<T>(
       }
     }
     activeCleanups = cleanups;
-    return runCleanups;
   };
 }
 
@@ -449,10 +448,7 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
       // unmounts the open listbox/menu, so we know whether Escape was consumed by a child popup.
       const onDocKeyDownCapture = (e: KeyboardEvent) => {
         if (e.key !== 'Escape') return;
-        if (
-          el.querySelector('[role="listbox"], [role="menu"]') ||
-          (e.target instanceof Element && e.target.closest('.f12-toast, .f12-toast-viewport'))
-        ) {
+        if (el.querySelector('[role="listbox"], [role="menu"]')) {
           childPopupOpenOnEscapeRef.current = true;
           setTimeout(() => {
             childPopupOpenOnEscapeRef.current = false;

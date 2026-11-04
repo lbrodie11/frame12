@@ -209,8 +209,8 @@ export const Pagination = React.forwardRef<HTMLElement, PaginationProps>(functio
 
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(safeTotal, currentPage + 1);
-  const prevHref = currentPage > 1 ? getItemHref?.(prevPage) : undefined;
-  const nextHref = currentPage < safeTotal ? getItemHref?.(nextPage) : undefined;
+  const prevHref = getItemHref?.(prevPage);
+  const nextHref = getItemHref?.(nextPage);
 
   return (
     <PaginationContext.Provider value={ctxValue}>
@@ -339,8 +339,13 @@ export const PaginationItem = React.forwardRef<HTMLLIElement, PaginationItemProp
 );
 
 export interface PaginationLinkProps
-  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'> {
-  href?: string;
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onClick' | 'type'>,
+    Pick<
+      React.AnchorHTMLAttributes<HTMLAnchorElement>,
+      'href' | 'target' | 'download' | 'rel' | 'hrefLang' | 'ping' | 'referrerPolicy' | 'media'
+    > {
+  type?: React.ButtonHTMLAttributes<HTMLButtonElement>['type'] | (string & {});
+  disabled?: boolean;
   isActive?: boolean;
   density?: PaginationDensity;
   onClick?: React.MouseEventHandler<HTMLElement>;
@@ -352,6 +357,7 @@ export const PaginationLink = React.forwardRef<
 >(function PaginationLink(
   {
     href,
+    type,
     isActive = false,
     disabled = false,
     density: propDensity,
@@ -374,6 +380,7 @@ export const PaginationLink = React.forwardRef<
       <a
         ref={ref as React.Ref<HTMLAnchorElement>}
         href={disabled ? undefined : href}
+        type={type}
         aria-current={ariaCurrent}
         aria-disabled={disabled ? 'true' : undefined}
         tabIndex={disabled ? -1 : undefined}
@@ -396,7 +403,7 @@ export const PaginationLink = React.forwardRef<
   return (
     <button
       ref={ref as React.Ref<HTMLButtonElement>}
-      type="button"
+      type={(type as React.ButtonHTMLAttributes<HTMLButtonElement>['type']) ?? 'button'}
       disabled={disabled}
       aria-current={ariaCurrent}
       data-active={isActive ? 'true' : undefined}
@@ -408,7 +415,7 @@ export const PaginationLink = React.forwardRef<
         }
         onClick?.(e);
       }}
-      {...rest}
+      {...(rest as React.ButtonHTMLAttributes<HTMLButtonElement>)}
     >
       {children}
     </button>

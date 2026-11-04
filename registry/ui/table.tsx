@@ -4,6 +4,14 @@ import * as React from 'react';
 
 export type TableDensity = 'comfortable' | 'compact';
 
+const useIsoLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
+const TableContext = React.createContext<{
+  captionId: string;
+  setActiveCaptionId: (id: string | null) => void;
+} | null>(null);
+
 export interface TableProps extends React.TableHTMLAttributes<HTMLTableElement> {
   density?: TableDensity;
   wrapperProps?: React.HTMLAttributes<HTMLDivElement>;
@@ -17,25 +25,82 @@ export function Table({
   ...rest
 }: TableProps) {
   const isCompact = density === 'compact';
+  const rawId = React.useId().replace(/:/g, '');
+  const captionId = `f12-tbl-cap-${rawId}`;
+  const [activeCaptionId, setActiveCaptionId] = React.useState<string | null>(null);
+  const [isOverflowing, setIsOverflowing] = React.useState(false);
+  const wrapRef = React.useRef<HTMLDivElement | null>(null);
+
+  useIsoLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const checkOverflow = () => {
+      const next = el.scrollWidth > el.clientWidth + 1;
+      setIsOverflowing((prev) => (prev === next ? prev : next));
+    };
+    checkOverflow();
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(checkOverflow) : null;
+    if (ro) {
+      ro.observe(el);
+      if (el.firstElementChild) {
+        ro.observe(el.firstElementChild);
+      }
+    }
+    window.addEventListener('resize', checkOverflow);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', checkOverflow);
+    };
+  }, [children]);
+
   const {
     className: wrapClassName = '',
-    tabIndex: wrapTabIndex = 0,
+    tabIndex: wrapTabIndex,
+    role: wrapRole,
+    'aria-label': wrapAriaLabel,
+    'aria-labelledby': wrapAriaLabelledBy,
     ...restWrap
   } = wrapperProps ?? {};
+
+  const resolvedTabIndex = wrapTabIndex !== undefined ? wrapTabIndex : isOverflowing ? 0 : undefined;
+  const resolvedRole = wrapRole !== undefined ? wrapRole : isOverflowing ? 'region' : undefined;
+  const resolvedAriaLabelledBy =
+    wrapAriaLabelledBy ??
+    (isOverflowing && !wrapAriaLabel
+      ? (activeCaptionId ?? rest['aria-labelledby'])
+      : undefined);
+  const resolvedAriaLabel =
+    wrapAriaLabel ??
+    (isOverflowing && !resolvedAriaLabelledBy
+      ? (rest['aria-label'] ?? 'Scrollable data table')
+      : undefined);
+
+  const ctxValue = React.useMemo(
+    () => ({ captionId, setActiveCaptionId }),
+    [captionId],
+  );
+
   return (
-    <div
-      className={`f12-table-wrap${wrapClassName ? ` ${wrapClassName}` : ''}`}
-      tabIndex={wrapTabIndex}
-      {...restWrap}
-    >
-      <table
-        className={`f12-table${isCompact ? ' f12-table-compact' : ''}${className ? ` ${className}` : ''}`}
-        data-density={isCompact ? 'compact' : undefined}
-        {...rest}
+    <TableContext.Provider value={ctxValue}>
+      <div
+        ref={wrapRef}
+        className={`f12-table-wrap${wrapClassName ? ` ${wrapClassName}` : ''}`}
+        tabIndex={resolvedTabIndex}
+        role={resolvedRole}
+        aria-label={resolvedAriaLabel}
+        aria-labelledby={resolvedAriaLabelledBy}
+        {...restWrap}
       >
-        {children}
-      </table>
-    </div>
+        <table
+          className={`f12-table${isCompact ? ' f12-table-compact' : ''}${className ? ` ${className}` : ''}`}
+          data-density={isCompact ? 'compact' : undefined}
+          {...rest}
+        >
+          {children}
+        </table>
+      </div>
+    </TableContext.Provider>
   );
 }
 
@@ -113,12 +178,21 @@ export function TableCell({
 }
 
 export function TableCaption({
+  id: userCaptionId,
   className = '',
   children,
   ...rest
 }: React.HTMLAttributes<HTMLTableCaptionElement>) {
+  const ctx = React.useContext(TableContext);
+  const setActiveCaptionId = ctx?.setActiveCaptionId;
+  const resolvedCaptionId = userCaptionId ?? ctx?.captionId;
+  useIsoLayoutEffect(() => {
+    if (!setActiveCaptionId || !resolvedCaptionId) return;
+    setActiveCaptionId(resolvedCaptionId);
+    return () => setActiveCaptionId(null);
+  }, [setActiveCaptionId, resolvedCaptionId]);
   return (
-    <caption className={className} {...rest}>
+    <caption id={resolvedCaptionId} className={className} {...rest}>
       {children}
     </caption>
   );
