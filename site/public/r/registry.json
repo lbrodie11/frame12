@@ -239,7 +239,8 @@
       "title": "Badge",
       "description": "Marker-yellow badge with ink text and optional two-frame SVG impact burst.",
       "registryDependencies": [
-        "https://frame12.dev/r/frame12-styles.json"
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/tag.json"
       ],
       "files": [
         {

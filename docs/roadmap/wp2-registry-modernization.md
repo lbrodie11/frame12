@@ -17,9 +17,10 @@ All 19 individual component items now declare only their own source file in `fil
 | Tier | Registry Items | `registryDependencies` |
 | --- | --- | --- |
 | **Tier 0 (Leaf Primitives)** | `frame12-styles`, `use-on-twos`, `font-dela-gothic-one`, `font-zen-kaku-gothic-new`, `font-m-plus-1-code` | None (`[]`) |
-| **Tier 1 (Core UI & Base)** | `scene`, `segmented-control`, `button`, `input`, `badge`, `tag`, `balloon`, `select`, `tooltip`, `table` | `["https://frame12.dev/r/frame12-styles.json"]` |
+| **Tier 1 (Core UI & Base)** | `scene`, `segmented-control`, `button`, `input`, `tag`, `balloon`, `select`, `tooltip`, `table` | `["https://frame12.dev/r/frame12-styles.json"]` |
 | **Tier 1 (Motion-Enabled UI)** | `sheet`, `panel`, `metric`, `tone-area-chart`, `tone-spark` | `["https://frame12.dev/r/frame12-styles.json", "https://frame12.dev/r/use-on-twos.json"]` |
 | **Tier 1 (`registry:base`)** | `frame12-base` | `frame12-styles`, `use-on-twos`, `font-dela-gothic-one`, `font-zen-kaku-gothic-new`, `font-m-plus-1-code` |
+| **Tier 2 (Composite UI)** | `badge` | `frame12-styles`, `tag` |
 | **Tier 2 (Composite UI)** | `panel-pair` | `frame12-styles`, `use-on-twos`, `panel` |
 | **Tier 2 (Composite UI)** | `tone-bar-list` | `frame12-styles`, `use-on-twos`, `badge` |
 | **Tier 2 (Composite Adapters)** | `dialog`, `dropdown-menu` | `frame12-styles`, `button` |

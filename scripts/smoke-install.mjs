@@ -537,6 +537,7 @@ console.log('R19_RUNTIME_OK:' + html.length);
 
     const sheetUrl = `http://127.0.0.1:${port}/r/sheet.json`;
     const panelUrl = `http://127.0.0.1:${port}/r/panel.json`;
+    const badgeUrl = `http://127.0.0.1:${port}/r/badge.json`;
     const baseUrl = `http://127.0.0.1:${port}/r/frame12-base.json`;
 
     const viewBase = await runAsync('npx', ['--yes', 'shadcn', 'add', baseUrl, '--view'], {
@@ -551,7 +552,7 @@ console.log('R19_RUNTIME_OK:' + html.length);
 
     const singleAdd = await runAsync(
       'npx',
-      ['--yes', 'shadcn', 'add', sheetUrl, panelUrl, '--yes', '--overwrite'],
+      ['--yes', 'shadcn', 'add', sheetUrl, panelUrl, badgeUrl, '--yes', '--overwrite'],
       {
         cwd: singleDir,
         env: {
@@ -564,6 +565,8 @@ console.log('R19_RUNTIME_OK:' + html.length);
     const hasSingleFiles =
       existsSync(join(singleDir, 'src/components/frame12/sheet.tsx')) &&
       existsSync(join(singleDir, 'src/components/frame12/panel.tsx')) &&
+      existsSync(join(singleDir, 'src/components/frame12/badge.tsx')) &&
+      existsSync(join(singleDir, 'src/components/frame12/tag.tsx')) &&
       existsSync(join(singleDir, 'src/hooks/use-on-twos.ts')) &&
       existsSync(join(singleDir, 'src/styles/frame12.css'));
     symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(singleDir, 'node_modules'), 'dir');
@@ -574,10 +577,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import '@/styles/frame12.css';
 import { Sheet } from '@/components/frame12/sheet';
 import { Panel } from '@/components/frame12/panel';
+import { Badge } from '@/components/frame12/badge';
 export function SingleCheck() {
   return (
     <Sheet autoCut>
-      <Panel label="First">One</Panel>
+      <Panel label="First">One <Badge status="warning">Warn</Badge></Panel>
       <Panel label="Second">Two</Panel>
       <Panel cut={false} label="Unnumbered">None</Panel>
       <Panel label="Third">Three</Panel>
@@ -595,7 +599,7 @@ export function renderSingleHtml() {
     });
     check(
       singleAdd.status === 0 && hasSingleFiles && singleTsc.status === 0,
-      'Individual install (/r/sheet.json + /r/panel.json) resolves frame12-styles + use-on-twos via registryDependencies and passes tsc --noEmit',
+      'Individual install (/r/sheet.json + /r/panel.json + /r/badge.json) resolves frame12-styles, use-on-twos, and tag.json via registryDependencies and passes tsc --noEmit',
       singleTsc.status !== 0 ? `${singleTsc.stdout}\n${singleTsc.stderr}` : '',
     );
 

@@ -12,7 +12,7 @@ export const STATUS_GLYPHS: Record<SemanticStatus, string | undefined> = {
   danger: '[×]',
 };
 
-const STATUS_SR_LABELS: Record<SemanticStatus, string | undefined> = {
+export const STATUS_SR_LABELS: Record<SemanticStatus, string | undefined> = {
   neutral: undefined,
   info: 'Info',
   success: 'Success',
@@ -20,7 +20,7 @@ const STATUS_SR_LABELS: Record<SemanticStatus, string | undefined> = {
   danger: 'Error',
 };
 
-function extractTextContent(node: React.ReactNode): string {
+export function extractTextContent(node: React.ReactNode): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(extractTextContent).join('');
   if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
@@ -29,12 +29,12 @@ function extractTextContent(node: React.ReactNode): string {
   return '';
 }
 
-function startsWithStatusLabel(text: string, label: string): boolean {
+export function startsWithStatusLabel(text: string, label: string): boolean {
   const lowerText = text.toLowerCase();
   const lowerLabel = label.toLowerCase();
   if (!lowerText.startsWith(lowerLabel)) return false;
   const rest = lowerText.slice(lowerLabel.length);
-  if (rest === '' || !/^[a-z]/i.test(rest)) return true;
+  if (rest === '' || !/^\p{L}/u.test(rest)) return true;
   if (lowerLabel === 'error' && /^(ed|s)\b/.test(rest)) return true;
   if ((lowerLabel === 'warn' || lowerLabel === 'warning') && /^s\b/.test(rest)) return true;
   return false;

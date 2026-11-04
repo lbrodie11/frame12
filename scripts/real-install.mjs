@@ -112,7 +112,7 @@ srv.listen(0, '127.0.0.1', async () => {
     const appDir = path.join(tmp, 'app');
     await runCmd('npx', ['--yes', 'shadcn@latest', 'init', '-d', '--yes'], appDir);
 
-    // 1. Install sheet.json and panel.json individually (resolving frame12-styles + use-on-twos via registryDependencies)
+    // 1. Install sheet.json, panel.json, and badge.json individually (resolving frame12-styles, use-on-twos, and tag.json via registryDependencies)
     await runCmd(
       'npx',
       [
@@ -121,6 +121,7 @@ srv.listen(0, '127.0.0.1', async () => {
         'add',
         `http://127.0.0.1:${port}/r/sheet.json`,
         `http://127.0.0.1:${port}/r/panel.json`,
+        `http://127.0.0.1:${port}/r/badge.json`,
         '--yes',
         '--overwrite',
       ],
@@ -130,6 +131,8 @@ srv.listen(0, '127.0.0.1', async () => {
     for (const expectedRel of [
       'src/components/frame12/sheet.tsx',
       'src/components/frame12/panel.tsx',
+      'src/components/frame12/badge.tsx',
+      'src/components/frame12/tag.tsx',
       'src/hooks/use-on-twos.ts',
       'src/styles/frame12.css',
     ]) {
@@ -142,11 +145,12 @@ srv.listen(0, '127.0.0.1', async () => {
       'import "@/styles/frame12.css";',
       'import { Sheet } from "@/components/frame12/sheet";',
       'import { Panel } from "@/components/frame12/panel";',
+      'import { Badge } from "@/components/frame12/badge";',
       '',
       'export default function Page() {',
       '  return (',
       '    <Sheet autoCut>',
-      '      <Panel label="First">One</Panel>',
+      '      <Panel label="First">One <Badge status="warning">Warn</Badge></Panel>',
       '      <Panel label="Second">Two</Panel>',
       '    </Sheet>',
       '  );',
