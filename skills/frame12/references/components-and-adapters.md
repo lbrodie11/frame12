@@ -360,7 +360,7 @@ export interface AlertProps extends Omit<React.HTMLAttributes<HTMLDivElement>, '
 ```
 
 ### `Toast` (`ui/toast.tsx`)
-Bounded exposure-sheet notification stack (`ToastProvider`, `useToast`, `ToastViewport`, `Toast`, `ToastTitle`, `ToastDescription`, `ToastAction`, `ToastClose`) with `maxVisible` (default `3`), `+N QUEUED` indicator, hover/focus/background-tab timer pause with remaining duration tracking, `F8` hotkey to focus the viewport, `Escape` dismissal when focused inside the toast viewport, top-layer `<dialog[open]>` portaling, persistent live regions, `role="alert"` for `danger` vs `role="status"` for non-danger toasts, and stepped 12fps entrance (`steps(3, end)`).
+Bounded exposure-sheet notification stack (`ToastProvider`, `useToast`, `ToastViewport`, `Toast`, `ToastTitle`, `ToastDescription`, `ToastAction`, `ToastClose`) with `maxVisible` (default `3`), `+N QUEUED` indicator, hover/focus/background-tab timer pause with remaining duration tracking, `F8` hotkey to focus the viewport, `Escape` dismissal when focused inside the toast viewport, top-layer `<dialog[open]>` portaling, shared `.f12-sr-only` live regions (`aria-live="assertive"` for `danger` vs `aria-live="polite"` for non-danger toasts, portaled alongside `ToastViewport`), non-live `<Toast>` cards by default (unless explicit `role` or `aria-live` props are passed), and stepped 12fps entrance (`steps(3, end)`).
 
 ```tsx
 export type ToastStatus = TagStatus;

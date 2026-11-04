@@ -1819,8 +1819,14 @@ await page.waitForSelector('#unit-test-fixtures');
         await page.click('#wp5-clear-outer-toast');
         await page.click('#wp5-clear-inner-toast');
 
-        // Modal Dialog top-layer portaling: toast + live regions triggered inside open Dialog are portaled into dialog[open] and clickable
+        // Modal Dialog top-layer portaling: live regions are already inside dialog[open] when Dialog opens, and toast triggered inside open Dialog updates the existing live region in-place
         await page.click('#wp5-dialog-toast-trigger');
+        const liveInDialogBeforeFire = await page.evaluate(() => {
+          const dlg = document.getElementById('wp5-toast-dialog');
+          const live = dlg?.querySelector('.f12-sr-only[aria-live="polite"]');
+          if (live) live.setAttribute('data-pre-existing', 'true');
+          return Boolean(live && live.textContent === '');
+        });
         await page.click('#wp5-dialog-fire-toast');
         const dialogToastState = await page.evaluate(() => {
           const dlg = document.getElementById('wp5-toast-dialog');
@@ -1835,7 +1841,9 @@ await page.waitForSelector('#unit-test-fixtures');
           return {
             inDialogSubtree: Boolean(dlg && toastEl && dlg.contains(toastEl)),
             liveRegionInDialog: Boolean(
-              liveInDialog && liveInDialog.textContent?.includes('Saved inside dialog'),
+              liveInDialog &&
+                liveInDialog.getAttribute('data-pre-existing') === 'true' &&
+                liveInDialog.textContent?.includes('Saved inside dialog'),
             ),
             closeClickable: Boolean(closeBtn && hit && (hit === closeBtn || closeBtn.contains(hit))),
           };
@@ -1852,6 +1860,25 @@ await page.waitForSelector('#unit-test-fixtures');
         const dialogClosedOnNonDismissibleToastEsc = await page.evaluate(() => {
           const dlg = document.getElementById('wp5-toast-dialog');
           return !dlg?.hasAttribute('open');
+        });
+        await page.click('#wp5-toast-dismiss-all');
+
+        // Repeated identical toast ("Saved" fired twice): live region clears and re-announces "Success: Saved"
+        await page.click('#wp5-toast-push-repeated');
+        const repeatedToastReannounced = await page.evaluate(async () => {
+          const live = document.querySelector(
+            '.wrapped-viewport-shell .f12-sr-only[aria-live="polite"]',
+          );
+          if (!live || live.textContent !== 'Success: Saved') return false;
+          const mutations = [];
+          const mo = new MutationObserver(() => {
+            mutations.push(live.textContent);
+          });
+          mo.observe(live, { childList: true, characterData: true, subtree: true });
+          document.getElementById('wp5-toast-push-repeated')?.click();
+          await new Promise((r) => setTimeout(r, 90));
+          mo.disconnect();
+          return mutations.includes('') && mutations[mutations.length - 1] === 'Success: Saved';
         });
         await page.click('#wp5-toast-dismiss-all');
 
@@ -1894,11 +1921,13 @@ await page.waitForSelector('#unit-test-fixtures');
             transitionIds === 't-transition,t-urgent' &&
             nestedToastState.outerRendered &&
             nestedToastState.innerRendered &&
+            liveInDialogBeforeFire &&
             dialogToastState.inDialogSubtree &&
             dialogToastState.liveRegionInDialog &&
             dialogToastState.closeClickable &&
             dialogStillOpenAfterToastClose &&
             dialogClosedOnNonDismissibleToastEsc &&
+            repeatedToastReannounced &&
             customCloseState.customOpen === 'false' &&
             customCloseState.customTracks === '1' &&
             customCloseState.customDismisses === '1' &&
@@ -1922,7 +1951,8 @@ await page.waitForSelector('#unit-test-fixtures');
           }),
         );
 
-        // 6c. Skeleton, EmptyState, Breadcrumb (non-current items + React 19 ref cleanup), and Pagination (modified-link clicks + NaN resilience)
+        // 6c. Skeleton, EmptyState, Breadcrumb (non-current items + React 19 ref cleanup + asChild handler composition), and Pagination (modified-link clicks + NaN resilience)
+        await page.focus('#wp5-breadcrumb-aschild');
         await page.click('#wp5-breadcrumb-aschild');
         await page.click('#wp5-breadcrumb-unmount-btn');
         await page.click('#wp5-pagination-controlled .f12-pagination-next');
@@ -2007,7 +2037,8 @@ await page.waitForSelector('#unit-test-fixtures');
             bcMidCurrentPages.length === 1 &&
             bcMidCurrentPages[0]?.textContent === 'Cut 04' &&
             bcMidLastLink?.tagName === 'A' &&
-            bcOut?.getAttribute('data-clicks') === 'outer,inner' &&
+            bcOut?.getAttribute('data-clicks')?.includes('focus-outer,focus-inner') &&
+            bcOut?.getAttribute('data-clicks')?.includes('outer,inner') &&
             bcOut?.getAttribute('data-ref-tag') === 'A' &&
             bcOut?.getAttribute('data-ref-cleaned') === 'true' &&
             bcSepLi?.tagName === 'LI' &&

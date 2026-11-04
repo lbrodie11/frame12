@@ -950,7 +950,7 @@ export function WebhookNotices() {
       },
     ],
     a11yNotes: [
-      'Uses role="alert" for status="danger" and role="status" for all other statuses.',
+      'Announces notifications through shared .f12-sr-only live regions (aria-live="assertive" for status="danger" and aria-live="polite" for all other statuses, portaled alongside ToastViewport into any open modal <dialog>); individual <Toast> cards are non-live by default unless an explicit role or aria-live prop is passed.',
       'Pauses auto-dismiss timers while hovered or focused, and dismisses the newest visible toast on Escape.',
     ],
     grammarNotes: [

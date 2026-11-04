@@ -1772,6 +1772,19 @@ function Wp5ToastControls({
         Push Timed Toast
       </Button>
       <Button
+        id="wp5-toast-push-repeated"
+        size="sm"
+        onClick={() => {
+          toast({
+            status: 'success',
+            title: 'Saved',
+            duration: 60000,
+          });
+        }}
+      >
+        Push Saved Toast
+      </Button>
+      <Button
         id="wp5-toast-push-focus-pair"
         size="sm"
         onClick={() => {
@@ -2205,6 +2218,7 @@ function Wp5UnitFixtures() {
                     <BreadcrumbLink
                       asChild
                       ref={crumbAsChildRef}
+                      onFocus={() => setCrumbClicks((prev) => [...prev, 'focus-outer'])}
                       onClick={(e) => {
                         e.preventDefault();
                         setCrumbClicks((prev) => [...prev, 'outer']);
@@ -2214,6 +2228,7 @@ function Wp5UnitFixtures() {
                         id="wp5-breadcrumb-aschild"
                         href="#root"
                         className="custom-crumb-link"
+                        onFocus={() => setCrumbClicks((prev) => [...prev, 'focus-inner'])}
                         onClick={(e) => {
                           e.preventDefault();
                           setCrumbClicks((prev) => [...prev, 'inner']);

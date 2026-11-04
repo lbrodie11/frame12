@@ -199,25 +199,32 @@ export const BreadcrumbLink = React.forwardRef<HTMLAnchorElement, BreadcrumbLink
     );
 
     if (asChild && React.isValidElement<Record<string, unknown>>(children)) {
-      const childProps = children.props;
+      const childProps = children.props || {};
       const childClass =
         typeof childProps.className === 'string' ? childProps.className : '';
-      const childOnClick = childProps.onClick as
-        | React.MouseEventHandler<HTMLAnchorElement>
-        | undefined;
-      return React.cloneElement(children, {
+      const mergedProps: Record<string, unknown> = {
         ...rest,
         ...childProps,
-        onClick:
-          onClick || childOnClick
-            ? (e: React.MouseEvent<HTMLAnchorElement>) => {
-                onClick?.(e);
-                childOnClick?.(e);
-              }
-            : undefined,
         ref: composedRef,
         className: [mergedClass, childClass].filter(Boolean).join(' '),
-      });
+      };
+      const parentProps: Record<string, unknown> = { ...rest, onClick };
+      for (const evt of new Set([...Object.keys(parentProps), ...Object.keys(childProps)])) {
+        if (!/^on[A-Z]/.test(evt)) continue;
+        const parentHandler = parentProps[evt];
+        const childHandler = childProps[evt];
+        if (typeof parentHandler === 'function' && typeof childHandler === 'function') {
+          mergedProps[evt] = (...args: unknown[]) => {
+            (parentHandler as (...a: unknown[]) => void)(...args);
+            (childHandler as (...a: unknown[]) => void)(...args);
+          };
+        } else if (typeof parentHandler === 'function') {
+          mergedProps[evt] = parentHandler;
+        } else if (typeof childHandler === 'function') {
+          mergedProps[evt] = childHandler;
+        }
+      }
+      return React.cloneElement(children, mergedProps);
     }
 
     return (

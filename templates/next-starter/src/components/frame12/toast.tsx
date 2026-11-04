@@ -173,11 +173,26 @@ export function ToastProvider({
   const announcedKeysRef = React.useRef<Set<string>>(new Set());
   const activePoliteRef = React.useRef<{ id: string; key: string; text: string } | null>(null);
   const activeAssertiveRef = React.useRef<{ id: string; key: string; text: string } | null>(null);
+  const politePulseTimerRef = React.useRef<number | null>(null);
+  const assertivePulseTimerRef = React.useRef<number | null>(null);
+  const [politeAnnouncement, setPoliteAnnouncement] = React.useState('');
+  const [assertiveAnnouncement, setAssertiveAnnouncement] = React.useState('');
   const [viewportPaused, setViewportPaused] = React.useState(false);
   const [documentHidden, setDocumentHidden] = React.useState(false);
   const [customViewportCount, setCustomViewportCount] = React.useState(0);
   const seqRef = React.useRef(0);
   const safeMaxVisible = Math.max(1, maxVisible);
+
+  React.useEffect(() => {
+    return () => {
+      if (politePulseTimerRef.current !== null) {
+        window.clearTimeout(politePulseTimerRef.current);
+      }
+      if (assertivePulseTimerRef.current !== null) {
+        window.clearTimeout(assertivePulseTimerRef.current);
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -238,6 +253,16 @@ export function ToastProvider({
     announcedKeysRef.current.clear();
     activePoliteRef.current = null;
     activeAssertiveRef.current = null;
+    if (politePulseTimerRef.current !== null) {
+      window.clearTimeout(politePulseTimerRef.current);
+      politePulseTimerRef.current = null;
+    }
+    if (assertivePulseTimerRef.current !== null) {
+      window.clearTimeout(assertivePulseTimerRef.current);
+      assertivePulseTimerRef.current = null;
+    }
+    setPoliteAnnouncement('');
+    setAssertiveAnnouncement('');
     setToasts(() => [...toastsRef.current]);
     for (const item of current) {
       item.onDismiss?.(item.id);
@@ -285,7 +310,7 @@ export function ToastProvider({
   );
   const queuedCount = Math.max(0, toasts.length - safeMaxVisible);
 
-  const { politeAnnouncement, assertiveAnnouncement } = React.useMemo(() => {
+  useIsomorphicLayoutEffect(() => {
     const politeCandidates = visibleToasts.filter((t) => (t.status ?? 'neutral') !== 'danger');
     const assertiveCandidates = visibleToasts.filter((t) => t.status === 'danger');
 
@@ -297,18 +322,38 @@ export function ToastProvider({
         announcedKeysRef.current.add(`${item.id}:${item.updateCount ?? 0}`);
       }
       const newest = unannouncedPolite[unannouncedPolite.length - 1];
+      const nextText = formatToastAnnouncement(newest);
+      const prevText = activePoliteRef.current?.text ?? '';
       activePoliteRef.current = {
         id: newest.id,
         key: `${newest.id}:${newest.updateCount ?? 0}`,
-        text: formatToastAnnouncement(newest),
+        text: nextText,
       };
+      if (politePulseTimerRef.current !== null) {
+        window.clearTimeout(politePulseTimerRef.current);
+        politePulseTimerRef.current = null;
+      }
+      if (prevText && prevText === nextText && typeof window !== 'undefined') {
+        setPoliteAnnouncement('');
+        politePulseTimerRef.current = window.setTimeout(() => {
+          politePulseTimerRef.current = null;
+          setPoliteAnnouncement(nextText);
+        }, 40);
+      } else {
+        setPoliteAnnouncement(nextText);
+      }
     } else if (
       activePoliteRef.current &&
       !politeCandidates.some(
         (t) => `${t.id}:${t.updateCount ?? 0}` === activePoliteRef.current?.key,
       )
     ) {
+      if (politePulseTimerRef.current !== null) {
+        window.clearTimeout(politePulseTimerRef.current);
+        politePulseTimerRef.current = null;
+      }
       activePoliteRef.current = null;
+      setPoliteAnnouncement('');
     }
 
     const unannouncedAssertive = assertiveCandidates.filter(
@@ -319,24 +364,39 @@ export function ToastProvider({
         announcedKeysRef.current.add(`${item.id}:${item.updateCount ?? 0}`);
       }
       const newest = unannouncedAssertive[unannouncedAssertive.length - 1];
+      const nextText = formatToastAnnouncement(newest);
+      const prevText = activeAssertiveRef.current?.text ?? '';
       activeAssertiveRef.current = {
         id: newest.id,
         key: `${newest.id}:${newest.updateCount ?? 0}`,
-        text: formatToastAnnouncement(newest),
+        text: nextText,
       };
+      if (assertivePulseTimerRef.current !== null) {
+        window.clearTimeout(assertivePulseTimerRef.current);
+        assertivePulseTimerRef.current = null;
+      }
+      if (prevText && prevText === nextText && typeof window !== 'undefined') {
+        setAssertiveAnnouncement('');
+        assertivePulseTimerRef.current = window.setTimeout(() => {
+          assertivePulseTimerRef.current = null;
+          setAssertiveAnnouncement(nextText);
+        }, 40);
+      } else {
+        setAssertiveAnnouncement(nextText);
+      }
     } else if (
       activeAssertiveRef.current &&
       !assertiveCandidates.some(
         (t) => `${t.id}:${t.updateCount ?? 0}` === activeAssertiveRef.current?.key,
       )
     ) {
+      if (assertivePulseTimerRef.current !== null) {
+        window.clearTimeout(assertivePulseTimerRef.current);
+        assertivePulseTimerRef.current = null;
+      }
       activeAssertiveRef.current = null;
+      setAssertiveAnnouncement('');
     }
-
-    return {
-      politeAnnouncement: activePoliteRef.current?.text ?? '',
-      assertiveAnnouncement: activeAssertiveRef.current?.text ?? '',
-    };
   }, [visibleToasts]);
 
   const ctxValue = React.useMemo<ToastContextValue>(
@@ -468,10 +528,7 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
     const hasVisibleToasts = visibleToasts.length > 0;
 
     useIsomorphicLayoutEffect(() => {
-      if (!hasVisibleToasts || typeof document === 'undefined') {
-        setModalDialogHost((prev) => (prev === null ? prev : null));
-        return;
-      }
+      if (typeof document === 'undefined') return;
       const syncDialogHost = () => {
         const topmost = findTopmostModalDialog();
         const anchorDialog = anchorRef.current?.closest('dialog[open]') as HTMLDialogElement | null;
@@ -489,7 +546,7 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
       if (observer && document.documentElement) {
         observer.observe(document.documentElement, {
           subtree: true,
-          childList: true,
+          childList: hasVisibleToasts,
           attributes: true,
           attributeFilter: ['open'],
         });
