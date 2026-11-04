@@ -264,7 +264,13 @@ try {
     'src/components/frame12/panel-pair.tsx',
     'src/components/frame12/segmented-control.tsx',
     'src/components/frame12/button.tsx',
+    'src/components/frame12/field.tsx',
     'src/components/frame12/input.tsx',
+    'src/components/frame12/textarea.tsx',
+    'src/components/frame12/checkbox.tsx',
+    'src/components/frame12/radio-group.tsx',
+    'src/components/frame12/switch.tsx',
+    'src/components/frame12/tabs.tsx',
     'src/components/frame12/badge.tsx',
     'src/components/frame12/tag.tsx',
     'src/components/frame12/metric.tsx',
@@ -321,7 +327,17 @@ import {
   Panel,
   PanelPair,
   Button,
+  Field,
   Input,
+  Textarea,
+  Checkbox,
+  RadioGroup,
+  RadioGroupItem,
+  Switch,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
   Badge,
   Tag,
   Metric,
@@ -359,7 +375,26 @@ export function ConsumerSmokeTest() {
           <Balloon>Peak</Balloon>
           <Badge>New</Badge>
           <Tag>Note</Tag>
-          <Input label="Name" />
+          <Field label="Operator Name" hint="Public handle">
+            <Input />
+          </Field>
+          <Field label="Runbook Notes">
+            <Textarea rows={2} />
+          </Field>
+          <Checkbox label="Immutable audit log" defaultChecked />
+          <RadioGroup label="Signing Mode" defaultValue="hmac">
+            <RadioGroupItem value="hmac" label="HMAC-SHA256" />
+            <RadioGroupItem value="ed25519" label="Ed25519" />
+          </RadioGroup>
+          <Switch label="Enforce TLS" defaultChecked onLabel="ON" offLabel="OFF" />
+          <Tabs defaultValue="policy">
+            <TabsList aria-label="Tabs">
+              <TabsTrigger value="policy">Policy</TabsTrigger>
+              <TabsTrigger value="audit">Audit</TabsTrigger>
+            </TabsList>
+            <TabsContent value="policy">Policy body</TabsContent>
+            <TabsContent value="audit">Audit body</TabsContent>
+          </Tabs>
           <Button variant="primary">Save</Button>
           <Select label="Mode" defaultValue="a">
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -505,11 +540,11 @@ console.log('R19_RUNTIME_OK:' + html.length);
   });
   check(
     validateRes.status === 0,
-    'npx shadcn registry validate passes across root registry.json and registry/registry.json (26 items)',
+    'npx shadcn registry validate passes across root registry.json and registry/registry.json (32 items)',
     validateRes.status !== 0 ? `${validateRes.stdout}\n${validateRes.stderr}` : '',
   );
 
-  // 7. Individual component consumer installation (/r/sheet.json + /r/panel.json via registryDependencies)
+  // 7. Individual component consumer installation (/r/sheet.json + /r/panel.json + /r/badge.json + /r/switch.json via registryDependencies)
   const singleDir = mkdtempSync(join(tmpdir(), 'frame12-single-'));
   try {
     mkdirSync(join(singleDir, 'src/app'), { recursive: true });
@@ -538,6 +573,7 @@ console.log('R19_RUNTIME_OK:' + html.length);
     const sheetUrl = `http://127.0.0.1:${port}/r/sheet.json`;
     const panelUrl = `http://127.0.0.1:${port}/r/panel.json`;
     const badgeUrl = `http://127.0.0.1:${port}/r/badge.json`;
+    const switchUrl = `http://127.0.0.1:${port}/r/switch.json`;
     const baseUrl = `http://127.0.0.1:${port}/r/frame12-base.json`;
 
     const viewBase = await runAsync('npx', ['--yes', 'shadcn', 'add', baseUrl, '--view'], {
@@ -552,7 +588,7 @@ console.log('R19_RUNTIME_OK:' + html.length);
 
     const singleAdd = await runAsync(
       'npx',
-      ['--yes', 'shadcn', 'add', sheetUrl, panelUrl, badgeUrl, '--yes', '--overwrite'],
+      ['--yes', 'shadcn', 'add', sheetUrl, panelUrl, badgeUrl, switchUrl, '--yes', '--overwrite'],
       {
         cwd: singleDir,
         env: {
@@ -567,6 +603,8 @@ console.log('R19_RUNTIME_OK:' + html.length);
       existsSync(join(singleDir, 'src/components/frame12/panel.tsx')) &&
       existsSync(join(singleDir, 'src/components/frame12/badge.tsx')) &&
       existsSync(join(singleDir, 'src/components/frame12/tag.tsx')) &&
+      existsSync(join(singleDir, 'src/components/frame12/switch.tsx')) &&
+      existsSync(join(singleDir, 'src/components/frame12/field.tsx')) &&
       existsSync(join(singleDir, 'src/hooks/use-on-twos.ts')) &&
       existsSync(join(singleDir, 'src/styles/frame12.css'));
     symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(singleDir, 'node_modules'), 'dir');
@@ -578,10 +616,11 @@ import '@/styles/frame12.css';
 import { Sheet } from '@/components/frame12/sheet';
 import { Panel } from '@/components/frame12/panel';
 import { Badge } from '@/components/frame12/badge';
+import { Switch } from '@/components/frame12/switch';
 export function SingleCheck() {
   return (
     <Sheet autoCut>
-      <Panel label="First">One <Badge status="warning">Warn</Badge></Panel>
+      <Panel label="First">One <Badge status="warning">Warn</Badge> <Switch label="TLS" defaultChecked /></Panel>
       <Panel label="Second">Two</Panel>
       <Panel cut={false} label="Unnumbered">None</Panel>
       <Panel label="Third">Three</Panel>
@@ -599,7 +638,7 @@ export function renderSingleHtml() {
     });
     check(
       singleAdd.status === 0 && hasSingleFiles && singleTsc.status === 0,
-      'Individual install (/r/sheet.json + /r/panel.json + /r/badge.json) resolves frame12-styles, use-on-twos, and tag.json via registryDependencies and passes tsc --noEmit',
+      'Individual install (/r/sheet.json + /r/panel.json + /r/badge.json + /r/switch.json) resolves frame12-styles, use-on-twos, tag.json, and field.json via registryDependencies and passes tsc --noEmit',
       singleTsc.status !== 0 ? `${singleTsc.stdout}\n${singleTsc.stderr}` : '',
     );
 

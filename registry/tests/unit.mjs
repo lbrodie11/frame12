@@ -47,7 +47,7 @@ import {
     if (!existsSync(p)) missingJson.push(item.name);
   }
   check(
-    missingJson.length === 0 && reg.items.length >= 21,
+    missingJson.length === 0 && reg.items.length >= 28,
     `shadcn registry: ${reg.items.length} items emitted to site/public/r/*.json`,
     missingJson.join(', '),
   );
@@ -56,6 +56,12 @@ import {
   const conflictingShadcnNames = new Set([
     'button',
     'input',
+    'textarea',
+    'checkbox',
+    'radio-group',
+    'switch',
+    'field',
+    'tabs',
     'badge',
     'dialog',
     'select',
@@ -1098,6 +1104,282 @@ await page.waitForSelector('#unit-test-fixtures');
       'WP3 grammar: <Panel variant="quiet"> (1px rule, nested expressive keeps 2.5px, slant clearance 32px), <PanelPair variant="quiet">, <Metric variant="quiet">, non-yellow warning + synced Tag/Badge status glyphs ([i]/[+]/[!]/[×]) + srLabel/user-select:none + logical border-inline-start, bar patterns, and 13px compact density',
       JSON.stringify(wp3Check),
     );
+
+    // 3n. WP4: Essential Form Kit (Field, Textarea, Checkbox, RadioGroup, Switch) & Tabs
+    {
+      // 1. Real <form>: FormData, required, form=, and reset
+      await page.click('#wp4-form-submit');
+      const initialFormJson = await page.innerText('#wp4-form-output');
+      const initialFormData = JSON.parse(initialFormJson || '{}');
+
+      // Mutate form controls, then click reset and re-submit
+      await page.fill('#wp4-form-input', 'changed-handle');
+      await page.fill('#wp4-form-textarea', 'changed-notes');
+      await page.click('#wp4-form-checkbox'); // uncheck
+      await page.click('#wp4-form-radio-wk'); // select weekly
+      await page.click('#wp4-form-switch'); // uncheck
+
+      const validityWhenRequiredUnchecked = await page.evaluate(() =>
+        document.querySelector('#wp4-real-form').checkValidity(),
+      );
+
+      await page.click('#wp4-form-reset');
+      const afterResetState = await page.evaluate(() => ({
+        handle: document.querySelector('#wp4-form-input').value,
+        notes: document.querySelector('#wp4-form-textarea').value,
+        audit: document.querySelector('#wp4-form-checkbox').checked,
+        cadenceDaily: document.querySelector('#wp4-form-radio-daily').checked,
+        cadenceWk: document.querySelector('#wp4-form-radio-wk').checked,
+        replay: document.querySelector('#wp4-form-switch').checked,
+        replayTrackBg: getComputedStyle(document.querySelector('#wp4-form-switch')).backgroundColor,
+        validAfterReset: document.querySelector('#wp4-real-form').checkValidity(),
+      }));
+
+      check(
+        initialFormData.handle === 'atelier-prod' &&
+          initialFormData.notes === 'Initial note' &&
+          initialFormData.audit === 'enabled' &&
+          initialFormData.cadence === 'daily' &&
+          initialFormData.replay === 'on' &&
+          initialFormData.externalFlag === 'ext-yes' &&
+          !validityWhenRequiredUnchecked &&
+          afterResetState.handle === 'atelier-prod' &&
+          afterResetState.notes === 'Initial note' &&
+          afterResetState.audit === true &&
+          afterResetState.cadenceDaily === true &&
+          afterResetState.cadenceWk === false &&
+          afterResetState.replay === true &&
+          afterResetState.validAfterReset === true,
+        'WP4 real <form>: FormData submission, form="wp4-real-form" association, required validity, and native <button type="reset"> across Input, Textarea, Checkbox, RadioGroup, and Switch',
+        JSON.stringify({ initialFormData, validityWhenRequiredUnchecked, afterResetState }),
+      );
+
+      // 2. react-hook-form register() simulation & label-click toggling
+      await page.click('label[for="wp4-rhf-checkbox"]');
+      await page.click('label[for="wp4-rhf-switch"]');
+      await page.fill('#wp4-rhf-textarea', 'Hook form payload');
+      const rhfResult = await page.evaluate(() => {
+        const out = document.querySelector('#wp4-rhf-output');
+        return {
+          check: out.getAttribute('data-check'),
+          sw: out.getAttribute('data-sw'),
+          notes: out.getAttribute('data-notes'),
+          checkTag: out.getAttribute('data-check-tag'),
+          swTag: out.getAttribute('data-sw-tag'),
+          notesTag: out.getAttribute('data-notes-tag'),
+        };
+      });
+      check(
+        rhfResult.check === 'true' &&
+          rhfResult.sw === 'true' &&
+          rhfResult.notes === 'Hook form payload' &&
+          rhfResult.checkTag === 'INPUT' &&
+          rhfResult.swTag === 'INPUT' &&
+          rhfResult.notesTag === 'TEXTAREA',
+        'WP4 react-hook-form register() & label clicks: forwards native INPUT/TEXTAREA refs, fires onChange, and toggles Checkbox/Switch when clicking <label>',
+        JSON.stringify(rhfResult),
+      );
+
+      // 3. Field + Control deduplication (no control ends up with two labels, two hints, or two errors) & standalone error announcements
+      const dedupAndErrorInfo = await page.evaluate(() => {
+        const zone = document.querySelector('#wp4-field-dedup-zone');
+        const fields = [...zone.querySelectorAll('.f12-field')];
+        const perFieldCounts = fields.map((f) => ({
+          labels: f.querySelectorAll('label.f12-label, label.f12-check-label').length,
+          legends: f.querySelectorAll('legend.f12-label').length,
+          hints: f.querySelectorAll('.f12-hint').length,
+          errors: f.querySelectorAll('.f12-error[role="alert"]').length,
+        }));
+        const controlLabelCounts = [
+          '#wp4-dedup-input',
+          '#wp4-dedup-textarea',
+          '#wp4-dedup-checkbox',
+          '#wp4-dedup-switch',
+        ].map((sel) => document.querySelector(sel).labels?.length ?? 0);
+        const radioInputsOneLabel = [
+          ...document.querySelectorAll('#wp4-dedup-radiogroup input[type="radio"]'),
+        ].every((r) => r.labels?.length === 1);
+        const noLabelForFieldset = !zone.querySelector('label[for="wp4-dedup-radiogroup"]');
+
+        const standaloneErrControls = [
+          '#wp4-err-textarea',
+          '#wp4-err-checkbox',
+          '#wp4-err-radiogroup',
+          '#wp4-err-switch',
+        ];
+        const standaloneErrorsOk = standaloneErrControls.every((sel) => {
+          const el = document.querySelector(sel);
+          if (!el || el.getAttribute('aria-invalid') !== 'true') return false;
+          const descIds = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+          const errEl = descIds
+            .map((id) => document.getElementById(id))
+            .find((n) => n && n.getAttribute('role') === 'alert');
+          return Boolean(errEl && errEl.textContent.trim().length > 0);
+        });
+
+        return {
+          fieldCount: fields.length,
+          perFieldCounts,
+          controlLabelCounts,
+          radioInputsOneLabel,
+          noLabelForFieldset,
+          standaloneErrorsOk,
+        };
+      });
+      check(
+        dedupAndErrorInfo.fieldCount === 5 &&
+          dedupAndErrorInfo.controlLabelCounts.every((n) => n === 1) &&
+          dedupAndErrorInfo.radioInputsOneLabel &&
+          dedupAndErrorInfo.noLabelForFieldset &&
+          dedupAndErrorInfo.perFieldCounts.every((c) => c.hints === 1 && c.errors === 1) &&
+          dedupAndErrorInfo.standaloneErrorsOk,
+        'WP4 Field coordination & error announcements: every control has exactly 1 label/legend, 1 hint, and 1 role="alert" error linked via aria-describedby + aria-invalid="true"',
+        JSON.stringify(dedupAndErrorInfo),
+      );
+
+      // 4. Checkbox mixed state (SSR class + DOM indeterminate), localized Switch labels, RTL Switch & Tabs, and WCAG 2.5.8 24×24px compact targets
+      const specialInfo = await page.evaluate(() => {
+        const indEl = document.querySelector('#wp4-indeterminate-checkbox');
+        const indDomProp = indEl.indeterminate === true;
+        const indAria = indEl.getAttribute('aria-checked') === 'mixed';
+        const indHasClass = indEl.classList.contains('f12-checkbox-indeterminate');
+        // Simulate pre-hydration SSR state where DOM .indeterminate is false
+        indEl.indeterminate = false;
+        const markEl = indEl.parentElement.querySelector('.f12-checkbox-mark');
+        const ssrMarkVisible = getComputedStyle(markEl).opacity === '1';
+        indEl.indeterminate = true;
+
+        const customSw = document.querySelector('#wp4-custom-label-switch');
+        const customTrack = customSw.parentElement.querySelector('.f12-switch-track');
+        const customTrackHidden = customTrack.getAttribute('aria-hidden') === 'true';
+        const onGlyph = customTrack.querySelector('.f12-switch-glyph-on')?.textContent;
+        const offGlyph = customTrack.querySelector('.f12-switch-glyph-off')?.textContent;
+
+        // LTR vs RTL Switch thumb movement
+        const ltrSw = document.querySelector('#wp4-ltr-switch');
+        const ltrThumb = ltrSw.parentElement.querySelector('.f12-switch-thumb');
+        ltrThumb.style.transition = 'none';
+        const ltrBefore = ltrThumb.getBoundingClientRect().left;
+        ltrSw.click();
+        const ltrAfter = ltrThumb.getBoundingClientRect().left;
+        ltrThumb.style.transition = '';
+
+        const rtlSw = document.querySelector('#wp4-rtl-switch');
+        const rtlThumb = rtlSw.parentElement.querySelector('.f12-switch-thumb');
+        rtlThumb.style.transition = 'none';
+        const rtlBefore = rtlThumb.getBoundingClientRect().left;
+        rtlSw.click();
+        const rtlAfter = rtlThumb.getBoundingClientRect().left;
+        rtlThumb.style.transition = '';
+
+        // Compact target sizes (>= 24×24px)
+        const compactTargets = [
+          document.querySelector('#wp4-compact-checkbox'),
+          ...document.querySelectorAll('#wp4-compact-radiogroup .f12-radio-input'),
+          document.querySelector('#wp4-compact-switch'),
+          ...document.querySelectorAll('#wp4-tabs-manual .f12-tabs-trigger'),
+        ];
+        const allTargetsAtLeast24 = compactTargets.every((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width >= 24 && r.height >= 24;
+        });
+
+        return {
+          indDomProp,
+          indAria,
+          indHasClass,
+          ssrMarkVisible,
+          customTrackHidden,
+          onGlyph,
+          offGlyph,
+          ltrDelta: Math.round(ltrAfter - ltrBefore),
+          rtlDelta: Math.round(rtlAfter - rtlBefore),
+          allTargetsAtLeast24,
+        };
+      });
+      check(
+        specialInfo.indDomProp &&
+          specialInfo.indAria &&
+          specialInfo.indHasClass &&
+          specialInfo.ssrMarkVisible &&
+          specialInfo.customTrackHidden &&
+          specialInfo.onGlyph === '入' &&
+          specialInfo.offGlyph === '切' &&
+          specialInfo.ltrDelta > 0 &&
+          specialInfo.rtlDelta < 0 &&
+          specialInfo.allTargetsAtLeast24,
+        'WP4 Checkbox mixed SSR/DOM state, Switch configurable aria-hidden glyphs, RTL Switch reverse thumb travel, and >=24×24px WCAG 2.5.8 compact targets',
+        JSON.stringify(specialInfo),
+      );
+
+      // 5. Tabs: default quiet panels inside Tabs, non-shifting autoCut numbers across tab switches, and keyboard navigation
+      const cutsBeforeTabSwitch = isChromium
+        ? await getRenderedCuts(page, { directSheetId: 'fixture-wp4-sheet' })
+        : null;
+      await page.focus('#wp4-tabs-tab-one');
+      await page.keyboard.press('ArrowRight'); // skips disabled tab, activates "two"
+      const afterRight = await page.evaluate(() => ({
+        activeId: document.activeElement?.id,
+        twoSelected: document.querySelector('#wp4-tabs-tab-two')?.getAttribute('aria-selected'),
+        twoHidden: document.querySelector('#wp4-tabs-panel-two')?.hidden,
+        onePanelQuiet: document
+          .querySelector('#wp4-tab-one-panel')
+          ?.classList.contains('f12-panel-quiet'),
+        twoPanelQuiet: document
+          .querySelector('#wp4-tab-two-panel')
+          ?.classList.contains('f12-panel-quiet'),
+      }));
+      await page.keyboard.press('End'); // activates "three" (which contains an explicit expressive panel)
+      const cutsOnTabThree = isChromium
+        ? await getRenderedCuts(page, { directSheetId: 'fixture-wp4-sheet' })
+        : null;
+      await page.keyboard.press('Home'); // activates "one"
+
+      // Manual activation tabs: ArrowRight moves focus without changing aria-selected until Enter
+      await page.focus('#wp4-tabs-manual-tab-m1');
+      await page.keyboard.press('ArrowRight');
+      const manualFocusOnly = await page.evaluate(() => ({
+        activeId: document.activeElement?.id,
+        m1Selected: document.querySelector('#wp4-tabs-manual-tab-m1')?.getAttribute('aria-selected'),
+        m2Selected: document.querySelector('#wp4-tabs-manual-tab-m2')?.getAttribute('aria-selected'),
+      }));
+      await page.keyboard.press('Enter');
+      const manualAfterEnter = await page.evaluate(() =>
+        document.querySelector('#wp4-tabs-manual-tab-m2')?.getAttribute('aria-selected'),
+      );
+
+      // RTL horizontal tabs: ArrowLeft moves forward from r1 to r2
+      await page.focus('#wp4-rtl-tabs-tab-r1');
+      await page.keyboard.press('ArrowLeft');
+      const rtlTabSelected = await page.evaluate(() =>
+        document.querySelector('#wp4-rtl-tabs-tab-r2')?.getAttribute('aria-selected'),
+      );
+
+      check(
+        afterRight.activeId === 'wp4-tabs-tab-two' &&
+          afterRight.twoSelected === 'true' &&
+          afterRight.twoHidden === false &&
+          afterRight.onePanelQuiet === true &&
+          afterRight.twoPanelQuiet === true &&
+          (!isChromium ||
+            (cutsBeforeTabSwitch.join(',') === 'C-01,C-02' &&
+              cutsOnTabThree.join(',') === 'C-01,C-02')) &&
+          manualFocusOnly.activeId === 'wp4-tabs-manual-tab-m2' &&
+          manualFocusOnly.m1Selected === 'true' &&
+          manualFocusOnly.m2Selected === 'false' &&
+          manualAfterEnter === 'true' &&
+          rtlTabSelected === 'true',
+        'WP4 Tabs: WAI-ARIA keyboard navigation (skipping disabled, Home/End, automatic vs manual activation, RTL ArrowLeft), default quiet inner panels, and stable C-01/C-02 autoCut numbering across tab switches',
+        JSON.stringify({
+          afterRight,
+          cutsBeforeTabSwitch,
+          cutsOnTabThree,
+          manualFocusOnly,
+          manualAfterEnter,
+          rtlTabSelected,
+        }),
+      );
+    }
   }
 }
 

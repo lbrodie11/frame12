@@ -67,12 +67,12 @@ Use zero-dependency semantic HTML elements paired with FRAME/12 hooks (`useId`, 
 - **Existing:** `Sheet`, `Scene`, `Panel`, `PanelPair`, `SegmentedControl`, `Button`, `Input`, `Badge`, `Tag`, `Metric`, `Balloon`, `Table`, `ToneAreaChart`, `ToneBarList`, `ToneSpark`, `Dialog` (`<dialog>`), `Tooltip`.
 - **v0.2.0 Additions (WP4–WP5):**
   - **WP4 Essential Form Kit:**
-    - `Checkbox` (`<input type="checkbox">` with custom `.f12-*` ink box + SVG check mark and `indeterminate` support)
-    - `RadioGroup` (`<fieldset>` / `role="radiogroup"` + `<input type="radio">` or WAI-ARIA radio buttons)
-    - `Switch` (`<button role="switch" aria-checked>` exposure-sheet rectangular switch)
-    - `Textarea` (`<textarea>` matching `Input` styling and `aria-describedby` semantics)
-    - `Field` (`<div>` + `<label>` + hint/error `aria-describedby` coordinator preserving `Input`'s API)
-    - `Tabs` (`role="tablist"` / `role="tab"` / `role="tabpanel"` with horizontal/vertical roving tabindex and `Home`/`End`)
+    - `Checkbox` (`<input type="checkbox">` with custom `.f12-*` ink box, SSR-safe `.f12-checkbox-indeterminate` + DOM `node.indeterminate` + `aria-checked="mixed"` support, and `FieldContext` integration)
+    - `RadioGroup` (`<fieldset role="radiogroup">` + `<legend>` + native `<input type="radio">` delegating arrow-key roving focus, single Tab stop, `FormData`, and `form.reset()` to native browser radios)
+    - `Switch` (`<input type="checkbox" role="switch">` native checkbox input with exposure-sheet rectangular track, configurable `onLabel`/`offLabel` glyphs hidden from screen readers via `aria-hidden="true"`, logical `inset-inline-start` RTL thumb travel, and native `FormData` / `form.reset()` / `required` / `form=` / `react-hook-form` `register()` compatibility)
+    - `Textarea` (`<textarea>` matching `Input` styling, density, and `FieldContext` / `aria-describedby` semantics)
+    - `Field` (`<div>` + `<label>` + hint/error `aria-describedby` coordinator via `FieldContext` so wrapping `Input`, `Textarea`, `Checkbox`, `Switch`, or `RadioGroup` inside `<Field>` never duplicates labels, hints, or `role="alert"` errors)
+    - `Tabs` (`role="tablist"` / `role="tab"` / `role="tabpanel"` with horizontal/vertical roving `tabIndex`, `dir="rtl"` arrow awareness, `activationMode?: 'automatic' | 'manual'`, and automatic default `variant="quiet"` + suppressed `autoCut` counters inside `TabsContent` so switching tabs never shifts sheet cut numbers; use `Tabs` to switch between distinct content panels and `SegmentedControl` to change the view or time range of the same content)
   - **WP5 Feedback, Loading and Navigation Kit:**
     - `Alert`/`Notice` (built on WP3 non-color status semantics without overusing `role="alert"` on static notices)
     - `Toast` (`role="status"` / `role="alert"` with bounded queue, hover/focus pause, and reduced-motion support)

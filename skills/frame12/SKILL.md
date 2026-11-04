@@ -17,7 +17,7 @@ For worked screen examples, common drift fixes, and ESLint enforcement, read [re
 Install the full kit or individual components via the `shadcn` CLI:
 
 ```bash
-# Full kit (styles, hooks, 14 core components, and 5 primitive adapters)
+# Full kit (styles, hooks, 20 core components, and 5 primitive adapters)
 npx shadcn@latest add https://frame12.dev/r/frame12.json
 
 # Or individual registry items
@@ -114,9 +114,15 @@ When you installed the full kit (`frame12.json`) or started from `templates/next
 | Multi-column / stacked grid | `Scene` (`gutter="pair" \| "scene" \| "change"`, `layout="split" \| "equal" \| "three" \| "stack"`) | Arbitrary CSS grid or Tailwind `gap-4` / `gap-6` |
 | Framed section / card | `Panel` (`label="..."`, `cut={false}` if unnumbered) | shadcn `Card`, bordered `<div>` |
 | Vertically paired KPIs / panels | `PanelPair` (`top`, `bottom`, 12px slanted gutter) | Two stacked cards with `gap-4` |
-| Mode, range, or status switcher | `SegmentedControl` | shadcn `Tabs`, radio button pills |
+| Mode, range, or view switcher (same content) | `SegmentedControl` | Radio button pills |
+| Sectioned content panels (distinct views) | `Tabs` (`TabsList`, `TabsTrigger`, `TabsContent`) | Unstyled tab buttons or raw `@/components/ui/tabs` |
 | Action button | `Button` (`variant="primary" \| "secondary" \| "marker"`) | Raw `<button>` or unadapted `@/components/ui/button` |
+| Form field wrapper (`label`, `hint`, `error`) | `Field` | Unlinked `<label>` + manual `aria-describedby` |
 | Text / number / search field | `Input` (`label`, `hint`, `error`) | Unlabeled `<input>` or raw `@/components/ui/input` |
+| Multi-line text field | `Textarea` (`label`, `hint`, `error`) | Unlabeled `<textarea>` or raw `@/components/ui/textarea` |
+| Boolean / mixed option | `Checkbox` (`label`, `indeterminate`, `onCheckedChange`) | Raw `<input type="checkbox">` or `@/components/ui/checkbox` |
+| Mutually exclusive option set | `RadioGroup` & `RadioGroupItem` | Unstyled radios or raw `@/components/ui/radio-group` |
+| Binary on/off toggle | `Switch` (`label`, `onLabel`, `offLabel`, `onCheckedChange`) | Custom toggle `<button>` or raw `@/components/ui/switch` |
 | Highlight callout with impact burst | `Badge` (`pop`, `burst`) | Colored status pills (green/red/blue badges) |
 | Compact metadata marker | `Tag` | Colored chips |
 | Headline KPI + directional delta | `Metric` & `Delta` | Custom stat card |

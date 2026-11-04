@@ -259,6 +259,12 @@ try {
   for (const item of [
     'panel.json',
     'sheet.json',
+    'field.json',
+    'textarea.json',
+    'checkbox.json',
+    'radio-group.json',
+    'switch.json',
+    'tabs.json',
     'frame12-base.json',
     'font-dela-gothic-one.json',
     'frame12.json',
@@ -771,7 +777,7 @@ try {
           const compGeom = await page.evaluate(() => {
             const cells = [...document.querySelectorAll('.f12-comp-cell code.f12-nowrap')];
             const allSingleLine =
-              cells.length >= 19 &&
+              cells.length >= 25 &&
               cells.every(
                 (c) =>
                   getComputedStyle(c).whiteSpace === 'nowrap' && c.getClientRects().length === 1,

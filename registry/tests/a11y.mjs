@@ -98,11 +98,20 @@ const NAMES = () => {
 async function focusMissesAll(page) {
   const totalFocusable = await page.evaluate(() => {
     const sel =
-      'a[href], button:not([disabled]):not([tabindex="-1"]), input:not([disabled]), select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]), summary, [tabindex="0"]';
+      'a[href], button:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), summary, [tabindex="0"]';
+    const seenRadioGroups = new Set();
     return [...document.querySelectorAll(sel)].filter((el) => {
       if (el.closest('[inert], dialog:not([open])')) return false;
       const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+      if (!(r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden')) {
+        return false;
+      }
+      if (el.tagName === 'INPUT' && el.type === 'radio' && el.name) {
+        const scope = el.form ? `form:${el.form.id || 'anon'}:${el.name}` : `doc:${el.name}`;
+        if (seenRadioGroups.has(scope)) return false;
+        seenRadioGroups.add(scope);
+      }
+      return true;
     }).length;
   });
 

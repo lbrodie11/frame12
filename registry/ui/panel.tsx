@@ -16,13 +16,28 @@ export interface PanelProps extends React.HTMLAttributes<HTMLElement> {
 
 const INACTIVE_SIZE_REF: { readonly current: HTMLElement | null } = { current: null };
 
+const PANEL_VARIANT_CTX_KEY = Symbol.for('frame12.PanelVariantContext');
+const globalRegistry = globalThis as unknown as Record<
+  symbol,
+  React.Context<PanelVariant | undefined> | undefined
+>;
+const PanelVariantContext = (globalRegistry[PANEL_VARIANT_CTX_KEY] ??= React.createContext<
+  PanelVariant | undefined
+>(undefined));
+
+export function usePanelVariantContext(): PanelVariant | undefined {
+  return React.useContext(PanelVariantContext);
+}
+
 export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
-  { cut, shape = 'rect', variant = 'expressive', className = '', label, children, ...rest },
+  { cut, shape = 'rect', variant, className = '', label, children, ...rest },
   forwardedRef,
 ) {
+  const inheritedVariant = React.useContext(PanelVariantContext);
+  const resolvedVariant: PanelVariant = variant ?? inheritedVariant ?? 'expressive';
   const innerRef = React.useRef<HTMLElement | null>(null);
   const warnedCutRef = React.useRef<string | null>(null);
-  const isQuiet = variant === 'quiet';
+  const isQuiet = resolvedVariant === 'quiet';
   const showSvgFrame = !isQuiet || shape !== 'rect';
   const setRefs = React.useCallback(
     (node: HTMLElement | null) => {
