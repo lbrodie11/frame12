@@ -14,7 +14,8 @@ export interface RadioOption {
 }
 
 interface RadioGroupContextValue {
-  name: string;
+  name?: string;
+  fallbackName: string;
   value?: string;
   isControlled: boolean;
   defaultValue?: string;
@@ -22,12 +23,32 @@ interface RadioGroupContextValue {
   required?: boolean;
   form?: string;
   density: RadioGroupDensity;
-  describedBy?: string;
   invalid?: boolean;
   onSelect: (nextValue: string) => void;
 }
 
 const RadioGroupContext = React.createContext<RadioGroupContextValue | null>(null);
+
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
+function encodeRadioValueForId(value: string): string {
+  if (value.length === 0) return '_empty_';
+  let out = '';
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i];
+    if (/[a-zA-Z0-9-]/.test(ch)) {
+      out += ch;
+    } else if (ch === '_') {
+      out += '__';
+    } else {
+      const cp = value.codePointAt(i)!;
+      out += `_${cp.toString(16)}_`;
+      if (cp > 0xffff) i++;
+    }
+  }
+  return out;
+}
 
 export interface RadioGroupProps extends Omit<React.FieldsetHTMLAttributes<HTMLFieldSetElement>, 'onChange'> {
   name?: string;
@@ -71,14 +92,22 @@ export const RadioGroup = React.forwardRef<HTMLFieldSetElement, RadioGroupProps>
     const fieldCtx = useFieldContext();
     const autoId = React.useId().replace(/:/g, '');
     const groupId = id || fieldCtx?.id || `f12-radiogroup-${autoId}`;
-    const groupName = name || `${groupId}-name`;
+    const fallbackName = `${groupId}-name`;
     const isControlled = controlledValue !== undefined;
+
+    const registerRadioGroup = fieldCtx?.registerRadioGroup;
+    const registerControlId = fieldCtx?.registerControlId;
+    useIsomorphicLayoutEffect(() => {
+      registerRadioGroup?.();
+      return registerControlId?.(autoId, id);
+    }, [registerRadioGroup, registerControlId, autoId, id]);
 
     const effectiveDensity: RadioGroupDensity = density ?? fieldCtx?.density ?? 'comfortable';
     const isCompact = effectiveDensity === 'compact';
     const effectiveDisabled = disabled ?? fieldCtx?.disabled;
     const effectiveRequired = required ?? fieldCtx?.required;
-    const effectiveLabel = fieldCtx?.label ?? label;
+    const effectiveLabel = label ?? (fieldCtx?.isRadioGroup ? fieldCtx.label : undefined);
+    const legendId = label && !fieldCtx?.isRadioGroup ? undefined : fieldCtx?.labelId;
     const showOwnHint = Boolean(hint && !fieldCtx?.hintId);
     const showOwnError = Boolean(error && !fieldCtx?.errorId);
     const hintId = showOwnHint ? `${groupId}-hint` : undefined;
@@ -97,7 +126,8 @@ export const RadioGroup = React.forwardRef<HTMLFieldSetElement, RadioGroupProps>
 
     const ctxValue = React.useMemo<RadioGroupContextValue>(
       () => ({
-        name: groupName,
+        name,
+        fallbackName,
         value: controlledValue,
         isControlled,
         defaultValue,
@@ -105,12 +135,12 @@ export const RadioGroup = React.forwardRef<HTMLFieldSetElement, RadioGroupProps>
         required: effectiveRequired,
         form,
         density: effectiveDensity,
-        describedBy,
         invalid: effectiveInvalid,
         onSelect: handleSelect,
       }),
       [
-        groupName,
+        name,
+        fallbackName,
         controlledValue,
         isControlled,
         defaultValue,
@@ -118,7 +148,6 @@ export const RadioGroup = React.forwardRef<HTMLFieldSetElement, RadioGroupProps>
         effectiveRequired,
         form,
         effectiveDensity,
-        describedBy,
         effectiveInvalid,
         handleSelect,
       ],
@@ -141,7 +170,7 @@ export const RadioGroup = React.forwardRef<HTMLFieldSetElement, RadioGroupProps>
           {...rest}
         >
           {effectiveLabel && (
-            <legend id={fieldCtx?.labelId} className="f12-label f12-radio-legend">
+            <legend id={legendId} className="f12-label f12-radio-legend">
               {effectiveLabel}
               {effectiveRequired && (
                 <span className="f12-field-req" aria-hidden="true">
@@ -156,7 +185,7 @@ export const RadioGroup = React.forwardRef<HTMLFieldSetElement, RadioGroupProps>
               ? options.map((opt) => (
                   <RadioGroupItem
                     key={opt.value}
-                    id={`${groupId}-${opt.value}`}
+                    id={`${groupId}-${encodeRadioValueForId(opt.value)}`}
                     value={opt.value}
                     label={opt.label}
                     hint={opt.hint}
@@ -238,7 +267,7 @@ export const RadioGroupItem = React.forwardRef<HTMLInputElement, RadioGroupItemP
         : undefined
       : itemDefaultChecked;
     const describedBy =
-      [userDescribedBy, hintId, groupCtx?.describedBy].filter(Boolean).join(' ') || undefined;
+      [userDescribedBy, hintId].filter(Boolean).join(' ') || undefined;
     const displayLabel = label ?? children;
 
     return (
@@ -252,7 +281,7 @@ export const RadioGroupItem = React.forwardRef<HTMLInputElement, RadioGroupItemP
               ref={ref}
               id={itemId}
               type="radio"
-              name={groupCtx?.name ?? itemName}
+              name={groupCtx?.name ?? itemName ?? groupCtx?.fallbackName}
               value={value}
               checked={resolvedChecked}
               defaultChecked={resolvedDefaultChecked}

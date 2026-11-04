@@ -13,6 +13,9 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
   fieldClassName?: string;
 }
 
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
   {
     id,
@@ -35,8 +38,9 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(fun
   const autoId = React.useId().replace(/:/g, '');
   const effectiveDensity: TextareaDensity = density ?? fieldCtx?.density ?? 'comfortable';
   const isCompact = effectiveDensity === 'compact';
-  const textareaId = id || fieldCtx?.id || `f12-textarea-${autoId}`;
-  const showOwnLabel = Boolean(label && !fieldCtx?.labelId);
+  const textareaId =
+    id || (!fieldCtx?.isControlGroup ? fieldCtx?.id : undefined) || `f12-textarea-${autoId}`;
+  const showOwnLabel = Boolean(label && (!fieldCtx?.labelId || fieldCtx?.isControlGroup));
   const showOwnHint = Boolean(hint && !fieldCtx?.hintId);
   const showOwnError = Boolean(error && !fieldCtx?.errorId);
   const hintId = showOwnHint ? `${textareaId}-hint` : undefined;
@@ -47,6 +51,11 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(fun
   const effectiveInvalid = error || fieldCtx?.invalid ? true : userAriaInvalid;
   const effectiveDisabled = disabled ?? fieldCtx?.disabled;
   const effectiveRequired = required ?? fieldCtx?.required;
+
+  const registerControlId = fieldCtx?.registerControlId;
+  useIsomorphicLayoutEffect(() => {
+    return registerControlId?.(autoId, id);
+  }, [registerControlId, autoId, id]);
 
   const textareaElement = (
     <textarea
@@ -100,3 +109,5 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(fun
     </div>
   );
 });
+
+(Textarea as unknown as { f12IsControl?: boolean }).f12IsControl = true;

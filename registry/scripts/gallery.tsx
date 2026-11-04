@@ -1141,12 +1141,29 @@ function UnitTestFixtures() {
   );
 }
 
+function WrappedTabTrigger({
+  value,
+  count,
+  disabled,
+}: {
+  value: string;
+  count: number;
+  disabled?: boolean;
+}) {
+  return (
+    <TabsTrigger value={value} disabled={disabled}>
+      {value} ({count})
+    </TabsTrigger>
+  );
+}
+
 function Wp4UnitFixtures() {
   const [formResult, setFormResult] = React.useState<string>('');
   const [rhfState, setRhfState] = React.useState<{
     check: boolean;
     sw: boolean;
     notes: string;
+    plan: string;
     checkTag: string;
     swTag: string;
     notesTag: string;
@@ -1154,6 +1171,7 @@ function Wp4UnitFixtures() {
     check: false,
     sw: false,
     notes: '',
+    plan: 'pro',
     checkTag: '',
     swTag: '',
     notesTag: '',
@@ -1234,6 +1252,49 @@ function Wp4UnitFixtures() {
             </TabsList>
             <TabsContent value="v1">Vert panel 1</TabsContent>
             <TabsContent value="v2">Vert panel 2</TabsContent>
+          </Tabs>
+
+          {/* Wrapped triggers without defaultValue, wrapped trigger + direct trigger with defaultValue, value encoding ("a b" vs "a-b"), and custom trigger/panel IDs */}
+          <Tabs idPrefix="wp4-tabs-wrapped-nodefault">
+            <TabsList ariaLabel="Wrapped triggers no default">
+              <WrappedTabTrigger value="w1" count={3} />
+              <WrappedTabTrigger value="w2" count={7} />
+            </TabsList>
+            <TabsContent value="w1">Wrapped panel 1</TabsContent>
+            <TabsContent value="w2">Wrapped panel 2</TabsContent>
+          </Tabs>
+
+          <Tabs idPrefix="wp4-tabs-wrapped-default" defaultValue="wsel">
+            <TabsList ariaLabel="Wrapped trigger with defaultValue">
+              <WrappedTabTrigger value="wsel" count={5} />
+              <TabsTrigger value="wother">Direct Other</TabsTrigger>
+            </TabsList>
+            <TabsContent value="wsel">Selected wrapped panel</TabsContent>
+            <TabsContent value="wother">Other panel</TabsContent>
+          </Tabs>
+
+          <Tabs idPrefix="wp4-tabs-collision" defaultValue="a b">
+            <TabsList ariaLabel="Collision test tabs">
+              <TabsTrigger value="a b">Space A B</TabsTrigger>
+              <TabsTrigger value="a-b">Hyphen A-B</TabsTrigger>
+            </TabsList>
+            <TabsContent value="a b">Space panel</TabsContent>
+            <TabsContent value="a-b">Hyphen panel</TabsContent>
+          </Tabs>
+
+          <Tabs idPrefix="wp4-tabs-custom-ids" defaultValue="cid">
+            <TabsList ariaLabel="Custom ID tabs">
+              <TabsTrigger value="cid" id="wp4-custom-tab-id">
+                Custom ID Tab
+              </TabsTrigger>
+              <TabsTrigger value="cid2" id="wp4-custom-tab-id-2">
+                Custom ID Tab 2
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="cid" id="wp4-custom-panel-id">
+              Custom ID panel 1
+            </TabsContent>
+            <TabsContent value="cid2">Custom ID panel 2</TabsContent>
           </Tabs>
         </Panel>
       </Scene>
@@ -1335,11 +1396,32 @@ function Wp4UnitFixtures() {
               ref={notesRef}
               onChange={(e) => setRhfState((s) => ({ ...s, notes: e.target.value }))}
             />
+            <RadioGroup label="RHF Plan" defaultValue="pro">
+              <RadioGroupItem
+                id="wp4-rhf-radio-free"
+                value="free"
+                label="Free"
+                name="rhfPlan"
+                onChange={(e) => {
+                  if (e.target.checked) setRhfState((s) => ({ ...s, plan: e.target.value }));
+                }}
+              />
+              <RadioGroupItem
+                id="wp4-rhf-radio-pro"
+                value="pro"
+                label="Pro"
+                name="rhfPlan"
+                onChange={(e) => {
+                  if (e.target.checked) setRhfState((s) => ({ ...s, plan: e.target.value }));
+                }}
+              />
+            </RadioGroup>
             <output
               id="wp4-rhf-output"
               data-check={String(rhfState.check)}
               data-sw={String(rhfState.sw)}
               data-notes={rhfState.notes}
+              data-plan={rhfState.plan}
               data-check-tag={rhfState.checkTag}
               data-sw-tag={rhfState.swTag}
               data-notes-tag={rhfState.notesTag}
@@ -1375,7 +1457,6 @@ function Wp4UnitFixtures() {
             >
               <Checkbox
                 id="wp4-dedup-checkbox"
-                label="Duplicate Checkbox Label"
                 hint="Duplicate hint"
                 error="Duplicate error"
               />
@@ -1383,7 +1464,6 @@ function Wp4UnitFixtures() {
             <Field label="Field Switch Label" hint="Field switch hint" error="Field switch error">
               <Switch
                 id="wp4-dedup-switch"
-                label="Duplicate Switch Label"
                 hint="Duplicate hint"
                 error="Duplicate error"
               />
@@ -1400,6 +1480,45 @@ function Wp4UnitFixtures() {
                   { value: 'b', label: 'Option B' },
                 ]}
               />
+            </Field>
+          </div>
+
+          {/* 3b. Field composition: labeled Checkbox/Switch inside Field, multi-control Field, Field id vs child id, native <input>, and render-prop / wrapped RadioGroup */}
+          <div id="wp4-field-composition-zone">
+            <Field id="wp4-notif-field" label="Notifications">
+              <Checkbox id="wp4-notif-checkbox" label="Email me weekly" />
+            </Field>
+            <Field id="wp4-channels-field" label="Channels">
+              <Checkbox label="Email channel" />
+              <Checkbox label="SMS channel" />
+            </Field>
+            <Field id="wp4-wrapper-id-field" label="Explicit child ID">
+              <Input id="wp4-child-explicit-id" defaultValue="linked" />
+            </Field>
+            <Field id="wp4-native-field" label="Native input in Field">
+              <input id="wp4-native-input" defaultValue="localhost" />
+            </Field>
+            <Field label="Render-prop cadence">
+              {() => (
+                <RadioGroup
+                  id="wp4-rp-radiogroup"
+                  options={[
+                    { value: 'd', label: 'Daily' },
+                    { value: 'w', label: 'Weekly' },
+                  ]}
+                />
+              )}
+            </Field>
+            <Field label="Wrapped theme">
+              <div>
+                <RadioGroup
+                  id="wp4-wrapped-radiogroup"
+                  options={[
+                    { value: 'l', label: 'Light' },
+                    { value: 'k', label: 'Dark' },
+                  ]}
+                />
+              </div>
             </Field>
           </div>
 
@@ -1441,12 +1560,28 @@ function Wp4UnitFixtures() {
               indeterminate={indeterminateState}
               onCheckedChange={() => setIndeterminateState(false)}
             />
+            <form id="wp4-uncontrolled-mixed-form">
+              <Checkbox
+                id="wp4-uncontrolled-mixed"
+                label="Uncontrolled mixed checkbox"
+                indeterminate
+              />
+              <button id="wp4-uncontrolled-mixed-reset" type="reset">
+                Reset mixed
+              </button>
+            </form>
             <Switch
               id="wp4-custom-label-switch"
               label="Localized switch"
               onLabel="入"
               offLabel="切"
               defaultChecked
+            />
+            <Switch
+              id="wp4-german-switch"
+              label="German switch"
+              onLabel="AKTIVIERT"
+              offLabel="DEAKTIVIERT"
             />
             <div id="wp4-ltr-zone" dir="ltr">
               <Switch id="wp4-ltr-switch" label="LTR switch" />

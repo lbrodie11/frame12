@@ -4,6 +4,7 @@ import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 
 interface SelectFieldContextValue {
+  instanceId: string;
   triggerId: string;
   containerEl: HTMLDivElement | null;
   describedBy?: string;
@@ -20,6 +21,8 @@ interface OuterFieldContextShape {
   disabled?: boolean;
   required?: boolean;
   density: 'comfortable' | 'compact';
+  isControlGroup?: boolean;
+  registerControlId?: (instanceId: string, explicitId?: string) => (() => void) | void;
 }
 
 const FIELD_CTX_KEY = Symbol.for('frame12.FieldContext');
@@ -62,21 +65,29 @@ export function Select({
   const outerField = React.useContext(OuterFieldContext);
   const [containerEl, setContainerEl] = React.useState<HTMLDivElement | null>(null);
   const rawId = React.useId().replace(/:/g, '');
-  const triggerId = id || outerField?.id || `f12-select-${rawId}`;
+  const triggerId =
+    id || (!outerField?.isControlGroup ? outerField?.id : undefined) || `f12-select-${rawId}`;
   const effectiveDensity: SelectDensity = density ?? outerField?.density ?? 'comfortable';
   const isCompact = effectiveDensity === 'compact';
   const effectiveDisabled = disabled ?? outerField?.disabled;
   const effectiveRequired = required ?? outerField?.required;
-  const showOwnLabel = Boolean(label && !outerField?.labelId);
+  const showOwnLabel = Boolean(label && (!outerField?.labelId || outerField?.isControlGroup));
+
+  const registerControlId = outerField?.registerControlId;
+  React.useEffect(() => {
+    const cleanup = registerControlId?.(rawId, id);
+    return typeof cleanup === 'function' ? cleanup : undefined;
+  }, [registerControlId, rawId, id]);
 
   const ctxValue = React.useMemo(
     () => ({
+      instanceId: rawId,
       triggerId,
       containerEl,
       describedBy: outerField?.describedBy,
       invalid: outerField?.invalid,
     }),
-    [triggerId, containerEl, outerField?.describedBy, outerField?.invalid],
+    [rawId, triggerId, containerEl, outerField?.describedBy, outerField?.invalid],
   );
 
   return (
@@ -112,6 +123,8 @@ export function Select({
   );
 }
 
+(Select as unknown as { f12IsControl?: boolean }).f12IsControl = true;
+
 export interface SelectTriggerProps
   extends Omit<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>, 'asChild'> {
   ariaLabel?: string;
@@ -131,7 +144,16 @@ export const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerPr
     forwardedRef,
   ) {
     const field = React.useContext(SelectFieldContext);
+    const outerField = React.useContext(OuterFieldContext);
+    const fallbackInstanceId = React.useId().replace(/:/g, '');
+    const instanceId = field?.instanceId ?? fallbackInstanceId;
     const resolvedId = id ?? field?.triggerId;
+    const registerControlId = outerField?.registerControlId;
+    React.useEffect(() => {
+      if (id) {
+        registerControlId?.(instanceId, id);
+      }
+    }, [id, instanceId, registerControlId]);
     const describedBy =
       [userDescribedBy, field?.describedBy].filter(Boolean).join(' ') || undefined;
     const ariaInvalid = field?.invalid ? true : userAriaInvalid;
@@ -155,6 +177,8 @@ export const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerPr
     );
   },
 );
+
+(SelectTrigger as unknown as { f12IsSelectTrigger?: boolean }).f12IsSelectTrigger = true;
 
 export type SelectValueProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Value>;
 

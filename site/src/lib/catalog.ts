@@ -543,7 +543,7 @@ export function RunbookNotes() {
         name: 'indeterminate',
         type: 'boolean',
         defaultValue: 'false',
-        description: 'Renders the horizontal mixed-state mark in SSR HTML/CSS and syncs DOM input.indeterminate + aria-checked="mixed".',
+        description: 'Renders the horizontal mixed-state mark in SSR HTML/CSS and syncs DOM input.indeterminate across user activation and form.reset().',
       },
       {
         name: 'onCheckedChange',
@@ -613,7 +613,8 @@ export function AuditToggle() {
     ],
     a11yNotes: [
       'Relies on native <input type="radio"> inside <fieldset> + <legend> for browser-native arrow-key navigation, single tab stop, FormData, and form.reset().',
-      'When wrapped in <Field label="...">, renders the Field label as the <fieldset> <legend> so no invalid <label htmlFor="fieldset"> or duplicate label is produced.',
+      'When wrapped in <Field label="..."> (including via render-prop or wrapper), renders the Field label as the <fieldset> <legend> so no invalid <label htmlFor="fieldset"> or duplicate label is produced.',
+      'For react-hook-form, spread {...register("field")} onto each <RadioGroupItem>, or wrap <RadioGroup> in <Controller> when using the options prop.',
     ],
     grammarNotes: [
       'Uses circular 24×24px ink frames to distinguish single-choice radio buttons from square multi-choice checkboxes.',
@@ -674,7 +675,7 @@ export function CadenceRadio() {
       'Uses logical inset-inline-start positioning so the thumb moves in the reverse direction under dir="rtl".',
     ],
     grammarNotes: [
-      'When checked, the thumb fills with --f-marker and steps across the track in 3 held poses (steps(3, end)) in stepped motion mode.',
+      'When checked, the track inverts to --f-ink with a --f-panel thumb that steps across the track in 3 held poses (steps(3, end)) in stepped motion mode.',
     ],
     usageTemplate: `import { Switch } from '@/components/frame12';
 

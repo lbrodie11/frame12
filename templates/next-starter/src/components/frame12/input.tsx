@@ -13,6 +13,9 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   fieldClassName?: string;
 }
 
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input(
   {
     id,
@@ -34,8 +37,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
   const autoId = React.useId().replace(/:/g, '');
   const effectiveDensity: InputDensity = density ?? fieldCtx?.density ?? 'comfortable';
   const isCompact = effectiveDensity === 'compact';
-  const inputId = id || fieldCtx?.id || `f12-input-${autoId}`;
-  const showOwnLabel = Boolean(label && !fieldCtx?.labelId);
+  const inputId =
+    id || (!fieldCtx?.isControlGroup ? fieldCtx?.id : undefined) || `f12-input-${autoId}`;
+  const showOwnLabel = Boolean(label && (!fieldCtx?.labelId || fieldCtx?.isControlGroup));
   const showOwnHint = Boolean(hint && !fieldCtx?.hintId);
   const showOwnError = Boolean(error && !fieldCtx?.errorId);
   const hintId = showOwnHint ? `${inputId}-hint` : undefined;
@@ -46,6 +50,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
   const effectiveInvalid = error || fieldCtx?.invalid ? true : userAriaInvalid;
   const effectiveDisabled = disabled ?? fieldCtx?.disabled;
   const effectiveRequired = required ?? fieldCtx?.required;
+
+  const registerControlId = fieldCtx?.registerControlId;
+  useIsomorphicLayoutEffect(() => {
+    return registerControlId?.(autoId, id);
+  }, [registerControlId, autoId, id]);
 
   const inputElement = (
     <input
@@ -98,3 +107,5 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
     </div>
   );
 });
+
+(Input as unknown as { f12IsControl?: boolean }).f12IsControl = true;

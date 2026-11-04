@@ -17,6 +17,9 @@ export interface SwitchProps
   fieldClassName?: string;
 }
 
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
 export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function Switch(
   {
     id,
@@ -28,8 +31,10 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
     offLabel = 'OFF',
     disabled,
     required,
+    readOnly,
     className = '',
     fieldClassName = '',
+    onClick,
     onChange,
     onCheckedChange,
     'aria-describedby': userDescribedBy,
@@ -42,8 +47,14 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
   const autoId = React.useId().replace(/:/g, '');
   const effectiveDensity: SwitchDensity = density ?? fieldCtx?.density ?? 'comfortable';
   const isCompact = effectiveDensity === 'compact';
-  const switchId = id || fieldCtx?.id || `f12-switch-${autoId}`;
-  const showOwnLabel = Boolean(label && !fieldCtx?.labelId);
+
+  const hasOwnLabel = Boolean(label);
+  const showOwnLabel = hasOwnLabel;
+  const switchId =
+    id ||
+    (!hasOwnLabel && !fieldCtx?.isControlGroup ? fieldCtx?.id : undefined) ||
+    `f12-switch-${autoId}`;
+
   const showOwnHint = Boolean(hint && !fieldCtx?.hintId);
   const showOwnError = Boolean(error && !fieldCtx?.errorId);
   const hintId = showOwnHint ? `${switchId}-hint` : undefined;
@@ -55,7 +66,27 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
   const effectiveDisabled = disabled ?? fieldCtx?.disabled;
   const effectiveRequired = required ?? fieldCtx?.required;
 
+  const registerControlGroup = fieldCtx?.registerControlGroup;
+  const registerControlId = fieldCtx?.registerControlId;
+  useIsomorphicLayoutEffect(() => {
+    if (hasOwnLabel) {
+      registerControlGroup?.();
+    }
+    return registerControlId?.(autoId, id);
+  }, [hasOwnLabel, registerControlGroup, registerControlId, autoId, id]);
+
+  const handleClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    onClick?.(e);
+    if (readOnly) {
+      e.preventDefault();
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (readOnly) {
+      e.preventDefault();
+      return;
+    }
     onChange?.(e);
     onCheckedChange?.(e.target.checked);
   };
@@ -73,9 +104,11 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
           role="switch"
           disabled={effectiveDisabled}
           required={effectiveRequired}
+          readOnly={readOnly}
           className={`f12-switch-input${isCompact ? ' f12-switch-input-compact' : ''}${className ? ` ${className}` : ''}`}
           aria-describedby={describedBy}
           aria-invalid={effectiveInvalid}
+          onClick={handleClick}
           onChange={handleChange}
           {...rest}
         />
@@ -126,3 +159,5 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
     </div>
   );
 });
+
+(Switch as unknown as { f12IsCheckOrSwitch?: boolean }).f12IsCheckOrSwitch = true;

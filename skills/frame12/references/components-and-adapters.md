@@ -223,7 +223,7 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
 ```
 
 ### `Checkbox` (`ui/checkbox.tsx`)
-Native `<input type="checkbox">` with `2.5px` (`1.5px` compact) ink frame, geometric SVG check mark, and SSR-safe `indeterminate` mixed mark (`aria-checked="mixed"`, `.f12-checkbox-indeterminate`, and DOM `node.indeterminate`).
+Native `<input type="checkbox">` with `2.5px` (`1.5px` compact) ink frame, geometric SVG check mark, and SSR-safe `indeterminate` mixed mark (`.f12-checkbox-indeterminate`, `data-indeterminate="true"`, and DOM `node.indeterminate` synchronized across user activation, controlled updates, `readOnly`, and `form.reset()`).
 
 ```tsx
 export type CheckboxDensity = 'comfortable' | 'compact';
@@ -240,7 +240,7 @@ export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputE
 ```
 
 ### `RadioGroup` & `RadioGroupItem` (`ui/radio-group.tsx`)
-Native `<fieldset role="radiogroup">` + `<legend>` + `<input type="radio">` options with circular `24×24px` outer ink frame and solid inner ink dot when selected. Preserves native browser arrow-key navigation, single Tab stop, `FormData`, and `form.reset()`.
+Native `<fieldset role="radiogroup">` + `<legend>` + `<input type="radio">` options with circular `24×24px` outer ink frame and solid inner ink dot when selected. Preserves native browser arrow-key navigation, single Tab stop, `FormData`, and `form.reset()`. For `react-hook-form`, pass `{...register('field')}` to each `<RadioGroupItem>` (item-level `name` wins when `RadioGroup` omits `name`), or use `<Controller>` when passing the `options` array to `<RadioGroup>`.
 
 ```tsx
 export type RadioGroupOrientation = 'vertical' | 'horizontal';
@@ -300,7 +300,7 @@ export interface SwitchProps
 ### `Tabs` (`ui/tabs.tsx`)
 WAI-ARIA tabbed interface (`role="tablist"`, `role="tab"`, `role="tabpanel"`) with roving `tabIndex`, `ArrowLeft`/`ArrowRight`/`ArrowUp`/`ArrowDown`/`Home`/`End` navigation (including `dir="rtl"` horizontal flip and modified-key guard), and `activationMode?: 'automatic' | 'manual'` (default `'automatic'`).
 - **When to use `Tabs` vs `SegmentedControl`:** Use `Tabs` to switch between distinct content panels (`role="tabpanel"`). Use `SegmentedControl` (`role="group"` + `aria-pressed`) to switch the view, mode, or time window of the same content.
-- **Cut numbers inside `TabsContent`:** Any `<Panel>` or `<PanelPair>` placed inside `<TabsContent>` defaults to `variant="quiet"` (unnumbered `1px` exposure-sheet frame) and `.f12-tabs-content` suppresses `autoCut` counter increments so switching tabs never renumbers `C-01..C-0n` panels on the surrounding `<Sheet autoCut>`.
+- **Cut numbers inside `TabsContent`:** Any `<Panel>` or `<PanelPair>` placed inside `<TabsContent>` defaults to `variant="quiet"` (unnumbered `1px` exposure-sheet frame) and `.f12-tabs-content` suppresses `autoCut` counter increments so switching tabs never renumbers `C-01..C-0n` panels on the surrounding `<Sheet autoCut>`. If you explicitly opt into `<Panel variant="expressive" cut="C-02">` inside a tab on a manually numbered sheet, cuts remain file-wide sequential (`C-01`, `C-02`, `C-03`, ... without duplicates across tabs).
 
 ```tsx
 export type TabsOrientation = 'horizontal' | 'vertical';

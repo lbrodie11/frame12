@@ -10,8 +10,10 @@ export {
 export { Button, type ButtonVariant, type ButtonSize, type ButtonProps } from './button';
 export {
   Field,
+  Label,
   useFieldContext,
   type FieldDensity,
+  type LabelProps,
   type FieldContextValue,
   type FieldProps,
 } from './field';
@@ -33,6 +35,7 @@ export {
   TabsList,
   TabsTrigger,
   TabsContent,
+  encodeTabValueForId,
   type TabsOrientation,
   type TabsDensity,
   type TabsActivationMode,
