@@ -1358,6 +1358,17 @@ await page.waitForSelector('#unit-test-fixtures');
           cls: uncMixed.classList.contains('f12-checkbox-indeterminate'),
         };
 
+        // Read-only Checkbox and Switch expose aria-readonly="true" and do not toggle on click
+        const roCb = document.querySelector('#wp4-readonly-checkbox');
+        const roSw = document.querySelector('#wp4-readonly-switch');
+        roCb.click();
+        roSw.click();
+        const readOnlyOk =
+          roCb?.getAttribute('aria-readonly') === 'true' &&
+          roSw?.getAttribute('aria-readonly') === 'true' &&
+          roCb?.checked === true &&
+          roSw?.checked === true;
+
         const customSw = document.querySelector('#wp4-custom-label-switch');
         const customTrack = customSw.parentElement.querySelector('.f12-switch-track');
         const customTrackHidden = customTrack.getAttribute('aria-hidden') === 'true';
@@ -1432,6 +1443,7 @@ await page.waitForSelector('#unit-test-fixtures');
           uncBefore,
           uncAfterClick,
           uncAfterReset,
+          readOnlyOk,
           customTrackHidden,
           onGlyph,
           offGlyph,
@@ -1456,6 +1468,7 @@ await page.waitForSelector('#unit-test-fixtures');
           specialInfo.uncAfterReset.ind === true &&
           specialInfo.uncAfterReset.checked === false &&
           specialInfo.uncAfterReset.cls === true &&
+          specialInfo.readOnlyOk &&
           specialInfo.customTrackHidden &&
           specialInfo.onGlyph === '入' &&
           specialInfo.offGlyph === '切' &&

@@ -237,7 +237,7 @@ export const Tabs = React.forwardRef<HTMLDivElement, TabsProps>(function Tabs(
         (defaultValue === undefined &&
           !hasUserSelectedRef.current &&
           uncontrolledValue !== firstEnabled) ||
-        !registeredTriggers.some((t) => t.value === uncontrolledValue)
+        !registeredTriggers.some((t) => t.value === uncontrolledValue && !t.disabled)
       ) {
         setUncontrolledValue(firstEnabled);
         setFocusedValue(firstEnabled);

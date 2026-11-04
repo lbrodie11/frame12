@@ -170,6 +170,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
           disabled={effectiveDisabled}
           required={effectiveRequired}
           readOnly={readOnly}
+          aria-readonly={readOnly ? 'true' : undefined}
           className={`f12-checkbox-input${isCompact ? ' f12-checkbox-compact' : ''}${effectiveIndeterminate ? ' f12-checkbox-indeterminate' : ''}${className ? ` ${className}` : ''}`}
           data-indeterminate={effectiveIndeterminate ? 'true' : undefined}
           aria-describedby={describedBy}

@@ -105,6 +105,7 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
           disabled={effectiveDisabled}
           required={effectiveRequired}
           readOnly={readOnly}
+          aria-readonly={readOnly ? 'true' : undefined}
           className={`f12-switch-input${isCompact ? ' f12-switch-input-compact' : ''}${className ? ` ${className}` : ''}`}
           aria-describedby={describedBy}
           aria-invalid={effectiveInvalid}

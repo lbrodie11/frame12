@@ -1570,6 +1570,18 @@ function Wp4UnitFixtures() {
                 Reset mixed
               </button>
             </form>
+            <Checkbox
+              id="wp4-readonly-checkbox"
+              label="Read-only checkbox"
+              defaultChecked
+              readOnly
+            />
+            <Switch
+              id="wp4-readonly-switch"
+              label="Read-only switch"
+              defaultChecked
+              readOnly
+            />
             <Switch
               id="wp4-custom-label-switch"
               label="Localized switch"

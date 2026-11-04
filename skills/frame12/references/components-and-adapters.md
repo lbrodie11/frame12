@@ -161,7 +161,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 ```
 
 ### `Field` (`ui/field.tsx`)
-Reusable form field coordinator linking `<label>`, optional `hint`, and `role="alert"` `error` message to a child control (`Input`, `Textarea`, `Checkbox`, `Switch`, `Select`, or `RadioGroup`) via `FieldContext` so wrapping a control inside `<Field>` never renders duplicate labels, hints, or errors. When wrapping `<RadioGroup>`, `Field` delegates the group label to `RadioGroup`'s `<legend>` inside `<fieldset>`.
+Reusable form field coordinator linking `<label>`, optional `hint`, and `role="alert"` `error` message to a child control (`Input`, `Textarea`, `Checkbox`, `Switch`, `Select`, or `RadioGroup`) via `FieldContext` so wrapping a control inside `<Field>` never renders duplicate labels, hints, or errors. For single `Input`/`Textarea`/`Select` controls, `<Field label="...">` takes precedence over a child's `label` prop. For `Checkbox` or `Switch` children that pass their own `label` (or when multiple controls are placed inside `<Field>`), `<Field>` renders as `role="group"` with `aria-labelledby` while each option keeps its own `<label htmlFor>`. When wrapping `<RadioGroup>`, `Field` delegates the group label to `RadioGroup`'s `<legend>` inside `<fieldset>`. Do not nest a `<Field>` inside another `<Field>`.
 
 ```tsx
 export type FieldDensity = 'comfortable' | 'compact';
@@ -298,7 +298,7 @@ export interface SwitchProps
 ```
 
 ### `Tabs` (`ui/tabs.tsx`)
-WAI-ARIA tabbed interface (`role="tablist"`, `role="tab"`, `role="tabpanel"`) with roving `tabIndex`, `ArrowLeft`/`ArrowRight`/`ArrowUp`/`ArrowDown`/`Home`/`End` navigation (including `dir="rtl"` horizontal flip and modified-key guard), and `activationMode?: 'automatic' | 'manual'` (default `'automatic'`).
+WAI-ARIA tabbed interface (`role="tablist"`, `role="tab"`, `role="tabpanel"`) with roving `tabIndex`, `ArrowLeft`/`ArrowRight`/`ArrowUp`/`ArrowDown`/`Home`/`End` navigation (including `dir="rtl"` horizontal flip and modified-key guard), and `activationMode?: 'automatic' | 'manual'` (default `'automatic'`). Always pass `defaultValue` (or controlled `value`) when wrapping `TabsTrigger` in custom components so the initial panel is visible in server-rendered HTML before hydration.
 - **When to use `Tabs` vs `SegmentedControl`:** Use `Tabs` to switch between distinct content panels (`role="tabpanel"`). Use `SegmentedControl` (`role="group"` + `aria-pressed`) to switch the view, mode, or time window of the same content.
 - **Cut numbers inside `TabsContent`:** Any `<Panel>` or `<PanelPair>` placed inside `<TabsContent>` defaults to `variant="quiet"` (unnumbered `1px` exposure-sheet frame) and `.f12-tabs-content` suppresses `autoCut` counter increments so switching tabs never renumbers `C-01..C-0n` panels on the surrounding `<Sheet autoCut>`. If you explicitly opt into `<Panel variant="expressive" cut="C-02">` inside a tab on a manually numbered sheet, cuts remain file-wide sequential (`C-01`, `C-02`, `C-03`, ... without duplicates across tabs).
 

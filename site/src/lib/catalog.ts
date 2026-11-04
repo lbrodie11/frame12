@@ -451,8 +451,8 @@ export function WebhookField() {
       },
     ],
     a11yNotes: [
-      'Prevents duplicate labels, hints, and error alerts when wrapping Input, Textarea, Checkbox, Switch, RadioGroup, or Select.',
-      'Supports both FieldContext-aware components and render-prop children ((field) => ...) or native <input>/<textarea>/<select> elements.',
+      'Prevents duplicate labels, hints, and error alerts when wrapping Input, Textarea, Checkbox, Switch, RadioGroup, or Select. For single Input/Textarea/Select controls, <Field label="..."> takes precedence over a child label; for Checkbox/Switch children with their own label (or multiple controls), <Field> becomes role="group" with aria-labelledby while each option keeps its own <label htmlFor>.',
+      'Supports both FieldContext-aware components and render-prop children ((field) => ...) or native <input>/<textarea>/<select> elements. Do not nest <Field> inside another <Field>.',
     ],
     grammarNotes: [
       'Uses .f12-label uppercase monospace headers and .f12-error-flag marker badges for validation alerts.',
@@ -731,7 +731,7 @@ export function ReplaySwitch() {
     ],
     a11yNotes: [
       'Implements WAI-ARIA role="tablist", role="tab" (aria-selected, aria-controls), and role="tabpanel" (aria-labelledby) with roving tabIndex and Home/End/Arrow key support.',
-      'Inactive TabsContent elements remain mounted with hidden so aria-controls always references a valid DOM ID.',
+      'Inactive TabsContent elements remain mounted with hidden so aria-controls always references a valid DOM ID. Always pass defaultValue (or value) when wrapping TabsTrigger in custom components so the initial panel renders visibly in SSR HTML before hydration.',
     ],
     grammarNotes: [
       'Use <Tabs> when switching between distinct content panels (e.g., Routing vs. Retries vs. Signing Keys); use <SegmentedControl> when changing the view or time range of the same content.',
