@@ -79,6 +79,7 @@ const ToastItemContext = React.createContext<{
 } | null>(null);
 
 const DefaultViewportContext = React.createContext<boolean>(false);
+const ToastInViewportContext = React.createContext<boolean>(false);
 
 function hasExplicitToastViewport(node: React.ReactNode): boolean {
   let found = false;
@@ -579,12 +580,14 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
       prevIdsRef.current = currentIds;
 
       const vp = vpRef.current;
+      const vpIsTabStop =
+        needsViewportTabStop || vp?.getAttribute('tabindex') === '0';
       const isControlInside = (el: Element | null) =>
         Boolean(
           vp &&
             el &&
             el !== document.body &&
-            (needsViewportTabStop ? vp.contains(el) : el !== vp && vp.contains(el)),
+            (vpIsTabStop ? vp.contains(el) : el !== vp && vp.contains(el)),
         );
       const active = typeof document !== 'undefined' ? document.activeElement : null;
       let activeInside = isControlInside(active);
@@ -604,7 +607,7 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
           } catch {
             // Ignore focus restoration errors
           }
-        } else if (vp && active === vp && !needsViewportTabStop) {
+        } else if (vp && active === vp && !vpIsTabStop) {
           vp.blur();
         }
         const nextActive = typeof document !== 'undefined' ? document.activeElement : null;
@@ -657,11 +660,14 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
         const vp = vpRef.current;
         if (!vp) return;
         const controls = vp.querySelectorAll<HTMLElement>(
-          '.f12-toast-action:not([disabled]), .f12-toast-close:not([disabled])',
+          '.f12-toast-action:not([disabled]), .f12-toast-close:not([disabled]), .f12-toast button:not([disabled]), .f12-toast a[href], .f12-toast input:not([disabled]), .f12-toast select:not([disabled]), .f12-toast textarea:not([disabled]), .f12-toast [tabindex]:not([tabindex="-1"]):not([disabled])',
         );
         const target = controls.length > 0 ? controls[controls.length - 1] : vp;
         if (target) {
           e.preventDefault();
+          if (target === vp && !vp.hasAttribute('tabindex')) {
+            vp.setAttribute('tabindex', '0');
+          }
           if (
             document.activeElement instanceof HTMLElement &&
             !vp.contains(document.activeElement)
@@ -678,147 +684,156 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
     }, [hotkey, visibleToasts.length]);
 
     const viewportNode = (
-      <div
-        ref={setRefs}
-        role="region"
-        aria-label={userAriaLabel ?? label}
-        tabIndex={needsViewportTabStop ? 0 : undefined}
-        data-density={isCompact ? 'compact' : undefined}
-        data-paused={hovered || focused ? 'true' : 'false'}
-        data-queued-count={queuedCount}
-        className={`f12-toast-viewport${isCompact ? ' f12-toast-viewport-compact' : ''}${className ? ` ${className}` : ''}`}
-        onPointerDownCapture={(e) => {
-          lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
-        }}
-        onMouseDownCapture={(e) => {
-          lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
-        }}
-        onMouseEnter={(e) => {
-          onMouseEnter?.(e);
-          if (e.relatedTarget instanceof Node && !e.relatedTarget.isConnected) {
-            return;
-          }
-          if (ignoreStationaryEnterRef.current) {
-            const last = lastPointerPosRef.current;
-            if (last && Math.abs(e.clientX - last.x) <= 2 && Math.abs(e.clientY - last.y) <= 2) {
+      <ToastInViewportContext.Provider value={true}>
+        <div
+          ref={setRefs}
+          role="region"
+          aria-label={userAriaLabel ?? label}
+          tabIndex={needsViewportTabStop ? 0 : undefined}
+          data-density={isCompact ? 'compact' : undefined}
+          data-paused={hovered || focused ? 'true' : 'false'}
+          data-queued-count={queuedCount}
+          className={`f12-toast-viewport${isCompact ? ' f12-toast-viewport-compact' : ''}${className ? ` ${className}` : ''}`}
+          onPointerDownCapture={(e) => {
+            lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+          }}
+          onMouseDownCapture={(e) => {
+            lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+          }}
+          onMouseEnter={(e) => {
+            onMouseEnter?.(e);
+            if (e.relatedTarget instanceof Node && !e.relatedTarget.isConnected) {
+              return;
+            }
+            if (ignoreStationaryEnterRef.current) {
+              const last = lastPointerPosRef.current;
+              if (last && Math.abs(e.clientX - last.x) <= 2 && Math.abs(e.clientY - last.y) <= 2) {
+                return;
+              }
+              ignoreStationaryEnterRef.current = false;
+            }
+            lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+            if (visibleToasts.length > 0) {
+              setHovered(true);
+            }
+          }}
+          onMouseMove={(e) => {
+            if (ignoreStationaryEnterRef.current) {
+              const last = lastPointerPosRef.current;
+              if (last && Math.abs(e.clientX - last.x) <= 2 && Math.abs(e.clientY - last.y) <= 2) {
+                return;
+              }
+              ignoreStationaryEnterRef.current = false;
+            }
+            lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+            if (!hovered && visibleToasts.length > 0) {
+              setHovered(true);
+            }
+          }}
+          onMouseLeave={(e) => {
+            onMouseLeave?.(e);
+            if (e.relatedTarget instanceof Node && !e.relatedTarget.isConnected) {
               return;
             }
             ignoreStationaryEnterRef.current = false;
-          }
-          lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
-          if (visibleToasts.length > 0) {
-            setHovered(true);
-          }
-        }}
-        onMouseMove={(e) => {
-          if (ignoreStationaryEnterRef.current) {
-            const last = lastPointerPosRef.current;
-            if (last && Math.abs(e.clientX - last.x) <= 2 && Math.abs(e.clientY - last.y) <= 2) {
+            setHovered(false);
+          }}
+          onFocusCapture={(e) => {
+            onFocusCapture?.(e);
+            const vpIsTabStop =
+              needsViewportTabStop || vpRef.current?.getAttribute('tabindex') === '0';
+            if (!vpIsTabStop && e.target === vpRef.current) {
               return;
             }
-            ignoreStationaryEnterRef.current = false;
-          }
-          lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
-          if (!hovered && visibleToasts.length > 0) {
-            setHovered(true);
-          }
-        }}
-        onMouseLeave={(e) => {
-          onMouseLeave?.(e);
-          if (e.relatedTarget instanceof Node && !e.relatedTarget.isConnected) {
-            return;
-          }
-          ignoreStationaryEnterRef.current = false;
-          setHovered(false);
-        }}
-        onFocusCapture={(e) => {
-          onFocusCapture?.(e);
-          if (!needsViewportTabStop && e.target === vpRef.current) {
-            return;
-          }
-          if (
-            e.relatedTarget instanceof HTMLElement &&
-            !vpRef.current?.contains(e.relatedTarget)
-          ) {
-            preFocusElementRef.current = e.relatedTarget;
-          }
-          hadFocusInsideRef.current = true;
-          setFocused(true);
-        }}
-        onBlurCapture={(e) => {
-          onBlurCapture?.(e);
-          const nextTarget = e.relatedTarget as Node | null;
-          const nextInside = Boolean(
-            vpRef.current &&
-              nextTarget &&
-              (needsViewportTabStop
-                ? vpRef.current.contains(nextTarget)
-                : nextTarget !== vpRef.current && vpRef.current.contains(nextTarget)),
-          );
-          if (!nextInside) {
-            hadFocusInsideRef.current = false;
-            setFocused(false);
-          }
-        }}
-        onKeyDown={(e) => {
-          onKeyDown?.(e);
-          if (e.key === 'Escape' && !e.defaultPrevented) {
-            const dismissibleVisible = [...visibleToasts]
-              .reverse()
-              .find((t) => t.dismissible !== false);
-            if (dismissibleVisible) {
-              e.preventDefault();
-              e.stopPropagation();
-              ctx?.dismiss(dismissibleVisible.id);
+            if (
+              e.relatedTarget instanceof HTMLElement &&
+              !vpRef.current?.contains(e.relatedTarget)
+            ) {
+              preFocusElementRef.current = e.relatedTarget;
             }
-          }
-        }}
-        {...rest}
-      >
-        {visibleToasts.map((item) => {
-          const isDescriptor =
-            Boolean(item.action) &&
-            typeof item.action === 'object' &&
-            !React.isValidElement(item.action) &&
-            'label' in (item.action as ToastActionDescriptor) &&
-            'onClick' in (item.action as ToastActionDescriptor);
-          const actionNode = isDescriptor ? (
-            <ToastAction
-              altText={(item.action as ToastActionDescriptor).altText}
-              onClick={(item.action as ToastActionDescriptor).onClick}
-            >
-              {(item.action as ToastActionDescriptor).label}
-            </ToastAction>
-          ) : (
-            (item.action as React.ReactNode)
-          );
+            hadFocusInsideRef.current = true;
+            setFocused(true);
+          }}
+          onBlurCapture={(e) => {
+            onBlurCapture?.(e);
+            const nextTarget = e.relatedTarget as Node | null;
+            const vpIsTabStop =
+              needsViewportTabStop || vpRef.current?.getAttribute('tabindex') === '0';
+            const nextInside = Boolean(
+              vpRef.current &&
+                nextTarget &&
+                (vpIsTabStop
+                  ? vpRef.current.contains(nextTarget)
+                  : nextTarget !== vpRef.current && vpRef.current.contains(nextTarget)),
+            );
+            if (!nextInside) {
+              if (!needsViewportTabStop && vpRef.current?.hasAttribute('tabindex')) {
+                vpRef.current.removeAttribute('tabindex');
+              }
+              hadFocusInsideRef.current = false;
+              setFocused(false);
+            }
+          }}
+          onKeyDown={(e) => {
+            onKeyDown?.(e);
+            if (e.key === 'Escape' && !e.defaultPrevented) {
+              const dismissibleVisible = [...visibleToasts]
+                .reverse()
+                .find((t) => t.dismissible !== false);
+              if (dismissibleVisible) {
+                e.preventDefault();
+                e.stopPropagation();
+                ctx?.dismiss(dismissibleVisible.id);
+              }
+            }
+          }}
+          {...rest}
+        >
+          {visibleToasts.map((item) => {
+            const isDescriptor =
+              Boolean(item.action) &&
+              typeof item.action === 'object' &&
+              !React.isValidElement(item.action) &&
+              'label' in (item.action as ToastActionDescriptor) &&
+              'onClick' in (item.action as ToastActionDescriptor);
+            const actionNode = isDescriptor ? (
+              <ToastAction
+                altText={(item.action as ToastActionDescriptor).altText}
+                onClick={(item.action as ToastActionDescriptor).onClick}
+              >
+                {(item.action as ToastActionDescriptor).label}
+              </ToastAction>
+            ) : (
+              (item.action as React.ReactNode)
+            );
 
-          return (
-            <Toast
-              key={item.id}
-              id={item.id}
-              status={item.status}
-              glyph={item.glyph}
-              srLabel={item.srLabel}
-              title={item.title}
-              description={item.description}
-              action={actionNode}
-              duration={item.duration}
-              resetKey={item.updateCount}
-              dismissible={item.dismissible}
-              dismissLabel={item.dismissLabel}
-              density={effectiveDensity}
-              onDismiss={() => ctx?.dismiss(item.id)}
-            />
-          );
-        })}
-        {queuedCount > 0 && (
-          <div className="f12-toast-queue-badge" aria-live="off">
-            {`+${queuedCount} QUEUED`}
-          </div>
-        )}
-        {children}
-      </div>
+            return (
+              <Toast
+                key={item.id}
+                id={item.id}
+                status={item.status}
+                glyph={item.glyph}
+                srLabel={item.srLabel}
+                title={item.title}
+                description={item.description}
+                action={actionNode}
+                duration={item.duration}
+                resetKey={item.updateCount}
+                dismissible={item.dismissible}
+                dismissLabel={item.dismissLabel}
+                density={effectiveDensity}
+                onDismiss={() => ctx?.dismiss(item.id)}
+              />
+            );
+          })}
+          {queuedCount > 0 && (
+            <div className="f12-toast-queue-badge" aria-live="off">
+              {`+${queuedCount} QUEUED`}
+            </div>
+          )}
+          {children}
+        </div>
+      </ToastInViewportContext.Provider>
     );
 
     const portaledContent = (
@@ -894,6 +909,7 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(function Toast
   forwardedRef,
 ) {
   const ctx = React.useContext(ToastContext);
+  const inViewport = React.useContext(ToastInViewportContext);
   const toastRef = React.useRef<HTMLDivElement | null>(null);
   const [hovered, setHovered] = React.useState(false);
   const [focused, setFocused] = React.useState(false);
@@ -910,7 +926,9 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(function Toast
       : 0);
   const isPaused = Boolean(
     controlledPaused ??
-      (ctx ? ctx.viewportPaused || ctx.documentHidden : hovered || focused),
+      (inViewport && ctx
+        ? ctx.viewportPaused || ctx.documentHidden
+        : (ctx?.documentHidden ?? false) || hovered || focused),
   );
 
   const initialRemaining =

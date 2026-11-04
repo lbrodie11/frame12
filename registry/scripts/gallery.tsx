@@ -1847,6 +1847,26 @@ function Wp5ToastControls({
       <Button id="wp5-toast-dismiss-first" size="sm" onClick={() => dismiss()}>
         Dismiss Newest
       </Button>
+      <Button
+        id="wp5-toast-push-custom-action"
+        size="sm"
+        onClick={() => {
+          toast({
+            id: 't-custom-btn',
+            status: 'info',
+            title: 'Custom button toast',
+            dismissible: false,
+            duration: 60000,
+            action: (
+              <Button id="t-custom-btn-action" size="sm">
+                Custom Act
+              </Button>
+            ),
+          });
+        }}
+      >
+        Push Custom Action
+      </Button>
       <Button id="wp5-toast-dismiss-all" size="sm" onClick={() => dismissAll()}>
         Dismiss All
       </Button>
@@ -2076,6 +2096,16 @@ function Wp5UnitFixtures() {
                 onActionTrack={(id) => setActionToastIds((prev) => [...prev, id])}
                 onSyncBump={() => setSyncCounter((c) => c + 1)}
               />
+              <Toast
+                id="wp5-standalone-in-provider"
+                status="info"
+                density="compact"
+                duration={60000}
+                onDismiss={() => {}}
+              >
+                <ToastTitle>Standalone Inside Provider</ToastTitle>
+                <ToastDescription>Must pause on local hover outside ToastViewport.</ToastDescription>
+              </Toast>
               <WrappedViewportShell id="wp5-toast-viewport" />
             </ToastProvider>
             <output

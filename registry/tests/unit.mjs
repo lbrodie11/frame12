@@ -1899,6 +1899,22 @@ await page.waitForSelector('#unit-test-fixtures');
         });
         await page.click('#wp5-toast-dismiss-all');
 
+        // Custom action button (non-ToastAction) F8 focus & standalone Toast inside provider local hover pause
+        await page.click('#wp5-toast-push-custom-action');
+        await page.keyboard.press('F8');
+        const customActionF8Focused = await page.evaluate(
+          () => document.activeElement?.id === 't-custom-btn-action',
+        );
+        await page.click('#wp5-toast-dismiss-all');
+
+        await page.hover('#wp5-standalone-in-provider');
+        const standaloneInProviderPausedOnHover = await page.evaluate(
+          () =>
+            document.getElementById('wp5-standalone-in-provider')?.getAttribute('data-paused') ===
+            'true',
+        );
+        await page.mouse.move(0, 0);
+
         // Custom ToastClose onClick composition and preventDefault opt-out
         await page.click('#wp5-toast-custom-close-btn');
         await page.click('#wp5-toast-prevented-close-btn');
@@ -1946,6 +1962,8 @@ await page.waitForSelector('#unit-test-fixtures');
             dialogStillOpenAfterToastClose &&
             dialogClosedOnNonDismissibleToastEsc &&
             repeatedToastReannounced &&
+            customActionF8Focused &&
+            standaloneInProviderPausedOnHover &&
             customCloseState.customOpen === 'false' &&
             customCloseState.customTracks === '1' &&
             customCloseState.customDismisses === '1' &&

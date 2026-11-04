@@ -606,11 +606,14 @@ console.log('R19_RUNTIME_OK:' + html.length);
         },
       },
     );
+    const installedBlockCss = existsSync(join(blockDir, 'src/styles/frame12.css'))
+      ? readFileSync(join(blockDir, 'src/styles/frame12.css'), 'utf8')
+      : '';
     const hasBlockFiles =
       existsSync(join(blockDir, 'src/components/frame12/blocks/developer-console.tsx')) &&
       existsSync(join(blockDir, 'src/components/frame12/index.ts')) &&
       existsSync(join(blockDir, 'src/hooks/use-on-twos.ts')) &&
-      existsSync(join(blockDir, 'src/styles/frame12.css'));
+      /dialog\.f12-dialog\s*\{[^}]*margin:\s*auto\s*;/s.test(installedBlockCss);
     symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(blockDir, 'node_modules'), 'dir');
     writeFileSync(
       join(blockDir, 'src/app/block-check.tsx'),

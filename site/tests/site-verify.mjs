@@ -788,11 +788,27 @@ try {
       JSON.stringify({ hasValidationError, issuedBannerVisible, revokedApplied }),
     );
 
-    // Request Logs: revoked key replay rejection (401), active key replay (202), page-3 replay focus restoration, and route drilldown filter reset
+    // Request Logs: revoked key replay rejection (401), active key replay (202), page-3 replay focus restoration, dialog centering under Tailwind margin:0 reset, and route/overview drilldown focus + filter reset
     await page.click('#dev-console-tab-request-logs');
-    // 1) Replay log-1 whose key (key-prod-primary) was just revoked -> must return 401 (4XX)
+    // Inject a simulated Tailwind base reset (*, dialog { margin: 0; }) at the start of <head> to verify dialog.f12-dialog { margin: auto; } keeps modals centered with unclipped C-05 cut labels
+    await page.evaluate(() => {
+      const resetStyle = document.createElement('style');
+      resetStyle.id = 'test-tailwind-preflight';
+      resetStyle.textContent = '*, ::before, ::after, dialog { margin: 0; }';
+      document.head.insertBefore(resetStyle, document.head.firstChild);
+    });
+    // 1) Replay log-1 whose key (key-prod-primary) was just revoked -> must return 401 (4XX) and dialog must be centered with visible C-05 cut
     await page.click('#dev-console-inspect-log-log-1');
     await page.waitForSelector('dialog[open]', { timeout: 3000 });
+    const dialogCenteredAndCutVisible = await page.evaluate(() => {
+      const dlg = document.querySelector('dialog.f12-dialog[open]');
+      const cut = dlg?.querySelector('.f12-cut');
+      if (!dlg || !cut) return false;
+      const r = dlg.getBoundingClientRect();
+      const cr = cut.getBoundingClientRect();
+      const centerXDelta = Math.abs((r.left + r.right) / 2 - window.innerWidth / 2);
+      return centerXDelta <= 24 && r.top >= 16 && cr.top >= 4 && cr.left >= 4;
+    });
     await page.click('#dev-console-replay-log-btn');
     const revokedReplay401 = await page.evaluate(() => {
       const dlgText = document.querySelector('dialog[open]')?.textContent || '';
@@ -816,7 +832,7 @@ try {
       };
     });
 
-    // 3) Status filter 5XX + route drilldown from Services & Endpoints must clear stale 5XX filter so GET /v2/sessions/:id logs are visible
+    // 3) Status filter 5XX + route drilldown from Services & Endpoints must clear stale 5XX filter AND move focus to #dev-console-log-search
     await page.click('#dev-console-log-status-5xx');
     const fiveXxRows = await page.evaluate(
       () => document.querySelectorAll('#dev-console-sheet tbody tr').length,
@@ -824,14 +840,52 @@ try {
     await page.click('#dev-console-tab-services');
     await page.click('#dev-console-inspect-ep-ep-session-get');
     await page.click('#dev-console-ep-filter-logs');
+    await page.waitForTimeout(40);
     const drilldownClearedStaleFilter = await page.evaluate(() => {
       const rows = document.querySelectorAll('#dev-console-sheet tbody tr').length;
       const statusAllPressed =
         document
           .getElementById('dev-console-log-status-all')
           ?.getAttribute('aria-pressed') === 'true';
-      return rows >= 1 && statusAllPressed && !document.getElementById('dev-console-logs-empty');
+      const focusedSearch = document.activeElement?.id === 'dev-console-log-search';
+      return (
+        rows >= 1 &&
+        statusAllPressed &&
+        focusedSearch &&
+        !document.getElementById('dev-console-logs-empty')
+      );
     });
+
+    // 3b) Overview "Inspect request logs →" shortcut must also move focus to #dev-console-log-search (never document.body) and Overview layout must have 1 peak balloon and balanced panels
+    await page.click('#dev-console-tab-overview');
+    const overviewVisualPolishOk = await page.evaluate(() => {
+      const balloons = document.querySelectorAll('#dev-console-sheet .f12-balloon').length;
+      const serviceNames = [
+        ...document.querySelectorAll('#dev-console-sheet .f12-int-name'),
+      ];
+      const maxServiceLines = Math.max(
+        0,
+        ...serviceNames.map((el) => el.getClientRects().length),
+      );
+      const expressivePanels = [
+        ...document.querySelectorAll(
+          '#dev-console-sheet .f12-tabs-content:not([hidden]) .f12-panel:not(.f12-panel-quiet)',
+        ),
+      ];
+      const heightDiff =
+        expressivePanels.length === 2
+          ? Math.abs(
+              expressivePanels[0].getBoundingClientRect().height -
+                expressivePanels[1].getBoundingClientRect().height,
+            )
+          : 999;
+      return balloons === 1 && maxServiceLines <= 2 && heightDiff <= 120;
+    });
+    await page.click('#dev-console-overview-goto-logs');
+    await page.waitForTimeout(40);
+    const overviewShortcutFocusedSearch = await page.evaluate(
+      () => document.activeElement?.id === 'dev-console-log-search',
+    );
 
     // 4) Reset sandbox restores form defaults and initial logs
     await page.click('#dev-console-tab-api-keys');
@@ -847,24 +901,45 @@ try {
     });
 
     check(
-      revokedReplay401 &&
+      dialogCenteredAndCutVisible &&
+        revokedReplay401 &&
         focusAfterPage3Replay.connected &&
         focusAfterPage3Replay.id.startsWith('dev-console-inspect-log-log-replay-') &&
         fiveXxRows === 2 &&
         drilldownClearedStaleFilter &&
+        overviewVisualPolishOk &&
+        overviewShortcutFocusedSearch &&
         sandboxResetComplete,
-      'site /blocks/developer-console Request Logs & Sandbox Reset: revoked-key 401 replay, page-3 replay focus restoration, route drilldown filter reset, and full sandbox reset',
+      'site /blocks/developer-console Request Logs, Overview Polish, Dialog Centering & Sandbox Reset: centered modal with visible cut under margin:0 reset, revoked-key 401 replay, page-3 replay focus restoration, cross-tab drilldown focus on search input, single peak balloon, and full sandbox reset',
       JSON.stringify({
+        dialogCenteredAndCutVisible,
         revokedReplay401,
         focusAfterPage3Replay,
         fiveXxRows,
         drilldownClearedStaleFilter,
+        overviewVisualPolishOk,
+        overviewShortcutFocusedSearch,
         sandboxResetComplete,
       }),
     );
 
-    // Verify 320px narrow mobile containment across all 4 console tabs + forced-colors: active
+    // Verify 320px narrow mobile containment + full-width stacked tabs across all 4 console tabs + forced-colors: active
     await page.setViewportSize({ width: 320, height: 640 });
+    const mobileTabsFullWidth = await page.evaluate(() => {
+      const list = document.querySelector('#dev-console-sheet .f12-tabs-list');
+      const triggers = [
+        ...document.querySelectorAll('#dev-console-sheet .f12-tabs-trigger'),
+      ];
+      if (!list || triggers.length !== 4) return false;
+      const listClientW = list.clientWidth;
+      return triggers.every((t, idx) => {
+        const w = t.getBoundingClientRect().width;
+        const st = getComputedStyle(t);
+        const borderOk =
+          idx === 0 || (parseFloat(st.borderTopWidth) >= 1.5 && parseFloat(st.borderLeftWidth) === 0);
+        return Math.abs(w - listClientW) <= 2 && borderOk;
+      });
+    });
     const tabOverflow320 = {};
     for (const tabId of [
       '#dev-console-tab-overview',
@@ -889,9 +964,9 @@ try {
       );
     });
     check(
-      Object.values(tabOverflow320).every(Boolean) && fcConsoleOk,
-      'site /blocks/developer-console (320px mobile & forced-colors): zero horizontal overflow across all 4 tabs and high-contrast system borders',
-      JSON.stringify({ tabOverflow320, fcConsoleOk }),
+      mobileTabsFullWidth && Object.values(tabOverflow320).every(Boolean) && fcConsoleOk,
+      'site /blocks/developer-console (320px mobile & forced-colors): full-width stacked mobile tabs, zero horizontal overflow across all 4 tabs, and high-contrast system borders',
+      JSON.stringify({ mobileTabsFullWidth, tabOverflow320, fcConsoleOk }),
     );
 
     await ctx.close();

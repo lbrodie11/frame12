@@ -1007,6 +1007,7 @@
   flex: none;
 }
 .f12-tabs-trigger {
+  flex: 1 1 auto;
   cursor: pointer;
   background: var(--f-panel);
   color: var(--f-ink);
@@ -2222,6 +2223,7 @@
 
 /* Dialog */
 dialog.f12-dialog {
+  margin: auto;
   background: var(--f-panel);
   color: var(--f-ink);
   border: 2.5px solid var(--f-rule);
@@ -2622,6 +2624,9 @@ dialog.f12-dialog::backdrop {
   gap: var(--f-gutter-pair);
   min-width: 0;
 }
+.f12-console .f12-int-row {
+  grid-template-columns: minmax(170px, 1.35fr) minmax(90px, 1.65fr) auto;
+}
 .f12-console-kv-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -2749,7 +2754,8 @@ dialog.f12-dialog::backdrop {
   .f12-panel.f12-panel-quiet.f12-slant-top > .f12-panel-body {
     padding-top: 32px;
   }
-  .f12-int-row {
+  .f12-int-row,
+  .f12-console .f12-int-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "name val" "bar bar";
     gap: 8px 12px;
@@ -2771,6 +2777,44 @@ dialog.f12-dialog::backdrop {
   }
   .f12-tabs.f12-tabs-vertical > .f12-tabs-list {
     width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .f12-tabs-list {
+    flex-direction: column;
+    width: 100%;
+  }
+  .f12-tabs-trigger {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .f12-tabs-trigger + .f12-tabs-trigger {
+    border-inline-start: 0;
+    border-top: 2px solid var(--f-rule);
+  }
+  .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
+    border-inline-start: 0;
+    border-top-width: 1.5px;
+  }
+}
+
+@container (max-width: 640px) {
+  .f12-tabs-list {
+    flex-direction: column;
+    width: 100%;
+  }
+  .f12-tabs-trigger {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .f12-tabs-trigger + .f12-tabs-trigger {
+    border-inline-start: 0;
+    border-top: 2px solid var(--f-rule);
+  }
+  .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
+    border-inline-start: 0;
+    border-top-width: 1.5px;
   }
 }
 

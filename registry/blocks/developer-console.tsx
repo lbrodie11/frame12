@@ -37,7 +37,6 @@ import {
   Breadcrumb,
   Pagination,
   Metric,
-  Balloon,
   ToneAreaChart,
   type ToneAreaDatum,
   ToneBarList,
@@ -905,6 +904,7 @@ function DeveloperConsoleInner({
   const [logPage, setLogPage] = React.useState(1);
   const [inspectedLog, setInspectedLog] = React.useState<ConsoleRequestLogItem | null>(null);
   const lastInspectedLogIdRef = React.useRef<string | null>(null);
+  const pendingFocusTargetIdRef = React.useRef<string | null>(null);
   const replaySeqRef = React.useRef(1);
 
   const snapshot = CONSOLE_RANGE_SNAPSHOTS[timeRange];
@@ -944,9 +944,9 @@ function DeveloperConsoleInner({
     () =>
       effectiveServices.map((svc) => ({
         id: svc.id,
-        name: `${svc.name} (${svc.p95Ms} ms p95)`,
+        name: svc.name,
         value: svc.requests24h,
-        formattedValue: `${fmtCompactNumber(svc.requests24h)} (${Math.round(svc.share24h * 100)}%)`,
+        formattedValue: fmtCompactNumber(svc.requests24h),
         share: svc.share24h,
         pattern: svc.pattern,
       })),
@@ -1220,6 +1220,31 @@ function DeveloperConsoleInner({
     return () => window.cancelAnimationFrame(raf);
   }, [inspectedLog, resolvedIdPrefix]);
 
+  React.useEffect(() => {
+    const targetId = pendingFocusTargetIdRef.current;
+    if (!targetId || typeof document === 'undefined') return;
+    pendingFocusTargetIdRef.current = null;
+    const applyFocus = () => {
+      const el =
+        document.getElementById(targetId) ??
+        document.getElementById(`${resolvedIdPrefix}-tab-${activeSection}`);
+      el?.focus({ preventScroll: true });
+    };
+    applyFocus();
+    const raf = window.requestAnimationFrame(applyFocus);
+    return () => window.cancelAnimationFrame(raf);
+  }, [
+    activeSection,
+    datasetState,
+    endpointSearch,
+    endpointHealthFilter,
+    endpointMethodFilter,
+    logSearch,
+    logStatusFilter,
+    logServiceFilter,
+    resolvedIdPrefix,
+  ]);
+
   return (
     <Sheet
       id={`${resolvedIdPrefix}-sheet`}
@@ -1478,6 +1503,7 @@ function DeveloperConsoleInner({
               variant="secondary"
               size="sm"
               onClick={() => {
+                pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-dataset-state-populated`;
                 setDatasetState('populated');
                 toast({
                   status: 'success',
@@ -1504,6 +1530,7 @@ function DeveloperConsoleInner({
               variant="primary"
               size="sm"
               onClick={() => {
+                pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-dataset-state-populated`;
                 setDatasetState('populated');
                 toast({
                   status: 'success',
@@ -1521,6 +1548,7 @@ function DeveloperConsoleInner({
               variant="secondary"
               size="sm"
               onClick={() => {
+                pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-key-label-input`;
                 setDatasetState('populated');
                 setActiveSection('api-keys');
               }}
@@ -1554,7 +1582,7 @@ function DeveloperConsoleInner({
         {/* =============================================================== TAB 1: OVERVIEW */}
         <TabsContent value="overview">
           <div className="f12-stack-scene">
-            <Scene gutter="scene" layout="split">
+            <Scene gutter="scene" layout="equal">
               <Panel
                 variant="expressive"
                 label="Primary request throughput and baseline comparison"
@@ -1567,23 +1595,16 @@ function DeveloperConsoleInner({
                   </div>
                 ) : (
                   <div className="f12-stack-pair">
-                    <div className="f12-row-between">
-                      <div className="f12-stack-pair">
-                        <div className="f12-row-pair">
-                          <Tag>EXPOSURE CHART · REQUESTS (K)</Tag>
-                          <Badge status="neutral" burst={false}>
-                            {`OVERLAY: ${selectedService.code}`}
-                          </Badge>
-                        </div>
-                        <h2 className="f12-section-title">
-                          Gateway Throughput vs. Prior Baseline
-                        </h2>
+                    <div className="f12-stack-pair">
+                      <div className="f12-row-pair">
+                        <Tag>EXPOSURE CHART · REQUESTS (K)</Tag>
+                        <Badge status="neutral" burst={false}>
+                          {`OVERLAY: ${selectedService.code}`}
+                        </Badge>
                       </div>
-                      <Balloon className={rangeChanged ? 'pop' : ''}>
-                        {isEmptyDataset
-                          ? 'Peak — · 0 reqs · 0 ms p95'
-                          : snapshot.peakCallout}
-                      </Balloon>
+                      <h2 className="f12-section-title">
+                        Gateway Throughput vs. Prior Baseline
+                      </h2>
                     </div>
 
                     <p className="f12-muted-copy">
@@ -1602,15 +1623,34 @@ function DeveloperConsoleInner({
                         description="Load sample telemetry or dispatch a simulated request to populate the exposure curve and tabular breakdown."
                       />
                     ) : (
-                      <ToneAreaChart
-                        data={chartData}
-                        motion={motion}
-                        ariaLabel={`Gateway request throughput over ${snapshot.label} with ${selectedService.name} comparison series`}
-                        tableSummary="View tabular throughput and service overlay data"
-                        seriesLabel={`Total Gateway (${snapshot.label})`}
-                        compareLabel={selectedService.name}
-                        formatValue={(v) => `${fmtCompactNumber(v)}k reqs`}
-                      />
+                      <>
+                        <ToneAreaChart
+                          data={chartData}
+                          motion={motion}
+                          ariaLabel={`Gateway request throughput over ${snapshot.label} with ${selectedService.name} comparison series`}
+                          tableSummary="View tabular throughput and service overlay data"
+                          seriesLabel={`Total Gateway (${snapshot.label})`}
+                          compareLabel={selectedService.name}
+                          formatValue={(v) => `${fmtCompactNumber(v)}k reqs`}
+                        />
+                        <div
+                          className="f12-console-kv-list"
+                          aria-label="Throughput window summary"
+                        >
+                          <div className="f12-console-kv-item">
+                            <span className="f12-console-kv-label">Sampling Resolution</span>
+                            <span className="f12-console-kv-value">
+                              {`${chartData.length} intervals · ${snapshot.label}`}
+                            </span>
+                          </div>
+                          <div className="f12-console-kv-item">
+                            <span className="f12-console-kv-label">Active Overlay Series</span>
+                            <span className="f12-console-kv-value">
+                              {`${selectedService.code} · ${Math.round(selectedService.share24h * 100)}% share`}
+                            </span>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -1647,6 +1687,7 @@ function DeveloperConsoleInner({
                         isEmptyDataset ? 'Total 0 requests' : 'Total 1,482,900 requests'
                       }
                       items={serviceBarItems}
+                      changed={rangeChanged}
                       selectedId={selectedService.id}
                       onSelect={(id) => {
                         if (id) setSelectedServiceId(id);
@@ -1685,7 +1726,10 @@ function DeveloperConsoleInner({
                     id={`${resolvedIdPrefix}-overview-goto-logs`}
                     variant="secondary"
                     size="sm"
-                    onClick={() => setActiveSection('request-logs')}
+                    onClick={() => {
+                      pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-log-search`;
+                      setActiveSection('request-logs');
+                    }}
                   >
                     Inspect request logs →
                   </Button>
@@ -1825,6 +1869,7 @@ function DeveloperConsoleInner({
                         variant="secondary"
                         size="sm"
                         onClick={() => {
+                          pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-endpoint-search`;
                           setEndpointSearch('');
                           setEndpointHealthFilter('all');
                           setEndpointMethodFilter('ALL');
@@ -1933,6 +1978,7 @@ function DeveloperConsoleInner({
                         variant="secondary"
                         size="sm"
                         onClick={() => {
+                          pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-log-search`;
                           if (datasetState === 'empty') {
                             setDatasetState('populated');
                           }
@@ -2281,6 +2327,7 @@ function DeveloperConsoleInner({
                           variant="primary"
                           size="sm"
                           onClick={() => {
+                            pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-log-search`;
                             setDatasetState('populated');
                           }}
                         >
@@ -2292,6 +2339,7 @@ function DeveloperConsoleInner({
                           variant="secondary"
                           size="sm"
                           onClick={() => {
+                            pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-log-search`;
                             setLogSearch('');
                             setLogStatusFilter('all');
                             setLogServiceFilter('all');
