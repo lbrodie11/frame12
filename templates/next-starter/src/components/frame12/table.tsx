@@ -6,17 +6,28 @@ export type TableDensity = 'comfortable' | 'compact';
 
 export interface TableProps extends React.TableHTMLAttributes<HTMLTableElement> {
   density?: TableDensity;
+  wrapperProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
 export function Table({
   density = 'comfortable',
   className = '',
+  wrapperProps,
   children,
   ...rest
 }: TableProps) {
   const isCompact = density === 'compact';
+  const {
+    className: wrapClassName = '',
+    tabIndex: wrapTabIndex = 0,
+    ...restWrap
+  } = wrapperProps ?? {};
   return (
-    <div className="f12-table-wrap">
+    <div
+      className={`f12-table-wrap${wrapClassName ? ` ${wrapClassName}` : ''}`}
+      tabIndex={wrapTabIndex}
+      {...restWrap}
+    >
       <table
         className={`f12-table${isCompact ? ' f12-table-compact' : ''}${className ? ` ${className}` : ''}`}
         data-density={isCompact ? 'compact' : undefined}

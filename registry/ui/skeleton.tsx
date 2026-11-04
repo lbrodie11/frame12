@@ -50,12 +50,14 @@ export const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(function
     ...style,
   };
 
+  const srText = label ?? userAriaLabel;
+
   return (
     <div
       ref={ref}
       role={resolvedRole}
       aria-busy={resolvedAriaBusy}
-      aria-label={userAriaLabel ?? label}
+      aria-label={srText}
       aria-hidden={resolvedAriaHidden}
       data-variant={variant}
       data-animated={animated ? 'true' : 'false'}
@@ -64,7 +66,7 @@ export const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(function
       className={`f12-skeleton f12-skeleton-${variant}${animated ? ' f12-skeleton-animated' : ''}${isCompact ? ' f12-skeleton-compact' : ''}${className ? ` ${className}` : ''}`}
       {...rest}
     >
-      {children}
+      {children ?? (srText ? <span className="f12-sr-only">{srText}</span> : null)}
     </div>
   );
 });
@@ -102,17 +104,20 @@ export const SkeletonText = React.forwardRef<HTMLDivElement, SkeletonTextProps>(
     const resolvedAriaHidden =
       userAriaHidden !== undefined ? userAriaHidden : hasLabel ? undefined : 'true';
 
+    const srText = label ?? userAriaLabel;
+
     return (
       <div
         ref={ref}
         role={resolvedRole}
         aria-busy={resolvedAriaBusy}
-        aria-label={userAriaLabel ?? label}
+        aria-label={srText}
         aria-hidden={resolvedAriaHidden}
         data-density={isCompact ? 'compact' : undefined}
         className={`f12-skeleton-text${isCompact ? ' f12-skeleton-text-compact' : ''}${className ? ` ${className}` : ''}`}
         {...rest}
       >
+        {srText && <span className="f12-sr-only">{srText}</span>}
         {Array.from({ length: safeLines }, (_, idx) => {
           const isLast = safeLines > 1 && idx === safeLines - 1;
           return (

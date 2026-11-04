@@ -599,21 +599,41 @@ for (const browserName of BROWSER_NAMES) {
       });
 
       await page.setViewportSize({ width: 320, height: 640 });
+      await page.evaluate(() => window.__mountUnitFixtures && window.__mountUnitFixtures());
+      await page.waitForSelector('#unit-test-fixtures', { timeout: 5000 });
+      await page.click('#wp5-toast-push-four');
       await page.waitForTimeout(100);
-      const noDocOverflow320 = await page.evaluate(
-        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
-      );
+      const mobile320State = await page.evaluate(() => {
+        const vp = document.getElementById('wp5-toast-viewport');
+        const vpRect = vp ? vp.getBoundingClientRect() : null;
+        const vpStyle = vp ? getComputedStyle(vp) : null;
+        const longAlert = document.getElementById('wp5-alert-long-token');
+        const alertFits = longAlert
+          ? longAlert.scrollWidth <= longAlert.clientWidth + 1
+          : false;
+        return {
+          noDocOverflow:
+            document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+          vpTopOk: Boolean(vpRect && vpRect.top >= 0 && vpRect.bottom <= 640),
+          vpScrollable: vpStyle?.overflowY === 'auto',
+          alertFits,
+        };
+      });
+      await page.click('#wp5-toast-dismiss-all');
 
       check(
         mobileState.sheetToken === '#050505' &&
           mobileState.indTransition === '0s' &&
           mobileState.stacked &&
           mobileState.noDocOverflow &&
-          noDocOverflow320 &&
+          mobile320State.noDocOverflow &&
+          mobile320State.vpTopOk &&
+          mobile320State.vpScrollable &&
+          mobile320State.alertFits &&
           mobileState.tableContained &&
           errors.length === 0,
-        `[${browserName} 390px & 320px dark + reduced-motion] Dark tokens (#050505), transition: 0s, single-column stack, Table overflow containment, and zero overflow/errors`,
-        errors.length ? errors.join('; ') : JSON.stringify({ ...mobileState, noDocOverflow320 }),
+        `[${browserName} 390px & 320px dark + reduced-motion] Dark tokens (#050505), transition: 0s, single-column stack, bounded 320×640 ToastViewport, long-token Alert wrap, Table overflow containment, and zero overflow/errors`,
+        errors.length ? errors.join('; ') : JSON.stringify({ ...mobileState, mobile320State }),
       );
 
       await ctx.close();

@@ -5,16 +5,40 @@ import * as React from 'react';
 export type PaginationDensity = 'comfortable' | 'compact';
 export type PaginationRangeToken = number | 'ellipsis-start' | 'ellipsis-end';
 
+function toSafeInt(value: number | undefined, fallback: number, min: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return Math.max(min, Math.floor(fallback));
+  }
+  return Math.max(min, Math.floor(value));
+}
+
+function isModifiedLinkClick(
+  event: React.MouseEvent<HTMLElement>,
+  href: string | undefined,
+): boolean {
+  if (event.defaultPrevented) return true;
+  if (href === undefined) return false;
+  return (
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    (typeof event.button === 'number' && event.button !== 0)
+  );
+}
+
 export function buildPaginationRange(
   page: number,
   totalPages: number,
   siblingCount = 1,
+  boundaryCount = 1,
 ): PaginationRangeToken[] {
-  const safeTotal = Math.max(1, Math.floor(totalPages));
-  const safeSiblings = Math.max(0, Math.floor(siblingCount));
-  const safePage = Math.min(Math.max(1, Math.floor(page)), safeTotal);
+  const safeTotal = toSafeInt(totalPages, 1, 1);
+  const safeSiblings = toSafeInt(siblingCount, 1, 0);
+  const safeBoundaries = toSafeInt(boundaryCount, 1, 1);
+  const safePage = Math.min(toSafeInt(page, 1, 1), safeTotal);
 
-  const totalPageNumbers = safeSiblings * 2 + 5;
+  const totalPageNumbers = safeSiblings * 2 + safeBoundaries * 2 + 3;
   if (safeTotal <= totalPageNumbers) {
     return Array.from({ length: safeTotal }, (_, i) => i + 1);
   }
@@ -22,25 +46,35 @@ export function buildPaginationRange(
   const leftSiblingIndex = Math.max(safePage - safeSiblings, 1);
   const rightSiblingIndex = Math.min(safePage + safeSiblings, safeTotal);
 
-  const showLeftEllipsis = leftSiblingIndex > 2;
-  const showRightEllipsis = rightSiblingIndex < safeTotal - 1;
+  const showLeftEllipsis = leftSiblingIndex > safeBoundaries + 1;
+  const showRightEllipsis = rightSiblingIndex < safeTotal - safeBoundaries;
 
   if (!showLeftEllipsis && showRightEllipsis) {
-    const leftItemCount = 3 + 2 * safeSiblings;
+    const leftItemCount = safeBoundaries + 2 + 2 * safeSiblings;
     const leftRange = Array.from({ length: leftItemCount }, (_, i) => i + 1);
-    return [...leftRange, 'ellipsis-end', safeTotal];
+    const rightBoundary = Array.from(
+      { length: safeBoundaries },
+      (_, i) => safeTotal - safeBoundaries + 1 + i,
+    );
+    return [...leftRange, 'ellipsis-end', ...rightBoundary];
   }
 
   if (showLeftEllipsis && !showRightEllipsis) {
-    const rightItemCount = 3 + 2 * safeSiblings;
+    const rightItemCount = safeBoundaries + 2 + 2 * safeSiblings;
     const start = safeTotal - rightItemCount + 1;
+    const leftBoundary = Array.from({ length: safeBoundaries }, (_, i) => i + 1);
     const rightRange = Array.from({ length: rightItemCount }, (_, i) => start + i);
-    return [1, 'ellipsis-start', ...rightRange];
+    return [...leftBoundary, 'ellipsis-start', ...rightRange];
   }
 
+  const leftBoundary = Array.from({ length: safeBoundaries }, (_, i) => i + 1);
+  const rightBoundary = Array.from(
+    { length: safeBoundaries },
+    (_, i) => safeTotal - safeBoundaries + 1 + i,
+  );
   const middleLength = rightSiblingIndex - leftSiblingIndex + 1;
   const middleRange = Array.from({ length: middleLength }, (_, i) => leftSiblingIndex + i);
-  return [1, 'ellipsis-start', ...middleRange, 'ellipsis-end', safeTotal];
+  return [...leftBoundary, 'ellipsis-start', ...middleRange, 'ellipsis-end', ...rightBoundary];
 }
 
 const PaginationContext = React.createContext<{
@@ -49,19 +83,35 @@ const PaginationContext = React.createContext<{
   density: 'comfortable',
 });
 
+export interface PaginationSummaryDetails {
+  page: number;
+  totalPages: number;
+  startItem?: number;
+  endItem?: number;
+  totalItems?: number;
+}
+
 export interface PaginationProps extends Omit<React.HTMLAttributes<HTMLElement>, 'onChange'> {
   page?: number;
   defaultPage?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
   siblingCount?: number;
+  boundaryCount?: number;
   density?: PaginationDensity;
   ariaLabel?: string;
   previousLabel?: React.ReactNode;
   nextLabel?: React.ReactNode;
+  ellipsisLabel?: string;
   showSummary?: boolean;
   totalItems?: number;
   pageSize?: number;
+  formatSummary?: (details: PaginationSummaryDetails) => React.ReactNode;
+  getItemAriaLabel?: (
+    type: 'page' | 'previous' | 'next',
+    page: number,
+    isCurrent: boolean,
+  ) => string;
   getItemHref?: (page: number) => string | undefined;
 }
 
@@ -72,14 +122,18 @@ export const Pagination = React.forwardRef<HTMLElement, PaginationProps>(functio
     totalPages,
     onPageChange,
     siblingCount = 1,
+    boundaryCount = 1,
     density = 'comfortable',
     ariaLabel = 'Pagination',
     'aria-label': userAriaLabel,
     previousLabel = 'Prev',
     nextLabel = 'Next',
+    ellipsisLabel = 'More pages',
     showSummary = false,
     totalItems,
     pageSize = 20,
+    formatSummary,
+    getItemAriaLabel,
     getItemHref,
     className = '',
     children,
@@ -89,13 +143,20 @@ export const Pagination = React.forwardRef<HTMLElement, PaginationProps>(functio
 ) {
   const isCompact = density === 'compact';
   const isControlled = controlledPage !== undefined;
-  const [uncontrolledPage, setUncontrolledPage] = React.useState<number>(defaultPage);
-  const safeTotal = totalPages !== undefined ? Math.max(1, Math.floor(totalPages)) : 1;
+  const safeDefaultPage = toSafeInt(defaultPage, 1, 1);
+  const [uncontrolledPage, setUncontrolledPage] = React.useState<number>(() => safeDefaultPage);
+  const safeTotal = totalPages !== undefined ? toSafeInt(totalPages, 1, 1) : 1;
   const rawPage = isControlled ? controlledPage : uncontrolledPage;
-  const currentPage = Math.min(Math.max(1, Math.floor(rawPage)), safeTotal);
+  const currentPage = Math.min(toSafeInt(rawPage, safeDefaultPage, 1), safeTotal);
+  const safePageSize = toSafeInt(pageSize, 20, 1);
+  const safeTotalItems =
+    typeof totalItems === 'number' && Number.isFinite(totalItems) && totalItems >= 0
+      ? Math.floor(totalItems)
+      : undefined;
 
   const selectPage = React.useCallback(
     (next: number) => {
+      if (typeof next !== 'number' || !Number.isFinite(next)) return;
       const clamped = Math.min(Math.max(1, Math.floor(next)), safeTotal);
       if (clamped === currentPage) return;
       if (!isControlled) {
@@ -109,21 +170,47 @@ export const Pagination = React.forwardRef<HTMLElement, PaginationProps>(functio
   const ctxValue = React.useMemo(() => ({ density }), [density]);
   const hasDataPagination = totalPages !== undefined && !children;
   const tokens = React.useMemo(
-    () => (hasDataPagination ? buildPaginationRange(currentPage, safeTotal, siblingCount) : []),
-    [hasDataPagination, currentPage, safeTotal, siblingCount],
+    () =>
+      hasDataPagination
+        ? buildPaginationRange(currentPage, safeTotal, siblingCount, boundaryCount)
+        : [],
+    [hasDataPagination, currentPage, safeTotal, siblingCount, boundaryCount],
   );
 
-  let summaryText = '';
+  let summaryNode: React.ReactNode = null;
   if (showSummary && hasDataPagination) {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    if (totalItems !== undefined && totalItems >= 0) {
-      const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-      const endItem = Math.min(currentPage * pageSize, totalItems);
-      summaryText = `PAGE ${pad(currentPage)} OF ${pad(safeTotal)} · ${startItem}–${endItem} OF ${totalItems}`;
+    const startItem =
+      safeTotalItems === undefined
+        ? undefined
+        : safeTotalItems === 0
+          ? 0
+          : (currentPage - 1) * safePageSize + 1;
+    const endItem =
+      safeTotalItems === undefined
+        ? undefined
+        : Math.min(currentPage * safePageSize, safeTotalItems);
+    if (formatSummary) {
+      summaryNode = formatSummary({
+        page: currentPage,
+        totalPages: safeTotal,
+        startItem,
+        endItem,
+        totalItems: safeTotalItems,
+      });
     } else {
-      summaryText = `PAGE ${pad(currentPage)} OF ${pad(safeTotal)}`;
+      const pad = (n: number) => String(n).padStart(2, '0');
+      if (safeTotalItems !== undefined && startItem !== undefined && endItem !== undefined) {
+        summaryNode = `PAGE ${pad(currentPage)} OF ${pad(safeTotal)} · ${startItem}–${endItem} OF ${safeTotalItems}`;
+      } else {
+        summaryNode = `PAGE ${pad(currentPage)} OF ${pad(safeTotal)}`;
+      }
     }
   }
+
+  const prevPage = Math.max(1, currentPage - 1);
+  const nextPage = Math.min(safeTotal, currentPage + 1);
+  const prevHref = currentPage > 1 ? getItemHref?.(prevPage) : undefined;
+  const nextHref = currentPage < safeTotal ? getItemHref?.(nextPage) : undefined;
 
   return (
     <PaginationContext.Provider value={ctxValue}>
@@ -134,18 +221,27 @@ export const Pagination = React.forwardRef<HTMLElement, PaginationProps>(functio
         className={`f12-pagination${isCompact ? ' f12-pagination-compact' : ''}${className ? ` ${className}` : ''}`}
         {...rest}
       >
-        {showSummary && summaryText && (
+        {showSummary && summaryNode !== null && summaryNode !== '' && (
           <div className="f12-pagination-summary" aria-live="polite">
-            {summaryText}
+            {summaryNode}
           </div>
         )}
         {hasDataPagination ? (
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
-                href={currentPage > 1 ? getItemHref?.(currentPage - 1) : undefined}
+                href={prevHref}
                 disabled={currentPage <= 1}
-                onClick={() => selectPage(currentPage - 1)}
+                aria-label={
+                  getItemAriaLabel
+                    ? getItemAriaLabel('previous', prevPage, false)
+                    : 'Go to previous page'
+                }
+                onClick={(e) => {
+                  if (!isModifiedLinkClick(e, prevHref)) {
+                    selectPage(currentPage - 1);
+                  }
+                }}
               >
                 {previousLabel}
               </PaginationPrevious>
@@ -154,18 +250,29 @@ export const Pagination = React.forwardRef<HTMLElement, PaginationProps>(functio
               if (token === 'ellipsis-start' || token === 'ellipsis-end') {
                 return (
                   <PaginationItem key={token}>
-                    <PaginationEllipsis />
+                    <PaginationEllipsis aria-label={ellipsisLabel} />
                   </PaginationItem>
                 );
               }
               const isCurrent = token === currentPage;
+              const itemHref = getItemHref?.(token);
               return (
                 <PaginationItem key={token}>
                   <PaginationLink
-                    href={getItemHref?.(token)}
+                    href={itemHref}
                     isActive={isCurrent}
-                    aria-label={isCurrent ? `Page ${token}, current page` : `Go to page ${token}`}
-                    onClick={() => selectPage(token)}
+                    aria-label={
+                      getItemAriaLabel
+                        ? getItemAriaLabel('page', token, isCurrent)
+                        : isCurrent
+                          ? `Page ${token}, current page`
+                          : `Go to page ${token}`
+                    }
+                    onClick={(e) => {
+                      if (!isModifiedLinkClick(e, itemHref)) {
+                        selectPage(token);
+                      }
+                    }}
                   >
                     {token}
                   </PaginationLink>
@@ -174,9 +281,18 @@ export const Pagination = React.forwardRef<HTMLElement, PaginationProps>(functio
             })}
             <PaginationItem>
               <PaginationNext
-                href={currentPage < safeTotal ? getItemHref?.(currentPage + 1) : undefined}
+                href={nextHref}
                 disabled={currentPage >= safeTotal}
-                onClick={() => selectPage(currentPage + 1)}
+                aria-label={
+                  getItemAriaLabel
+                    ? getItemAriaLabel('next', nextPage, false)
+                    : 'Go to next page'
+                }
+                onClick={(e) => {
+                  if (!isModifiedLinkClick(e, nextHref)) {
+                    selectPage(currentPage + 1);
+                  }
+                }}
               >
                 {nextLabel}
               </PaginationNext>

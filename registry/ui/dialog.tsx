@@ -87,14 +87,39 @@ function getTopmostOpenDialog(): HTMLDialogElement | undefined {
 function mergeRefs<T>(
   ...refs: Array<React.Ref<T> | undefined>
 ): React.RefCallback<T> {
-  return (value: T) => {
+  let activeCleanups: Array<() => void> = [];
+  const runCleanups = () => {
+    const toRun = activeCleanups;
+    activeCleanups = [];
+    for (const cleanup of toRun) {
+      cleanup();
+    }
+  };
+  return (value: T | null) => {
+    runCleanups();
+    if (value === null) {
+      return;
+    }
+    const cleanups: Array<() => void> = [];
     for (const ref of refs) {
       if (typeof ref === 'function') {
-        ref(value);
+        const cleanup = ref(value);
+        if (typeof cleanup === 'function') {
+          cleanups.push(cleanup);
+        } else {
+          cleanups.push(() => {
+            ref(null);
+          });
+        }
       } else if (ref != null) {
         (ref as React.MutableRefObject<T | null>).current = value;
+        cleanups.push(() => {
+          (ref as React.MutableRefObject<T | null>).current = null;
+        });
       }
     }
+    activeCleanups = cleanups;
+    return runCleanups;
   };
 }
 
@@ -424,7 +449,10 @@ export const DialogContent = React.forwardRef<HTMLDialogElement, DialogContentPr
       // unmounts the open listbox/menu, so we know whether Escape was consumed by a child popup.
       const onDocKeyDownCapture = (e: KeyboardEvent) => {
         if (e.key !== 'Escape') return;
-        if (el.querySelector('[role="listbox"], [role="menu"]')) {
+        if (
+          el.querySelector('[role="listbox"], [role="menu"]') ||
+          (e.target instanceof Element && e.target.closest('.f12-toast, .f12-toast-viewport'))
+        ) {
           childPopupOpenOnEscapeRef.current = true;
           setTimeout(() => {
             childPopupOpenOnEscapeRef.current = false;

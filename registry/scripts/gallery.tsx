@@ -1701,13 +1701,15 @@ function WrappedViewportShell({ id }: { id: string }) {
 function Wp5ToastControls({
   onDismissTrack,
   onActionTrack,
+  onSyncBump,
 }: {
   onDismissTrack: (id: string) => void;
   onActionTrack: (id: string) => void;
+  onSyncBump: () => void;
 }) {
   const { toast, dismiss, dismissAll } = useToast();
   return (
-    <div id="wp5-toast-triggers" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+    <div id="wp5-toast-triggers" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
       <Button
         id="wp5-toast-push-four"
         size="sm"
@@ -1716,11 +1718,12 @@ function Wp5ToastControls({
             id: 't-1',
             status: 'info',
             title: 'Cut 01 queued',
-            description: 'First toast in queue.',
+            description: 'First toast in bounded stack.',
             duration: 60000,
             onDismiss: onDismissTrack,
             action: {
               label: 'Inspect',
+              altText: 'Inspect Cut 01',
               onClick: () => onActionTrack('t-1'),
             },
           });
@@ -1768,13 +1771,178 @@ function Wp5ToastControls({
       >
         Push Timed Toast
       </Button>
+      <Button
+        id="wp5-toast-push-focus-pair"
+        size="sm"
+        onClick={() => {
+          toast({
+            id: 't-focus-1',
+            status: 'info',
+            title: 'Focus target toast',
+            description: 'Dismiss this via keyboard or click.',
+            duration: 60000,
+            onDismiss: onDismissTrack,
+          });
+          toast({
+            id: 't-focus-2',
+            status: 'success',
+            title: 'Remaining timed toast',
+            description: 'Must auto-dismiss after t-focus-1 is closed.',
+            duration: 260,
+            onDismiss: onDismissTrack,
+          });
+        }}
+      >
+        Push Focus Pair
+      </Button>
+      <Button
+        id="wp5-toast-push-transition"
+        size="sm"
+        onClick={() => {
+          const RD = (
+            window as unknown as {
+              ReactDOM?: { flushSync?: (fn: () => void) => void };
+            }
+          ).ReactDOM;
+          React.startTransition(() => {
+            toast({
+              id: 't-transition',
+              status: 'info',
+              title: 'Transition toast',
+              duration: 60000,
+              onDismiss: onDismissTrack,
+            });
+          });
+          if (RD?.flushSync) {
+            RD.flushSync(() => {
+              onSyncBump();
+            });
+          } else {
+            onSyncBump();
+          }
+          toast({
+            id: 't-urgent',
+            status: 'danger',
+            title: 'Urgent toast',
+            duration: 60000,
+            onDismiss: onDismissTrack,
+          });
+        }}
+      >
+        Push Transition + Urgent
+      </Button>
       <Button id="wp5-toast-dismiss-first" size="sm" onClick={() => dismiss()}>
-        Dismiss First
+        Dismiss Newest
       </Button>
       <Button id="wp5-toast-dismiss-all" size="sm" onClick={() => dismissAll()}>
         Dismiss All
       </Button>
+      <input
+        id="wp5-search-input"
+        type="search"
+        aria-label="Search notifications"
+        defaultValue="filter"
+      />
+      <Dialog>
+        <DialogTrigger id="wp5-dialog-toast-trigger" size="sm">
+          Open Toast Dialog
+        </DialogTrigger>
+        <DialogContent id="wp5-toast-dialog">
+          <DialogHeader>
+            <DialogTitle>Modal Toast Verification</DialogTitle>
+            <DialogDescription>
+              Toasts triggered while a modal dialog is open must render in the top layer.
+            </DialogDescription>
+          </DialogHeader>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              id="wp5-dialog-fire-toast"
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                toast({
+                  id: 't-in-dialog',
+                  status: 'success',
+                  title: 'Saved inside dialog',
+                  description: 'Portaled into open modal dialog.',
+                  duration: 60000,
+                  onDismiss: onDismissTrack,
+                });
+              }}
+            >
+              Fire Dialog Toast
+            </Button>
+          </div>
+          <DialogFooter>
+            <DialogClose id="wp5-dialog-toast-close" size="sm">
+              Close Dialog
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function Wp5NestedToastProbe() {
+  const outer = useToast();
+  return (
+    <div id="wp5-nested-toast-zone" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      <Button
+        id="wp5-push-outer-toast"
+        size="sm"
+        onClick={() =>
+          outer.toast({
+            id: 't-outer-provider',
+            status: 'info',
+            title: 'Outer provider notification',
+            duration: 60000,
+          })
+        }
+      >
+        Push Outer
+      </Button>
+      <Button
+        id="wp5-clear-outer-toast"
+        size="sm"
+        onClick={() => outer.dismissAll()}
+      >
+        Clear Outer
+      </Button>
+      <ToastProvider maxVisible={2} defaultDuration={60000}>
+        <Wp5InnerToastTrigger />
+        <WrappedViewportShell id="wp5-inner-toast-viewport" label="Inner notifications" />
+      </ToastProvider>
+    </div>
+  );
+}
+
+function Wp5InnerToastTrigger() {
+  const inner = useToast();
+  return (
+    <>
+      <Button
+        id="wp5-push-inner-toast"
+        size="sm"
+        onClick={() =>
+          inner.toast({
+            id: 't-inner-provider',
+            status: 'warning',
+            title: 'Inner provider notification',
+            duration: 60000,
+          })
+        }
+      >
+        Push Inner
+      </Button>
+      <Button
+        id="wp5-clear-inner-toast"
+        size="sm"
+        onClick={() => inner.dismissAll()}
+      >
+        Clear Inner
+      </Button>
+    </>
   );
 }
 
@@ -1782,20 +1950,34 @@ function Wp5UnitFixtures() {
   const [alertDismissed, setAlertDismissed] = React.useState(false);
   const [dismissedToastIds, setDismissedToastIds] = React.useState<string[]>([]);
   const [actionToastIds, setActionToastIds] = React.useState<string[]>([]);
+  const [, setSyncCounter] = React.useState(0);
+  const [customCloseOpen, setCustomCloseOpen] = React.useState(true);
+  const [customCloseTracks, setCustomCloseTracks] = React.useState(0);
+  const [customCloseDismisses, setCustomCloseDismisses] = React.useState(0);
+  const [preventedCloseOpen, setPreventedCloseOpen] = React.useState(true);
+  const [preventedCloseTracks, setPreventedCloseTracks] = React.useState(0);
   const [crumbClicks, setCrumbClicks] = React.useState<string[]>([]);
   const [crumbRefTag, setCrumbRefTag] = React.useState<string>('');
+  const [showCleanupCrumb, setShowCleanupCrumb] = React.useState(true);
+  const [crumbRefCleaned, setCrumbRefCleaned] = React.useState(false);
   const [page, setPage] = React.useState<number>(2);
+  const [linkPage, setLinkPage] = React.useState<number>(1);
+  const [linkPageCalls, setLinkPageCalls] = React.useState<number>(0);
 
   const crumbAsChildRef = React.useCallback((el: HTMLAnchorElement | null) => {
     if (el) {
       setCrumbRefTag((prev) => (prev === el.tagName ? prev : el.tagName));
     }
+    return () => {
+      setCrumbRefCleaned(true);
+    };
   }, []);
 
   const rangeSmall = React.useMemo(() => buildPaginationRange(2, 5, 1), []);
   const rangeStart = React.useMemo(() => buildPaginationRange(2, 10, 1), []);
   const rangeMiddle = React.useMemo(() => buildPaginationRange(5, 10, 1), []);
   const rangeEnd = React.useMemo(() => buildPaginationRange(9, 10, 1), []);
+  const rangeBoundary2 = React.useMemo(() => buildPaginationRange(6, 12, 1, 2), []);
 
   return (
     <Sheet autoCut pegs={false} id="fixture-wp5-sheet" motion="stepped">
@@ -1847,12 +2029,20 @@ function Wp5UnitFixtures() {
               </Alert>
             )}
             <output id="wp5-alert-dismissed" data-dismissed={String(alertDismissed)} />
+            <Alert
+              id="wp5-alert-long-token"
+              status="danger"
+              title={`ERR_${'X'.repeat(110)}`}
+            >
+              {`https://example.com/webhooks/${'a'.repeat(110)}`}
+            </Alert>
 
             {/* 2. ToastProvider with maxVisible=2 and wrapped ToastViewport */}
             <ToastProvider maxVisible={2} defaultDuration={60000}>
               <Wp5ToastControls
                 onDismissTrack={(id) => setDismissedToastIds((prev) => [...prev, id])}
                 onActionTrack={(id) => setActionToastIds((prev) => [...prev, id])}
+                onSyncBump={() => setSyncCounter((c) => c + 1)}
               />
               <WrappedViewportShell id="wp5-toast-viewport" />
             </ToastProvider>
@@ -1862,7 +2052,12 @@ function Wp5UnitFixtures() {
               data-actions={actionToastIds.join(',')}
             />
 
-            {/* Standalone Toast (for static styling & compound subcomponent check) */}
+            {/* Nested ToastProvider isolation (outer default viewport + inner explicit viewport) */}
+            <ToastProvider maxVisible={2} defaultDuration={60000} label="Outer notifications">
+              <Wp5NestedToastProbe />
+            </ToastProvider>
+
+            {/* Standalone Toast & custom ToastClose onClick composition */}
             <Toast
               id="wp5-standalone-toast"
               status="success"
@@ -1873,6 +2068,50 @@ function Wp5UnitFixtures() {
               <ToastTitle>Standalone Cut Saved</ToastTitle>
               <ToastDescription>Compact standalone toast fixture.</ToastDescription>
             </Toast>
+            {customCloseOpen && (
+              <Toast
+                id="wp5-toast-custom-close"
+                status="info"
+                duration={0}
+                dismissible={false}
+                onDismiss={() => {
+                  setCustomCloseDismisses((c) => c + 1);
+                  setCustomCloseOpen(false);
+                }}
+              >
+                <ToastTitle>Telemetry close toast</ToastTitle>
+                <ToastClose
+                  id="wp5-toast-custom-close-btn"
+                  onClick={() => setCustomCloseTracks((c) => c + 1)}
+                />
+              </Toast>
+            )}
+            {preventedCloseOpen && (
+              <Toast
+                id="wp5-toast-prevented-close"
+                status="warning"
+                duration={0}
+                dismissible={false}
+                onDismiss={() => setPreventedCloseOpen(false)}
+              >
+                <ToastTitle>Prevented close toast</ToastTitle>
+                <ToastClose
+                  id="wp5-toast-prevented-close-btn"
+                  onClick={(e) => {
+                    setPreventedCloseTracks((c) => c + 1);
+                    e.preventDefault();
+                  }}
+                />
+              </Toast>
+            )}
+            <output
+              id="wp5-toast-close-output"
+              data-custom-open={String(customCloseOpen)}
+              data-custom-tracks={String(customCloseTracks)}
+              data-custom-dismisses={String(customCloseDismisses)}
+              data-prevented-open={String(preventedCloseOpen)}
+              data-prevented-tracks={String(preventedCloseTracks)}
+            />
 
             {/* 3. Skeleton & SkeletonText */}
             <div id="wp5-skeleton-zone" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1917,30 +2156,47 @@ function Wp5UnitFixtures() {
                 { label: 'Cut C-04' },
               ]}
             />
+            <Breadcrumb
+              id="wp5-breadcrumb-noncurrent"
+              items={[
+                { label: 'Home', href: '#home' },
+                { label: 'Settings', current: false },
+                { label: 'Profile', current: true },
+              ]}
+            />
+            <Breadcrumb
+              id="wp5-breadcrumb-last-noncurrent"
+              items={[
+                { label: 'Root', href: '#root' },
+                { label: 'Preview', current: false },
+              ]}
+            />
             <Breadcrumb id="wp5-breadcrumb-compound" separator="▸" density="compact">
               <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink
-                    asChild
-                    ref={crumbAsChildRef}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setCrumbClicks((prev) => [...prev, 'outer']);
-                    }}
-                  >
-                    <a
-                      id="wp5-breadcrumb-aschild"
-                      href="#root"
-                      className="custom-crumb-link"
+                {showCleanupCrumb && (
+                  <BreadcrumbItem>
+                    <BreadcrumbLink
+                      asChild
+                      ref={crumbAsChildRef}
                       onClick={(e) => {
                         e.preventDefault();
-                        setCrumbClicks((prev) => [...prev, 'inner']);
+                        setCrumbClicks((prev) => [...prev, 'outer']);
                       }}
                     >
-                      Root
-                    </a>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
+                      <a
+                        id="wp5-breadcrumb-aschild"
+                        href="#root"
+                        className="custom-crumb-link"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCrumbClicks((prev) => [...prev, 'inner']);
+                        }}
+                      >
+                        Root
+                      </a>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                )}
                 <BreadcrumbSeparator id="wp5-breadcrumb-sep-li" />
                 <BreadcrumbItem>
                   <BreadcrumbEllipsis id="wp5-breadcrumb-ellipsis" />
@@ -1951,10 +2207,18 @@ function Wp5UnitFixtures() {
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
+            <Button
+              id="wp5-breadcrumb-unmount-btn"
+              size="sm"
+              onClick={() => setShowCleanupCrumb(false)}
+            >
+              Unmount Crumb Link
+            </Button>
             <output
               id="wp5-breadcrumb-output"
               data-clicks={crumbClicks.join(',')}
               data-ref-tag={crumbRefTag}
+              data-ref-cleaned={String(crumbRefCleaned)}
             />
 
             {/* 6. Pagination */}
@@ -1974,13 +2238,34 @@ function Wp5UnitFixtures() {
               totalPages={3}
               getItemHref={(p) => `#p-${p}`}
             />
+            <Pagination
+              id="wp5-pagination-links"
+              page={linkPage}
+              totalPages={5}
+              onPageChange={(p) => {
+                setLinkPage(p);
+                setLinkPageCalls((c) => c + 1);
+              }}
+              getItemHref={(p) => `#link-page-${p}`}
+            />
+            <Pagination
+              id="wp5-pagination-nan"
+              defaultPage={Number.NaN}
+              totalPages={20}
+              siblingCount={Number.NaN}
+              boundaryCount={2}
+              showSummary
+            />
             <output
               id="wp5-pagination-ranges"
               data-small={JSON.stringify(rangeSmall)}
               data-start={JSON.stringify(rangeStart)}
               data-middle={JSON.stringify(rangeMiddle)}
               data-end={JSON.stringify(rangeEnd)}
+              data-boundary2={JSON.stringify(rangeBoundary2)}
               data-page={String(page)}
+              data-link-page={String(linkPage)}
+              data-link-calls={String(linkPageCalls)}
             />
           </div>
         </Panel>

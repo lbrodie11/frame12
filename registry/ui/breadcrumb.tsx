@@ -24,14 +24,39 @@ const BreadcrumbItemContext = React.createContext<boolean>(false);
 function mergeRefs<T>(
   ...refs: Array<React.Ref<T> | undefined>
 ): React.RefCallback<T> {
-  return (value: T) => {
+  let activeCleanups: Array<() => void> = [];
+  const runCleanups = () => {
+    const toRun = activeCleanups;
+    activeCleanups = [];
+    for (const cleanup of toRun) {
+      cleanup();
+    }
+  };
+  return (value: T | null) => {
+    runCleanups();
+    if (value === null) {
+      return;
+    }
+    const cleanups: Array<() => void> = [];
     for (const ref of refs) {
       if (typeof ref === 'function') {
-        ref(value);
+        const cleanup = ref(value);
+        if (typeof cleanup === 'function') {
+          cleanups.push(cleanup);
+        } else {
+          cleanups.push(() => {
+            ref(null);
+          });
+        }
       } else if (ref != null) {
         (ref as React.MutableRefObject<T | null>).current = value;
+        cleanups.push(() => {
+          (ref as React.MutableRefObject<T | null>).current = null;
+        });
       }
     }
+    activeCleanups = cleanups;
+    return runCleanups;
   };
 }
 
@@ -99,7 +124,7 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(functio
                 <React.Fragment key={idx}>
                   <BreadcrumbItem>
                     {isCurrent || !item.href ? (
-                      <BreadcrumbPage aria-current={isCurrent ? 'page' : undefined}>
+                      <BreadcrumbPage aria-current={isCurrent ? 'page' : false}>
                         {item.label}
                       </BreadcrumbPage>
                     ) : (
@@ -162,6 +187,14 @@ export interface BreadcrumbLinkProps extends React.AnchorHTMLAttributes<HTMLAnch
 export const BreadcrumbLink = React.forwardRef<HTMLAnchorElement, BreadcrumbLinkProps>(
   function BreadcrumbLink({ asChild = false, className = '', onClick, children, ...rest }, forwardedRef) {
     const mergedClass = `f12-breadcrumb-link${className ? ` ${className}` : ''}`;
+    const childRef =
+      asChild && React.isValidElement(children)
+        ? (getElementRef(children) as React.Ref<HTMLAnchorElement> | undefined)
+        : undefined;
+    const composedRef = React.useMemo(
+      () => mergeRefs(forwardedRef, childRef),
+      [forwardedRef, childRef],
+    );
 
     if (asChild && React.isValidElement<Record<string, unknown>>(children)) {
       const childProps = children.props;
@@ -170,7 +203,6 @@ export const BreadcrumbLink = React.forwardRef<HTMLAnchorElement, BreadcrumbLink
       const childOnClick = childProps.onClick as
         | React.MouseEventHandler<HTMLAnchorElement>
         | undefined;
-      const childRef = getElementRef(children) as React.Ref<HTMLAnchorElement> | undefined;
       return React.cloneElement(children, {
         ...rest,
         ...childProps,
@@ -181,7 +213,7 @@ export const BreadcrumbLink = React.forwardRef<HTMLAnchorElement, BreadcrumbLink
                 childOnClick?.(e);
               }
             : undefined,
-        ref: mergeRefs(forwardedRef, childRef),
+        ref: composedRef,
         className: [mergedClass, childClass].filter(Boolean).join(' '),
       });
     }
@@ -194,17 +226,22 @@ export const BreadcrumbLink = React.forwardRef<HTMLAnchorElement, BreadcrumbLink
   },
 );
 
-export type BreadcrumbPageProps = React.HTMLAttributes<HTMLSpanElement>;
+export interface BreadcrumbPageProps
+  extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'aria-current'> {
+  'aria-current'?: React.AriaAttributes['aria-current'] | false;
+}
 
 export const BreadcrumbPage = React.forwardRef<HTMLSpanElement, BreadcrumbPageProps>(
   function BreadcrumbPage(
     { 'aria-current': ariaCurrent = 'page', className = '', children, ...rest },
     ref,
   ) {
+    const resolvedAriaCurrent =
+      ariaCurrent === false || ariaCurrent === 'false' ? undefined : ariaCurrent;
     return (
       <span
         ref={ref}
-        aria-current={ariaCurrent}
+        aria-current={resolvedAriaCurrent}
         className={`f12-breadcrumb-page${className ? ` ${className}` : ''}`}
         {...rest}
       >

@@ -348,18 +348,19 @@ export type AlertDensity = 'comfortable' | 'compact';
 export interface AlertProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
   status?: AlertStatus;       // default: 'info'
   title?: React.ReactNode;
+  description?: React.ReactNode;
   glyph?: string | false;
   srLabel?: string | false;
   actions?: React.ReactNode;
   onDismiss?: () => void;
-  dismissLabel?: string;      // default: 'Dismiss alert'
+  dismissLabel?: string;      // default: 'Dismiss notice'
   density?: AlertDensity;     // default: 'comfortable'
   live?: AlertLive;
 }
 ```
 
 ### `Toast` (`ui/toast.tsx`)
-Bounded exposure-sheet notification stack (`ToastProvider`, `useToast`, `ToastViewport`, `Toast`, `ToastTitle`, `ToastDescription`, `ToastAction`, `ToastClose`) with `maxVisible` (default `3`), `+N QUEUED` indicator, hover/focus timer pause with remaining duration tracking, `Escape` key dismissal, `role="alert"` for `danger` vs `role="status"` for non-danger toasts, and stepped 12fps entrance (`steps(3, end)`).
+Bounded exposure-sheet notification stack (`ToastProvider`, `useToast`, `ToastViewport`, `Toast`, `ToastTitle`, `ToastDescription`, `ToastAction`, `ToastClose`) with `maxVisible` (default `3`), `+N QUEUED` indicator, hover/focus/background-tab timer pause with remaining duration tracking, `F8` hotkey to focus the viewport, `Escape` dismissal when focused inside the toast viewport, top-layer `<dialog[open]>` portaling, persistent live regions, `role="alert"` for `danger` vs `role="status"` for non-danger toasts, and stepped 12fps entrance (`steps(3, end)`).
 
 ```tsx
 export type ToastStatus = TagStatus;
@@ -371,24 +372,27 @@ export interface ToastOptions {
   status?: ToastStatus;       // default: 'neutral'
   glyph?: string | false;
   srLabel?: string | false;
-  duration?: number;          // default: 5000 (0 disables auto-dismiss)
-  action?: React.ReactNode;
+  duration?: number;          // default: 5000 (10000 when action is provided; 0 disables auto-dismiss)
+  action?: ToastActionDescriptor | React.ReactNode;
+  dismissible?: boolean;      // default: true
   dismissLabel?: string;
-  onDismiss?: () => void;
+  onDismiss?: (id: string) => void;
 }
 ```
 
 ### `Skeleton` & `SkeletonText` (`ui/skeleton.tsx`)
-Zero-CLS loading placeholders using rotated screentone dot fills (`var(--f-tone)`) and 4-step 12fps opacity pulse (`f12SkeletonStep`). Decorative skeletons default to `aria-hidden="true"`; passing `label="Loading..."` sets `role="status" aria-busy="true"` with a `.f12-sr-only` label.
+Zero-CLS loading placeholders using rotated screentone dot fills (`var(--f-tone)`) and 4-step 12fps (`333ms steps(4, end)`) screentone shift and opacity pulse (`f12SkeletonStep`). Decorative skeletons default to `aria-hidden="true"`; passing `label="Loading..."` sets `role="status" aria-busy="true"` with both `aria-label` and a `.f12-sr-only` label.
 
 ```tsx
 export type SkeletonVariant = 'block' | 'line' | 'circle' | 'metric' | 'panel';
+export type SkeletonDensity = 'comfortable' | 'compact';
 
 export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: SkeletonVariant;  // default: 'block'
   width?: number | string;
   height?: number | string;
   animated?: boolean;         // default: true
+  density?: SkeletonDensity;  // default: 'comfortable'
   label?: string;
 }
 ```
@@ -399,16 +403,18 @@ Structured zero-data and filtered-empty state (`EmptyState`, `EmptyStateIcon`, `
 ```tsx
 export type EmptyStateVariant = 'dashed' | 'quiet';
 export type EmptyStateDensity = 'comfortable' | 'compact';
+export type EmptyStateHeadingLevel = 'h2' | 'h3' | 'h4' | 'div';
 
 export interface EmptyStateProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
   icon?: React.ReactNode | false;
-  code?: string;
+  code?: React.ReactNode;
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: React.ReactNode;
   secondaryAction?: React.ReactNode;
-  variant?: EmptyStateVariant; // default: 'dashed'
-  density?: EmptyStateDensity; // default: 'comfortable'
+  variant?: EmptyStateVariant;           // default: 'dashed'
+  density?: EmptyStateDensity;           // default: 'comfortable'
+  headingLevel?: EmptyStateHeadingLevel; // default: 'h3'
 }
 ```
 

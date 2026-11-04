@@ -26,7 +26,7 @@ export function GrammarDiagram() {
   );
 
   return (
-    <div className="sp-scroll">
+    <div className="sp-scroll" tabIndex={0}>
       <svg
         viewBox="0 0 900 380"
         className="grammar"
@@ -78,7 +78,7 @@ export function FilmStripDiagram({ idPrefix = 'fm' }: { idPrefix?: string }) {
   const labels = ['7', '30', '90'];
 
   return (
-    <div className="sp-scroll">
+    <div className="sp-scroll" tabIndex={0}>
       <svg
         viewBox={`0 0 ${poses.length * (fw + gap) + gap} ${fh + top * 2 + 24}`}
         className="film"

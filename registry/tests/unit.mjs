@@ -1680,11 +1680,11 @@ await page.waitForSelector('#unit-test-fixtures');
           JSON.stringify({ alertBeforeDismiss, alertAfterDismiss }),
         );
 
-        // 6b. ToastProvider, ToastViewport (wrapped single viewport), bounded queue, action, Escape dismissal, hover pause, and single onDismiss per toast
+        // 6b. ToastProvider, ToastViewport (wrapped single viewport), bounded queue, action, F8+Escape dismissal, search-input Escape isolation, hover pause, keyboard/mouse close focus/pause reconciliation, transition+flushSync preservation, nested provider isolation, modal Dialog top-layer portaling, and ToastClose onClick composition
         await page.click('#wp5-toast-push-four');
         const toastQueueInitial = await page.evaluate(() => {
           const viewports = document.querySelectorAll(
-            '#fixture-wp5-feedback .f12-toast-viewport',
+            '#wp5-toast-viewport',
           ).length;
           const visibleIds = [
             ...document.querySelectorAll('#wp5-toast-viewport .f12-toast'),
@@ -1703,7 +1703,20 @@ await page.waitForSelector('#unit-test-fixtures');
             t2Deduped: t2Sr === null,
           };
         });
-        await page.keyboard.press('Escape'); // dismisses most recent visible toast (#t-2) while focus is outside toasts, promoting #t-3 (danger)
+
+        // Pressing Escape inside a search input must NOT dismiss any toast
+        await page.focus('#wp5-search-input');
+        await page.keyboard.press('Escape');
+        const stillTwoAfterSearchEsc = await page.evaluate(
+          () =>
+            [...document.querySelectorAll('#wp5-toast-viewport .f12-toast')]
+              .map((el) => el.id)
+              .join(',') === 't-1,t-2',
+        );
+
+        // Pressing F8 jumps focus into the toast viewport; pressing Escape inside the toast viewport dismisses #t-2 and promotes #t-3 (danger)
+        await page.keyboard.press('F8');
+        await page.keyboard.press('Escape');
         await page.click('#t-1 .f12-toast-action');
         const toastAfterEsc = await page.evaluate(() => {
           const visibleIds = [
@@ -1729,6 +1742,25 @@ await page.waitForSelector('#unit-test-fixtures');
             document.getElementById('wp5-toast-output')?.getAttribute('data-dismissed') ?? '',
         }));
 
+        // Keyboard dismissal of focused toast (#t-focus-1) must NOT leave viewport paused, so remaining (#t-focus-2) and subsequent (#t-timed) auto-dismiss
+        await page.focus('#wp5-toast-push-focus-pair');
+        await page.click('#wp5-toast-push-focus-pair');
+        await page.focus('#t-focus-1 .f12-toast-close');
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(() => !document.getElementById('t-focus-2'), null, {
+          timeout: 2000,
+        });
+        const vpPausedAfterKeyDismiss = await page.evaluate(
+          () => document.getElementById('wp5-toast-viewport')?.getAttribute('data-paused'),
+        );
+
+        // Mouse click dismissal of #t-focus-1 also must NOT leave viewport paused for subsequent timed toast
+        await page.click('#wp5-toast-push-focus-pair');
+        await page.click('#t-focus-1 .f12-toast-close');
+        await page.waitForFunction(() => !document.getElementById('t-focus-2'), null, {
+          timeout: 2000,
+        });
+
         // Timed toast pause-on-hover and resume-on-leave
         await page.click('#wp5-toast-push-timed');
         await page.hover('#t-timed');
@@ -1741,6 +1773,65 @@ await page.waitForSelector('#unit-test-fixtures');
           timeout: 2000,
         });
 
+        // React.startTransition + synchronous flushSync parent render preserves both transition and urgent notifications
+        await page.click('#wp5-toast-push-transition');
+        const transitionIds = await page.evaluate(() =>
+          [...document.querySelectorAll('#wp5-toast-viewport .f12-toast')]
+            .map((el) => el.id)
+            .join(','),
+        );
+        await page.click('#wp5-toast-dismiss-all');
+
+        // Nested ToastProvider: outer default viewport is not suppressed by inner explicit viewport
+        await page.click('#wp5-push-outer-toast');
+        await page.click('#wp5-push-inner-toast');
+        const nestedToastState = await page.evaluate(() => ({
+          outerRendered: Boolean(document.getElementById('t-outer-provider')),
+          innerRendered: Boolean(
+            document.querySelector('#wp5-inner-toast-viewport #t-inner-provider'),
+          ),
+        }));
+        await page.click('#wp5-clear-outer-toast');
+        await page.click('#wp5-clear-inner-toast');
+
+        // Modal Dialog top-layer portaling: toast triggered inside open Dialog is portaled into dialog[open] and clickable
+        await page.click('#wp5-dialog-toast-trigger');
+        await page.click('#wp5-dialog-fire-toast');
+        const dialogToastState = await page.evaluate(() => {
+          const dlg = document.getElementById('wp5-toast-dialog');
+          const toastEl = document.getElementById('t-in-dialog');
+          const closeBtn = toastEl?.querySelector('.f12-toast-close');
+          const r = closeBtn?.getBoundingClientRect();
+          const hit =
+            r && r.width > 0
+              ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+              : null;
+          return {
+            inDialogSubtree: Boolean(dlg && toastEl && dlg.contains(toastEl)),
+            closeClickable: Boolean(closeBtn && hit && (hit === closeBtn || closeBtn.contains(hit))),
+          };
+        });
+        await page.click('#t-in-dialog .f12-toast-close');
+        const dialogStillOpenAfterToastClose = await page.evaluate(() => {
+          const dlg = document.getElementById('wp5-toast-dialog');
+          return Boolean(dlg?.hasAttribute('open') && !document.getElementById('t-in-dialog'));
+        });
+        await page.click('#wp5-dialog-toast-close');
+
+        // Custom ToastClose onClick composition and preventDefault opt-out
+        await page.click('#wp5-toast-custom-close-btn');
+        await page.click('#wp5-toast-prevented-close-btn');
+        const customCloseState = await page.evaluate(() => {
+          const out = document.getElementById('wp5-toast-close-output');
+          return {
+            customOpen: out?.getAttribute('data-custom-open'),
+            customTracks: out?.getAttribute('data-custom-tracks'),
+            customDismisses: out?.getAttribute('data-custom-dismisses'),
+            preventedOpen: out?.getAttribute('data-prevented-open'),
+            preventedTracks: out?.getAttribute('data-prevented-tracks'),
+          };
+        });
+
         check(
           toastQueueInitial.viewports === 1 &&
             toastQueueInitial.visibleIds.join(',') === 't-1,t-2' &&
@@ -1748,6 +1839,7 @@ await page.waitForSelector('#unit-test-fixtures');
             toastQueueInitial.t1Role === 'status' &&
             toastQueueInitial.t1Live === 'polite' &&
             toastQueueInitial.t2Deduped &&
+            stillTwoAfterSearchEsc &&
             toastAfterEsc.visibleIds.join(',') === 't-1,t-3' &&
             toastAfterEsc.queueBadge === '+1 QUEUED' &&
             toastAfterEsc.t3Role === 'alert' &&
@@ -1756,24 +1848,63 @@ await page.waitForSelector('#unit-test-fixtures');
             pausedOnHover &&
             toastAfterClear.remaining === 0 &&
             toastAfterClear.dismissedList === 't-2,t-1,t-3,t-4' &&
-            timedStillPresentWhileHovered,
-          'WP5 Toast: wrapped ToastViewport deduplication, maxVisible=2 bounded queue (+N QUEUED), Escape dismissal promoting queued danger toast (role="alert"), hover timer pause/resume, and single onDismiss invocation per toast',
+            vpPausedAfterKeyDismiss === 'false' &&
+            timedStillPresentWhileHovered &&
+            transitionIds === 't-transition,t-urgent' &&
+            nestedToastState.outerRendered &&
+            nestedToastState.innerRendered &&
+            dialogToastState.inDialogSubtree &&
+            dialogToastState.closeClickable &&
+            dialogStillOpenAfterToastClose &&
+            customCloseState.customOpen === 'false' &&
+            customCloseState.customTracks === '1' &&
+            customCloseState.customDismisses === '1' &&
+            customCloseState.preventedOpen === 'true' &&
+            customCloseState.preventedTracks === '1',
+          'WP5 Toast: wrapped ToastViewport deduplication, maxVisible=2 queue, F8+Escape dismissal, search-input Escape isolation, keyboard/mouse close focus/pause reconciliation, transition+flushSync preservation, nested provider isolation, modal Dialog top-layer portaling, and ToastClose onClick composition',
           JSON.stringify({
             toastQueueInitial,
+            stillTwoAfterSearchEsc,
             toastAfterEsc,
             pausedOnHover,
             toastAfterClear,
+            vpPausedAfterKeyDismiss,
             timedStillPresentWhileHovered,
+            transitionIds,
+            nestedToastState,
+            dialogToastState,
+            dialogStillOpenAfterToastClose,
+            customCloseState,
           }),
         );
 
-        // 6c. Skeleton, EmptyState, Breadcrumb, and Pagination
+        // 6c. Skeleton, EmptyState, Breadcrumb (non-current items + React 19 ref cleanup), and Pagination (modified-link clicks + NaN resilience)
         await page.click('#wp5-breadcrumb-aschild');
+        await page.click('#wp5-breadcrumb-unmount-btn');
         await page.click('#wp5-pagination-controlled .f12-pagination-next');
+
+        // Modified link clicks (Control+click and Meta+click) on PaginationLink and PaginationNext must NOT mutate page state
+        await page.click('#wp5-pagination-links a[href="#link-page-2"]', {
+          modifiers: ['Control'],
+        });
+        await page.click('#wp5-pagination-links .f12-pagination-next', {
+          modifiers: ['Shift'],
+        });
+        const pageBeforeUnmodifiedClick = await page.evaluate(() => ({
+          linkPage: document
+            .getElementById('wp5-pagination-ranges')
+            ?.getAttribute('data-link-page'),
+          linkCalls: document
+            .getElementById('wp5-pagination-ranges')
+            ?.getAttribute('data-link-calls'),
+        }));
+        await page.click('#wp5-pagination-links a[href="#link-page-2"]');
+
         const navAndSkeletonInfo = await page.evaluate(() => {
           const skelDec = document.getElementById('wp5-skeleton-decorative');
           const skelDecRect = skelDec?.getBoundingClientRect();
           const skelLab = document.getElementById('wp5-skeleton-labeled');
+          const skelLabSr = skelLab?.querySelector('.f12-sr-only')?.textContent;
           const skelLines = document.querySelectorAll('#wp5-skeleton-text .f12-skeleton-line');
           const skeletonOk =
             skelDec?.getAttribute('aria-hidden') === 'true' &&
@@ -1783,6 +1914,7 @@ await page.waitForSelector('#unit-test-fixtures');
             skelLab?.getAttribute('role') === 'status' &&
             skelLab?.getAttribute('aria-busy') === 'true' &&
             skelLab?.getAttribute('aria-label') === 'Loading revenue metric' &&
+            skelLabSr === 'Loading revenue metric' &&
             !skelLab?.hasAttribute('aria-hidden') &&
             skelLines.length === 3 &&
             (skelLines[2]?.getAttribute('style') || '').includes('60%');
@@ -1800,7 +1932,12 @@ await page.waitForSelector('#unit-test-fixtures');
 
           const bcItems = document.getElementById('wp5-breadcrumb-items');
           const bcCurrent = bcItems?.querySelector('.f12-breadcrumb-page');
-          const bcAsChild = document.getElementById('wp5-breadcrumb-aschild');
+          const bcNonCurrentSpans = [
+            ...document.querySelectorAll('#wp5-breadcrumb-noncurrent .f12-breadcrumb-page'),
+          ];
+          const bcLastNonCurrent = document.querySelector(
+            '#wp5-breadcrumb-last-noncurrent .f12-breadcrumb-page',
+          );
           const bcOut = document.getElementById('wp5-breadcrumb-output');
           const bcSepLi = document.getElementById('wp5-breadcrumb-sep-li');
           const bcSepSpan = document.getElementById('wp5-breadcrumb-sep-span');
@@ -1811,10 +1948,13 @@ await page.waitForSelector('#unit-test-fixtures');
             bcItems?.tagName === 'NAV' &&
             bcItems?.getAttribute('aria-label') === 'Breadcrumb' &&
             bcCurrent?.getAttribute('aria-current') === 'page' &&
-            bcAsChild?.classList.contains('f12-breadcrumb-link') &&
-            bcAsChild?.classList.contains('custom-crumb-link') &&
+            bcNonCurrentSpans.length === 2 &&
+            !bcNonCurrentSpans[0]?.hasAttribute('aria-current') &&
+            bcNonCurrentSpans[1]?.getAttribute('aria-current') === 'page' &&
+            !bcLastNonCurrent?.hasAttribute('aria-current') &&
             bcOut?.getAttribute('data-clicks') === 'outer,inner' &&
             bcOut?.getAttribute('data-ref-tag') === 'A' &&
+            bcOut?.getAttribute('data-ref-cleaned') === 'true' &&
             bcSepLi?.tagName === 'LI' &&
             bcSepSpan?.tagName === 'SPAN' &&
             bcEllipsisSr === 'More breadcrumb levels';
@@ -1829,6 +1969,12 @@ await page.waitForSelector('#unit-test-fixtures');
           const pgEllipsisSr = document.querySelector(
             '#wp5-pagination-controlled .f12-pagination-ellipsis .f12-sr-only',
           )?.textContent;
+          const pgNanSummary =
+            document.querySelector('#wp5-pagination-nan .f12-pagination-summary')?.textContent ??
+            '';
+          const pgNanCurrent = document.querySelector(
+            '#wp5-pagination-nan .f12-pagination-link[aria-current="page"]',
+          )?.textContent;
           const pgCompactLinks = [
             ...document.querySelectorAll('#wp5-pagination-compact .f12-pagination-link'),
           ];
@@ -1842,9 +1988,15 @@ await page.waitForSelector('#unit-test-fixtures');
             pgRanges?.getAttribute('data-middle') ===
               '[1,"ellipsis-start",4,5,6,"ellipsis-end",10]' &&
             pgRanges?.getAttribute('data-end') === '[1,"ellipsis-start",6,7,8,9,10]' &&
+            pgRanges?.getAttribute('data-boundary2') ===
+              '[1,2,"ellipsis-start",5,6,7,"ellipsis-end",11,12]' &&
             pgRanges?.getAttribute('data-page') === '3' &&
+            pgRanges?.getAttribute('data-link-page') === '2' &&
+            pgRanges?.getAttribute('data-link-calls') === '1' &&
             pgActive === '3' &&
             pgSummary === 'PAGE 03 OF 10 · 41–60 OF 194' &&
+            pgNanSummary === 'PAGE 01 OF 20' &&
+            pgNanCurrent === '1' &&
             pgEllipsisSr === 'More pages' &&
             pgCompactTargetsOk;
 
@@ -1852,12 +2004,14 @@ await page.waitForSelector('#unit-test-fixtures');
         });
 
         check(
-          navAndSkeletonInfo.skeletonOk &&
+          pageBeforeUnmodifiedClick.linkPage === '1' &&
+            pageBeforeUnmodifiedClick.linkCalls === '0' &&
+            navAndSkeletonInfo.skeletonOk &&
             navAndSkeletonInfo.emptyOk &&
             navAndSkeletonInfo.breadcrumbOk &&
             navAndSkeletonInfo.paginationOk,
-          'WP5 Skeleton (zero-CLS dimensions + decorative/labeled ARIA), EmptyState (default vs compound icon), Breadcrumb (nav/ol, aria-current, asChild ref/click merge, context-aware separator, SR ellipsis), and Pagination (range builder, aria-current, summary, >=24×24px compact targets)',
-          JSON.stringify(navAndSkeletonInfo),
+          'WP5 Skeleton (zero-CLS + SR label), EmptyState, Breadcrumb (non-current items without aria-current + React 19 ref cleanup), and Pagination (range builder + boundaryCount, modified-link click preservation, NaN resilience, >=24×24px targets)',
+          JSON.stringify({ pageBeforeUnmodifiedClick, navAndSkeletonInfo }),
         );
       }
     }
