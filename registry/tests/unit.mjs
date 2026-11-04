@@ -965,6 +965,27 @@ await page.waitForSelector('#unit-test-fixtures');
 
       const customSrText = document.querySelector('#fixture-tag-custom-sr .f12-sr-only')?.textContent;
       const suppressedSrEl = document.querySelector('#fixture-tag-no-sr .f12-sr-only');
+      const successorSrText = document.querySelector('#fixture-tag-successor .f12-sr-only')?.textContent;
+      const erroredSrEl = document.querySelector('#fixture-tag-errored .f12-sr-only');
+      const tableTagEl = document.querySelector('#fixture-table-tag');
+      const tableTagOneLine = tableTagEl ? tableTagEl.getBoundingClientRect().height <= 26 : false;
+      const narrowTagEl = document.querySelector('#fixture-narrow-tag');
+      const narrowBadgeEl = document.querySelector('#fixture-narrow-badge');
+      const narrowWrapOk = (() => {
+        if (!narrowTagEl || !narrowBadgeEl) return false;
+        const tr = narrowTagEl.getBoundingClientRect();
+        const tg = narrowTagEl.querySelector('.f12-status-glyph')?.getBoundingClientRect();
+        const br = narrowBadgeEl.getBoundingClientRect();
+        const bg = narrowBadgeEl.querySelector('.f12-status-glyph')?.getBoundingClientRect();
+        return (
+          Math.round(tr.width) <= 90 &&
+          narrowTagEl.scrollWidth <= narrowTagEl.clientWidth &&
+          Boolean(tg && tg.top - tr.top <= 8) &&
+          Math.round(br.width) <= 90 &&
+          narrowBadgeEl.scrollWidth <= narrowBadgeEl.clientWidth &&
+          Boolean(bg && bg.top - br.top <= 8)
+        );
+      })();
       const glyphEl = document.querySelector('#fixture-tag-warning .f12-status-glyph');
       const srEl = document.querySelector('#fixture-tag-warning .f12-sr-only');
       const copyCleanOk =
@@ -1005,7 +1026,13 @@ await page.waitForSelector('#unit-test-fixtures');
         warningNotMarkerYellow:
           warningBg === 'rgb(255, 255, 255)' && warningBgImg.includes('linear-gradient'),
         statusSyncOk,
-        srCustomOk: customSrText === '警告: ' && !suppressedSrEl,
+        srCustomOk:
+          customSrText === '警告: ' &&
+          !suppressedSrEl &&
+          successorSrText === 'Success: ' &&
+          !erroredSrEl,
+        tableTagOneLine,
+        narrowWrapOk,
         copyCleanOk: Boolean(copyCleanOk),
         successInlineStartBorder,
         glyphsOk:
@@ -1038,6 +1065,8 @@ await page.waitForSelector('#unit-test-fixtures');
         wp3Check.warningNotMarkerYellow &&
         wp3Check.statusSyncOk &&
         wp3Check.srCustomOk &&
+        wp3Check.tableTagOneLine &&
+        wp3Check.narrowWrapOk &&
         wp3Check.copyCleanOk &&
         wp3Check.successInlineStartBorder === '5px' &&
         wp3Check.glyphsOk &&

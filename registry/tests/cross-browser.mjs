@@ -622,6 +622,7 @@ for (const browserName of BROWSER_NAMES) {
       });
 
       await page.evaluate(() => window.__mountUnitFixtures && window.__mountUnitFixtures());
+      await page.waitForSelector('#unit-test-fixtures', { timeout: 5000 });
       const fcState = await page.evaluate(() => {
         const matchesFC = window.matchMedia('(forced-colors: active)').matches;
         const tag = document.querySelector('.f12-tag');

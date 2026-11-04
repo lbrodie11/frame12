@@ -667,6 +667,81 @@ function check(ok, label, detail = '') {
       shorthandAndLocalScalar,
     }),
   );
+
+  // 5d. Hoisted child references at render sites, empty-string cut, PanelPair dropped slots, conditional slot children, and local component aliases
+  const hoistedQuietChildInPanel = lintSource(
+    `
+    const inner = <Panel variant="quiet" cut="C-01" />;
+    export const HoistedQuiet = () => (
+      <Sheet>
+        <Panel children={inner} />
+      </Sheet>
+    );
+  `,
+    'eval/screens/hoisted-quiet-child.tsx',
+  );
+  const hoistedChildInAutoCutSheet = lintSource(
+    `
+    const bodyProp = <Panel cut="C-01" />;
+    const bodyJsx = <Panel cut="C-02" />;
+    export const HoistedAutoCut = () => (
+      <>
+        <Sheet autoCut children={bodyProp} />
+        <Sheet autoCut>{bodyJsx}</Sheet>
+      </>
+    );
+  `,
+    'eval/screens/hoisted-autocut-child.tsx',
+  );
+  const emptyCutAndDroppedPairSlots = lintSource(
+    `
+    export const EmptyAndDropped = () => (
+      <Sheet>
+        <Panel cut="">Empty string cut is suppressed</Panel>
+        <PanelPair top={{ cut: 'C-99' }} />
+        <PanelPair>
+          <Panel cut="C-01">First</Panel>
+          <Panel cut="C-02">Second</Panel>
+          <Panel cut="C-99">Third child dropped by PanelPair</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/empty-and-dropped.tsx',
+  );
+  const conditionalSlotInQuietPairAndAlias = lintSource(
+    `
+    const P2 = Panel;
+    export const CondAndAlias = ({ flag }: { flag: boolean }) => (
+      <Sheet>
+        <PanelPair variant="quiet">
+          {flag && <Panel cut="C-01">Inherited quiet via &&</Panel>}
+          <Panel>Second</Panel>
+        </PanelPair>
+        <P2 variant="quiet" cut="C-02">Aliased Panel quiet cut</P2>
+      </Sheet>
+    );
+  `,
+    'eval/screens/cond-and-alias.tsx',
+  );
+
+  check(
+    hoistedQuietChildInPanel.length === 1 &&
+      hoistedQuietChildInPanel[0].rule === 'cut-order' &&
+      hoistedQuietChildInPanel[0].snippet === 'cut="C-01"' &&
+      hoistedChildInAutoCutSheet.length === 2 &&
+      hoistedChildInAutoCutSheet.every((v) => v.rule === 'explicit-cut-in-autocut') &&
+      emptyCutAndDroppedPairSlots.length === 0 &&
+      conditionalSlotInQuietPairAndAlias.length === 2 &&
+      conditionalSlotInQuietPairAndAlias.every((v) => v.message.includes('Quiet panels')),
+    'linter [cut-order & explicit-cut-in-autocut]: resolves hoisted child references at render sites, ignores cut="" and dropped PanelPair slots, and handles conditional quiet slots and local Panel aliases',
+    JSON.stringify({
+      hoistedQuietChildInPanel,
+      hoistedChildInAutoCutSheet,
+      emptyCutAndDroppedPairSlots,
+      conditionalSlotInQuietPairAndAlias,
+    }),
+  );
 }
 
 // 6. Rule 5: raw-shadcn-import

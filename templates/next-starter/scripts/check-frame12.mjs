@@ -263,6 +263,8 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
   const UNSET = Symbol('unset');
   const deferredVarInitializers = new Set();
+  const visitedDeferredInitializers = new Set();
+  const activeInitializers = new Set();
   let trackDeferredInitializers = false;
 
   function resolveLocalIdentifier(idNode, seenIds = new Set()) {
@@ -303,7 +305,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
             }
             if (ts.isIdentifier(decl.initializer)) {
               if (decl.initializer.text === 'undefined') return decl.initializer;
-              return resolveLocalIdentifier(decl.initializer, seenIds);
+              return resolveLocalIdentifier(decl.initializer, seenIds) ?? decl.initializer;
             }
             return decl.initializer;
           }
@@ -315,7 +317,9 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
   function unwrapExpression(node) {
     let cur = node;
-    while (cur) {
+    const seen = new Set();
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
       if (ts.isJsxExpression(cur)) {
         cur = cur.expression;
       } else if (
@@ -336,6 +340,21 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       }
     }
     return cur || null;
+  }
+
+  function getCanonicalTagName(tagNameNode) {
+    const raw = tagNameNode.getText(sourceFile);
+    if (CUT_OWNER_TAGS.has(raw) || raw === 'Sheet') return raw;
+    if (ts.isIdentifier(tagNameNode)) {
+      const resolved = unwrapExpression(tagNameNode);
+      if (resolved && ts.isIdentifier(resolved)) {
+        const targetName = resolved.text;
+        if (CUT_OWNER_TAGS.has(targetName) || targetName === 'Sheet') {
+          return targetName;
+        }
+      }
+    }
+    return raw;
   }
 
   function isExplicitUndefined(node) {
@@ -380,6 +399,9 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       extraNodes: [],
     };
     if (!obj || !ts.isObjectLiteralExpression(obj) || seenObjs.has(obj)) return resolved;
+    if (!trackDeferredInitializers) {
+      visitedDeferredInitializers.add(obj);
+    }
     const nextSeen = new Set(seenObjs);
     nextSeen.add(obj);
 
@@ -421,7 +443,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       } else if (CUT_PROP_NAMES.has(propName)) {
         const strVal = getStringValue(valExpr);
         if (strVal !== null) {
-          resolved[propName] = { raw: strVal, node: prop };
+          resolved[propName] = strVal === '' ? false : { raw: strVal, node: prop };
         } else if (getBooleanValue(valExpr) === false) {
           resolved[propName] = false;
         } else if (isExplicitUndefined(valExpr)) {
@@ -491,7 +513,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
           if (!prop.initializer) continue;
           const strVal = getStringValue(prop.initializer);
           if (strVal !== null) {
-            resolved[attrName] = { raw: strVal, node: prop };
+            resolved[attrName] = strVal === '' ? false : { raw: strVal, node: prop };
           } else if (getBooleanValue(prop.initializer) === false) {
             resolved[attrName] = false;
           } else if (isExplicitUndefined(prop.initializer)) {
@@ -682,20 +704,41 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
         visit(extra, inAutoCut);
       }
       if (slotObj.children !== UNSET && slotObj.children !== null) {
-        visit(slotObj.children, inAutoCut);
+        visitRenderedExpr(slotObj.children, inAutoCut);
       }
     }
   }
 
   function processPairChildSlot(slotNode, fallbackCut, pairVariant, inAutoCut) {
     const unwrapped = unwrapExpression(slotNode) || slotNode;
+    if (ts.isBinaryExpression(unwrapped)) {
+      const op = unwrapped.operatorToken.kind;
+      if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
+        visit(unwrapped.left, inAutoCut);
+        processPairChildSlot(unwrapped.right, fallbackCut, pairVariant, inAutoCut);
+        return;
+      }
+      if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken) {
+        processPairChildSlot(unwrapped.left, fallbackCut, pairVariant, inAutoCut);
+        processPairChildSlot(unwrapped.right, fallbackCut, pairVariant, inAutoCut);
+        return;
+      }
+    }
+    if (ts.isConditionalExpression(unwrapped)) {
+      visit(unwrapped.condition, inAutoCut);
+      processPairChildSlot(unwrapped.whenTrue, fallbackCut, pairVariant, inAutoCut);
+      processPairChildSlot(unwrapped.whenFalse, fallbackCut, pairVariant, inAutoCut);
+      return;
+    }
+
     const isPanelElement =
       (ts.isJsxElement(unwrapped) &&
-        unwrapped.openingElement.tagName.getText(sourceFile) === 'Panel') ||
+        getCanonicalTagName(unwrapped.openingElement.tagName) === 'Panel') ||
       (ts.isJsxSelfClosingElement(unwrapped) &&
-        unwrapped.tagName.getText(sourceFile) === 'Panel');
+        getCanonicalTagName(unwrapped.tagName) === 'Panel');
 
     if (isPanelElement) {
+      visitedDeferredInitializers.add(unwrapped);
       panelSlotInheritedMap.set(unwrapped, {
         variant: pairVariant,
         fallbackCut,
@@ -711,19 +754,138 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
           pairVariant === 'quiet',
         );
       }
-      visit(slotNode, inAutoCut);
+      visitRenderedExpr(slotNode, inAutoCut);
     }
+  }
+
+  function preScanRenderedExpr(expr, seenInits = new Set()) {
+    if (!expr) return;
+    if (
+      ts.isParenthesizedExpression(expr) ||
+      ts.isAsExpression(expr) ||
+      ts.isTypeAssertionExpression?.(expr) ||
+      ts.isSatisfiesExpression?.(expr) ||
+      ts.isNonNullExpression(expr)
+    ) {
+      preScanRenderedExpr(expr.expression, seenInits);
+      return;
+    }
+    if (ts.isIdentifier(expr)) {
+      if (expr.text === 'undefined') return;
+      const init = resolveLocalIdentifier(expr);
+      if (init && !seenInits.has(init)) {
+        seenInits.add(init);
+        preScanRenderedExpr(init, seenInits);
+      }
+      return;
+    }
+    if (ts.isBinaryExpression(expr)) {
+      preScanRenderedExpr(expr.left, seenInits);
+      preScanRenderedExpr(expr.right, seenInits);
+      return;
+    }
+    if (ts.isConditionalExpression(expr)) {
+      preScanRenderedExpr(expr.condition, seenInits);
+      preScanRenderedExpr(expr.whenTrue, seenInits);
+      preScanRenderedExpr(expr.whenFalse, seenInits);
+      return;
+    }
+    if (ts.isArrayLiteralExpression(expr)) {
+      for (const el of expr.elements) {
+        if (ts.isSpreadElement(el)) {
+          preScanRenderedExpr(el.expression, seenInits);
+        } else {
+          preScanRenderedExpr(el, seenInits);
+        }
+      }
+    }
+  }
+
+  function visitRenderedExpr(expr, inAutoCut) {
+    if (!expr) return;
+    if (
+      ts.isParenthesizedExpression(expr) ||
+      ts.isAsExpression(expr) ||
+      ts.isTypeAssertionExpression?.(expr) ||
+      ts.isSatisfiesExpression?.(expr) ||
+      ts.isNonNullExpression(expr)
+    ) {
+      visitRenderedExpr(expr.expression, inAutoCut);
+      return;
+    }
+    if (ts.isIdentifier(expr)) {
+      if (expr.text === 'undefined') return;
+      const init = resolveLocalIdentifier(expr);
+      if (init && !activeInitializers.has(init)) {
+        visitedDeferredInitializers.add(init);
+        activeInitializers.add(init);
+        visitRenderedExpr(init, inAutoCut);
+        activeInitializers.delete(init);
+      }
+      return;
+    }
+    if (ts.isBinaryExpression(expr)) {
+      const op = expr.operatorToken.kind;
+      if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
+        visit(expr.left, inAutoCut);
+        visitRenderedExpr(expr.right, inAutoCut);
+        return;
+      }
+      if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken) {
+        visitRenderedExpr(expr.left, inAutoCut);
+        visitRenderedExpr(expr.right, inAutoCut);
+        return;
+      }
+    }
+    if (ts.isConditionalExpression(expr)) {
+      visit(expr.condition, inAutoCut);
+      visitRenderedExpr(expr.whenTrue, inAutoCut);
+      visitRenderedExpr(expr.whenFalse, inAutoCut);
+      return;
+    }
+    if (ts.isArrayLiteralExpression(expr)) {
+      for (const el of expr.elements) {
+        if (ts.isSpreadElement(el)) {
+          visitRenderedExpr(el.expression, inAutoCut);
+        } else {
+          visitRenderedExpr(el, inAutoCut);
+        }
+      }
+      return;
+    }
+    visit(expr, inAutoCut);
+  }
+
+  function visitJsxChild(child, inAutoCut) {
+    if (!child) return;
+    if (ts.isJsxExpression(child)) {
+      if (child.expression) {
+        visitRenderedExpr(child.expression, inAutoCut);
+      }
+      return;
+    }
+    visit(child, inAutoCut);
   }
 
   function visitCutOwnerOrElement(node, tagName, attributes, inAutoCut) {
     const isCutOwner = CUT_OWNER_TAGS.has(tagName);
     if (!isCutOwner && tagName !== 'Sheet') {
       for (const prop of attributes.properties) {
-        ts.forEachChild(prop, (child) => visit(child, inAutoCut));
+        if (ts.isJsxAttribute(prop) && prop.name.getText(sourceFile) === 'children') {
+          if (prop.initializer) {
+            if (ts.isJsxExpression(prop.initializer) && prop.initializer.expression) {
+              visitRenderedExpr(prop.initializer.expression, inAutoCut);
+            } else {
+              visit(prop.initializer, inAutoCut);
+            }
+          }
+        } else {
+          ts.forEachChild(prop, (child) => visit(child, inAutoCut));
+        }
       }
       if (ts.isJsxElement(node)) {
         for (const child of node.children) {
-          visit(child, inAutoCut);
+          visitJsxChild(child, inAutoCut);
         }
       }
       return;
@@ -737,10 +899,10 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       }
       if (ts.isJsxElement(node) && node.children.length > 0) {
         for (const child of node.children) {
-          visit(child, inAutoCut);
+          visitJsxChild(child, inAutoCut);
         }
       } else if (props.children !== UNSET && props.children !== null) {
-        visit(props.children, inAutoCut);
+        visitRenderedExpr(props.children, inAutoCut);
       }
       return;
     }
@@ -784,10 +946,10 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       }
       if (ts.isJsxElement(node) && node.children.length > 0) {
         for (const child of node.children) {
-          visit(child, inAutoCut);
+          visitJsxChild(child, inAutoCut);
         }
       } else if (props.children !== UNSET && props.children !== null) {
-        visit(props.children, inAutoCut);
+        visitRenderedExpr(props.children, inAutoCut);
       }
       return;
     }
@@ -851,10 +1013,12 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
           pairVariant === 'quiet',
         );
       }
-      for (let i = 2; i < childSlots.length; i++) {
-        visit(childSlots[i], inAutoCut);
+      if (inAutoCut) {
+        for (let i = 2; i < childSlots.length; i++) {
+          visitRenderedExpr(childSlots[i], inAutoCut);
+        }
       }
-    } else {
+    } else if (inAutoCut) {
       processPairDescriptorSlot(topObj, pairTopCut, pairVariant, inAutoCut);
       processPairDescriptorSlot(bottomObj, pairBottomCut, pairVariant, inAutoCut);
     }
@@ -862,17 +1026,70 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
   function preScanDeferrals(node) {
     if (ts.isJsxElement(node)) {
-      const tagName = node.openingElement.tagName.getText(sourceFile);
+      const tagName = getCanonicalTagName(node.openingElement.tagName);
       if (CUT_OWNER_TAGS.has(tagName) || tagName === 'Sheet') {
-        resolveElementProps(node.openingElement.attributes);
+        const props = resolveElementProps(node.openingElement.attributes);
+        if (props.children !== UNSET && props.children !== null) {
+          preScanRenderedExpr(props.children);
+        }
+        if (props.top && props.top !== UNSET && props.top.children !== UNSET && props.top.children !== null) {
+          preScanRenderedExpr(props.top.children);
+        }
+        if (props.bottom && props.bottom !== UNSET && props.bottom.children !== UNSET && props.bottom.children !== null) {
+          preScanRenderedExpr(props.bottom.children);
+        }
+      } else {
+        for (const prop of node.openingElement.attributes.properties) {
+          if (
+            ts.isJsxAttribute(prop) &&
+            prop.name.getText(sourceFile) === 'children' &&
+            prop.initializer &&
+            ts.isJsxExpression(prop.initializer) &&
+            prop.initializer.expression
+          ) {
+            preScanRenderedExpr(prop.initializer.expression);
+          }
+        }
       }
       if (tagName === 'PanelPair') {
         extractReactChildrenArray(node.children);
       }
+      for (const child of node.children) {
+        if (ts.isJsxExpression(child) && child.expression) {
+          preScanRenderedExpr(child.expression);
+        }
+      }
     } else if (ts.isJsxSelfClosingElement(node)) {
-      const tagName = node.tagName.getText(sourceFile);
+      const tagName = getCanonicalTagName(node.tagName);
       if (CUT_OWNER_TAGS.has(tagName) || tagName === 'Sheet') {
-        resolveElementProps(node.attributes);
+        const props = resolveElementProps(node.attributes);
+        if (props.children !== UNSET && props.children !== null) {
+          preScanRenderedExpr(props.children);
+        }
+        if (props.top && props.top !== UNSET && props.top.children !== UNSET && props.top.children !== null) {
+          preScanRenderedExpr(props.top.children);
+        }
+        if (props.bottom && props.bottom !== UNSET && props.bottom.children !== UNSET && props.bottom.children !== null) {
+          preScanRenderedExpr(props.bottom.children);
+        }
+      } else {
+        for (const prop of node.attributes.properties) {
+          if (
+            ts.isJsxAttribute(prop) &&
+            prop.name.getText(sourceFile) === 'children' &&
+            prop.initializer &&
+            ts.isJsxExpression(prop.initializer) &&
+            prop.initializer.expression
+          ) {
+            preScanRenderedExpr(prop.initializer.expression);
+          }
+        }
+      }
+    } else if (ts.isJsxFragment(node)) {
+      for (const child of node.children) {
+        if (ts.isJsxExpression(child) && child.expression) {
+          preScanRenderedExpr(child.expression);
+        }
       }
     }
     ts.forEachChild(node, preScanDeferrals);
@@ -894,7 +1111,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     }
 
     if (ts.isJsxElement(node)) {
-      const tagName = node.openingElement.tagName.getText(sourceFile);
+      const tagName = getCanonicalTagName(node.openingElement.tagName);
       const nextAutoCut =
         tagName === 'Sheet' ? getSheetAutoCut(node.openingElement.attributes) : inAutoCut;
       visitCutOwnerOrElement(node, tagName, node.openingElement.attributes, nextAutoCut);
@@ -902,9 +1119,16 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     }
 
     if (ts.isJsxSelfClosingElement(node)) {
-      const tagName = node.tagName.getText(sourceFile);
+      const tagName = getCanonicalTagName(node.tagName);
       const nextAutoCut = tagName === 'Sheet' ? getSheetAutoCut(node.attributes) : inAutoCut;
       visitCutOwnerOrElement(node, tagName, node.attributes, nextAutoCut);
+      return;
+    }
+
+    if (ts.isJsxFragment(node)) {
+      for (const child of node.children) {
+        visitJsxChild(child, inAutoCut);
+      }
       return;
     }
 
@@ -912,6 +1136,12 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
   }
 
   visit(sourceFile, false);
+
+  for (const init of deferredVarInitializers) {
+    if (!visitedDeferredInitializers.has(init)) {
+      visit(init, false);
+    }
+  }
 
   if (cutMatches.length > 0) {
     const seen = new Set();

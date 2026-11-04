@@ -921,6 +921,12 @@ function UnitTestFixtures() {
                     <Tag id="fixture-tag-no-sr" status="warning" srLabel={false}>
                       No SR
                     </Tag>
+                    <Tag id="fixture-tag-successor" status="success">
+                      Successor key rotated
+                    </Tag>
+                    <Tag id="fixture-tag-errored" status="danger">
+                      Errored
+                    </Tag>
                     <Badge id="fixture-badge-neutral" status="neutral">
                       ORD-01
                     </Badge>
@@ -969,10 +975,22 @@ function UnitTestFixtures() {
                   <TableBody>
                     <TableRow>
                       <TableCell>k1</TableCell>
-                      <TableCell>Active</TableCell>
+                      <TableCell>
+                        <Tag id="fixture-table-tag" status="success">
+                          Recovered
+                        </Tag>
+                      </TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
+                <div style={{ width: '90px' }}>
+                  <Tag id="fixture-narrow-tag" status="warning">
+                    OVERFLOW_TOKEN_ALPHA_BETA_GAMMA_9921
+                  </Tag>
+                  <Badge id="fixture-narrow-badge" status="danger">
+                    PROCESSOR UNREACHABLE
+                  </Badge>
+                </div>
                 <Panel
                   variant="expressive"
                   cut={false}

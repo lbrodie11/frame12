@@ -29,6 +29,17 @@ function extractTextContent(node: React.ReactNode): string {
   return '';
 }
 
+function startsWithStatusLabel(text: string, label: string): boolean {
+  const lowerText = text.toLowerCase();
+  const lowerLabel = label.toLowerCase();
+  if (!lowerText.startsWith(lowerLabel)) return false;
+  const rest = lowerText.slice(lowerLabel.length);
+  if (rest === '' || !/^[a-z]/i.test(rest)) return true;
+  if (lowerLabel === 'error' && /^(ed|s)\b/.test(rest)) return true;
+  if ((lowerLabel === 'warn' || lowerLabel === 'warning') && /^s\b/.test(rest)) return true;
+  return false;
+}
+
 export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
   status?: SemanticStatus;
   glyph?: string | false;
@@ -60,7 +71,7 @@ export const Tag = React.forwardRef<HTMLSpanElement, TagProps>(function Tag(
   const childText = extractTextContent(children).trim();
   const showSrLabel =
     Boolean(resolvedSrLabel) &&
-    !(childText && resolvedSrLabel && childText.toLowerCase().startsWith(resolvedSrLabel.toLowerCase()));
+    !(childText && resolvedSrLabel && startsWithStatusLabel(childText, resolvedSrLabel));
 
   return (
     <span

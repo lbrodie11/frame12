@@ -348,10 +348,15 @@ for (const screen of SCREENS) {
     });
     const c = await page.evaluate(CONTRAST);
     const sw = await page.evaluate(() => document.documentElement.scrollWidth);
+    const tableTagsSingleLine = await page.evaluate(() =>
+      [...document.querySelectorAll('.f12-table .f12-tag')].every(
+        (el) => el.getBoundingClientRect().height <= 26,
+      ),
+    );
     check(
-      c.length === 0 && sw <= 390 && errors.length === 0,
-      `eval/${screen} (${scheme}, 390px mobile): WCAG AA contrast & zero horizontal overflow`,
-      `scrollWidth=${sw} contrast=${c.slice(0, 2).join('; ')}`,
+      c.length === 0 && sw <= 390 && tableTagsSingleLine && errors.length === 0,
+      `eval/${screen} (${scheme}, 390px mobile): WCAG AA contrast, single-line table tags & zero horizontal overflow`,
+      `scrollWidth=${sw} tableTagsSingleLine=${tableTagsSingleLine} contrast=${c.slice(0, 2).join('; ')}`,
     );
     await ctx.close();
   }
@@ -395,14 +400,20 @@ for (const screen of SCREENS) {
   await page.waitForTimeout(400);
   await page.click('#int-land-exit');
   await page.waitForTimeout(400);
-  const hasCompareLine = await page.evaluate(() =>
-    Boolean(
+  const hasCompareLine = await page.evaluate(() => {
+    const rowNames = [...document.querySelectorAll('.f12-ints .f12-int-name')].map((el) =>
+      el.textContent.trim(),
+    );
+    return Boolean(
       document.querySelector('.f12-chart .f12-l-focus') &&
         document.querySelector('.f12-chart .f12-compare-pt') &&
         document.querySelector('.f12-ints .f12-int-fill-dense') &&
-        document.querySelector('.f12-ints .f12-int-fill-hatch'),
-    ),
-  );
+        document.querySelector('.f12-ints .f12-int-fill-hatch') &&
+        rowNames.some((t) => t.includes('(primary)')) &&
+        rowNames.some((t) => t.includes('(session)')) &&
+        rowNames.some((t) => t.includes('(scheduled)')),
+    );
+  });
   await page.click('#landing-trial-open');
   const dlgCut = await page.evaluate(
     () => document.querySelector('dialog.f12-dialog[open] .f12-cut')?.textContent,

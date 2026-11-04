@@ -87,7 +87,9 @@
 .f12-menu,
 .f12-table-wrap,
 .f12-balloon,
-.f12-balloon-standalone {
+.f12-balloon-standalone,
+.f12-tag,
+.f12-badge {
   box-sizing: border-box;
 }
 
@@ -354,12 +356,10 @@
 
 /* ===================================================================== Tag & Badge */
 .f12-tag {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
+  display: inline-block;
+  vertical-align: middle;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   font-family: var(--font-f-mono);
   font-size: 11px;
   color: var(--f-marker-ink);
@@ -371,10 +371,10 @@
 
 .f12-badge {
   position: relative;
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
+  vertical-align: middle;
   max-width: 100%;
-  white-space: nowrap;
+  overflow-wrap: break-word;
   font-family: var(--font-f-mono);
   font-size: 10px;
   font-weight: 700;
@@ -388,9 +388,6 @@
 .f12-badge-t {
   position: relative;
   z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
 }
 .f12-status-glyph {
   font-weight: 700;
@@ -398,6 +395,9 @@
   text-transform: none;
   user-select: none;
   -webkit-user-select: none;
+}
+.f12-status-glyph:not(:last-child) {
+  margin-inline-end: 4px;
 }
 .f12-status-neutral {
   background: var(--f-panel);
@@ -1179,6 +1179,7 @@ dialog.f12-dialog::backdrop {
 .f12-select.f12-select-compact .f12-select-trigger {
   padding: 6px 10px;
   font-size: 13px;
+  line-height: 1.4;
   border-width: 1.5px;
 }
 .f12-select-caret {

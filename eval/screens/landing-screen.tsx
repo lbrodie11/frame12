@@ -177,15 +177,18 @@ export function LandingScreen({ initialTheme }: { initialTheme?: 'light' | 'dark
 
   const barItems = React.useMemo(
     () =>
-      dataset.capabilities.map((c, idx) => ({
-        id: c.id,
-        name: c.name,
-        value: c.value,
-        formattedValue: fmtMoney(c.value),
-        share: c.share,
-        badge: c.badge,
-        pattern: (idx === 0 ? 'dense' : idx === 1 ? 'hatch' : 'dots') as 'dense' | 'hatch' | 'dots',
-      })),
+      dataset.capabilities.map((c, idx) => {
+        const tier = idx === 0 ? 'primary' : idx === 1 ? 'session' : 'scheduled';
+        return {
+          id: c.id,
+          name: `${c.name} (${tier})`,
+          value: c.value,
+          formattedValue: fmtMoney(c.value),
+          share: c.share,
+          badge: c.badge,
+          pattern: (idx === 0 ? 'dense' : idx === 1 ? 'hatch' : 'dots') as 'dense' | 'hatch' | 'dots',
+        };
+      }),
     [dataset],
   );
 
