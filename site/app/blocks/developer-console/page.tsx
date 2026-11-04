@@ -13,6 +13,7 @@ export default function DeveloperConsoleShowcasePage() {
 
   return (
     <DeveloperConsole
+      idPrefix="dev-console"
       motion={motion}
       headerSlot={
         <Panel variant="quiet" label="Install Developer Console registry block">

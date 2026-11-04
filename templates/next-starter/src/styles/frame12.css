@@ -2779,10 +2779,17 @@ dialog.f12-dialog::backdrop {
     max-width: 100%;
   }
   .f12-rng-btn {
+    padding: 5px 6px 4px;
+    min-width: 44px;
+  }
+  .f12-rng-n {
+    font-size: 15px;
+  }
+  .f12-console .f12-rng-btn {
     padding: 5px 5px 4px;
     min-width: 40px;
   }
-  .f12-rng-n {
+  .f12-console .f12-rng-n {
     font-size: 13px;
   }
   .f12-rng-u {

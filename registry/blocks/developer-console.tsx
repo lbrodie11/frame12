@@ -30,6 +30,7 @@ import {
   Notice,
   ToastProvider,
   useToast,
+  useOptionalToast,
   Skeleton,
   SkeletonText,
   EmptyState,
@@ -834,10 +835,13 @@ export interface DeveloperConsoleProps {
   defaultEnvironment?: ConsoleEnvironment;
   motion?: MotionMode;
   idPrefix?: string;
+  showSandboxControls?: boolean;
   className?: string;
   headerSlot?: React.ReactNode;
   footerSlot?: React.ReactNode;
 }
+
+const SLO_TARGET_MAX_ERROR_BPS = 50;
 
 function DeveloperConsoleInner({
   defaultSection = 'overview',
@@ -845,12 +849,15 @@ function DeveloperConsoleInner({
   defaultTimeRange = '24h',
   defaultEnvironment = 'prod-us-east-1',
   motion = 'stepped',
-  idPrefix = 'dev-console',
+  idPrefix,
+  showSandboxControls = true,
   className = '',
   headerSlot,
   footerSlot,
 }: DeveloperConsoleProps) {
   const { toast } = useToast();
+  const reactId = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const resolvedIdPrefix = idPrefix ?? `dev-console-${reactId || 'instance'}`;
 
   // Top-level navigation, environment, time window, and dataset simulation state
   const [activeSection, setActiveSection] = React.useState<ConsoleSection>(defaultSection);
@@ -897,25 +904,45 @@ function DeveloperConsoleInner({
   const [logServiceFilter, setLogServiceFilter] = React.useState<string>('all');
   const [logPage, setLogPage] = React.useState(1);
   const [inspectedLog, setInspectedLog] = React.useState<ConsoleRequestLogItem | null>(null);
+  const lastInspectedLogIdRef = React.useRef<string | null>(null);
   const replaySeqRef = React.useRef(1);
 
   const snapshot = CONSOLE_RANGE_SNAPSHOTS[timeRange];
   const rangeChanged = useChanged(timeRange);
+  const isEmptyDataset = datasetState === 'empty';
+  const sloWithinBudget = snapshot.errorRateBasisPoints <= SLO_TARGET_MAX_ERROR_BPS;
+
+  const effectiveServices = React.useMemo<ConsoleServiceItem[]>(
+    () =>
+      CONSOLE_SERVICES.map((svc) =>
+        isEmptyDataset
+          ? {
+              ...svc,
+              requests24h: 0,
+              share24h: 0,
+              p95Ms: 0,
+              errorRatePct: '0.00%',
+            }
+          : svc,
+      ),
+    [isEmptyDataset],
+  );
 
   const selectedService =
-    CONSOLE_SERVICES.find((s) => s.id === selectedServiceId) ?? CONSOLE_SERVICES[0];
+    effectiveServices.find((s) => s.id === selectedServiceId) ?? effectiveServices[0];
 
   const chartData = React.useMemo<ToneAreaDatum[]>(() => {
+    if (isEmptyDataset) return [];
     const compareValues = snapshot.serviceSeries[selectedService.id] ?? [];
     return snapshot.series.map((pt, idx) => ({
       ...pt,
       compareValue: compareValues[idx] ?? pt.compareValue,
     }));
-  }, [snapshot, selectedService.id]);
+  }, [isEmptyDataset, snapshot, selectedService.id]);
 
   const serviceBarItems = React.useMemo<ToneBarItem[]>(
     () =>
-      CONSOLE_SERVICES.map((svc) => ({
+      effectiveServices.map((svc) => ({
         id: svc.id,
         name: `${svc.name} (${svc.p95Ms} ms p95)`,
         value: svc.requests24h,
@@ -923,13 +950,28 @@ function DeveloperConsoleInner({
         share: svc.share24h,
         pattern: svc.pattern,
       })),
-    [],
+    [effectiveServices],
+  );
+
+  const effectiveEndpoints = React.useMemo<ConsoleEndpointItem[]>(
+    () =>
+      CONSOLE_ENDPOINTS.map((ep) =>
+        isEmptyDataset
+          ? {
+              ...ep,
+              requests24h: 0,
+              p95Ms: 0,
+              errorRatePct: '0.00%',
+            }
+          : ep,
+      ),
+    [isEmptyDataset],
   );
 
   // Filtered endpoints
   const filteredEndpoints = React.useMemo(() => {
     const q = endpointSearch.trim().toLowerCase();
-    return CONSOLE_ENDPOINTS.filter((ep) => {
+    return effectiveEndpoints.filter((ep) => {
       if (endpointHealthFilter !== 'all' && ep.status !== endpointHealthFilter) return false;
       if (endpointMethodFilter !== 'ALL' && ep.method !== endpointMethodFilter) return false;
       if (!q) return true;
@@ -940,17 +982,22 @@ function DeveloperConsoleInner({
         ep.description.toLowerCase().includes(q)
       );
     });
-  }, [endpointSearch, endpointHealthFilter, endpointMethodFilter]);
+  }, [effectiveEndpoints, endpointSearch, endpointHealthFilter, endpointMethodFilter]);
 
   const inspectedEndpoint =
-    CONSOLE_ENDPOINTS.find((ep) => ep.id === inspectedEndpointId) ??
+    effectiveEndpoints.find((ep) => ep.id === inspectedEndpointId) ??
     filteredEndpoints[0] ??
-    CONSOLE_ENDPOINTS[0];
+    effectiveEndpoints[0];
+
+  const effectiveRequestLogs = React.useMemo<ConsoleRequestLogItem[]>(
+    () => (isEmptyDataset ? [] : requestLogs),
+    [isEmptyDataset, requestLogs],
+  );
 
   // Filtered & paginated request logs
   const filteredLogs = React.useMemo(() => {
     const q = logSearch.trim().toLowerCase();
-    return requestLogs.filter((item) => {
+    return effectiveRequestLogs.filter((item) => {
       if (logStatusFilter !== 'all' && item.statusClass !== logStatusFilter) return false;
       if (logServiceFilter !== 'all' && item.serviceId !== logServiceFilter) return false;
       if (!q) return true;
@@ -962,7 +1009,7 @@ function DeveloperConsoleInner({
         String(item.statusCode).includes(q)
       );
     });
-  }, [requestLogs, logSearch, logStatusFilter, logServiceFilter]);
+  }, [effectiveRequestLogs, logSearch, logStatusFilter, logServiceFilter]);
 
   const LOGS_PER_PAGE = 5;
   const totalLogPages = Math.max(1, Math.ceil(filteredLogs.length / LOGS_PER_PAGE));
@@ -992,6 +1039,7 @@ function DeveloperConsoleInner({
     setEndpointSearch('');
     setEndpointHealthFilter('all');
     setEndpointMethodFilter('ALL');
+    setInspectedEndpointId(CONSOLE_ENDPOINTS[0].id);
     setSheddingByService({
       'svc-webhook-dispatch': false,
       'svc-checkout-session': false,
@@ -1000,13 +1048,18 @@ function DeveloperConsoleInner({
     });
     setApiKeys(INITIAL_API_KEYS);
     setNewKeyLabel('');
+    setNewKeyScope('dispatch_write');
+    setNewKeyTier('Burst · 2,000 req/s');
+    setNewKeyHmac(true);
     setKeyLabelError(undefined);
     setLastIssuedKey(null);
+    setRevokeTargetKey(null);
     setRequestLogs(INITIAL_REQUEST_LOGS);
     setLogSearch('');
     setLogStatusFilter('all');
     setLogServiceFilter('all');
     setLogPage(1);
+    setInspectedLog(null);
     toast({
       status: 'info',
       title: 'Sandbox fixtures reset',
@@ -1089,7 +1142,7 @@ function DeveloperConsoleInner({
     });
     if (typeof window !== 'undefined') {
       window.requestAnimationFrame(() => {
-        document.getElementById(`${idPrefix}-copy-key-${target.id}`)?.focus();
+        document.getElementById(`${resolvedIdPrefix}-copy-key-${target.id}`)?.focus();
       });
     }
   };
@@ -1097,37 +1150,83 @@ function DeveloperConsoleInner({
   const handleReplayRequest = (logItem: ConsoleRequestLogItem) => {
     replaySeqRef.current += 1;
     const replayId = `req_01J9Z9RPL${replaySeqRef.current}`;
+    const associatedKey = apiKeys.find((k) => k.id === logItem.apiKeyId);
+    const isKeyRevoked = !associatedKey || associatedKey.status === 'revoked';
+    const statusCode = isKeyRevoked ? 401 : logItem.method === 'POST' ? 202 : 200;
+    const statusClass: ConsoleRequestLogItem['statusClass'] = isKeyRevoked ? '4xx' : '2xx';
+    const durationMs = isKeyRevoked ? 7 : 21;
     const replayedEntry: ConsoleRequestLogItem = {
       ...logItem,
       id: `log-replay-${replaySeqRef.current}`,
       requestId: replayId,
       timestamp: '15:00:04 UTC',
-      statusCode: logItem.method === 'POST' ? 202 : 200,
-      statusClass: '2xx',
-      durationMs: 21,
+      statusCode,
+      statusClass,
+      durationMs,
       tlsMs: 3,
-      queueMs: 3,
-      upstreamMs: 15,
-      responsePayload: `{"replayedFrom":"${logItem.requestId}","status":"accepted","simulated":true}`,
+      queueMs: isKeyRevoked ? 1 : 3,
+      upstreamMs: isKeyRevoked ? 3 : 15,
+      responsePayload: isKeyRevoked
+        ? `{"replayedFrom":"${logItem.requestId}","error":"revoked_api_key","message":"Credential ${logItem.apiKeyId} was revoked; replay rejected at edge."}`
+        : `{"replayedFrom":"${logItem.requestId}","status":"accepted","simulated":true}`,
       replayed: true,
     };
     setRequestLogs((prev) => [replayedEntry, ...prev]);
     setInspectedLog(replayedEntry);
     setLogPage(1);
+    if (datasetState === 'empty') {
+      setDatasetState('populated');
+    }
     toast({
-      status: 'success',
-      title: `Replayed ${logItem.requestId}`,
-      description: `Recorded simulated replay ${replayId} (${replayedEntry.statusCode} OK · 21 ms).`,
+      status: isKeyRevoked ? 'danger' : 'success',
+      title: isKeyRevoked
+        ? `Replay rejected (${logItem.requestId})`
+        : `Replayed ${logItem.requestId}`,
+      description: isKeyRevoked
+        ? `Recorded simulated replay ${replayId} (401 Unauthorized · revoked credential ${logItem.apiKeyId}).`
+        : `Recorded simulated replay ${replayId} (${replayedEntry.statusCode} OK · 21 ms).`,
     });
   };
 
+  React.useEffect(() => {
+    if (inspectedLog) {
+      lastInspectedLogIdRef.current = inspectedLog.id;
+      return;
+    }
+    const closingLogId = lastInspectedLogIdRef.current;
+    if (!closingLogId || typeof document === 'undefined') return;
+    lastInspectedLogIdRef.current = null;
+
+    const restore = () => {
+      const targetBtn = document.getElementById(
+        `${resolvedIdPrefix}-inspect-log-${closingLogId}`,
+      );
+      const active = document.activeElement;
+      const focusLost =
+        !active ||
+        active === document.body ||
+        active === document.documentElement ||
+        !active.isConnected;
+      if (targetBtn && (focusLost || closingLogId.startsWith('log-replay-'))) {
+        targetBtn.focus({ preventScroll: true });
+        return;
+      }
+      if (focusLost) {
+        document.getElementById(`${resolvedIdPrefix}-log-search`)?.focus({ preventScroll: true });
+      }
+    };
+    restore();
+    const raf = window.requestAnimationFrame(restore);
+    return () => window.cancelAnimationFrame(raf);
+  }, [inspectedLog, resolvedIdPrefix]);
+
   return (
     <Sheet
-      id={`${idPrefix}-sheet`}
+      id={`${resolvedIdPrefix}-sheet`}
       autoCut
       pegs
       motion={motion}
-      className={className || undefined}
+      className={['f12-console', className].filter(Boolean).join(' ')}
     >
       {/* Top Header & Breadcrumb */}
       <header className="f12-hd">
@@ -1137,7 +1236,7 @@ function DeveloperConsoleInner({
             items={[
               {
                 label: 'Fernwood Relay',
-                href: `#${idPrefix}-sheet`,
+                href: `#${resolvedIdPrefix}-sheet`,
                 onClick: (e) => {
                   e.preventDefault();
                   setActiveSection('overview');
@@ -1145,10 +1244,10 @@ function DeveloperConsoleInner({
               },
               {
                 label: envLabel,
-                href: `#${idPrefix}-env-select`,
+                href: `#${resolvedIdPrefix}-env-select`,
                 onClick: (e) => {
                   e.preventDefault();
-                  document.getElementById(`${idPrefix}-env-select`)?.focus();
+                  document.getElementById(`${resolvedIdPrefix}-env-select`)?.focus();
                 },
               },
               {
@@ -1173,7 +1272,7 @@ function DeveloperConsoleInner({
 
         <div className="f12-console-toolbar" role="group" aria-label="Environment and time window">
           <Select
-            id={`${idPrefix}-env-select`}
+            id={`${resolvedIdPrefix}-env-select`}
             label="Environment"
             density="compact"
             value={environment}
@@ -1189,7 +1288,7 @@ function DeveloperConsoleInner({
           </Select>
 
           <SegmentedControl
-            idPrefix={`${idPrefix}-range`}
+            idPrefix={`${resolvedIdPrefix}-range`}
             ariaLabel="Telemetry time window"
             value={timeRange}
             onChange={setTimeRange}
@@ -1204,45 +1303,47 @@ function DeveloperConsoleInner({
 
       {/* Quiet Operational Sandbox State Switcher */}
       {headerSlot}
-      <Panel variant="quiet" label="Sandbox dataset state and simulation controls">
-        <div className="f12-row-between">
-          <div className="f12-stack-pair">
-            <div className="f12-row-pair">
-              <span className="f12-console-quiet-title">SANDBOX DATASET STATE</span>
-              <Tag status="neutral">4 SERVICES · 8 ENDPOINTS</Tag>
-              <Tag status="success">{`${activeKeyCount} ACTIVE KEYS`}</Tag>
-              <Tag status="info">{`${requestLogs.length} LOG EVENTS`}</Tag>
+      {showSandboxControls && (
+        <Panel variant="quiet" label="Sandbox dataset state and simulation controls">
+          <div className="f12-row-between">
+            <div className="f12-stack-pair">
+              <div className="f12-row-pair">
+                <span className="f12-console-quiet-title">SANDBOX DATASET STATE</span>
+                <Tag status="neutral">4 SERVICES · 8 ENDPOINTS</Tag>
+                <Tag status="success">{`${activeKeyCount} ACTIVE KEYS`}</Tag>
+                <Tag status="info">{`${effectiveRequestLogs.length} LOG EVENTS`}</Tag>
+              </div>
+              <p className="f12-console-quiet-sub">
+                Preview populated telemetry, geometry-preserving skeleton loading, empty-workspace
+                onboarding, or upstream gateway outage recovery.
+              </p>
             </div>
-            <p className="f12-console-quiet-sub">
-              Preview populated telemetry, geometry-preserving skeleton loading, empty-workspace
-              onboarding, or upstream gateway outage recovery.
-            </p>
-          </div>
 
-          <div className="f12-row-pair">
-            <SegmentedControl
-              idPrefix={`${idPrefix}-dataset-state`}
-              ariaLabel="Dataset simulation state"
-              value={datasetState}
-              onChange={setDatasetState}
-              options={[
-                { value: 'populated', label: 'DATA', unit: 'live' },
-                { value: 'loading', label: 'LOAD', unit: 'skel' },
-                { value: 'empty', label: 'ZERO', unit: 'empty' },
-                { value: 'error', label: '503', unit: 'err' },
-              ]}
-            />
-            <Button
-              id={`${idPrefix}-reset-sandbox`}
-              variant="secondary"
-              size="sm"
-              onClick={handleResetSandbox}
-            >
-              Reset sandbox
-            </Button>
+            <div className="f12-row-pair">
+              <SegmentedControl
+                idPrefix={`${resolvedIdPrefix}-dataset-state`}
+                ariaLabel="Dataset simulation state"
+                value={datasetState}
+                onChange={setDatasetState}
+                options={[
+                  { value: 'populated', label: 'DATA', unit: 'live' },
+                  { value: 'loading', label: 'LOAD', unit: 'skel' },
+                  { value: 'empty', label: 'ZERO', unit: 'empty' },
+                  { value: 'error', label: '503', unit: 'err' },
+                ]}
+              />
+              <Button
+                id={`${resolvedIdPrefix}-reset-sandbox`}
+                variant="secondary"
+                size="sm"
+                onClick={handleResetSandbox}
+              >
+                Reset sandbox
+              </Button>
+            </div>
           </div>
-        </div>
-      </Panel>
+        </Panel>
+      )}
 
       {/* Scene 1: Expressive Establishing Shot KPI Panels (C-01, C-02, C-03) */}
       <Scene gutter="scene" layout="three" aria-busy={datasetState === 'loading'}>
@@ -1263,13 +1364,13 @@ function DeveloperConsoleInner({
                 big
                 headingLevel="h2"
                 label="Gateway Request Volume"
-                value={datasetState === 'empty' ? 0 : snapshot.totalRequests}
+                value={isEmptyDataset ? 0 : snapshot.totalRequests}
                 format={fmtCompactNumber}
                 motion={motion}
-                delta={datasetState === 'empty' ? 0 : snapshot.requestDeltaPct}
+                delta={isEmptyDataset ? 0 : snapshot.requestDeltaPct}
                 deltaKind="pct"
                 comparisonLabel={
-                  datasetState === 'empty' ? 'awaiting first dispatch' : snapshot.requestDeltaNote
+                  isEmptyDataset ? 'awaiting first dispatch' : snapshot.requestDeltaNote
                 }
                 note={snapshot.windowNote}
               />
@@ -1288,32 +1389,37 @@ function DeveloperConsoleInner({
             <div className="f12-stack-pair">
               <div className="f12-row-between">
                 <Tag
+                  id={`${resolvedIdPrefix}-slo-status-tag`}
                   status={
                     datasetState === 'error'
                       ? 'danger'
-                      : datasetState === 'empty'
+                      : isEmptyDataset
                         ? 'neutral'
-                        : 'success'
+                        : sloWithinBudget
+                          ? 'success'
+                          : 'warning'
                   }
                 >
                   {datasetState === 'error'
                     ? 'COLLECTOR 503'
-                    : datasetState === 'empty'
+                    : isEmptyDataset
                       ? 'IDLE'
-                      : 'SLO WITHIN BUDGET'}
+                      : sloWithinBudget
+                        ? 'SLO WITHIN BUDGET'
+                        : 'SLO BUDGET BREACHED'}
                 </Tag>
                 <span className="f12-mono-note">99.50% SLO Target</span>
               </div>
               <Metric
                 headingLevel="h2"
                 label="Error & Throttle Rate"
-                value={datasetState === 'empty' ? 0 : snapshot.errorRateBasisPoints}
+                value={isEmptyDataset ? 0 : snapshot.errorRateBasisPoints}
                 format={(n) => `${(n / 100).toFixed(2)}%`}
                 motion={motion}
-                delta={datasetState === 'empty' ? 0 : snapshot.errorDeltaPp}
+                delta={isEmptyDataset ? 0 : snapshot.errorDeltaPp}
                 deltaKind="pp"
                 comparisonLabel={
-                  datasetState === 'empty' ? 'no failed requests' : snapshot.errorDeltaNote
+                  isEmptyDataset ? 'no failed requests' : snapshot.errorDeltaNote
                 }
               />
             </div>
@@ -1336,13 +1442,13 @@ function DeveloperConsoleInner({
               <Metric
                 headingLevel="h2"
                 label="p95 Edge Latency"
-                value={datasetState === 'empty' ? 0 : snapshot.p95LatencyMs}
+                value={isEmptyDataset ? 0 : snapshot.p95LatencyMs}
                 format={(n) => `${Math.round(n)} ms`}
                 motion={motion}
-                delta={datasetState === 'empty' ? 0 : snapshot.latencyDeltaPct}
+                delta={isEmptyDataset ? 0 : snapshot.latencyDeltaPct}
                 deltaKind="pct"
                 comparisonLabel={
-                  datasetState === 'empty' ? 'no latency samples' : snapshot.latencyDeltaNote
+                  isEmptyDataset ? 'no latency samples' : snapshot.latencyDeltaNote
                 }
               />
               {datasetState === 'populated' && (
@@ -1361,14 +1467,14 @@ function DeveloperConsoleInner({
       {/* Dataset-level Error / Empty states */}
       {datasetState === 'error' && (
         <Alert
-          id={`${idPrefix}-error-banner`}
+          id={`${resolvedIdPrefix}-error-banner`}
           status="danger"
           live="polite"
           title="Upstream telemetry aggregator timeout (ERR_RELAY_UPSTREAM_503)"
           description="Simulated telemetry collector in us-east-1 did not respond within 2,500ms. Cached control-plane configuration remains available below."
           actions={
             <Button
-              id={`${idPrefix}-retry-telemetry`}
+              id={`${resolvedIdPrefix}-retry-telemetry`}
               variant="secondary"
               size="sm"
               onClick={() => {
@@ -1386,15 +1492,15 @@ function DeveloperConsoleInner({
         />
       )}
 
-      {datasetState === 'empty' && (
+      {isEmptyDataset && (
         <EmptyState
-          id={`${idPrefix}-empty-workspace`}
+          id={`${resolvedIdPrefix}-empty-workspace`}
           code="0 TELEMETRY EVENTS"
           title="No API requests recorded in this sandbox window"
           description="This workspace has not dispatched any webhook or checkout session requests in the selected window. This state is expected for newly provisioned sandboxes prior to first key issuance."
           action={
             <Button
-              id={`${idPrefix}-load-sample-btn`}
+              id={`${resolvedIdPrefix}-load-sample-btn`}
               variant="primary"
               size="sm"
               onClick={() => {
@@ -1411,7 +1517,7 @@ function DeveloperConsoleInner({
           }
           secondaryAction={
             <Button
-              id={`${idPrefix}-empty-issue-key-btn`}
+              id={`${resolvedIdPrefix}-empty-issue-key-btn`}
               variant="secondary"
               size="sm"
               onClick={() => {
@@ -1431,17 +1537,17 @@ function DeveloperConsoleInner({
         onValueChange={(next) => setActiveSection(next as ConsoleSection)}
       >
         <TabsList aria-label="Developer console sections">
-          <TabsTrigger value="overview" id={`${idPrefix}-tab-overview`}>
+          <TabsTrigger value="overview" id={`${resolvedIdPrefix}-tab-overview`}>
             01 · Overview
           </TabsTrigger>
-          <TabsTrigger value="services" id={`${idPrefix}-tab-services`}>
+          <TabsTrigger value="services" id={`${resolvedIdPrefix}-tab-services`}>
             02 · Services &amp; Endpoints
           </TabsTrigger>
-          <TabsTrigger value="api-keys" id={`${idPrefix}-tab-api-keys`}>
+          <TabsTrigger value="api-keys" id={`${resolvedIdPrefix}-tab-api-keys`}>
             03 · API Keys ({activeKeyCount})
           </TabsTrigger>
-          <TabsTrigger value="request-logs" id={`${idPrefix}-tab-request-logs`}>
-            04 · Request Logs ({requestLogs.length})
+          <TabsTrigger value="request-logs" id={`${resolvedIdPrefix}-tab-request-logs`}>
+            04 · Request Logs ({effectiveRequestLogs.length})
           </TabsTrigger>
         </TabsList>
 
@@ -1474,7 +1580,9 @@ function DeveloperConsoleInner({
                         </h2>
                       </div>
                       <Balloon className={rangeChanged ? 'pop' : ''}>
-                        {snapshot.peakCallout}
+                        {isEmptyDataset
+                          ? 'Peak — · 0 reqs · 0 ms p95'
+                          : snapshot.peakCallout}
                       </Balloon>
                     </div>
 
@@ -1485,15 +1593,25 @@ function DeveloperConsoleInner({
                       chart to scrub individual intervals.
                     </p>
 
-                    <ToneAreaChart
-                      data={chartData}
-                      motion={motion}
-                      ariaLabel={`Gateway request throughput over ${snapshot.label} with ${selectedService.name} comparison series`}
-                      tableSummary="View tabular throughput and service overlay data"
-                      seriesLabel={`Total Gateway (${snapshot.label})`}
-                      compareLabel={selectedService.name}
-                      formatValue={(v) => `${fmtCompactNumber(v)}k reqs`}
-                    />
+                    {isEmptyDataset ? (
+                      <EmptyState
+                        id={`${resolvedIdPrefix}-chart-empty`}
+                        density="compact"
+                        code="0 THROUGHPUT SAMPLES"
+                        title="No throughput intervals recorded in this window"
+                        description="Load sample telemetry or dispatch a simulated request to populate the exposure curve and tabular breakdown."
+                      />
+                    ) : (
+                      <ToneAreaChart
+                        data={chartData}
+                        motion={motion}
+                        ariaLabel={`Gateway request throughput over ${snapshot.label} with ${selectedService.name} comparison series`}
+                        tableSummary="View tabular throughput and service overlay data"
+                        seriesLabel={`Total Gateway (${snapshot.label})`}
+                        compareLabel={selectedService.name}
+                        formatValue={(v) => `${fmtCompactNumber(v)}k reqs`}
+                      />
+                    )}
                   </div>
                 )}
               </Panel>
@@ -1523,9 +1641,11 @@ function DeveloperConsoleInner({
                     </p>
 
                     <ToneBarList
-                      idPrefix={`${idPrefix}-svc-bar`}
+                      idPrefix={`${resolvedIdPrefix}-svc-bar`}
                       title="24h Request Share by Service"
-                      subtitle="Total 1,482,900 requests"
+                      subtitle={
+                        isEmptyDataset ? 'Total 0 requests' : 'Total 1,482,900 requests'
+                      }
                       items={serviceBarItems}
                       selectedId={selectedService.id}
                       onSelect={(id) => {
@@ -1562,7 +1682,7 @@ function DeveloperConsoleInner({
                     <Tag status="neutral">QUIET LEDGER</Tag>
                   </div>
                   <Button
-                    id={`${idPrefix}-overview-goto-logs`}
+                    id={`${resolvedIdPrefix}-overview-goto-logs`}
                     variant="secondary"
                     size="sm"
                     onClick={() => setActiveSection('request-logs')}
@@ -1610,7 +1730,7 @@ function DeveloperConsoleInner({
                 </div>
 
                 <div className="f12-console-grid-2">
-                  {CONSOLE_SERVICES.map((svc) => {
+                  {effectiveServices.map((svc) => {
                     const shedding = Boolean(sheddingByService[svc.id]);
                     const effectiveStatus = shedding ? 'degraded' : svc.status;
                     return (
@@ -1628,7 +1748,7 @@ function DeveloperConsoleInner({
                           {`Owner: ${svc.owner} · 24h: ${fmtCompactNumber(svc.requests24h)} reqs · p95: ${svc.p95Ms} ms · Err: ${svc.errorRatePct}`}
                         </p>
                         <Switch
-                          id={`${idPrefix}-shed-${svc.id}`}
+                          id={`${resolvedIdPrefix}-shed-${svc.id}`}
                           density="compact"
                           checked={shedding}
                           onCheckedChange={(next) => handleToggleShedding(svc, next)}
@@ -1647,7 +1767,7 @@ function DeveloperConsoleInner({
               <div className="f12-stack-scene">
                 <div className="f12-console-filters" role="search" aria-label="Filter endpoints">
                   <Input
-                    id={`${idPrefix}-endpoint-search`}
+                    id={`${resolvedIdPrefix}-endpoint-search`}
                     label="Search endpoints"
                     density="compact"
                     type="search"
@@ -1657,7 +1777,7 @@ function DeveloperConsoleInner({
                   />
 
                   <Select
-                    id={`${idPrefix}-endpoint-method`}
+                    id={`${resolvedIdPrefix}-endpoint-method`}
                     label="HTTP method"
                     density="compact"
                     value={endpointMethodFilter}
@@ -1678,7 +1798,7 @@ function DeveloperConsoleInner({
                   <div className="f12-stack-pair">
                     <span className="f12-console-kv-label">Health status</span>
                     <SegmentedControl
-                      idPrefix={`${idPrefix}-ep-health`}
+                      idPrefix={`${resolvedIdPrefix}-ep-health`}
                       ariaLabel="Endpoint health status filter"
                       value={endpointHealthFilter}
                       onChange={setEndpointHealthFilter}
@@ -1694,14 +1814,14 @@ function DeveloperConsoleInner({
 
                 {filteredEndpoints.length === 0 ? (
                   <EmptyState
-                    id={`${idPrefix}-endpoints-empty`}
+                    id={`${resolvedIdPrefix}-endpoints-empty`}
                     density="compact"
                     code="0 MATCHING ENDPOINTS"
                     title="No endpoints match the current filter criteria"
                     description={`No registered routes matched query "${endpointSearch || '—'}" with method ${endpointMethodFilter} and status ${endpointHealthFilter.toUpperCase()}.`}
                     action={
                       <Button
-                        id={`${idPrefix}-reset-endpoint-filters`}
+                        id={`${resolvedIdPrefix}-reset-endpoint-filters`}
                         variant="secondary"
                         size="sm"
                         onClick={() => {
@@ -1717,7 +1837,7 @@ function DeveloperConsoleInner({
                 ) : (
                   <Table density="compact">
                     <TableCaption>
-                      {`Showing ${filteredEndpoints.length} of ${CONSOLE_ENDPOINTS.length} registered API endpoints (24h volume reconciled to 1,482,900 requests).`}
+                      {`Showing ${filteredEndpoints.length} of ${effectiveEndpoints.length} registered API endpoints (24h volume reconciled to ${isEmptyDataset ? '0' : '1,482,900'} requests).`}
                     </TableCaption>
                     <TableHeader>
                       <TableRow>
@@ -1769,7 +1889,7 @@ function DeveloperConsoleInner({
                             </TableCell>
                             <TableCell>
                               <Button
-                                id={`${idPrefix}-inspect-ep-${ep.id}`}
+                                id={`${resolvedIdPrefix}-inspect-ep-${ep.id}`}
                                 variant={isSelected ? 'primary' : 'secondary'}
                                 size="sm"
                                 aria-pressed={isSelected}
@@ -1809,11 +1929,16 @@ function DeveloperConsoleInner({
                     <span className="f12-console-kv-label">Trace Correlation</span>
                     <div className="f12-row-pair">
                       <Button
-                        id={`${idPrefix}-ep-filter-logs`}
+                        id={`${resolvedIdPrefix}-ep-filter-logs`}
                         variant="secondary"
                         size="sm"
                         onClick={() => {
+                          if (datasetState === 'empty') {
+                            setDatasetState('populated');
+                          }
                           setLogSearch(inspectedEndpoint.route);
+                          setLogStatusFilter('all');
+                          setLogServiceFilter('all');
                           setLogPage(1);
                           setActiveSection('request-logs');
                         }}
@@ -1839,7 +1964,7 @@ function DeveloperConsoleInner({
 
             {lastIssuedKey && (
               <Alert
-                id={`${idPrefix}-issued-key-banner`}
+                id={`${resolvedIdPrefix}-issued-key-banner`}
                 status="success"
                 live="polite"
                 title={`Simulated key issued: ${lastIssuedKey.label}`}
@@ -1847,7 +1972,7 @@ function DeveloperConsoleInner({
                 onDismiss={() => setLastIssuedKey(null)}
                 actions={
                   <Button
-                    id={`${idPrefix}-copy-issued-key`}
+                    id={`${resolvedIdPrefix}-copy-issued-key`}
                     variant="secondary"
                     size="sm"
                     onClick={() => {
@@ -1886,7 +2011,7 @@ function DeveloperConsoleInner({
                   >
                     <Input
                       ref={keyInputRef}
-                      id={`${idPrefix}-key-label-input`}
+                      id={`${resolvedIdPrefix}-key-label-input`}
                       density="compact"
                       placeholder="e.g. Tokyo Fulfillment Worker"
                       value={newKeyLabel}
@@ -1898,7 +2023,7 @@ function DeveloperConsoleInner({
                   </Field>
 
                   <RadioGroup
-                    name={`${idPrefix}-key-scope`}
+                    name={`${resolvedIdPrefix}-key-scope`}
                     label="Permission scope"
                     value={newKeyScope}
                     onValueChange={(v) => setNewKeyScope(v as ApiKeyScope)}
@@ -1918,7 +2043,7 @@ function DeveloperConsoleInner({
                   </RadioGroup>
 
                   <Select
-                    id={`${idPrefix}-key-tier`}
+                    id={`${resolvedIdPrefix}-key-tier`}
                     label="Rate-limit tier"
                     density="compact"
                     value={newKeyTier}
@@ -1935,7 +2060,7 @@ function DeveloperConsoleInner({
                   </Select>
 
                   <Checkbox
-                    id={`${idPrefix}-key-hmac`}
+                    id={`${resolvedIdPrefix}-key-hmac`}
                     checked={newKeyHmac}
                     onCheckedChange={setNewKeyHmac}
                     label="Enforce HMAC-SHA256 timestamp signature on webhook payloads"
@@ -1943,14 +2068,14 @@ function DeveloperConsoleInner({
 
                   <div className="f12-row-pair">
                     <Button
-                      id={`${idPrefix}-issue-key-submit`}
+                      id={`${resolvedIdPrefix}-issue-key-submit`}
                       type="submit"
                       variant="primary"
                     >
                       Issue simulated key
                     </Button>
                     <Button
-                      id={`${idPrefix}-issue-key-clear`}
+                      id={`${resolvedIdPrefix}-issue-key-clear`}
                       type="button"
                       variant="secondary"
                       onClick={() => {
@@ -2032,7 +2157,7 @@ function DeveloperConsoleInner({
                       <TableCell>
                         <div className="f12-row-pair">
                           <Button
-                            id={`${idPrefix}-copy-key-${keyItem.id}`}
+                            id={`${resolvedIdPrefix}-copy-key-${keyItem.id}`}
                             variant="secondary"
                             size="sm"
                             onClick={() => {
@@ -2047,7 +2172,7 @@ function DeveloperConsoleInner({
                           </Button>
                           {keyItem.status === 'active' && (
                             <Button
-                              id={`${idPrefix}-revoke-key-${keyItem.id}`}
+                              id={`${resolvedIdPrefix}-revoke-key-${keyItem.id}`}
                               variant="secondary"
                               size="sm"
                               onClick={(e) => {
@@ -2079,7 +2204,7 @@ function DeveloperConsoleInner({
                   aria-label="Filter request logs"
                 >
                   <Input
-                    id={`${idPrefix}-log-search`}
+                    id={`${resolvedIdPrefix}-log-search`}
                     label="Search request logs"
                     density="compact"
                     type="search"
@@ -2092,7 +2217,7 @@ function DeveloperConsoleInner({
                   />
 
                   <Select
-                    id={`${idPrefix}-log-service`}
+                    id={`${resolvedIdPrefix}-log-service`}
                     label="Service filter"
                     density="compact"
                     value={logServiceFilter}
@@ -2117,7 +2242,7 @@ function DeveloperConsoleInner({
                   <div className="f12-stack-pair">
                     <span className="f12-console-kv-label">HTTP status class</span>
                     <SegmentedControl
-                      idPrefix={`${idPrefix}-log-status`}
+                      idPrefix={`${resolvedIdPrefix}-log-status`}
                       ariaLabel="HTTP status class filter"
                       value={logStatusFilter}
                       onChange={(next) => {
@@ -2136,25 +2261,46 @@ function DeveloperConsoleInner({
 
                 {filteredLogs.length === 0 ? (
                   <EmptyState
-                    id={`${idPrefix}-logs-empty`}
+                    id={`${resolvedIdPrefix}-logs-empty`}
                     density="compact"
-                    code="0 MATCHING LOGS"
-                    title="No request logs match the active filters"
-                    description={`No recorded requests matched "${logSearch || '—'}" with status filter ${logStatusFilter.toUpperCase()}.`}
+                    code={isEmptyDataset ? '0 RECORDED LOGS' : '0 MATCHING LOGS'}
+                    title={
+                      isEmptyDataset
+                        ? 'No request logs recorded in this empty workspace'
+                        : 'No request logs match the active filters'
+                    }
+                    description={
+                      isEmptyDataset
+                        ? 'This workspace has zero recorded request traces in the empty dataset state. Load sample telemetry to inspect and replay simulated requests.'
+                        : `No recorded requests matched "${logSearch || '—'}" with status filter ${logStatusFilter.toUpperCase()}.`
+                    }
                     action={
-                      <Button
-                        id={`${idPrefix}-clear-log-filters`}
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          setLogSearch('');
-                          setLogStatusFilter('all');
-                          setLogServiceFilter('all');
-                          setLogPage(1);
-                        }}
-                      >
-                        Clear log filters
-                      </Button>
+                      isEmptyDataset ? (
+                        <Button
+                          id={`${resolvedIdPrefix}-logs-load-sample`}
+                          variant="primary"
+                          size="sm"
+                          onClick={() => {
+                            setDatasetState('populated');
+                          }}
+                        >
+                          Load sample telemetry
+                        </Button>
+                      ) : (
+                        <Button
+                          id={`${resolvedIdPrefix}-clear-log-filters`}
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setLogSearch('');
+                            setLogStatusFilter('all');
+                            setLogServiceFilter('all');
+                            setLogPage(1);
+                          }}
+                        >
+                          Clear log filters
+                        </Button>
+                      )
                     }
                   />
                 ) : (
@@ -2206,7 +2352,7 @@ function DeveloperConsoleInner({
                             </TableCell>
                             <TableCell>
                               <Button
-                                id={`${idPrefix}-inspect-log-${logItem.id}`}
+                                id={`${resolvedIdPrefix}-inspect-log-${logItem.id}`}
                                 variant="secondary"
                                 size="sm"
                                 onClick={(e) => {
@@ -2287,11 +2433,11 @@ function DeveloperConsoleInner({
             </div>
           )}
           <DialogFooter>
-            <DialogClose id={`${idPrefix}-cancel-revoke`} variant="secondary">
+            <DialogClose id={`${resolvedIdPrefix}-cancel-revoke`} variant="secondary">
               Cancel
             </DialogClose>
             <Button
-              id={`${idPrefix}-confirm-revoke`}
+              id={`${resolvedIdPrefix}-confirm-revoke`}
               variant="primary"
               onClick={handleConfirmRevokeKey}
             >
@@ -2354,12 +2500,12 @@ function DeveloperConsoleInner({
             </div>
           )}
           <DialogFooter>
-            <DialogClose id={`${idPrefix}-close-log-dialog`} variant="secondary">
+            <DialogClose id={`${resolvedIdPrefix}-close-log-dialog`} variant="secondary">
               Close
             </DialogClose>
             {inspectedLog && (
               <Button
-                id={`${idPrefix}-replay-log-btn`}
+                id={`${resolvedIdPrefix}-replay-log-btn`}
                 variant="primary"
                 onClick={() => handleReplayRequest(inspectedLog)}
               >
@@ -2374,6 +2520,10 @@ function DeveloperConsoleInner({
 }
 
 export function DeveloperConsole(props: DeveloperConsoleProps) {
+  const existingToast = useOptionalToast();
+  if (existingToast) {
+    return <DeveloperConsoleInner {...props} />;
+  }
   return (
     <ToastProvider maxVisible={3}>
       <DeveloperConsoleInner {...props} />

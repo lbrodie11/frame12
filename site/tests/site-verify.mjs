@@ -662,9 +662,29 @@ try {
       () => document.querySelectorAll('.f12-skeleton').length >= 6,
     );
     await page.click('#dev-console-dataset-state-empty');
-    const hasEmptyWorkspace = await page.evaluate(() =>
-      Boolean(document.getElementById('dev-console-empty-workspace')),
+    const emptyOverviewTelemetry = await page.evaluate(() => {
+      const hasEmptyBanner = Boolean(document.getElementById('dev-console-empty-workspace'));
+      const hasEmptyChart = Boolean(document.getElementById('dev-console-chart-empty'));
+      const noChartSvg = !document.querySelector('#dev-console-sheet .f12-chart');
+      const text = document.getElementById('dev-console-sheet')?.textContent || '';
+      const hasZeroServiceTotal = text.includes('Total 0 requests');
+      const hasZeroLogsTab = text.includes('04 · Request Logs (0)');
+      return (
+        hasEmptyBanner &&
+        hasEmptyChart &&
+        noChartSvg &&
+        hasZeroServiceTotal &&
+        hasZeroLogsTab
+      );
+    });
+    await page.click('#dev-console-tab-request-logs');
+    const emptyLogsTabOk = await page.evaluate(
+      () =>
+        Boolean(document.getElementById('dev-console-logs-empty')) &&
+        document.querySelectorAll('#dev-console-sheet tbody tr').length === 0,
     );
+    await page.click('#dev-console-tab-overview');
+    const hasEmptyWorkspace = emptyOverviewTelemetry && emptyLogsTabOk;
     await page.click('#dev-console-dataset-state-error');
     const hasErrorBanner = await page.evaluate(() =>
       Boolean(document.getElementById('dev-console-error-banner')),
@@ -677,25 +697,49 @@ try {
     );
     check(
       hasSkeletonInLoading && hasEmptyWorkspace && hasErrorBanner && recoveredFromError,
-      'site /blocks/developer-console dataset states: loading skeletons, empty state, 503 error banner, and retry recovery with toast',
+      'site /blocks/developer-console dataset states: loading skeletons, consistent empty state across Overview & Request Logs, 503 error banner, and retry recovery with toast',
       JSON.stringify({
         hasSkeletonInLoading,
-        hasEmptyWorkspace,
+        emptyOverviewTelemetry,
+        emptyLogsTabOk,
         hasErrorBanner,
         recoveredFromError,
       }),
     );
 
-    // Overview: time range switching & ranked service selection
+    // Overview: time range switching, SLO breach badge on 7d/30d vs 24h within budget, & ranked service selection
+    const slo24hOk = await page.evaluate(() => {
+      const tag = document.getElementById('dev-console-slo-status-tag');
+      return (
+        Boolean(tag?.textContent?.includes('SLO WITHIN BUDGET')) &&
+        Boolean(tag?.classList.contains('f12-status-success'))
+      );
+    });
     await page.click('#dev-console-range-7d');
     await page.click('#int-dev-console-svc-bar-svc-inventory-ledger');
     const overviewUpdated = await page.evaluate(() => {
       const text = document.body.textContent || '';
-      return text.includes('9,840,200') && text.includes('OVERLAY: SVC-03');
+      const tag = document.getElementById('dev-console-slo-status-tag');
+      return (
+        text.includes('9,840,200') &&
+        text.includes('OVERLAY: SVC-03') &&
+        Boolean(tag?.textContent?.includes('SLO BUDGET BREACHED')) &&
+        Boolean(tag?.classList.contains('f12-status-warning'))
+      );
     });
+    await page.click('#dev-console-range-30d');
+    const slo30dOk = await page.evaluate(() => {
+      const tag = document.getElementById('dev-console-slo-status-tag');
+      return (
+        Boolean(tag?.textContent?.includes('SLO BUDGET BREACHED')) &&
+        Boolean(tag?.classList.contains('f12-status-warning'))
+      );
+    });
+    await page.click('#dev-console-range-24h');
     check(
-      overviewUpdated,
-      'site /blocks/developer-console Overview: 7d time window and ranked service overlay selection reconcile KPIs & chart',
+      slo24hOk && overviewUpdated && slo30dOk,
+      'site /blocks/developer-console Overview: 24h/7d/30d SLO status badge accuracy and ranked service overlay selection reconcile KPIs & chart',
+      JSON.stringify({ slo24hOk, overviewUpdated, slo30dOk }),
     );
 
     // Services & Endpoints: circuit-breaker switch, search empty state, and filter reset
@@ -744,24 +788,79 @@ try {
       JSON.stringify({ hasValidationError, issuedBannerVisible, revokedApplied }),
     );
 
-    // Request Logs: status filter, pagination, detail trace Dialog, and simulated request replay
+    // Request Logs: revoked key replay rejection (401), active key replay (202), page-3 replay focus restoration, and route drilldown filter reset
     await page.click('#dev-console-tab-request-logs');
+    // 1) Replay log-1 whose key (key-prod-primary) was just revoked -> must return 401 (4XX)
+    await page.click('#dev-console-inspect-log-log-1');
+    await page.waitForSelector('dialog[open]', { timeout: 3000 });
+    await page.click('#dev-console-replay-log-btn');
+    const revokedReplay401 = await page.evaluate(() => {
+      const dlgText = document.querySelector('dialog[open]')?.textContent || '';
+      return dlgText.includes('401 (4XX)') && dlgText.includes('revoked_api_key');
+    });
+    await page.click('#dev-console-close-log-dialog');
+
+    // 2) Navigate to Page 3, inspect log-11 (active key-eu-staging), replay (switches to Page 1), and close dialog -> focus must land on the connected replayed row's Inspect button, not document.body
+    await page.click('.f12-pagination button:has-text("3")');
+    await page.click('#dev-console-inspect-log-log-11');
+    await page.waitForSelector('dialog[open]', { timeout: 3000 });
+    await page.click('#dev-console-replay-log-btn');
+    await page.click('#dev-console-close-log-dialog');
+    await page.waitForTimeout(50);
+    const focusAfterPage3Replay = await page.evaluate(() => {
+      const active = document.activeElement;
+      return {
+        id: active?.id || '',
+        tag: active?.tagName || '',
+        connected: Boolean(active?.isConnected && active !== document.body),
+      };
+    });
+
+    // 3) Status filter 5XX + route drilldown from Services & Endpoints must clear stale 5XX filter so GET /v2/sessions/:id logs are visible
     await page.click('#dev-console-log-status-5xx');
     const fiveXxRows = await page.evaluate(
       () => document.querySelectorAll('#dev-console-sheet tbody tr').length,
     );
-    await page.click('#dev-console-inspect-log-log-2');
-    await page.waitForSelector('dialog[open]', { timeout: 3000 });
-    await page.click('#dev-console-replay-log-btn');
-    await page.click('#dev-console-close-log-dialog');
-    await page.click('#dev-console-log-status-all');
-    const hasReplayedBadge = await page.evaluate(() =>
-      (document.body.textContent || '').includes('req_01J9Z9RPL'),
-    );
+    await page.click('#dev-console-tab-services');
+    await page.click('#dev-console-inspect-ep-ep-session-get');
+    await page.click('#dev-console-ep-filter-logs');
+    const drilldownClearedStaleFilter = await page.evaluate(() => {
+      const rows = document.querySelectorAll('#dev-console-sheet tbody tr').length;
+      const statusAllPressed =
+        document
+          .getElementById('dev-console-log-status-all')
+          ?.getAttribute('aria-pressed') === 'true';
+      return rows >= 1 && statusAllPressed && !document.getElementById('dev-console-logs-empty');
+    });
+
+    // 4) Reset sandbox restores form defaults and initial logs
+    await page.click('#dev-console-tab-api-keys');
+    await page.click('#dev-console-key-hmac');
+    await page.click('#dev-console-reset-sandbox');
+    const sandboxResetComplete = await page.evaluate(() => {
+      const hmacEl = document.getElementById('dev-console-key-hmac');
+      const hmacChecked = Boolean(hmacEl && 'checked' in hmacEl && hmacEl.checked);
+      const revokeBtnRestored = Boolean(
+        document.getElementById('dev-console-revoke-key-key-prod-primary'),
+      );
+      return hmacChecked && revokeBtnRestored;
+    });
+
     check(
-      fiveXxRows === 2 && hasReplayedBadge,
-      'site /blocks/developer-console Request Logs: 5xx filtering, trace inspection Dialog, and simulated request replay',
-      JSON.stringify({ fiveXxRows, hasReplayedBadge }),
+      revokedReplay401 &&
+        focusAfterPage3Replay.connected &&
+        focusAfterPage3Replay.id.startsWith('dev-console-inspect-log-log-replay-') &&
+        fiveXxRows === 2 &&
+        drilldownClearedStaleFilter &&
+        sandboxResetComplete,
+      'site /blocks/developer-console Request Logs & Sandbox Reset: revoked-key 401 replay, page-3 replay focus restoration, route drilldown filter reset, and full sandbox reset',
+      JSON.stringify({
+        revokedReplay401,
+        focusAfterPage3Replay,
+        fiveXxRows,
+        drilldownClearedStaleFilter,
+        sandboxResetComplete,
+      }),
     );
 
     // Verify 320px narrow mobile containment across all 4 console tabs + forced-colors: active

@@ -825,7 +825,7 @@
       "type": "registry:block",
       "title": "Developer Console Flagship Block",
       "description": "Complete FRAME/12 API & webhook control-plane Developer Console combining Expressive hero telemetry and charts with Quiet operational views for services, masked fictional API keys, and searchable/paginated request logs.",
-      "dependencies": ["@radix-ui/react-select", "@radix-ui/react-dropdown-menu"],
+      "dependencies": ["@radix-ui/react-select"],
       "registryDependencies": [
         "https://frame12.dev/r/frame12-styles.json",
         "https://frame12.dev/r/frame12.json"

@@ -1803,6 +1803,18 @@ await page.waitForSelector('#unit-test-fixtures');
           timeout: 2000,
         });
 
+        // Same-ID toast update resets full lifetime (updating #t-timed at ~130ms of 220ms must keep it alive past 250ms total)
+        await page.click('#wp5-toast-push-timed');
+        await page.waitForTimeout(130);
+        await page.click('#wp5-toast-push-timed');
+        await page.waitForTimeout(130);
+        const sameIdResetStillAlive = await page.evaluate(() =>
+          Boolean(document.getElementById('t-timed')),
+        );
+        await page.waitForFunction(() => !document.getElementById('t-timed'), null, {
+          timeout: 2000,
+        });
+
         // React.startTransition + synchronous flushSync parent render preserves both transition and urgent notifications
         await page.click('#wp5-toast-push-transition');
         const transitionIds = await page.evaluate(() =>
@@ -1923,6 +1935,7 @@ await page.waitForSelector('#unit-test-fixtures');
             toastAfterClear.dismissedList === 't-2,t-1,t-3,t-4' &&
             vpPausedAfterKeyDismiss === 'false' &&
             timedStillPresentWhileHovered &&
+            sameIdResetStillAlive &&
             transitionIds === 't-transition,t-urgent' &&
             nestedToastState.outerRendered &&
             nestedToastState.innerRendered &&
