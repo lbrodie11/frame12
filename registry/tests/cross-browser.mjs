@@ -105,7 +105,8 @@ for (const browserName of BROWSER_NAMES) {
 
       // Automatic cut numbering (<Sheet autoCut>): in Chromium read CDP layout snapshot; in Firefox & WebKit verify panel count, visible auto-cut badges, and reading order
       const panelOrder = await page.evaluate(() => {
-        const panels = [...document.querySelectorAll('#gallery-sheet .f12-panel')];
+        const panels = [...document.querySelectorAll('#gallery-sheet .f12-panel:not(.f12-panel-quiet)')];
+        const quietPanels = [...document.querySelectorAll('#gallery-sheet .f12-panel.f12-panel-quiet')];
         const cutEls = [...document.querySelectorAll('#gallery-sheet .f12-panel > .f12-cut')].filter(
           (e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0,
         );
@@ -129,6 +130,7 @@ for (const browserName of BROWSER_NAMES) {
         ).top;
         return {
           panelCount: panels.length,
+          quietPanelCount: quietPanels.length,
           visibleCutCount: cutEls.length,
           readingOrder,
           compVisibleCount: compVisibleCuts.length,
@@ -141,13 +143,14 @@ for (const browserName of BROWSER_NAMES) {
           : null;
       check(
         panelOrder.panelCount === 7 &&
+          panelOrder.quietPanelCount === 1 &&
           panelOrder.visibleCutCount === 7 &&
           panelOrder.readingOrder &&
           panelOrder.compVisibleCount === 7 &&
           panelOrder.slantTopPx === '8px' &&
           (browserName !== 'chromium' ||
             chromiumCuts.join(',') === 'C-01,C-02,C-03,C-04,C-05,C-06,C-07'),
-        `[${browserName} 1280px] <Sheet autoCut> panel count (7), reading order, slant-top position (8px), and skipped hidden/cut={false} panels`,
+        `[${browserName} 1280px] <Sheet autoCut> panel count (7 expressive + 1 unnumbered quiet), reading order, slant-top position (8px), and skipped hidden/cut={false}/quiet panels`,
         JSON.stringify({ ...panelOrder, chromiumCuts }),
       );
 
@@ -618,23 +621,46 @@ for (const browserName of BROWSER_NAMES) {
         forcedColors: 'active',
       });
 
+      await page.evaluate(() => window.__mountUnitFixtures && window.__mountUnitFixtures());
+      await page.waitForSelector('#unit-test-fixtures', { timeout: 5000 });
       const fcState = await page.evaluate(() => {
         const matchesFC = window.matchMedia('(forced-colors: active)').matches;
         const tag = document.querySelector('.f12-tag');
         const rngInd = document.querySelector('.f12-rng-ind');
+        const hatchFill = document.querySelector('.f12-int-fill-hatch');
+        const denseFill = document.querySelector('.f12-int-fill-dense');
+        const warnTag = document.querySelector('#fixture-tag-warning');
+        const dangerTag = document.querySelector('#fixture-tag-danger');
         const tagBorder = getComputedStyle(tag).borderTopWidth;
+        const warnBorderStyle = warnTag ? getComputedStyle(warnTag).borderTopStyle : '';
+        const dangerBorderStyle = dangerTag ? getComputedStyle(dangerTag).borderTopStyle : '';
         const rngMixBlend = getComputedStyle(rngInd).mixBlendMode;
         const rngBorder = getComputedStyle(rngInd).borderTopWidth;
-        return { matchesFC, tagBorder, rngMixBlend, rngBorder };
+        const hatchBgImg = hatchFill ? getComputedStyle(hatchFill).backgroundImage : '';
+        const denseBgImg = denseFill ? getComputedStyle(denseFill).backgroundImage : '';
+        return {
+          matchesFC,
+          tagBorder,
+          warnBorderStyle,
+          dangerBorderStyle,
+          rngMixBlend,
+          rngBorder,
+          hatchBgImg,
+          denseBgImg,
+        };
       });
 
       check(
         fcState.matchesFC &&
           fcState.tagBorder === '1px' &&
+          fcState.warnBorderStyle === 'dashed' &&
+          fcState.dangerBorderStyle === 'double' &&
           fcState.rngMixBlend === 'normal' &&
           fcState.rngBorder === '2px' &&
+          fcState.hatchBgImg === 'none' &&
+          fcState.denseBgImg === 'none' &&
           errors.length === 0,
-        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, disables mix-blend-mode, and has zero errors`,
+        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, preserves distinct status border styles (dashed/double), clears hatch/dense bar gradients, disables mix-blend-mode, and has zero errors`,
         errors.length ? errors.join('; ') : JSON.stringify(fcState),
       );
 

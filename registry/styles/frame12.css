@@ -87,7 +87,9 @@
 .f12-menu,
 .f12-table-wrap,
 .f12-balloon,
-.f12-balloon-standalone {
+.f12-balloon-standalone,
+.f12-tag,
+.f12-badge {
   box-sizing: border-box;
 }
 
@@ -118,6 +120,8 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 :where(.f12-frame button, .f12-sheet button, .f12-dialog button, button[class*="f12-"]) {
@@ -329,10 +333,34 @@
 .f12-panel.f12-slant-top > .f12-cut {
   top: 8px;
 }
+.f12-panel.f12-panel-quiet {
+  background: var(--f-panel);
+  border: 1px solid var(--f-rule);
+}
+.f12-panel.f12-panel-quiet:not(.f12-rect) {
+  background: none;
+  border: 0;
+}
+.f12-panel.f12-panel-quiet > .f12-panel-frame > polygon {
+  stroke-width: 1;
+}
+.f12-panel.f12-panel-quiet > .f12-panel-body {
+  padding: 16px 18px;
+}
+.f12-panel.f12-panel-quiet.f12-slant-bottom > .f12-panel-body {
+  padding-bottom: 32px;
+}
+.f12-panel.f12-panel-quiet.f12-slant-top > .f12-panel-body {
+  padding-top: 32px;
+}
 
 /* ===================================================================== Tag & Badge */
 .f12-tag {
+  position: relative;
   display: inline-block;
+  vertical-align: middle;
+  max-width: 100%;
+  overflow-wrap: break-word;
   font-family: var(--font-f-mono);
   font-size: 11px;
   color: var(--f-marker-ink);
@@ -344,9 +372,10 @@
 
 .f12-badge {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 100%;
+  overflow-wrap: break-word;
   font-family: var(--font-f-mono);
   font-size: 10px;
   font-weight: 700;
@@ -360,6 +389,61 @@
 .f12-badge-t {
   position: relative;
   z-index: 1;
+}
+.f12-tag svg,
+.f12-badge-t svg {
+  display: inline-block;
+  vertical-align: middle;
+  margin-inline-end: 4px;
+}
+.f12-status-glyph {
+  margin-inline-end: 4px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.f12-status-neutral {
+  background: var(--f-panel);
+  color: var(--f-ink);
+  border: 1px solid var(--f-rule);
+}
+.f12-status-info {
+  background: var(--f-panel);
+  color: var(--f-ink);
+  border: 1.5px solid var(--f-rule);
+}
+.f12-status-success {
+  background: var(--f-panel);
+  color: var(--f-ink);
+  border: 2px solid var(--f-rule);
+  border-inline-start: 5px solid var(--f-rule);
+  font-weight: 700;
+}
+.f12-status-warning {
+  background-color: var(--f-panel);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0 5px,
+    var(--f-grid) 5px 6.5px
+  );
+  color: var(--f-ink);
+  border: 2px dashed var(--f-rule);
+  font-weight: 700;
+}
+.f12-status-warning .f12-status-glyph {
+  color: var(--f-ink);
+}
+.f12-status-danger {
+  background: var(--f-ink);
+  color: var(--f-panel);
+  border: 2px solid var(--f-rule);
+  box-shadow: inset 0 0 0 1.5px var(--f-panel);
+  font-weight: 700;
+}
+.f12-status-danger .f12-status-glyph {
+  color: var(--f-panel);
 }
 .f12-burst {
   position: absolute;
@@ -524,6 +608,14 @@
   outline: 3px solid var(--f-ink);
   outline-offset: 2px;
 }
+.f12-field.f12-field-compact {
+  gap: 4px;
+}
+.f12-input.f12-input-compact {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-width: 1.5px;
+}
 .f12-hint {
   font-family: var(--font-f-mono);
   font-size: 11px;
@@ -576,6 +668,23 @@
   font-size: clamp(36px, 6cqi, 56px);
   line-height: 1.1;
   font-variant-numeric: proportional-nums;
+}
+.f12-metric.f12-metric-quiet .f12-m-value {
+  font-family: var(--font-f-mono);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.2;
+  margin-top: 6px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.f12-metric.f12-metric-quiet .f12-delta {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.f12-metric.f12-metric-quiet .f12-m-note {
+  font-size: 12px;
+  margin-top: 4px;
 }
 .f12-delta {
   display: flex;
@@ -797,6 +906,7 @@
   stroke: var(--f-rule);
   stroke-width: 2;
 }
+.f12-compare-pt,
 .f12-cross-dot2 {
   fill: var(--f-panel);
   stroke: var(--f-rule);
@@ -929,6 +1039,31 @@
   background-size: 5px 5px;
   border-right: 2px solid var(--f-rule);
 }
+.f12-int-fill-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--f-tone) 0,
+    var(--f-tone) 1.25px,
+    transparent 1.25px,
+    transparent 5px
+  );
+  background-size: auto;
+}
+.f12-int-fill-dense {
+  background-image: radial-gradient(circle, var(--f-tone) 1.55px, transparent 1.85px);
+  background-size: 4px 4px;
+}
+.f12-ints.f12-ints-compact .f12-int-row {
+  padding: 7px 6px;
+  gap: 12px;
+}
+.f12-ints.f12-ints-compact .f12-int-name {
+  font-size: 13px;
+}
+.f12-ints.f12-ints-compact .f12-int-bar {
+  height: 12px;
+  border-width: 1.5px;
+}
 .f12-int-row[aria-pressed="true"] {
   background: var(--f-ink);
   color: var(--f-panel);
@@ -1042,6 +1177,15 @@ dialog.f12-dialog::backdrop {
 .f12-select-trigger:focus-visible {
   outline: 3px solid var(--f-ink);
   outline-offset: 2px;
+}
+.f12-select.f12-select-compact {
+  gap: 4px;
+}
+.f12-select.f12-select-compact .f12-select-trigger {
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  border-width: 1.5px;
 }
 .f12-select-caret {
   display: inline-block;
@@ -1256,6 +1400,16 @@ dialog.f12-dialog::backdrop {
   border-top: 2px solid var(--f-rule);
   border-bottom: 0;
 }
+.f12-table.f12-table-compact {
+  font-size: 13px;
+}
+.f12-table.f12-table-compact th,
+.f12-table.f12-table-compact td {
+  padding: 5px 10px 5px 0;
+}
+.f12-table.f12-table-compact thead th {
+  border-bottom-width: 1.5px;
+}
 
 /* ===================================================================== Responsive Container Rules */
 @media (max-width: 760px) {
@@ -1285,6 +1439,15 @@ dialog.f12-dialog::backdrop {
   .f12-panel-body {
     padding: 22px 14px 18px;
   }
+  .f12-panel.f12-panel-quiet > .f12-panel-body {
+    padding: 14px 12px;
+  }
+  .f12-panel.f12-panel-quiet.f12-slant-bottom > .f12-panel-body {
+    padding-bottom: 32px;
+  }
+  .f12-panel.f12-panel-quiet.f12-slant-top > .f12-panel-body {
+    padding-top: 32px;
+  }
   .f12-int-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "name val" "bar bar";
@@ -1301,6 +1464,16 @@ dialog.f12-dialog::backdrop {
   }
   .f12-m-value {
     font-size: 30px;
+  }
+}
+
+@container (max-width: 360px) {
+  .f12-rng-btn {
+    padding: 5px 6px 4px;
+    min-width: 44px;
+  }
+  .f12-rng-n {
+    font-size: 15px;
   }
 }
 
@@ -1435,9 +1608,29 @@ dialog.f12-dialog::backdrop {
     fill: Canvas;
     stroke: CanvasText;
   }
+  .f12-panel.f12-panel-quiet {
+    border-color: CanvasText;
+  }
   .f12-tag,
   .f12-badge {
     border: 1px solid CanvasText;
+    background-image: none;
+  }
+  .f12-status-neutral {
+    border: 1px solid CanvasText;
+  }
+  .f12-status-info {
+    border: 1.5px solid CanvasText;
+  }
+  .f12-status-success {
+    border: 2px solid CanvasText;
+    border-inline-start-width: 5px;
+  }
+  .f12-status-warning {
+    border: 2px dashed CanvasText;
+  }
+  .f12-status-danger {
+    border: 3px double CanvasText;
   }
   .f12-l-total,
   .f12-l-focus,
@@ -1454,6 +1647,11 @@ dialog.f12-dialog::backdrop {
   .f12-peak-dot,
   .f12-cross-dot {
     fill: CanvasText;
+    stroke: CanvasText;
+  }
+  .f12-compare-pt,
+  .f12-cross-dot2 {
+    fill: Canvas;
     stroke: CanvasText;
   }
   .f12-int-fill {
@@ -1476,5 +1674,19 @@ dialog.f12-dialog::backdrop {
   .f12-dialog :focus-visible,
   [class*="f12-"]:focus-visible {
     outline: 3px solid Highlight;
+  }
+}
+
+/* ===================================================================== Print */
+@media print {
+  .f12-tag,
+  .f12-badge,
+  .f12-status-warning,
+  .f12-status-danger {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .f12-status-danger {
+    border: 3px double var(--f-rule);
   }
 }

@@ -112,7 +112,7 @@ srv.listen(0, '127.0.0.1', async () => {
     const appDir = path.join(tmp, 'app');
     await runCmd('npx', ['--yes', 'shadcn@latest', 'init', '-d', '--yes'], appDir);
 
-    // 1. Install sheet.json and panel.json individually (resolving frame12-styles + use-on-twos via registryDependencies)
+    // 1. Install sheet.json, panel.json, and badge.json individually (resolving frame12-styles, use-on-twos, and tag.json via registryDependencies)
     await runCmd(
       'npx',
       [
@@ -121,6 +121,7 @@ srv.listen(0, '127.0.0.1', async () => {
         'add',
         `http://127.0.0.1:${port}/r/sheet.json`,
         `http://127.0.0.1:${port}/r/panel.json`,
+        `http://127.0.0.1:${port}/r/badge.json`,
         '--yes',
         '--overwrite',
       ],
@@ -130,6 +131,8 @@ srv.listen(0, '127.0.0.1', async () => {
     for (const expectedRel of [
       'src/components/frame12/sheet.tsx',
       'src/components/frame12/panel.tsx',
+      'src/components/frame12/badge.tsx',
+      'src/components/frame12/tag.tsx',
       'src/hooks/use-on-twos.ts',
       'src/styles/frame12.css',
     ]) {
@@ -142,11 +145,21 @@ srv.listen(0, '127.0.0.1', async () => {
       'import "@/styles/frame12.css";',
       'import { Sheet } from "@/components/frame12/sheet";',
       'import { Panel } from "@/components/frame12/panel";',
+      'import { Badge } from "@/components/frame12/badge";',
+      'import { Tag } from "@/components/frame12/tag";',
       '',
       'export default function Page() {',
       '  return (',
       '    <Sheet autoCut>',
-      '      <Panel label="First">One</Panel>',
+      '      <Panel label="First">',
+      '        One <Badge status="warning">Warn</Badge>',
+      '        <Tag id="tailwind-icon-tag">',
+      '          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">',
+      '            <rect width="10" height="10" />',
+      '          </svg>',
+      '          LIVE',
+      '        </Tag>',
+      '      </Panel>',
       '      <Panel label="Second">Two</Panel>',
       '    </Sheet>',
       '  );',
@@ -180,6 +193,19 @@ srv.listen(0, '127.0.0.1', async () => {
         const cuts = await getRenderedCuts(page);
         if (cuts.join(',') !== 'C-01,C-02') {
           throw new Error(`Expected C-01,C-02 in fresh app, got: ${cuts.join(',')}`);
+        }
+        const tagIconOk = await page.evaluate(() => {
+          const tag = document.querySelector('#tailwind-icon-tag');
+          const svg = document.querySelector('#tailwind-icon-tag svg');
+          return Boolean(
+            tag &&
+              svg &&
+              getComputedStyle(svg).display === 'inline-block' &&
+              tag.getBoundingClientRect().height <= 26,
+          );
+        });
+        if (!tagIconOk) {
+          throw new Error('Expected <Tag><svg/>LIVE</Tag> to stay inline on one line in Tailwind app');
         }
         console.log(
           'PASS  Fresh app individual sheet.json + panel.json <Sheet autoCut> rendered:',

@@ -495,13 +495,34 @@ export function GalleryApp() {
                 />
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
                 <Balloon tailOffset={-12}>Peak Oct 24 · $6,410</Balloon>
                 <Badge pop={changed} burst>
                   On twos · 12fps
                 </Badge>
                 <Tag>Marker accent</Tag>
+                <Tag status="info">Info</Tag>
+                <Tag status="success">Verified</Tag>
+                <Tag status="warning">Standby</Tag>
+                <Tag status="danger">Halted</Tag>
               </div>
+
+              <Panel
+                variant="quiet"
+                id="gallery-quiet-panel"
+                label="Exposure-sheet operational ledger"
+              >
+                <Metric
+                  variant="quiet"
+                  headingLevel="h3"
+                  label="Dispatch queue depth"
+                  value={14}
+                  format={(v) => `${v} jobs`}
+                  delta={-0.05}
+                  deltaKind="pct"
+                  comparisonLabel="vs 1h avg"
+                />
+              </Panel>
             </div>
           </Panel>
         </Scene>
@@ -838,8 +859,186 @@ function UnitTestFixtures() {
             <Panel id="fixture-autocut-false" cut={false} label="Unnumbered panel">
               Explicit cut false
             </Panel>
+            <Panel
+              id="fixture-autocut-quiet"
+              variant="quiet"
+              label="Quiet panel inside autoCut Sheet"
+            >
+              Subordinate exposure-sheet panel skipped by autoCut
+            </Panel>
             <Panel id="fixture-autocut-final" label="Final panel after skips">
               Continues numbering at C-07
+            </Panel>
+          </Scene>
+        </Sheet>
+
+        {/* 4. WP3 Expressive/Quiet, Semantic Status, Pattern & Density Fixtures */}
+        <Sheet autoCut pegs={false} id="fixture-wp3-grammar">
+          <Scene gutter="pair" layout="equal">
+            <Panel id="fixture-wp3-expressive" label="Expressive storyboard cut">
+              Expressive C-01
+            </Panel>
+            <PanelPair
+              id="fixture-wp3-quiet-pair"
+              variant="quiet"
+              top={{
+                label: 'Quiet Pair Top',
+                children: (
+                  <Metric
+                    variant="quiet"
+                    headingLevel="h3"
+                    label="Quiet Metric"
+                    value={420}
+                    format={(v) => `${v} req/s`}
+                  />
+                ),
+              }}
+              bottom={{
+                label: 'Quiet Pair Bottom',
+                children: (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                    <Tag id="fixture-tag-neutral" status="neutral">
+                      ORD-01
+                    </Tag>
+                    <Tag id="fixture-tag-info" status="info">
+                      ORD-02
+                    </Tag>
+                    <Tag id="fixture-tag-success" status="success">
+                      ORD-03
+                    </Tag>
+                    <Tag id="fixture-tag-warning" status="warning">
+                      ORD-04
+                    </Tag>
+                    <Tag id="fixture-tag-danger" status="danger">
+                      ORD-05
+                    </Tag>
+                    <Tag id="fixture-tag-no-glyph" status="info" glyph={false}>
+                      No Glyph
+                    </Tag>
+                    <Tag id="fixture-tag-custom-sr" status="warning" srLabel="警告">
+                      ディスク 91%
+                    </Tag>
+                    <Tag id="fixture-tag-no-sr" status="warning" srLabel={false}>
+                      No SR
+                    </Tag>
+                    <Tag id="fixture-tag-successor" status="success">
+                      Successor key rotated
+                    </Tag>
+                    <Tag id="fixture-tag-errored" status="danger">
+                      Errored
+                    </Tag>
+                    <Tag id="fixture-tag-hidden-prefix" status="danger">
+                      <span aria-hidden="true">Error</span> Offline
+                    </Tag>
+                    <Tag id="fixture-tag-dom-hidden-prefix" status="danger">
+                      <span hidden>Error</span> Offline
+                    </Tag>
+                    <style>{`svg { display: block; }`}</style>
+                    <Tag id="fixture-tag-icon">
+                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                        <rect width="10" height="10" />
+                      </svg>
+                      LIVE
+                    </Tag>
+                    <Badge id="fixture-badge-icon" burst={false}>
+                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                        <rect width="10" height="10" />
+                      </svg>
+                      LIVE
+                    </Badge>
+                    <Badge id="fixture-badge-neutral" status="neutral">
+                      ORD-01
+                    </Badge>
+                    <Badge id="fixture-badge-info" status="info">
+                      ORD-02
+                    </Badge>
+                    <Badge id="fixture-badge-status" status="success">
+                      ORD-03
+                    </Badge>
+                    <Badge id="fixture-badge-burst" status="warning" burst>
+                      ORD-04
+                    </Badge>
+                    <Badge id="fixture-badge-danger" status="danger">
+                      ORD-05
+                    </Badge>
+                  </div>
+                ),
+              }}
+            />
+          </Scene>
+          <Scene gutter="pair" layout="equal">
+            <Panel variant="quiet" id="fixture-wp3-compact-controls" label="Compact controls">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <Input
+                  id="fixture-input-compact"
+                  density="compact"
+                  label="Compact input"
+                  defaultValue="f12_live_key"
+                />
+                <Select id="fixture-select-compact" density="compact" label="Compact select" defaultValue="prod">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prod">Production</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Table id="fixture-table-compact" density="compact">
+                  <TableCaption>Compact ledger table</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Key</TableHead>
+                      <TableHead>State</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>k1</TableCell>
+                      <TableCell>
+                        <Tag id="fixture-table-tag" status="success">
+                          Recovered
+                        </Tag>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                <div style={{ width: '90px' }}>
+                  <Tag id="fixture-narrow-tag" status="warning">
+                    OVERFLOW_TOKEN_ALPHA_BETA_GAMMA_9921
+                  </Tag>
+                  <Badge id="fixture-narrow-badge" status="danger">
+                    PROCESSOR UNREACHABLE
+                  </Badge>
+                </div>
+                <Panel
+                  variant="expressive"
+                  cut={false}
+                  id="fixture-nested-expressive-in-quiet"
+                  label="Nested expressive panel inside quiet panel"
+                >
+                  Nested expressive frame keeps 2.5px stroke
+                </Panel>
+                <Panel
+                  variant="quiet"
+                  shape="slant-top"
+                  id="fixture-quiet-slant-top"
+                  label="Quiet slanted top panel"
+                >
+                  Quiet slant-top retains 32px clearance
+                </Panel>
+              </div>
+            </Panel>
+            <Panel variant="quiet" id="fixture-wp3-patterns" label="Pattern bar list">
+              <ToneBarList
+                idPrefix="wp3-pat"
+                density="compact"
+                title="Pattern differentiation"
+                items={[
+                  { id: 'dots', name: 'Halftone dots', value: 100, pattern: 'dots' },
+                  { id: 'hatch', name: 'Diagonal hatch', value: 80, pattern: 'hatch' },
+                  { id: 'dense', name: 'Dense halftone', value: 60, pattern: 'dense' },
+                ]}
+              />
             </Panel>
           </Scene>
         </Sheet>

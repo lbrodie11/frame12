@@ -1,8 +1,20 @@
 'use client';
 
 import * as React from 'react';
+import {
+  type SemanticStatus,
+  STATUS_GLYPHS,
+  STATUS_SR_LABELS,
+  extractTextContent,
+  startsWithStatusLabel,
+} from './tag';
+
+export type BadgeStatus = SemanticStatus;
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+  status?: BadgeStatus;
+  glyph?: string | false;
+  srLabel?: string | false;
   pop?: boolean;
   burst?: boolean;
   children?: React.ReactNode;
@@ -32,17 +44,49 @@ export function Burst() {
 }
 
 export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(function Badge(
-  { pop = false, burst = true, className = '', children, ...rest },
+  { status, glyph, srLabel, pop = false, burst, className = '', children, ...rest },
   ref,
 ) {
+  const showBurst = burst ?? status === undefined;
+  const statusClass = status ? ` f12-status-${status}` : '';
+  const resolvedGlyph =
+    glyph === false
+      ? undefined
+      : glyph !== undefined
+        ? glyph
+        : status
+          ? STATUS_GLYPHS[status]
+          : undefined;
+  const resolvedSrLabel =
+    srLabel === false
+      ? undefined
+      : srLabel !== undefined
+        ? srLabel
+        : status
+          ? STATUS_SR_LABELS[status]
+          : undefined;
+  const childText = extractTextContent(children).trim();
+  const showSrLabel =
+    Boolean(resolvedSrLabel) &&
+    !(childText && resolvedSrLabel && startsWithStatusLabel(childText, resolvedSrLabel));
+
   return (
     <span
       ref={ref}
-      className={`f12-badge${pop ? ' f12-pop pop' : ''}${className ? ` ${className}` : ''}`}
+      className={`f12-badge${statusClass}${pop ? ' f12-pop pop' : ''}${className ? ` ${className}` : ''}`}
+      data-status={status}
       {...rest}
     >
-      {burst && <Burst />}
-      <span className="f12-badge-t">{children}</span>
+      {showBurst && <Burst />}
+      <span className="f12-badge-t">
+        {resolvedGlyph && (
+          <span className="f12-status-glyph" aria-hidden="true">
+            {resolvedGlyph}
+          </span>
+        )}
+        {showSrLabel && <span className="f12-sr-only">{`${resolvedSrLabel}: `}</span>}
+        {children}
+      </span>
     </span>
   );
 });

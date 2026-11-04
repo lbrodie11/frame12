@@ -163,6 +163,13 @@ export function SplitScene() {
         description: 'Polygon geometry: rectangular or 16px diagonal slant along bottom/top edge.',
       },
       {
+        name: 'variant',
+        type: "'expressive' | 'quiet'",
+        defaultValue: "'expressive'",
+        description:
+          'Selects the 2.5px SVG polygon storyboard frame (expressive) or the 1px orthographic exposure-sheet ledger frame (quiet, which omits automatic cut numbers by default).',
+      },
+      {
         name: 'label',
         type: 'string',
         defaultValue: 'undefined',
@@ -196,6 +203,13 @@ export function RevenuePanel() {
     registryUrl: 'https://frame12.dev/r/panel-pair.json',
     sourceFile: 'registry/ui/panel-pair.tsx',
     props: [
+      {
+        name: 'variant',
+        type: "'expressive' | 'quiet'",
+        defaultValue: "'expressive'",
+        description:
+          'When set to quiet, renders rectangular 1px orthographic panels without diagonal slants or automatic cut badges.',
+      },
       {
         name: 'top',
         type: "Omit<PanelProps, 'shape'>",
@@ -369,6 +383,12 @@ export function ActionRow() {
         defaultValue: 'undefined',
         description: 'Validation error message rendered in a role="alert" live region with a marker flag.',
       },
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Reduces input padding and switches to a 1.5px rule for dense settings and filter bars.',
+      },
     ],
     a11yNotes: [
       'Automatically generates a stable ID via React.useId() when id is omitted.',
@@ -399,6 +419,26 @@ export function WebhookField() {
     registryUrl: 'https://frame12.dev/r/badge.json',
     sourceFile: 'registry/ui/badge.tsx',
     props: [
+      {
+        name: 'status',
+        type: "'neutral' | 'info' | 'success' | 'warning' | 'danger'",
+        defaultValue: 'undefined',
+        description:
+          'Non-color semantic status combining [i]/[+]/[!]/[×] glyph prefix, screen-reader status announcement, border weight/style, and fill inversion.',
+      },
+      {
+        name: 'glyph',
+        type: 'string | false',
+        defaultValue: 'undefined',
+        description: 'Overrides or suppresses (false) the automatic status glyph prefix.',
+      },
+      {
+        name: 'srLabel',
+        type: 'string | false',
+        defaultValue: 'undefined',
+        description:
+          'Overrides or suppresses (false) the screen-reader status announcement prefix (e.g., for localized labels).',
+      },
       {
         name: 'pop',
         type: 'boolean',
@@ -434,6 +474,26 @@ export function LeaderBadge() {
     registryUrl: 'https://frame12.dev/r/tag.json',
     sourceFile: 'registry/ui/tag.tsx',
     props: [
+      {
+        name: 'status',
+        type: "'neutral' | 'info' | 'success' | 'warning' | 'danger'",
+        defaultValue: 'undefined',
+        description:
+          'Non-color semantic status combining [i]/[+]/[!]/[×] glyph prefix, screen-reader status announcement, border weight/style, and fill inversion.',
+      },
+      {
+        name: 'glyph',
+        type: 'string | false',
+        defaultValue: 'undefined',
+        description: 'Overrides or suppresses (false) the automatic status glyph prefix.',
+      },
+      {
+        name: 'srLabel',
+        type: 'string | false',
+        defaultValue: 'undefined',
+        description:
+          'Overrides or suppresses (false) the screen-reader status announcement prefix (e.g., for localized labels).',
+      },
       {
         name: 'children',
         type: 'React.ReactNode',
@@ -497,6 +557,13 @@ export function EyebrowTag() {
         type: 'boolean',
         defaultValue: 'false',
         description: 'Uses fluid clamp(36px, 6cqi, 56px) display scale for establishing C-01 panels.',
+      },
+      {
+        name: 'variant',
+        type: "'expressive' | 'quiet'",
+        defaultValue: "'expressive'",
+        description:
+          'Selects display headline scale on twos (expressive) or 22px tabular monospace exposure-sheet scale with instant cut default (quiet).',
       },
       {
         name: 'spark',
@@ -621,6 +688,12 @@ export function RecoveryTrend({ data }: { data: Array<{ label: string; value: nu
         type: 'boolean',
         defaultValue: 'false',
         description: 'Triggers the 3-pose .f12-enter list cascade and leader badge pop.',
+      },
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Reduces row padding and bar height for high-density operational lists.',
       },
     ],
     a11yNotes: [
@@ -839,6 +912,12 @@ export function ConfirmModal() {
         defaultValue: 'undefined',
         description: 'Optional visible <label> automatically linked to the trigger button.',
       },
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Reduces trigger padding and border width for dense operational forms.',
+      },
     ],
     a11yNotes: [
       'Exposes aria-haspopup="listbox", aria-expanded, and role="listbox" with aria-selected on options.',
@@ -960,6 +1039,12 @@ export function RowActions() {
     registryUrl: 'https://frame12.dev/r/table.json',
     sourceFile: 'registry/ui/table.tsx',
     props: [
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Reduces cell padding and header rule weight for high-row-count operational ledgers.',
+      },
       {
         name: 'TableHead',
         type: 'React.ThHTMLAttributes<HTMLTableCellElement>',

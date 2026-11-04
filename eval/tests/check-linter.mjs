@@ -422,6 +422,345 @@ function check(ok, label, detail = '') {
     'linter [cut-order & explicit-cut-in-autocut]: resolves local prop object constants (PanelPair top={top}) at JSX use sites in DOM order',
     JSON.stringify(resLocalConst),
   );
+
+  const quietPanelsInNarrativeSheet = `
+    export const QuietAndNarrative = () => (
+      <Sheet>
+        <Panel cut="C-01" label="Hero">Hero</Panel>
+        <Panel variant="quiet" label="Subordinate filter ledger">Quiet subgroup</Panel>
+        <Panel cut="C-02" label="Secondary">Secondary</Panel>
+        <Panel variant="quiet" cut="C-03" label="Invalid numbered quiet panel">Bad</Panel>
+      </Sheet>
+    );
+  `;
+  const resQuiet = lintSource(
+    quietPanelsInNarrativeSheet,
+    'eval/screens/quiet-and-narrative.tsx',
+  );
+  check(
+    resQuiet.length === 1 &&
+      resQuiet[0].rule === 'cut-order' &&
+      resQuiet[0].message.includes('Quiet panels (<Panel variant="quiet">)') &&
+      resQuiet[0].snippet === 'cut="C-03"',
+    'linter [cut-order]: allows unnumbered <Panel variant="quiet"> subgroups between C-01 and C-02 and flags explicit cut on variant="quiet"',
+    JSON.stringify(resQuiet),
+  );
+
+  // 5b. Effective variant resolution across spreads, nested spreads, and PanelPair slot/child inheritance
+  const spreadOverriddenByJsxExpressive = lintSource(
+    `
+    export const SpreadToExpressive = () => (
+      <Sheet>
+        <Panel {...{ variant: 'quiet', cut: 'C-01' }} variant="expressive">A</Panel>
+        <Panel cut="C-02">B</Panel>
+      </Sheet>
+    );
+  `,
+    'eval/screens/spread-to-expressive.tsx',
+  );
+  const jsxExpressiveOverriddenBySpreadQuiet = lintSource(
+    `
+    export const ExpressiveToQuiet = () => (
+      <Sheet>
+        <Panel {...{ variant: 'expressive', cut: 'C-01' }} variant="quiet">A</Panel>
+      </Sheet>
+    );
+  `,
+    'eval/screens/expressive-to-quiet.tsx',
+  );
+  const nestedSpreadsPrecedence = lintSource(
+    `
+    const quietCut = { variant: 'quiet', cut: 'C-01' };
+    const expressiveOverride = { ...quietCut, variant: 'expressive' };
+    const quietOverride = { ...expressiveOverride, cut: 'C-02', variant: 'quiet' };
+    export const NestedSpreads = () => (
+      <Sheet>
+        <Panel {...expressiveOverride}>Valid C-01</Panel>
+        <Panel {...quietOverride}>Invalid quiet C-02</Panel>
+      </Sheet>
+    );
+  `,
+    'eval/screens/nested-spreads.tsx',
+  );
+  const panelPairSlotOverrides = lintSource(
+    `
+    export const PairSlots = () => (
+      <Sheet>
+        <PanelPair
+          variant="quiet"
+          top={{ ...{ variant: 'quiet', cut: 'C-01' }, variant: 'expressive' }}
+          bottom={{ cut: 'C-02' }}
+        />
+      </Sheet>
+    );
+  `,
+    'eval/screens/pair-slots.tsx',
+  );
+  const panelPairInheritedQuietChildren = lintSource(
+    `
+    export const PairChildren = () => (
+      <Sheet>
+        <PanelPair variant="quiet">
+          <Panel cut="C-01">Inherited quiet 1</Panel>
+          <Panel variant="expressive" cut="C-01">Explicit expressive override</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/pair-children.tsx',
+  );
+
+  check(
+    spreadOverriddenByJsxExpressive.length === 0 &&
+      jsxExpressiveOverriddenBySpreadQuiet.length === 1 &&
+      jsxExpressiveOverriddenBySpreadQuiet[0].rule === 'cut-order' &&
+      jsxExpressiveOverriddenBySpreadQuiet[0].message.includes('Quiet panels') &&
+      nestedSpreadsPrecedence.length === 1 &&
+      nestedSpreadsPrecedence[0].snippet === "cut: 'C-02'" &&
+      panelPairSlotOverrides.length === 1 &&
+      panelPairSlotOverrides[0].snippet === "cut: 'C-02'" &&
+      panelPairInheritedQuietChildren.length === 1 &&
+      panelPairInheritedQuietChildren[0].line === 5,
+    'linter [cut-order]: resolves effective variant in JSX/spread precedence order and propagates PanelPair variant to slots and direct Panel children',
+    JSON.stringify({
+      spreadOverriddenByJsxExpressive,
+      jsxExpressiveOverriddenBySpreadQuiet,
+      nestedSpreadsPrecedence,
+      panelPairSlotOverrides,
+      panelPairInheritedQuietChildren,
+    }),
+  );
+
+  // 5c. Non-Panel child slots, JSX fragments, slot-children traversal order, explicit undefined vs false, shorthand props, and local scalar constants
+  const nonPanelFirstSlotThenPanel = lintSource(
+    `
+    export const MixedPairSlots = () => (
+      <Sheet>
+        <PanelPair topCut="C-01" bottomCut="C-02">
+          <div>A</div>
+          <Panel>B</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/mixed-pair-slots.tsx',
+  );
+  const nonPanelFirstSlotThenExplicitPanel = lintSource(
+    `
+    export const MixedPairExplicit = () => (
+      <Sheet>
+        <PanelPair topCut="C-01">
+          <div>A</div>
+          <Panel cut="C-02">B</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/mixed-pair-explicit.tsx',
+  );
+  const nonPanelFirstSlotDuplicatePanel = lintSource(
+    `
+    export const MixedPairDuplicate = () => (
+      <Sheet>
+        <PanelPair topCut="C-01">
+          <div>A</div>
+          <Panel cut="C-01">B</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/mixed-pair-dup.tsx',
+  );
+  const fragmentInsideQuietPair = lintSource(
+    `
+    export const FragmentInQuietPair = () => (
+      <Sheet>
+        <PanelPair variant="quiet">
+          <>
+            <Panel cut="C-01">A</Panel>
+            <Panel cut="C-02">B</Panel>
+          </>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/fragment-in-quiet-pair.tsx',
+  );
+  const slotChildrenBeforeNextSlot = lintSource(
+    `
+    const topConst = { cut: 'C-01', children: <Panel cut="C-02">Nested in top</Panel> };
+    export const SlotOrder = () => (
+      <Sheet>
+        <PanelPair
+          top={topConst}
+          bottom={{ cut: 'C-03', children: <Panel cut="C-04">Nested in bottom</Panel> }}
+        />
+        <PanelPair topCut="C-05" bottomCut="C-07">
+          <div><Panel cut="C-06">Nested in child slot 0</Panel></div>
+          <div>Bottom slot</div>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/slot-order.tsx',
+  );
+  const explicitUndefinedVariantOverride = lintSource(
+    `
+    export const UndefinedVariantOverride = () => (
+      <Sheet>
+        <Panel {...{ variant: 'quiet', cut: 'C-01' }} variant={undefined}>A</Panel>
+        <Panel {...{ variant: 'quiet', cut: 'C-02' }} {...{ variant: undefined }}>B</Panel>
+      </Sheet>
+    );
+  `,
+    'eval/screens/undefined-variant-override.tsx',
+  );
+  const undefinedCutFallsBackToTopCut = lintSource(
+    `
+    export const UndefinedCutFallback = () => (
+      <Sheet>
+        <PanelPair variant="quiet" topCut="C-01" bottomCut="C-02">
+          <Panel cut={undefined}>Falls back to topCut C-01 on quiet slot</Panel>
+          <Panel cut={false}>Suppresses bottomCut C-02</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/undefined-cut-fallback.tsx',
+  );
+  const shorthandAndLocalScalar = lintSource(
+    `
+    const variant = 'quiet';
+    const cut = 'C-01';
+    const v = 'quiet';
+    export const ShorthandAndScalar = () => (
+      <Sheet>
+        <Panel {...{ variant, cut }}>Shorthand quiet C-01</Panel>
+        <Panel variant={v} cut="C-02">Scalar quiet C-02</Panel>
+      </Sheet>
+    );
+  `,
+    'eval/screens/shorthand-and-scalar.tsx',
+  );
+
+  check(
+    nonPanelFirstSlotThenPanel.length === 0 &&
+      nonPanelFirstSlotThenExplicitPanel.length === 0 &&
+      nonPanelFirstSlotDuplicatePanel.length === 1 &&
+      nonPanelFirstSlotDuplicatePanel[0].message.includes('Duplicate cut number "C-01"') &&
+      fragmentInsideQuietPair.length === 0 &&
+      slotChildrenBeforeNextSlot.length === 0 &&
+      explicitUndefinedVariantOverride.length === 0 &&
+      undefinedCutFallsBackToTopCut.length === 1 &&
+      undefinedCutFallsBackToTopCut[0].snippet === 'topCut="C-01"' &&
+      shorthandAndLocalScalar.length === 2 &&
+      shorthandAndLocalScalar.every((v) => v.message.includes('Quiet panels')),
+    'linter [cut-order]: handles non-Panel child slots, fragments, slot-children-before-next-slot order, explicit undefined vs false, shorthand props, and local scalar constants',
+    JSON.stringify({
+      nonPanelFirstSlotThenPanel,
+      nonPanelFirstSlotThenExplicitPanel,
+      nonPanelFirstSlotDuplicatePanel,
+      fragmentInsideQuietPair,
+      slotChildrenBeforeNextSlot,
+      explicitUndefinedVariantOverride,
+      undefinedCutFallsBackToTopCut,
+      shorthandAndLocalScalar,
+    }),
+  );
+
+  // 5d. Hoisted child references at render sites, empty-string cut, PanelPair dropped slots, conditional slot children, and local component aliases
+  const hoistedQuietChildInPanel = lintSource(
+    `
+    const inner = <Panel variant="quiet" cut="C-01" />;
+    export const HoistedQuiet = () => (
+      <Sheet>
+        <Panel children={inner} />
+      </Sheet>
+    );
+  `,
+    'eval/screens/hoisted-quiet-child.tsx',
+  );
+  const hoistedChildInAutoCutSheet = lintSource(
+    `
+    const bodyProp = <Panel cut="C-01" />;
+    const bodyJsx = <Panel cut="C-02" />;
+    export const HoistedAutoCut = () => (
+      <>
+        <Sheet autoCut children={bodyProp} />
+        <Sheet autoCut>{bodyJsx}</Sheet>
+      </>
+    );
+  `,
+    'eval/screens/hoisted-autocut-child.tsx',
+  );
+  const emptyCutAndDroppedPairSlots = lintSource(
+    `
+    export const EmptyAndDropped = () => (
+      <Sheet>
+        <Panel cut="">Empty string cut is suppressed</Panel>
+        <PanelPair top={{ cut: 'C-99' }} />
+        <PanelPair>
+          <Panel cut="C-01">First</Panel>
+          <Panel cut="C-02">Second</Panel>
+          <Panel cut="C-99">Third child dropped by PanelPair</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/empty-and-dropped.tsx',
+  );
+  const conditionalSlotInQuietPairAndAlias = lintSource(
+    `
+    const P2 = Panel;
+    export const CondAndAlias = ({ flag }: { flag: boolean }) => (
+      <Sheet>
+        <PanelPair variant="quiet">
+          {flag && <Panel cut="C-01">Inherited quiet via &&</Panel>}
+          <Panel>Second</Panel>
+        </PanelPair>
+        <P2 variant="quiet" cut="C-02">Aliased Panel quiet cut</P2>
+      </Sheet>
+    );
+  `,
+    'eval/screens/cond-and-alias.tsx',
+  );
+  const ternaryAndNullishInPairSlot = lintSource(
+    `
+    export const TernaryAndNullishPair = ({ flag, maybe }: { flag: boolean; maybe?: React.ReactNode }) => (
+      <Sheet>
+        <PanelPair topCut="C-01" bottomCut="C-02">
+          {flag ? <Panel>A</Panel> : <Panel>B</Panel>}
+          <Panel>C</Panel>
+        </PanelPair>
+        <PanelPair topCut="C-03" bottomCut="C-04">
+          {maybe ?? <Panel>D</Panel>}
+          <Panel>E</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/ternary-and-nullish-pair.tsx',
+  );
+
+  check(
+    hoistedQuietChildInPanel.length === 1 &&
+      hoistedQuietChildInPanel[0].rule === 'cut-order' &&
+      hoistedQuietChildInPanel[0].snippet === 'cut="C-01"' &&
+      hoistedChildInAutoCutSheet.length === 2 &&
+      hoistedChildInAutoCutSheet.every((v) => v.rule === 'explicit-cut-in-autocut') &&
+      emptyCutAndDroppedPairSlots.length === 0 &&
+      conditionalSlotInQuietPairAndAlias.length === 2 &&
+      conditionalSlotInQuietPairAndAlias.every((v) => v.message.includes('Quiet panels')) &&
+      ternaryAndNullishInPairSlot.length === 0,
+    'linter [cut-order & explicit-cut-in-autocut]: resolves hoisted child references at render sites, ignores cut="" and dropped PanelPair slots, and handles conditional/ternary/nullish pair slots and local Panel aliases',
+    JSON.stringify({
+      hoistedQuietChildInPanel,
+      hoistedChildInAutoCutSheet,
+      emptyCutAndDroppedPairSlots,
+      conditionalSlotInQuietPairAndAlias,
+      ternaryAndNullishInPairSlot,
+    }),
+  );
 }
 
 // 6. Rule 5: raw-shadcn-import

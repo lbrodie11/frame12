@@ -177,14 +177,18 @@ export function LandingScreen({ initialTheme }: { initialTheme?: 'light' | 'dark
 
   const barItems = React.useMemo(
     () =>
-      dataset.capabilities.map((c) => ({
-        id: c.id,
-        name: c.name,
-        value: c.value,
-        formattedValue: fmtMoney(c.value),
-        share: c.share,
-        badge: c.badge,
-      })),
+      dataset.capabilities.map((c, idx) => {
+        const tier = idx === 0 ? 'primary' : idx === 1 ? 'session' : 'scheduled';
+        return {
+          id: c.id,
+          name: `${c.name} (${tier})`,
+          value: c.value,
+          formattedValue: fmtMoney(c.value),
+          share: c.share,
+          badge: c.badge,
+          pattern: (idx === 0 ? 'dense' : idx === 1 ? 'hatch' : 'dots') as 'dense' | 'hatch' | 'dots',
+        };
+      }),
     [dataset],
   );
 
@@ -332,7 +336,7 @@ export function LandingScreen({ initialTheme }: { initialTheme?: 'light' | 'dark
           <Panel cut="C-04" label="Capability breakdown">
             <ToneBarList
               title="Recovery by capability"
-              subtitle={`Last ${windowDays} days · click a bar to overlay on C-01`}
+              subtitle={`Last ${windowDays} days · pattern encodes tier (dense: primary · hatch: session · dots: scheduled)`}
               items={barItems}
               selectedId={selectedCapId}
               onSelect={(id) => {

@@ -261,12 +261,34 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     ts.ScriptKind.TSX,
   );
 
+  const UNSET = Symbol('unset');
+  const deferredVarInitializers = new Set();
+  const visitedDeferredInitializers = new Set();
+  const activeInitializers = new Set();
+  let trackDeferredInitializers = false;
+
   function resolveLocalIdentifier(idNode, seenIds = new Set()) {
     const name = idNode.text;
+    if (name === 'undefined') return idNode;
     if (seenIds.has(name)) return null;
     seenIds.add(name);
 
     for (let cur = idNode.parent; cur; cur = cur.parent) {
+      if (
+        (ts.isFunctionDeclaration(cur) ||
+          ts.isFunctionExpression(cur) ||
+          ts.isArrowFunction(cur) ||
+          ts.isMethodDeclaration(cur)) &&
+        cur.parameters
+      ) {
+        for (const param of cur.parameters) {
+          if (ts.isIdentifier(param.name) && param.name.text === name) {
+            if (param.initializer) return param.initializer;
+            return null;
+          }
+        }
+      }
+
       const statements = ts.isSourceFile(cur)
         ? cur.statements
         : ts.isBlock(cur) || ts.isModuleBlock(cur)
@@ -278,8 +300,12 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
         if (!ts.isVariableStatement(stmt)) continue;
         for (const decl of stmt.declarationList.declarations) {
           if (ts.isIdentifier(decl.name) && decl.name.text === name && decl.initializer) {
+            if (trackDeferredInitializers) {
+              deferredVarInitializers.add(decl.initializer);
+            }
             if (ts.isIdentifier(decl.initializer)) {
-              return resolveLocalIdentifier(decl.initializer, seenIds);
+              if (decl.initializer.text === 'undefined') return decl.initializer;
+              return resolveLocalIdentifier(decl.initializer, seenIds) ?? decl.initializer;
             }
             return decl.initializer;
           }
@@ -291,7 +317,9 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
   function unwrapExpression(node) {
     let cur = node;
-    while (cur) {
+    const seen = new Set();
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
       if (ts.isJsxExpression(cur)) {
         cur = cur.expression;
       } else if (
@@ -303,12 +331,39 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       ) {
         cur = cur.expression;
       } else if (ts.isIdentifier(cur)) {
-        cur = resolveLocalIdentifier(cur);
+        if (cur.text === 'undefined') break;
+        const resolved = resolveLocalIdentifier(cur);
+        if (!resolved) break;
+        cur = resolved;
       } else {
         break;
       }
     }
     return cur || null;
+  }
+
+  function getCanonicalTagName(tagNameNode) {
+    const raw = tagNameNode.getText(sourceFile);
+    if (CUT_OWNER_TAGS.has(raw) || raw === 'Sheet') return raw;
+    if (ts.isIdentifier(tagNameNode)) {
+      const resolved = unwrapExpression(tagNameNode);
+      if (resolved && ts.isIdentifier(resolved)) {
+        const targetName = resolved.text;
+        if (CUT_OWNER_TAGS.has(targetName) || targetName === 'Sheet') {
+          return targetName;
+        }
+      }
+    }
+    return raw;
+  }
+
+  function isExplicitUndefined(node) {
+    if (!node) return false;
+    const expr = unwrapExpression(node);
+    if (!expr) return false;
+    if (ts.isIdentifier(expr) && expr.text === 'undefined') return true;
+    if (ts.isVoidExpression(expr)) return true;
+    return false;
   }
 
   function getStringValue(node) {
@@ -328,38 +383,241 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     return null;
   }
 
-  function getSheetAutoCut(attributes) {
-    let autoCut = false;
-    for (const prop of attributes.properties) {
-      if (ts.isJsxAttribute(prop) && prop.name.getText(sourceFile) === 'autoCut') {
-        if (!prop.initializer) {
-          autoCut = true;
-        } else {
-          const val = getBooleanValue(prop.initializer);
-          if (val !== null) autoCut = val;
+  const cutMatches = [];
+
+  function resolveObjectProps(rawExpr, seenObjs = new Set()) {
+    const obj = unwrapExpression(rawExpr);
+    const resolved = {
+      variant: UNSET,
+      cut: UNSET,
+      topCut: UNSET,
+      bottomCut: UNSET,
+      autoCut: UNSET,
+      top: UNSET,
+      bottom: UNSET,
+      children: UNSET,
+      extraNodes: [],
+    };
+    if (!obj || !ts.isObjectLiteralExpression(obj) || seenObjs.has(obj)) return resolved;
+    if (!trackDeferredInitializers) {
+      visitedDeferredInitializers.add(obj);
+    }
+    const nextSeen = new Set(seenObjs);
+    nextSeen.add(obj);
+
+    for (const prop of obj.properties) {
+      if (ts.isSpreadAssignment(prop)) {
+        const sub = resolveObjectProps(prop.expression, nextSeen);
+        if (sub.variant !== UNSET) resolved.variant = sub.variant;
+        if (sub.cut !== UNSET) resolved.cut = sub.cut;
+        if (sub.topCut !== UNSET) resolved.topCut = sub.topCut;
+        if (sub.bottomCut !== UNSET) resolved.bottomCut = sub.bottomCut;
+        if (sub.autoCut !== UNSET) resolved.autoCut = sub.autoCut;
+        if (sub.top !== UNSET) resolved.top = sub.top;
+        if (sub.bottom !== UNSET) resolved.bottom = sub.bottom;
+        if (sub.children !== UNSET) resolved.children = sub.children;
+        if (sub.extraNodes.length > 0) resolved.extraNodes.push(...sub.extraNodes);
+        continue;
+      }
+
+      let propName = null;
+      let valExpr = null;
+      if (ts.isPropertyAssignment(prop)) {
+        if (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)) {
+          propName = prop.name.text;
+          valExpr = prop.initializer;
         }
-      } else if (ts.isJsxSpreadAttribute(prop)) {
-        const spreadObj = unwrapExpression(prop.expression);
-        if (spreadObj && ts.isObjectLiteralExpression(spreadObj)) {
-          for (const sp of spreadObj.properties) {
-            if (
-              ts.isPropertyAssignment(sp) &&
-              (ts.isIdentifier(sp.name) || ts.isStringLiteral(sp.name)) &&
-              sp.name.text === 'autoCut'
-            ) {
-              const val = getBooleanValue(sp.initializer);
-              if (val !== null) autoCut = val;
+      } else if (ts.isShorthandPropertyAssignment(prop)) {
+        propName = prop.name.text;
+        valExpr = prop.name;
+      }
+      if (!propName || !valExpr) continue;
+
+      if (propName === 'variant') {
+        const val = getStringValue(valExpr);
+        if (val !== null) {
+          resolved.variant = val;
+        } else if (isExplicitUndefined(valExpr)) {
+          resolved.variant = null;
+        }
+      } else if (CUT_PROP_NAMES.has(propName)) {
+        const strVal = getStringValue(valExpr);
+        if (strVal !== null) {
+          resolved[propName] = strVal === '' ? false : { raw: strVal, node: prop };
+        } else if (getBooleanValue(valExpr) === false) {
+          resolved[propName] = false;
+        } else if (isExplicitUndefined(valExpr)) {
+          resolved[propName] = null;
+        }
+      } else if (propName === 'autoCut') {
+        const boolVal = getBooleanValue(valExpr);
+        if (boolVal !== null) {
+          resolved.autoCut = boolVal;
+        } else if (isExplicitUndefined(valExpr)) {
+          resolved.autoCut = null;
+        }
+      } else if (propName === 'top' || propName === 'bottom') {
+        if (isExplicitUndefined(valExpr) || unwrapExpression(valExpr)?.kind === ts.SyntaxKind.NullKeyword) {
+          resolved[propName] = null;
+        } else {
+          resolved[propName] = resolveObjectProps(valExpr, nextSeen);
+        }
+      } else if (propName === 'children') {
+        if (isExplicitUndefined(valExpr) || unwrapExpression(valExpr)?.kind === ts.SyntaxKind.NullKeyword) {
+          resolved.children = null;
+        } else {
+          resolved.children = valExpr;
+        }
+      } else {
+        resolved.extraNodes.push(valExpr);
+      }
+    }
+    return resolved;
+  }
+
+  function resolveElementProps(attributes) {
+    const resolved = {
+      variant: UNSET,
+      cut: UNSET,
+      topCut: UNSET,
+      bottomCut: UNSET,
+      autoCut: UNSET,
+      top: UNSET,
+      bottom: UNSET,
+      children: UNSET,
+      extraNodes: [],
+    };
+    for (const prop of attributes.properties) {
+      if (ts.isJsxSpreadAttribute(prop)) {
+        const sub = resolveObjectProps(prop.expression);
+        if (sub.variant !== UNSET) resolved.variant = sub.variant;
+        if (sub.cut !== UNSET) resolved.cut = sub.cut;
+        if (sub.topCut !== UNSET) resolved.topCut = sub.topCut;
+        if (sub.bottomCut !== UNSET) resolved.bottomCut = sub.bottomCut;
+        if (sub.autoCut !== UNSET) resolved.autoCut = sub.autoCut;
+        if (sub.top !== UNSET) resolved.top = sub.top;
+        if (sub.bottom !== UNSET) resolved.bottom = sub.bottom;
+        if (sub.children !== UNSET) resolved.children = sub.children;
+        if (sub.extraNodes.length > 0) resolved.extraNodes.push(...sub.extraNodes);
+      } else if (ts.isJsxAttribute(prop)) {
+        const attrName = prop.name.getText(sourceFile);
+        if (attrName === 'variant') {
+          if (!prop.initializer) continue;
+          const val = getStringValue(prop.initializer);
+          if (val !== null) {
+            resolved.variant = val;
+          } else if (isExplicitUndefined(prop.initializer)) {
+            resolved.variant = null;
+          }
+        } else if (CUT_PROP_NAMES.has(attrName)) {
+          if (!prop.initializer) continue;
+          const strVal = getStringValue(prop.initializer);
+          if (strVal !== null) {
+            resolved[attrName] = strVal === '' ? false : { raw: strVal, node: prop };
+          } else if (getBooleanValue(prop.initializer) === false) {
+            resolved[attrName] = false;
+          } else if (isExplicitUndefined(prop.initializer)) {
+            resolved[attrName] = null;
+          }
+        } else if (attrName === 'autoCut') {
+          if (!prop.initializer) {
+            resolved.autoCut = true;
+          } else {
+            const boolVal = getBooleanValue(prop.initializer);
+            if (boolVal !== null) {
+              resolved.autoCut = boolVal;
+            } else if (isExplicitUndefined(prop.initializer)) {
+              resolved.autoCut = null;
             }
           }
+        } else if (attrName === 'top' || attrName === 'bottom') {
+          if (
+            prop.initializer &&
+            ts.isJsxExpression(prop.initializer) &&
+            prop.initializer.expression
+          ) {
+            const expr = prop.initializer.expression;
+            if (isExplicitUndefined(expr) || unwrapExpression(expr)?.kind === ts.SyntaxKind.NullKeyword) {
+              resolved[attrName] = null;
+            } else {
+              resolved[attrName] = resolveObjectProps(expr);
+            }
+          }
+        } else if (attrName === 'children') {
+          if (!prop.initializer) {
+            resolved.children = null;
+          } else if (ts.isJsxExpression(prop.initializer)) {
+            const expr = prop.initializer.expression;
+            if (
+              !expr ||
+              isExplicitUndefined(expr) ||
+              unwrapExpression(expr)?.kind === ts.SyntaxKind.NullKeyword
+            ) {
+              resolved.children = null;
+            } else {
+              resolved.children = expr;
+            }
+          } else {
+            resolved.children = prop.initializer;
+          }
+        } else if (prop.initializer) {
+          resolved.extraNodes.push(prop.initializer);
         }
       }
     }
-    return autoCut;
+    return resolved;
   }
 
-  const cutMatches = [];
+  function getSheetAutoCut(attributes) {
+    const props = resolveElementProps(attributes);
+    return props.autoCut === true;
+  }
 
-  function recordCut(rawCut, node, ownerTag, inAutoCut) {
+  function extractReactChildrenFromExpr(rawExpr, out) {
+    const expr = unwrapExpression(rawExpr);
+    if (!expr) return out;
+    if (
+      expr.kind === ts.SyntaxKind.NullKeyword ||
+      expr.kind === ts.SyntaxKind.TrueKeyword ||
+      expr.kind === ts.SyntaxKind.FalseKeyword ||
+      isExplicitUndefined(expr)
+    ) {
+      return out;
+    }
+    if (ts.isArrayLiteralExpression(expr)) {
+      for (const el of expr.elements) {
+        if (ts.isSpreadElement(el)) {
+          extractReactChildrenFromExpr(el.expression, out);
+        } else {
+          extractReactChildrenFromExpr(el, out);
+        }
+      }
+      return out;
+    }
+    out.push(expr);
+    return out;
+  }
+
+  function extractReactChildrenArray(nodes, out = []) {
+    for (const child of nodes) {
+      if (!child) continue;
+      if (ts.isJsxText(child)) {
+        if (child.getText(sourceFile).trim() !== '') {
+          out.push(child);
+        }
+        continue;
+      }
+      if (ts.isJsxExpression(child)) {
+        if (!child.expression) continue;
+        extractReactChildrenFromExpr(child.expression, out);
+        continue;
+      }
+      out.push(child);
+    }
+    return out;
+  }
+
+  function recordCut(rawCut, node, ownerTag, inAutoCut, isQuiet = false) {
     const start = node.getStart(sourceFile);
     const line = sourceFile.getLineAndCharacterOfPosition(start).line + 1;
     const snippet = node.getText(sourceFile);
@@ -371,6 +629,18 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
         file: filePath,
         line,
         message: 'Cut numbers are automatic inside <Sheet autoCut>; remove the cut prop.',
+        snippet,
+      });
+      return;
+    }
+
+    if (isQuiet && !isDialogContentCut) {
+      violations.push({
+        rule: 'cut-order',
+        file: filePath,
+        line,
+        message:
+          'Quiet panels (<Panel variant="quiet">) are subordinate operational groups and should not carry storyboard cut numbers; remove the cut prop or use variant="expressive".',
         snippet,
       });
       return;
@@ -395,70 +665,538 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     }
   }
 
-  function inspectObjectForCuts(rawExpr, ownerTag, inAutoCut, seenObjs = new Set()) {
-    const obj = unwrapExpression(rawExpr);
-    if (!obj || !ts.isObjectLiteralExpression(obj) || seenObjs.has(obj)) return;
-    seenObjs.add(obj);
+  const panelSlotInheritedMap = new Map();
 
-    for (const prop of obj.properties) {
-      if (ts.isSpreadAssignment(prop)) {
-        inspectObjectForCuts(prop.expression, ownerTag, inAutoCut, seenObjs);
-        continue;
+  function processPairDescriptorSlot(slotObj, fallbackCut, pairVariant, inAutoCut) {
+    const slotVariant =
+      (slotObj && slotObj.variant !== UNSET && slotObj.variant !== null
+        ? slotObj.variant
+        : undefined) ?? pairVariant;
+    const slotCutProp =
+      slotObj && slotObj.cut !== UNSET && slotObj.cut !== null ? slotObj.cut : undefined;
+    const validFallback =
+      fallbackCut && fallbackCut !== UNSET && fallbackCut !== false ? fallbackCut : null;
+
+    if (inAutoCut && slotCutProp && slotCutProp !== false && validFallback) {
+      recordCut(
+        validFallback.raw,
+        validFallback.node,
+        'PanelPair',
+        inAutoCut,
+        slotVariant === 'quiet',
+      );
+    }
+
+    const effectiveCut =
+      slotCutProp === false ? null : (slotCutProp ?? validFallback);
+    if (effectiveCut) {
+      recordCut(
+        effectiveCut.raw,
+        effectiveCut.node,
+        'PanelPair',
+        inAutoCut,
+        slotVariant === 'quiet',
+      );
+    }
+
+    if (slotObj) {
+      for (const extra of slotObj.extraNodes) {
+        visit(extra, inAutoCut);
       }
-      if (!ts.isPropertyAssignment(prop)) continue;
-      if (!ts.isIdentifier(prop.name) && !ts.isStringLiteral(prop.name)) continue;
-      const propName = prop.name.text;
-
-      if (CUT_PROP_NAMES.has(propName)) {
-        const rawCut = getStringValue(prop.initializer);
-        if (rawCut !== null) {
-          recordCut(rawCut, prop, ownerTag, inAutoCut);
-        }
-      } else if (ownerTag === 'PanelPair' && (propName === 'top' || propName === 'bottom')) {
-        inspectObjectForCuts(prop.initializer, ownerTag, inAutoCut, seenObjs);
+      if (slotObj.children !== UNSET && slotObj.children !== null) {
+        visitRenderedExpr(slotObj.children, inAutoCut);
       }
     }
   }
 
-  function inspectElementAttributes(attributes, ownerTag, inAutoCut) {
-    const isCutOwner = CUT_OWNER_TAGS.has(ownerTag);
-    for (const prop of attributes.properties) {
-      if (isCutOwner) {
-        if (ts.isJsxAttribute(prop)) {
-          const attrName = prop.name.getText(sourceFile);
-          if (CUT_PROP_NAMES.has(attrName)) {
-            const rawCut = getStringValue(prop.initializer);
-            if (rawCut !== null) {
-              recordCut(rawCut, prop, ownerTag, inAutoCut);
+  function slotHasDirectPanel(slotNode, seen = new Set()) {
+    if (!slotNode || seen.has(slotNode)) return false;
+    seen.add(slotNode);
+    const unwrapped = unwrapExpression(slotNode) || slotNode;
+    if (ts.isBinaryExpression(unwrapped)) {
+      const op = unwrapped.operatorToken.kind;
+      if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
+        return slotHasDirectPanel(unwrapped.right, seen);
+      }
+      if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken) {
+        return (
+          slotHasDirectPanel(unwrapped.left, seen) ||
+          slotHasDirectPanel(unwrapped.right, seen)
+        );
+      }
+    }
+    if (ts.isConditionalExpression(unwrapped)) {
+      return (
+        slotHasDirectPanel(unwrapped.whenTrue, seen) ||
+        slotHasDirectPanel(unwrapped.whenFalse, seen)
+      );
+    }
+    return (
+      (ts.isJsxElement(unwrapped) &&
+        getCanonicalTagName(unwrapped.openingElement.tagName) === 'Panel') ||
+      (ts.isJsxSelfClosingElement(unwrapped) &&
+        getCanonicalTagName(unwrapped.tagName) === 'Panel')
+    );
+  }
+
+  function processPairChildSlot(
+    slotNode,
+    fallbackCut,
+    pairVariant,
+    inAutoCut,
+    slotState = {
+      fallbackRecorded: false,
+      quietFallbackChecked: false,
+      hasDirectPanel: slotHasDirectPanel(slotNode),
+    },
+  ) {
+    const unwrapped = unwrapExpression(slotNode) || slotNode;
+    if (ts.isBinaryExpression(unwrapped)) {
+      const op = unwrapped.operatorToken.kind;
+      if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
+        visit(unwrapped.left, inAutoCut);
+        processPairChildSlot(unwrapped.right, fallbackCut, pairVariant, inAutoCut, slotState);
+        return;
+      }
+      if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken) {
+        processPairChildSlot(unwrapped.left, fallbackCut, pairVariant, inAutoCut, slotState);
+        processPairChildSlot(unwrapped.right, fallbackCut, pairVariant, inAutoCut, slotState);
+        return;
+      }
+    }
+    if (ts.isConditionalExpression(unwrapped)) {
+      visit(unwrapped.condition, inAutoCut);
+      processPairChildSlot(unwrapped.whenTrue, fallbackCut, pairVariant, inAutoCut, slotState);
+      processPairChildSlot(unwrapped.whenFalse, fallbackCut, pairVariant, inAutoCut, slotState);
+      return;
+    }
+
+    const isPanelElement =
+      (ts.isJsxElement(unwrapped) &&
+        getCanonicalTagName(unwrapped.openingElement.tagName) === 'Panel') ||
+      (ts.isJsxSelfClosingElement(unwrapped) &&
+        getCanonicalTagName(unwrapped.tagName) === 'Panel');
+
+    if (isPanelElement) {
+      visitedDeferredInitializers.add(unwrapped);
+      panelSlotInheritedMap.set(unwrapped, {
+        variant: pairVariant,
+        fallbackCut,
+        slotState,
+      });
+      visit(unwrapped, inAutoCut);
+    } else {
+      const isNonJsxBranch =
+        !ts.isJsxElement(unwrapped) &&
+        !ts.isJsxSelfClosingElement(unwrapped) &&
+        !ts.isJsxFragment(unwrapped);
+      if (
+        !(isNonJsxBranch && slotState.hasDirectPanel) &&
+        !slotState.fallbackRecorded &&
+        fallbackCut &&
+        fallbackCut !== UNSET &&
+        fallbackCut !== false
+      ) {
+        slotState.fallbackRecorded = true;
+        recordCut(
+          fallbackCut.raw,
+          fallbackCut.node,
+          'PanelPair',
+          inAutoCut,
+          pairVariant === 'quiet',
+        );
+      }
+      visitRenderedExpr(slotNode, inAutoCut);
+    }
+  }
+
+  function preScanRenderedExpr(expr, seenInits = new Set()) {
+    if (!expr) return;
+    if (
+      ts.isParenthesizedExpression(expr) ||
+      ts.isAsExpression(expr) ||
+      ts.isTypeAssertionExpression?.(expr) ||
+      ts.isSatisfiesExpression?.(expr) ||
+      ts.isNonNullExpression(expr)
+    ) {
+      preScanRenderedExpr(expr.expression, seenInits);
+      return;
+    }
+    if (ts.isIdentifier(expr)) {
+      if (expr.text === 'undefined') return;
+      const init = resolveLocalIdentifier(expr);
+      if (init && !seenInits.has(init)) {
+        seenInits.add(init);
+        preScanRenderedExpr(init, seenInits);
+      }
+      return;
+    }
+    if (ts.isBinaryExpression(expr)) {
+      preScanRenderedExpr(expr.left, seenInits);
+      preScanRenderedExpr(expr.right, seenInits);
+      return;
+    }
+    if (ts.isConditionalExpression(expr)) {
+      preScanRenderedExpr(expr.condition, seenInits);
+      preScanRenderedExpr(expr.whenTrue, seenInits);
+      preScanRenderedExpr(expr.whenFalse, seenInits);
+      return;
+    }
+    if (ts.isArrayLiteralExpression(expr)) {
+      for (const el of expr.elements) {
+        if (ts.isSpreadElement(el)) {
+          preScanRenderedExpr(el.expression, seenInits);
+        } else {
+          preScanRenderedExpr(el, seenInits);
+        }
+      }
+    }
+  }
+
+  function visitRenderedExpr(expr, inAutoCut) {
+    if (!expr) return;
+    if (
+      ts.isParenthesizedExpression(expr) ||
+      ts.isAsExpression(expr) ||
+      ts.isTypeAssertionExpression?.(expr) ||
+      ts.isSatisfiesExpression?.(expr) ||
+      ts.isNonNullExpression(expr)
+    ) {
+      visitRenderedExpr(expr.expression, inAutoCut);
+      return;
+    }
+    if (ts.isIdentifier(expr)) {
+      if (expr.text === 'undefined') return;
+      const init = resolveLocalIdentifier(expr);
+      if (init && !activeInitializers.has(init)) {
+        visitedDeferredInitializers.add(init);
+        activeInitializers.add(init);
+        visitRenderedExpr(init, inAutoCut);
+        activeInitializers.delete(init);
+      }
+      return;
+    }
+    if (ts.isBinaryExpression(expr)) {
+      const op = expr.operatorToken.kind;
+      if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
+        visit(expr.left, inAutoCut);
+        visitRenderedExpr(expr.right, inAutoCut);
+        return;
+      }
+      if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken) {
+        visitRenderedExpr(expr.left, inAutoCut);
+        visitRenderedExpr(expr.right, inAutoCut);
+        return;
+      }
+    }
+    if (ts.isConditionalExpression(expr)) {
+      visit(expr.condition, inAutoCut);
+      visitRenderedExpr(expr.whenTrue, inAutoCut);
+      visitRenderedExpr(expr.whenFalse, inAutoCut);
+      return;
+    }
+    if (ts.isArrayLiteralExpression(expr)) {
+      for (const el of expr.elements) {
+        if (ts.isSpreadElement(el)) {
+          visitRenderedExpr(el.expression, inAutoCut);
+        } else {
+          visitRenderedExpr(el, inAutoCut);
+        }
+      }
+      return;
+    }
+    visit(expr, inAutoCut);
+  }
+
+  function visitJsxChild(child, inAutoCut) {
+    if (!child) return;
+    if (ts.isJsxExpression(child)) {
+      if (child.expression) {
+        visitRenderedExpr(child.expression, inAutoCut);
+      }
+      return;
+    }
+    visit(child, inAutoCut);
+  }
+
+  function visitCutOwnerOrElement(node, tagName, attributes, inAutoCut) {
+    const isCutOwner = CUT_OWNER_TAGS.has(tagName);
+    if (!isCutOwner && tagName !== 'Sheet') {
+      for (const prop of attributes.properties) {
+        if (ts.isJsxAttribute(prop) && prop.name.getText(sourceFile) === 'children') {
+          if (prop.initializer) {
+            if (ts.isJsxExpression(prop.initializer) && prop.initializer.expression) {
+              visitRenderedExpr(prop.initializer.expression, inAutoCut);
+            } else {
+              visit(prop.initializer, inAutoCut);
             }
-          } else if (ownerTag === 'PanelPair' && (attrName === 'top' || attrName === 'bottom')) {
-            inspectObjectForCuts(prop.initializer, ownerTag, inAutoCut);
           }
-        } else if (ts.isJsxSpreadAttribute(prop)) {
-          inspectObjectForCuts(prop.expression, ownerTag, inAutoCut);
+        } else {
+          ts.forEachChild(prop, (child) => visit(child, inAutoCut));
         }
       }
-      // Traverse attribute initializer/expression for any nested JSX elements
-      ts.forEachChild(prop, (child) => visit(child, inAutoCut));
-    }
-  }
-
-  function visit(node, inAutoCut) {
-    if (ts.isJsxElement(node)) {
-      const tagName = node.openingElement.tagName.getText(sourceFile);
-      const nextAutoCut =
-        tagName === 'Sheet' ? getSheetAutoCut(node.openingElement.attributes) : inAutoCut;
-      inspectElementAttributes(node.openingElement.attributes, tagName, nextAutoCut);
-      for (const child of node.children) {
-        visit(child, nextAutoCut);
+      if (ts.isJsxElement(node)) {
+        for (const child of node.children) {
+          visitJsxChild(child, inAutoCut);
+        }
       }
       return;
     }
 
+    const props = resolveElementProps(attributes);
+
+    if (tagName === 'Sheet') {
+      for (const extra of props.extraNodes) {
+        visit(extra, inAutoCut);
+      }
+      if (ts.isJsxElement(node) && node.children.length > 0) {
+        for (const child of node.children) {
+          visitJsxChild(child, inAutoCut);
+        }
+      } else if (props.children !== UNSET && props.children !== null) {
+        visitRenderedExpr(props.children, inAutoCut);
+      }
+      return;
+    }
+
+    if (tagName === 'Panel' || tagName === 'DialogContent') {
+      const inheritedSlot = tagName === 'Panel' ? panelSlotInheritedMap.get(node) : null;
+      const slotState = inheritedSlot?.slotState;
+      const propVariant =
+        props.variant !== UNSET && props.variant !== null ? props.variant : undefined;
+      const effectiveVariant = propVariant ?? inheritedSlot?.variant ?? 'expressive';
+      const childCut = props.cut !== UNSET && props.cut !== null ? props.cut : undefined;
+      const fallbackCut =
+        inheritedSlot?.fallbackCut &&
+        inheritedSlot.fallbackCut !== UNSET &&
+        inheritedSlot.fallbackCut !== false
+          ? inheritedSlot.fallbackCut
+          : null;
+
+      if (inAutoCut && tagName === 'Panel' && childCut && childCut !== false && fallbackCut) {
+        if (!slotState || !slotState.fallbackRecorded) {
+          if (slotState) slotState.fallbackRecorded = true;
+          recordCut(
+            fallbackCut.raw,
+            fallbackCut.node,
+            'PanelPair',
+            inAutoCut,
+            effectiveVariant === 'quiet',
+          );
+        }
+      }
+
+      if (childCut !== false) {
+        if (childCut) {
+          recordCut(
+            childCut.raw,
+            childCut.node,
+            tagName,
+            inAutoCut,
+            effectiveVariant === 'quiet',
+          );
+        } else if (fallbackCut) {
+          const isQuiet = effectiveVariant === 'quiet';
+          if (isQuiet) {
+            if (!slotState || !slotState.quietFallbackChecked) {
+              if (slotState) slotState.quietFallbackChecked = true;
+              recordCut(fallbackCut.raw, fallbackCut.node, tagName, inAutoCut, true);
+            }
+          } else if (!slotState || !slotState.fallbackRecorded) {
+            if (slotState) slotState.fallbackRecorded = true;
+            recordCut(fallbackCut.raw, fallbackCut.node, tagName, inAutoCut, false);
+          }
+        }
+      }
+
+      for (const extra of props.extraNodes) {
+        visit(extra, inAutoCut);
+      }
+      if (ts.isJsxElement(node) && node.children.length > 0) {
+        for (const child of node.children) {
+          visitJsxChild(child, inAutoCut);
+        }
+      } else if (props.children !== UNSET && props.children !== null) {
+        visitRenderedExpr(props.children, inAutoCut);
+      }
+      return;
+    }
+
+    // tagName === 'PanelPair'
+    const pairVariant =
+      (props.variant !== UNSET && props.variant !== null ? props.variant : undefined) ??
+      'expressive';
+    const pairTopCut =
+      props.topCut !== UNSET && props.topCut !== null ? props.topCut : undefined;
+    const pairBottomCut =
+      props.bottomCut !== UNSET && props.bottomCut !== null ? props.bottomCut : undefined;
+
+    if (props.cut && props.cut !== UNSET && props.cut !== false) {
+      recordCut(props.cut.raw, props.cut.node, 'PanelPair', inAutoCut, pairVariant === 'quiet');
+    }
+
+    for (const extra of props.extraNodes) {
+      visit(extra, inAutoCut);
+    }
+
+    const topObj = props.top !== UNSET && props.top !== null ? props.top : undefined;
+    const bottomObj = props.bottom !== UNSET && props.bottom !== null ? props.bottom : undefined;
+
+    if (topObj && bottomObj) {
+      processPairDescriptorSlot(topObj, pairTopCut, pairVariant, inAutoCut);
+      processPairDescriptorSlot(bottomObj, pairBottomCut, pairVariant, inAutoCut);
+      return;
+    }
+
+    let childSlots = [];
+    if (ts.isJsxElement(node)) {
+      childSlots = extractReactChildrenArray(node.children);
+    }
+    if (childSlots.length === 0 && props.children !== UNSET && props.children !== null) {
+      childSlots = extractReactChildrenFromExpr(props.children, []);
+    }
+
+    if (childSlots.length > 0) {
+      if (inAutoCut && topObj?.cut && topObj.cut !== UNSET && topObj.cut !== false) {
+        recordCut(topObj.cut.raw, topObj.cut.node, 'PanelPair', inAutoCut, pairVariant === 'quiet');
+      }
+      processPairChildSlot(childSlots[0], pairTopCut, pairVariant, inAutoCut);
+      if (inAutoCut && bottomObj?.cut && bottomObj.cut !== UNSET && bottomObj.cut !== false) {
+        recordCut(
+          bottomObj.cut.raw,
+          bottomObj.cut.node,
+          'PanelPair',
+          inAutoCut,
+          pairVariant === 'quiet',
+        );
+      }
+      if (childSlots[1] !== undefined) {
+        processPairChildSlot(childSlots[1], pairBottomCut, pairVariant, inAutoCut);
+      } else if (inAutoCut && pairBottomCut && pairBottomCut !== false) {
+        recordCut(
+          pairBottomCut.raw,
+          pairBottomCut.node,
+          'PanelPair',
+          inAutoCut,
+          pairVariant === 'quiet',
+        );
+      }
+      if (inAutoCut) {
+        for (let i = 2; i < childSlots.length; i++) {
+          visitRenderedExpr(childSlots[i], inAutoCut);
+        }
+      }
+    } else if (inAutoCut) {
+      processPairDescriptorSlot(topObj, pairTopCut, pairVariant, inAutoCut);
+      processPairDescriptorSlot(bottomObj, pairBottomCut, pairVariant, inAutoCut);
+    }
+  }
+
+  function preScanDeferrals(node) {
+    if (ts.isJsxElement(node)) {
+      const tagName = getCanonicalTagName(node.openingElement.tagName);
+      if (CUT_OWNER_TAGS.has(tagName) || tagName === 'Sheet') {
+        const props = resolveElementProps(node.openingElement.attributes);
+        if (props.children !== UNSET && props.children !== null) {
+          preScanRenderedExpr(props.children);
+        }
+        if (props.top && props.top !== UNSET && props.top.children !== UNSET && props.top.children !== null) {
+          preScanRenderedExpr(props.top.children);
+        }
+        if (props.bottom && props.bottom !== UNSET && props.bottom.children !== UNSET && props.bottom.children !== null) {
+          preScanRenderedExpr(props.bottom.children);
+        }
+      } else {
+        for (const prop of node.openingElement.attributes.properties) {
+          if (
+            ts.isJsxAttribute(prop) &&
+            prop.name.getText(sourceFile) === 'children' &&
+            prop.initializer &&
+            ts.isJsxExpression(prop.initializer) &&
+            prop.initializer.expression
+          ) {
+            preScanRenderedExpr(prop.initializer.expression);
+          }
+        }
+      }
+      if (tagName === 'PanelPair') {
+        extractReactChildrenArray(node.children);
+      }
+      for (const child of node.children) {
+        if (ts.isJsxExpression(child) && child.expression) {
+          preScanRenderedExpr(child.expression);
+        }
+      }
+    } else if (ts.isJsxSelfClosingElement(node)) {
+      const tagName = getCanonicalTagName(node.tagName);
+      if (CUT_OWNER_TAGS.has(tagName) || tagName === 'Sheet') {
+        const props = resolveElementProps(node.attributes);
+        if (props.children !== UNSET && props.children !== null) {
+          preScanRenderedExpr(props.children);
+        }
+        if (props.top && props.top !== UNSET && props.top.children !== UNSET && props.top.children !== null) {
+          preScanRenderedExpr(props.top.children);
+        }
+        if (props.bottom && props.bottom !== UNSET && props.bottom.children !== UNSET && props.bottom.children !== null) {
+          preScanRenderedExpr(props.bottom.children);
+        }
+      } else {
+        for (const prop of node.attributes.properties) {
+          if (
+            ts.isJsxAttribute(prop) &&
+            prop.name.getText(sourceFile) === 'children' &&
+            prop.initializer &&
+            ts.isJsxExpression(prop.initializer) &&
+            prop.initializer.expression
+          ) {
+            preScanRenderedExpr(prop.initializer.expression);
+          }
+        }
+      }
+    } else if (ts.isJsxFragment(node)) {
+      for (const child of node.children) {
+        if (ts.isJsxExpression(child) && child.expression) {
+          preScanRenderedExpr(child.expression);
+        }
+      }
+    }
+    ts.forEachChild(node, preScanDeferrals);
+  }
+
+  trackDeferredInitializers = true;
+  preScanDeferrals(sourceFile);
+  trackDeferredInitializers = false;
+
+  function visit(node, inAutoCut) {
+    if (!node) return;
+
+    if (
+      ts.isVariableDeclaration(node) &&
+      node.initializer &&
+      deferredVarInitializers.has(node.initializer)
+    ) {
+      return;
+    }
+
+    if (ts.isJsxElement(node)) {
+      const tagName = getCanonicalTagName(node.openingElement.tagName);
+      const nextAutoCut =
+        tagName === 'Sheet' ? getSheetAutoCut(node.openingElement.attributes) : inAutoCut;
+      visitCutOwnerOrElement(node, tagName, node.openingElement.attributes, nextAutoCut);
+      return;
+    }
+
     if (ts.isJsxSelfClosingElement(node)) {
-      const tagName = node.tagName.getText(sourceFile);
+      const tagName = getCanonicalTagName(node.tagName);
       const nextAutoCut = tagName === 'Sheet' ? getSheetAutoCut(node.attributes) : inAutoCut;
-      inspectElementAttributes(node.attributes, tagName, nextAutoCut);
+      visitCutOwnerOrElement(node, tagName, node.attributes, nextAutoCut);
+      return;
+    }
+
+    if (ts.isJsxFragment(node)) {
+      for (const child of node.children) {
+        visitJsxChild(child, inAutoCut);
+      }
       return;
     }
 
@@ -466,6 +1204,12 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
   }
 
   visit(sourceFile, false);
+
+  for (const init of deferredVarInitializers) {
+    if (!visitedDeferredInitializers.has(init)) {
+      visit(init, false);
+    }
+  }
 
   if (cutMatches.length > 0) {
     const seen = new Set();

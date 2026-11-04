@@ -41,6 +41,7 @@ export function Delta({ value, kind = 'pct', comparisonLabel, range }: DeltaProp
 }
 
 export type MetricHeadingLevel = 'h2' | 'h3' | 'h4' | 'div' | 'p';
+export type MetricVariant = 'expressive' | 'quiet';
 
 export interface MetricProps {
   label: string;
@@ -52,6 +53,7 @@ export interface MetricProps {
   range?: number | string;
   note?: string;
   big?: boolean;
+  variant?: MetricVariant;
   motion?: MotionMode;
   spark?: React.ReactNode;
   headingLevel?: MetricHeadingLevel;
@@ -68,15 +70,21 @@ export function Metric({
   range,
   note,
   big = false,
-  motion = 'stepped',
+  variant = 'expressive',
+  motion,
   spark,
   headingLevel: HeadingTag = 'h2',
   className = '',
 }: MetricProps) {
-  const shown = useCountUp(value, motion);
+  const effectiveMotion: MotionMode = motion ?? (variant === 'quiet' ? 'cut' : 'stepped');
+  const shown = useCountUp(value, effectiveMotion);
+  const variantClass = variant === 'quiet' ? ' f12-metric-quiet' : '';
 
   return (
-    <div className={`f12-metric${big ? ' big' : ''}${className ? ` ${className}` : ''}`}>
+    <div
+      className={`f12-metric${big ? ' big' : ''}${variantClass}${className ? ` ${className}` : ''}`}
+      data-variant={variant === 'quiet' ? 'quiet' : undefined}
+    >
       <HeadingTag className="f12-m-label">{label}</HeadingTag>
       <p className="f12-m-value" aria-live="polite">
         <span className="f12-sr-only">{format(value)}</span>

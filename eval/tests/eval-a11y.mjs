@@ -338,7 +338,7 @@ for (const screen of SCREENS) {
   }
 }
 
-// 2. Mobile (390px) responsive & contrast checks across all 3 screens
+// 2. Mobile (390px and 320px) responsive & contrast checks across all 3 screens
 for (const screen of SCREENS) {
   for (const scheme of ['light', 'dark']) {
     const { ctx, page, errors } = await openScreen(browser, screen, {
@@ -348,10 +348,28 @@ for (const screen of SCREENS) {
     });
     const c = await page.evaluate(CONTRAST);
     const sw = await page.evaluate(() => document.documentElement.scrollWidth);
+    const tableTagsSingleLine = await page.evaluate(() =>
+      [...document.querySelectorAll('.f12-table .f12-tag')].every(
+        (el) => el.getBoundingClientRect().height <= 26,
+      ),
+    );
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.waitForTimeout(100);
+    const sw320 = await page.evaluate(() => document.documentElement.scrollWidth);
+    const tableTagsSingleLine320 = await page.evaluate(() =>
+      [...document.querySelectorAll('.f12-table .f12-tag')].every(
+        (el) => el.getBoundingClientRect().height <= 26,
+      ),
+    );
     check(
-      c.length === 0 && sw <= 390 && errors.length === 0,
-      `eval/${screen} (${scheme}, 390px mobile): WCAG AA contrast & zero horizontal overflow`,
-      `scrollWidth=${sw} contrast=${c.slice(0, 2).join('; ')}`,
+      c.length === 0 &&
+        sw <= 390 &&
+        sw320 <= 320 &&
+        tableTagsSingleLine &&
+        tableTagsSingleLine320 &&
+        errors.length === 0,
+      `eval/${screen} (${scheme}, 390px & 320px mobile): WCAG AA contrast, single-line table tags & zero horizontal overflow`,
+      `scrollWidth390=${sw} scrollWidth320=${sw320} tableTags390=${tableTagsSingleLine} tableTags320=${tableTagsSingleLine320} contrast=${c.slice(0, 2).join('; ')}`,
     );
     await ctx.close();
   }
@@ -366,7 +384,13 @@ for (const screen of SCREENS) {
   const envSub = await page.innerText('#settings-status');
   await page.fill('#settings-threshold', '5');
   const hasAlert = await page.evaluate(() =>
-    Boolean(document.querySelector('.f12-error[role="alert"]')),
+    Boolean(
+      document.querySelector('.f12-error[role="alert"]') &&
+        document.querySelector('#settings-quiet-summary .f12-status-danger') &&
+        document.querySelector('#settings-quiet-summary.f12-panel-quiet .f12-metric-quiet') &&
+        document.querySelectorAll('#settings-quiet-pair .f12-panel-quiet.f12-rect').length === 2 &&
+        document.querySelector('#settings-keys-table.f12-table-compact'),
+    ),
   );
   await page.fill('#settings-threshold', '15');
   await page.click('#settings-revoke-open');
@@ -389,9 +413,20 @@ for (const screen of SCREENS) {
   await page.waitForTimeout(400);
   await page.click('#int-land-exit');
   await page.waitForTimeout(400);
-  const hasCompareLine = await page.evaluate(() =>
-    Boolean(document.querySelector('.f12-chart .f12-l-focus')),
-  );
+  const hasCompareLine = await page.evaluate(() => {
+    const rowNames = [...document.querySelectorAll('.f12-ints .f12-int-name')].map((el) =>
+      el.textContent.trim(),
+    );
+    return Boolean(
+      document.querySelector('.f12-chart .f12-l-focus') &&
+        document.querySelector('.f12-chart .f12-compare-pt') &&
+        document.querySelector('.f12-ints .f12-int-fill-dense') &&
+        document.querySelector('.f12-ints .f12-int-fill-hatch') &&
+        rowNames.some((t) => t.includes('(primary)')) &&
+        rowNames.some((t) => t.includes('(session)')) &&
+        rowNames.some((t) => t.includes('(scheduled)')),
+    );
+  });
   await page.click('#landing-trial-open');
   const dlgCut = await page.evaluate(
     () => document.querySelector('dialog.f12-dialog[open] .f12-cut')?.textContent,
@@ -418,6 +453,16 @@ for (const screen of SCREENS) {
     () => document.querySelectorAll('#table-scene-primary .f12-table tbody tr').length,
   );
   await page.click('#ledger-reset-btn');
+  const quietPanelsOk = await page.evaluate(() => {
+    const filterQuiet = document.querySelector('#table-filter-quiet-panel');
+    const inspectorQuiet = document.querySelector('#table-inspector-quiet-panel');
+    return Boolean(
+      filterQuiet?.classList.contains('f12-panel-quiet') &&
+        !filterQuiet.querySelector('.f12-cut') &&
+        inspectorQuiet?.classList.contains('f12-panel-quiet') &&
+        !inspectorQuiet.querySelector('.f12-cut'),
+    );
+  });
   await page.click('#table-payload-open');
   const dlgCut = await page.evaluate(
     () => document.querySelector('dialog.f12-dialog[open] .f12-cut')?.textContent,
@@ -425,8 +470,12 @@ for (const screen of SCREENS) {
   await page.click('#table-payload-replay');
   const statusText = await page.innerText('#table-status');
   check(
-    wonRows === 5 && searchRows === 1 && dlgCut === 'C-06' && statusText.includes('Replayed webhook'),
-    'eval/table interactions: status filter, search input, reset, and C-06 webhook replay dialog',
+    wonRows === 5 &&
+      searchRows === 1 &&
+      quietPanelsOk &&
+      dlgCut === 'C-06' &&
+      statusText.includes('Replayed webhook'),
+    'eval/table interactions: status filter, search input, reset, Quiet subgroup panels inside <Sheet autoCut>, and C-06 webhook replay dialog',
   );
   await ctx.close();
 }
