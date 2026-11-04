@@ -8,7 +8,16 @@ import {
   PanelPair,
   SegmentedControl,
   Button,
+  Field,
   Input,
+  Textarea,
+  Checkbox,
+  RadioGroup,
+  Switch,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
   Badge,
   Tag,
   Metric,
@@ -66,6 +75,13 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
   const [selectedRow, setSelectedRow] = React.useState<string | null>('cart');
   const [channel, setChannel] = React.useState('cart');
   const [inputValue, setInputValue] = React.useState('whsec_f12_live_904a');
+  const [textareaValue, setTextareaValue] = React.useState(
+    'Escalate to on-call if 5xx exceeds 1.5% over 3 consecutive cuts.',
+  );
+  const [checkboxChecked, setCheckboxChecked] = React.useState(true);
+  const [radioValue, setRadioValue] = React.useState('daily');
+  const [switchChecked, setSwitchChecked] = React.useState(true);
+  const [tabValue, setTabValue] = React.useState('routing');
   const [actionNote, setActionNote] = React.useState('Ready');
   const changed = useChanged(range);
   const tweenProgress = useOnTwos(range, 600, motion);
@@ -244,6 +260,119 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
                   : undefined
               }
             />
+          </div>
+        );
+
+      case 'field':
+        return (
+          <div className="f12-preview-sheet">
+            <Field
+              id={`${pfx}-field-input`}
+              label="Webhook endpoint URL"
+              hint="Must accept TLS 1.3 POST requests"
+              required
+            >
+              <Input defaultValue="https://api.acme.dev/webhooks/f12" />
+            </Field>
+          </div>
+        );
+
+      case 'textarea':
+        return (
+          <div className="f12-preview-sheet">
+            <Textarea
+              id={`${pfx}-textarea`}
+              label="Incident runbook notes"
+              hint="Included in webhook alert payloads"
+              value={textareaValue}
+              onChange={(e) => setTextareaValue(e.target.value)}
+            />
+          </div>
+        );
+
+      case 'checkbox':
+        return (
+          <div className="f12-preview-sheet">
+            <div className="f12-stack-pair">
+              <Checkbox
+                id={`${pfx}-checkbox`}
+                label="Require dual-key signoff on production cuts"
+                hint="Enforced for all expressive storyboard sheets"
+                checked={checkboxChecked}
+                onCheckedChange={setCheckboxChecked}
+              />
+              <Checkbox
+                id={`${pfx}-checkbox-mixed`}
+                label="Partial cohort selection (mixed state)"
+                indeterminate
+                readOnly
+              />
+            </div>
+          </div>
+        );
+
+      case 'radio-group':
+        return (
+          <div className="f12-preview-sheet">
+            <RadioGroup
+              id={`${pfx}-radiogroup`}
+              name={`${pfx}-cadence`}
+              label="Digest cadence"
+              value={radioValue}
+              onValueChange={setRadioValue}
+              options={[
+                { value: 'realtime', label: 'Real-time', hint: 'Immediate webhook dispatch' },
+                { value: 'daily', label: 'Daily cut', hint: '09:00 UTC exposure sheet summary' },
+                { value: 'weekly', label: 'Weekly rollup', hint: 'Monday 09:00 UTC digest' },
+              ]}
+            />
+          </div>
+        );
+
+      case 'switch':
+        return (
+          <div className="f12-preview-sheet">
+            <Switch
+              id={`${pfx}-switch`}
+              label="Auto-replay failed webhook deliveries"
+              hint="Retries up to 3 times with exponential backoff"
+              checked={switchChecked}
+              onCheckedChange={setSwitchChecked}
+            />
+          </div>
+        );
+
+      case 'tabs':
+        return (
+          <div className="f12-preview-sheet">
+            <Tabs idPrefix={`${pfx}-tabs`} value={tabValue} onValueChange={setTabValue}>
+              <TabsList ariaLabel={`Pipeline configuration (${previewTheme})`}>
+                <TabsTrigger value="routing">Routing</TabsTrigger>
+                <TabsTrigger value="retries">Retries</TabsTrigger>
+                <TabsTrigger value="audit">Audit Log</TabsTrigger>
+              </TabsList>
+              <TabsContent value="routing">
+                <Panel label={`Routing configuration (${previewTheme})`}>
+                  <p className="f12-body-copy">
+                    Primary ingress: https://api.acme.dev/webhooks/f12 (TLS 1.3 enforced).
+                  </p>
+                </Panel>
+              </TabsContent>
+              <TabsContent value="retries">
+                <Panel label={`Retry policy (${previewTheme})`}>
+                  <p className="f12-body-copy">
+                    Exponential backoff across 5 attempts before dead-letter queue isolation.
+                  </p>
+                </Panel>
+              </TabsContent>
+              <TabsContent value="audit">
+                <Panel label={`Audit retention (${previewTheme})`}>
+                  <p className="f12-body-copy">
+                    Immutable 90-day ledger stored in us-east-1 with dual-key rotation.
+                  </p>
+                </Panel>
+              </TabsContent>
+            </Tabs>
           </div>
         );
 

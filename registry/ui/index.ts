@@ -8,7 +8,42 @@ export {
   type SegmentedControlProps,
 } from './segmented-control';
 export { Button, type ButtonVariant, type ButtonSize, type ButtonProps } from './button';
+export {
+  Field,
+  Label,
+  useFieldContext,
+  type FieldDensity,
+  type LabelProps,
+  type FieldContextValue,
+  type FieldProps,
+} from './field';
 export { Input, type InputDensity, type InputProps } from './input';
+export { Textarea, type TextareaDensity, type TextareaProps } from './textarea';
+export { Checkbox, type CheckboxDensity, type CheckboxProps } from './checkbox';
+export {
+  RadioGroup,
+  RadioGroupItem,
+  type RadioGroupDensity,
+  type RadioGroupOrientation,
+  type RadioOption,
+  type RadioGroupProps,
+  type RadioGroupItemProps,
+} from './radio-group';
+export { Switch, type SwitchDensity, type SwitchProps } from './switch';
+export {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  encodeTabValueForId,
+  type TabsOrientation,
+  type TabsDensity,
+  type TabsActivationMode,
+  type TabsProps,
+  type TabsListProps,
+  type TabsTriggerProps,
+  type TabsContentProps,
+} from './tabs';
 export { Badge, Burst, type BadgeStatus, type BadgeProps } from './badge';
 export { Tag, STATUS_GLYPHS, type SemanticStatus, type TagProps } from './tag';
 export {

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Panel, type PanelProps, type PanelVariant } from './panel';
+import { Panel, usePanelVariantContext, type PanelProps, type PanelVariant } from './panel';
 
 export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: PanelVariant;
@@ -29,11 +29,13 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
   },
   ref,
 ) {
+  const inheritedVariant = usePanelVariantContext();
+  const effectivePairVariant: PanelVariant = variant ?? inheritedVariant ?? 'expressive';
   const classes = `f12-pair${className ? ` ${className}` : ''}`;
 
   if (top && bottom) {
-    const topVariant = top.variant ?? variant ?? 'expressive';
-    const bottomVariant = bottom.variant ?? variant ?? 'expressive';
+    const topVariant = top.variant ?? effectivePairVariant;
+    const bottomVariant = bottom.variant ?? effectivePairVariant;
     return (
       <div ref={ref} className={classes} {...rest}>
         <Panel
@@ -70,7 +72,7 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
     fallbackLabel?: string,
   ) => {
     if (React.isValidElement<PanelProps>(node) && node.type === Panel) {
-      const slotVariant = node.props.variant ?? variant ?? 'expressive';
+      const slotVariant = node.props.variant ?? effectivePairVariant;
       const defaultShape = slotVariant === 'quiet' ? 'rect' : slantShape;
       return React.cloneElement(node, {
         variant: slotVariant,
@@ -79,7 +81,7 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
         label: node.props.label ?? fallbackLabel,
       });
     }
-    const slotVariant = variant ?? 'expressive';
+    const slotVariant = effectivePairVariant;
     return (
       <Panel
         variant={slotVariant}

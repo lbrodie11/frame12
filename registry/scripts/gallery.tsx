@@ -8,7 +8,17 @@ import {
   PanelPair,
   SegmentedControl,
   Button,
+  Field,
   Input,
+  Textarea,
+  Checkbox,
+  RadioGroup,
+  RadioGroupItem,
+  Switch,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
   Badge,
   Tag,
   Metric,
@@ -494,6 +504,54 @@ export function GalleryApp() {
                   hint="Minimum lift before flagging"
                 />
               </div>
+
+              <Tabs idPrefix="gal-tabs" defaultValue="policy" density="compact">
+                <TabsList ariaLabel="Dispatch policy and notes">
+                  <TabsTrigger value="policy">Policy</TabsTrigger>
+                  <TabsTrigger value="notes">Notes</TabsTrigger>
+                </TabsList>
+                <TabsContent value="policy">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <RadioGroup
+                      id="gal-radiogroup"
+                      name="galCadence"
+                      density="compact"
+                      orientation="horizontal"
+                      label="Digest cadence"
+                      defaultValue="daily"
+                      options={[
+                        { value: 'realtime', label: 'Real-time' },
+                        { value: 'daily', label: 'Daily cut' },
+                        { value: 'weekly', label: 'Weekly' },
+                      ]}
+                    />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+                      <Switch
+                        id="gal-switch"
+                        density="compact"
+                        label="Auto-replay failed deliveries"
+                        defaultChecked
+                      />
+                      <Checkbox
+                        id="gal-checkbox"
+                        density="compact"
+                        label="Dual-key signoff"
+                        defaultChecked
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="notes">
+                  <Field
+                    id="gal-notes"
+                    density="compact"
+                    label="Incident runbook notes"
+                    hint="Attached to pager webhooks"
+                  >
+                    <Textarea defaultValue="Escalate if 5xx exceeds 1.5% across 3 cuts." />
+                  </Field>
+                </TabsContent>
+              </Tabs>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
                 <Balloon tailOffset={-12}>Peak Oct 24 · $6,410</Balloon>
@@ -1075,8 +1133,501 @@ function UnitTestFixtures() {
             <Panel label="Outer non-auto after">Unnumbered outer 2</Panel>
           </Scene>
         </Sheet>
+
+        {/* 5. WP4 Essential Form Kit & Tabs Fixtures */}
+        <Wp4UnitFixtures />
       </div>
     </div>
+  );
+}
+
+function WrappedTabTrigger({
+  value,
+  count,
+  disabled,
+}: {
+  value: string;
+  count: number;
+  disabled?: boolean;
+}) {
+  return (
+    <TabsTrigger value={value} disabled={disabled}>
+      {value} ({count})
+    </TabsTrigger>
+  );
+}
+
+function Wp4UnitFixtures() {
+  const [formResult, setFormResult] = React.useState<string>('');
+  const [rhfState, setRhfState] = React.useState<{
+    check: boolean;
+    sw: boolean;
+    notes: string;
+    plan: string;
+    checkTag: string;
+    swTag: string;
+    notesTag: string;
+  }>({
+    check: false,
+    sw: false,
+    notes: '',
+    plan: 'pro',
+    checkTag: '',
+    swTag: '',
+    notesTag: '',
+  });
+  const [indeterminateState, setIndeterminateState] = React.useState(true);
+
+  const checkRef = React.useCallback((el: HTMLInputElement | null) => {
+    if (el) {
+      setRhfState((s) => (s.checkTag === el.tagName ? s : { ...s, checkTag: el.tagName }));
+    }
+  }, []);
+  const swRef = React.useCallback((el: HTMLInputElement | null) => {
+    if (el) {
+      setRhfState((s) => (s.swTag === el.tagName ? s : { ...s, swTag: el.tagName }));
+    }
+  }, []);
+  const notesRef = React.useCallback((el: HTMLTextAreaElement | null) => {
+    if (el) {
+      setRhfState((s) => (s.notesTag === el.tagName ? s : { ...s, notesTag: el.tagName }));
+    }
+  }, []);
+
+  return (
+    <Sheet autoCut pegs={false} id="fixture-wp4-sheet" motion="stepped">
+      <Scene gutter="pair" layout="equal">
+        <Panel id="fixture-wp4-before-tabs" label="Panel before tabs">
+          Expressive panel before tabs (C-01)
+        </Panel>
+        <Panel variant="quiet" id="fixture-wp4-tabs-host" label="Tabs host panel">
+          <Tabs idPrefix="wp4-tabs" defaultValue="one">
+            <TabsList ariaLabel="WP4 test tabs">
+              <TabsTrigger value="one">Tab One</TabsTrigger>
+              <TabsTrigger value="disabled" disabled>
+                Disabled
+              </TabsTrigger>
+              <TabsTrigger value="two">Tab Two</TabsTrigger>
+              <TabsTrigger value="three">Tab Three</TabsTrigger>
+            </TabsList>
+            <TabsContent value="one" forceMount>
+              <Panel id="wp4-tab-one-panel" label="Tab one default quiet panel">
+                Tab one body
+              </Panel>
+            </TabsContent>
+            <TabsContent value="disabled">
+              <Panel id="wp4-tab-disabled-panel" label="Disabled tab panel">
+                Disabled body
+              </Panel>
+            </TabsContent>
+            <TabsContent value="two">
+              <Panel id="wp4-tab-two-panel" label="Tab two default quiet panel">
+                Tab two body
+              </Panel>
+            </TabsContent>
+            <TabsContent value="three">
+              <Panel
+                id="wp4-tab-three-expressive"
+                variant="expressive"
+                label="Tab three explicit expressive panel"
+              >
+                Tab three body
+              </Panel>
+            </TabsContent>
+          </Tabs>
+
+          <Tabs idPrefix="wp4-tabs-manual" defaultValue="m1" activationMode="manual" density="compact">
+            <TabsList ariaLabel="Manual activation tabs">
+              <TabsTrigger value="m1">Manual 1</TabsTrigger>
+              <TabsTrigger value="m2">Manual 2</TabsTrigger>
+            </TabsList>
+            <TabsContent value="m1">Manual panel 1</TabsContent>
+            <TabsContent value="m2">Manual panel 2</TabsContent>
+          </Tabs>
+
+          <Tabs idPrefix="wp4-tabs-vert" defaultValue="v1" orientation="vertical">
+            <TabsList ariaLabel="Vertical tabs">
+              <TabsTrigger value="v1">Vert 1</TabsTrigger>
+              <TabsTrigger value="v2">Vert 2</TabsTrigger>
+            </TabsList>
+            <TabsContent value="v1">Vert panel 1</TabsContent>
+            <TabsContent value="v2">Vert panel 2</TabsContent>
+          </Tabs>
+
+          {/* Wrapped triggers without defaultValue, wrapped trigger + direct trigger with defaultValue, value encoding ("a b" vs "a-b"), and custom trigger/panel IDs */}
+          <Tabs idPrefix="wp4-tabs-wrapped-nodefault">
+            <TabsList ariaLabel="Wrapped triggers no default">
+              <WrappedTabTrigger value="w1" count={3} />
+              <WrappedTabTrigger value="w2" count={7} />
+            </TabsList>
+            <TabsContent value="w1">Wrapped panel 1</TabsContent>
+            <TabsContent value="w2">Wrapped panel 2</TabsContent>
+          </Tabs>
+
+          <Tabs idPrefix="wp4-tabs-wrapped-default" defaultValue="wsel">
+            <TabsList ariaLabel="Wrapped trigger with defaultValue">
+              <WrappedTabTrigger value="wsel" count={5} />
+              <TabsTrigger value="wother">Direct Other</TabsTrigger>
+            </TabsList>
+            <TabsContent value="wsel">Selected wrapped panel</TabsContent>
+            <TabsContent value="wother">Other panel</TabsContent>
+          </Tabs>
+
+          <Tabs idPrefix="wp4-tabs-collision" defaultValue="a b">
+            <TabsList ariaLabel="Collision test tabs">
+              <TabsTrigger value="a b">Space A B</TabsTrigger>
+              <TabsTrigger value="a-b">Hyphen A-B</TabsTrigger>
+            </TabsList>
+            <TabsContent value="a b">Space panel</TabsContent>
+            <TabsContent value="a-b">Hyphen panel</TabsContent>
+          </Tabs>
+
+          <Tabs idPrefix="wp4-tabs-custom-ids" defaultValue="cid">
+            <TabsList ariaLabel="Custom ID tabs">
+              <TabsTrigger value="cid" id="wp4-custom-tab-id">
+                Custom ID Tab
+              </TabsTrigger>
+              <TabsTrigger value="cid2" id="wp4-custom-tab-id-2">
+                Custom ID Tab 2
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="cid" id="wp4-custom-panel-id">
+              Custom ID panel 1
+            </TabsContent>
+            <TabsContent value="cid2">Custom ID panel 2</TabsContent>
+          </Tabs>
+        </Panel>
+      </Scene>
+
+      <Scene gutter="pair" layout="equal">
+        <Panel id="fixture-wp4-after-tabs" label="Panel after tabs">
+          Expressive panel after tabs (must stay C-02 across tab switches)
+        </Panel>
+
+        <Panel variant="quiet" id="fixture-wp4-forms" label="Form kit fixtures">
+          {/* 1. Real <form>: FormData, reset, required, form= */}
+          <form
+            id="wp4-real-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              const obj: Record<string, string> = {};
+              fd.forEach((val, key) => {
+                obj[key] = String(val);
+              });
+              setFormResult(JSON.stringify(obj));
+            }}
+          >
+            <Field label="Service handle" hint="Lowercase slug" required>
+              <Input id="wp4-form-input" name="handle" defaultValue="atelier-prod" />
+            </Field>
+            <Textarea
+              id="wp4-form-textarea"
+              name="notes"
+              label="Runbook notes"
+              defaultValue="Initial note"
+              required
+            />
+            <Checkbox
+              id="wp4-form-checkbox"
+              name="audit"
+              value="enabled"
+              label="Enable audit log"
+              defaultChecked
+              required
+            />
+            <RadioGroup
+              id="wp4-form-radiogroup"
+              name="cadence"
+              label="Cadence"
+              defaultValue="daily"
+              required
+            >
+              <RadioGroupItem id="wp4-form-radio-rt" value="realtime" label="Real-time" />
+              <RadioGroupItem id="wp4-form-radio-daily" value="daily" label="Daily" />
+              <RadioGroupItem id="wp4-form-radio-wk" value="weekly" label="Weekly" />
+            </RadioGroup>
+            <Switch
+              id="wp4-form-switch"
+              name="replay"
+              value="on"
+              label="Auto-replay"
+              defaultChecked
+              required
+            />
+            <button id="wp4-form-submit" type="submit">
+              Submit Form
+            </button>
+            <button id="wp4-form-reset" type="reset">
+              Reset Form
+            </button>
+          </form>
+          {/* External control associated via form="wp4-real-form" */}
+          <Switch
+            id="wp4-form-external-switch"
+            form="wp4-real-form"
+            name="externalFlag"
+            value="ext-yes"
+            label="External form switch"
+            defaultChecked
+          />
+          <output id="wp4-form-output">{formResult}</output>
+
+          {/* 2. react-hook-form register() simulation */}
+          <div id="wp4-rhf-zone">
+            <Checkbox
+              id="wp4-rhf-checkbox"
+              label="RHF Checkbox"
+              name="rhfCheck"
+              ref={checkRef}
+              onChange={(e) => setRhfState((s) => ({ ...s, check: e.target.checked }))}
+            />
+            <Switch
+              id="wp4-rhf-switch"
+              label="RHF Switch"
+              name="rhfSwitch"
+              ref={swRef}
+              onChange={(e) => setRhfState((s) => ({ ...s, sw: e.target.checked }))}
+            />
+            <Textarea
+              id="wp4-rhf-textarea"
+              label="RHF Textarea"
+              name="rhfNotes"
+              ref={notesRef}
+              onChange={(e) => setRhfState((s) => ({ ...s, notes: e.target.value }))}
+            />
+            <RadioGroup label="RHF Plan" defaultValue="pro">
+              <RadioGroupItem
+                id="wp4-rhf-radio-free"
+                value="free"
+                label="Free"
+                name="rhfPlan"
+                onChange={(e) => {
+                  if (e.target.checked) setRhfState((s) => ({ ...s, plan: e.target.value }));
+                }}
+              />
+              <RadioGroupItem
+                id="wp4-rhf-radio-pro"
+                value="pro"
+                label="Pro"
+                name="rhfPlan"
+                onChange={(e) => {
+                  if (e.target.checked) setRhfState((s) => ({ ...s, plan: e.target.value }));
+                }}
+              />
+            </RadioGroup>
+            <output
+              id="wp4-rhf-output"
+              data-check={String(rhfState.check)}
+              data-sw={String(rhfState.sw)}
+              data-notes={rhfState.notes}
+              data-plan={rhfState.plan}
+              data-check-tag={rhfState.checkTag}
+              data-sw-tag={rhfState.swTag}
+              data-notes-tag={rhfState.notesTag}
+            />
+          </div>
+
+          {/* 3. Field + Control no-duplicate-label & error announcement matrix */}
+          <div id="wp4-field-dedup-zone">
+            <Field label="Field Input Label" hint="Field input hint" error="Field input error">
+              <Input
+                id="wp4-dedup-input"
+                label="Duplicate Input Label"
+                hint="Duplicate hint"
+                error="Duplicate error"
+              />
+            </Field>
+            <Field
+              label="Field Textarea Label"
+              hint="Field textarea hint"
+              error="Field textarea error"
+            >
+              <Textarea
+                id="wp4-dedup-textarea"
+                label="Duplicate Textarea Label"
+                hint="Duplicate hint"
+                error="Duplicate error"
+              />
+            </Field>
+            <Field
+              label="Field Checkbox Label"
+              hint="Field checkbox hint"
+              error="Field checkbox error"
+            >
+              <Checkbox
+                id="wp4-dedup-checkbox"
+                hint="Duplicate hint"
+                error="Duplicate error"
+              />
+            </Field>
+            <Field label="Field Switch Label" hint="Field switch hint" error="Field switch error">
+              <Switch
+                id="wp4-dedup-switch"
+                hint="Duplicate hint"
+                error="Duplicate error"
+              />
+            </Field>
+            <Field label="Field Radio Label" hint="Field radio hint" error="Field radio error">
+              <RadioGroup
+                id="wp4-dedup-radiogroup"
+                name="dedupRadio"
+                label="Duplicate Radio Label"
+                hint="Duplicate hint"
+                error="Duplicate error"
+                options={[
+                  { value: 'a', label: 'Option A' },
+                  { value: 'b', label: 'Option B' },
+                ]}
+              />
+            </Field>
+          </div>
+
+          {/* 3b. Field composition: labeled Checkbox/Switch inside Field, multi-control Field, Field id vs child id, native <input>, and render-prop / wrapped RadioGroup */}
+          <div id="wp4-field-composition-zone">
+            <Field id="wp4-notif-field" label="Notifications">
+              <Checkbox id="wp4-notif-checkbox" label="Email me weekly" />
+            </Field>
+            <Field id="wp4-channels-field" label="Channels">
+              <Checkbox label="Email channel" />
+              <Checkbox label="SMS channel" />
+            </Field>
+            <Field id="wp4-wrapper-id-field" label="Explicit child ID">
+              <Input id="wp4-child-explicit-id" defaultValue="linked" />
+            </Field>
+            <Field id="wp4-native-field" label="Native input in Field">
+              <input id="wp4-native-input" defaultValue="localhost" />
+            </Field>
+            <Field label="Render-prop cadence">
+              {() => (
+                <RadioGroup
+                  id="wp4-rp-radiogroup"
+                  options={[
+                    { value: 'd', label: 'Daily' },
+                    { value: 'w', label: 'Weekly' },
+                  ]}
+                />
+              )}
+            </Field>
+            <Field label="Wrapped theme">
+              <div>
+                <RadioGroup
+                  id="wp4-wrapped-radiogroup"
+                  options={[
+                    { value: 'l', label: 'Light' },
+                    { value: 'k', label: 'Dark' },
+                  ]}
+                />
+              </div>
+            </Field>
+          </div>
+
+          {/* 4. Standalone errors on each control */}
+          <div id="wp4-standalone-errors">
+            <Textarea
+              id="wp4-err-textarea"
+              label="Error textarea"
+              hint="Textarea hint"
+              error="Textarea is invalid"
+            />
+            <Checkbox
+              id="wp4-err-checkbox"
+              label="Error checkbox"
+              hint="Checkbox hint"
+              error="Checkbox must be checked"
+            />
+            <RadioGroup
+              id="wp4-err-radiogroup"
+              name="errRadio"
+              label="Error radio group"
+              hint="Radio hint"
+              error="Select a radio option"
+              options={[{ value: 'x', label: 'Choice X' }]}
+            />
+            <Switch
+              id="wp4-err-switch"
+              label="Error switch"
+              hint="Switch hint"
+              error="Switch must be enabled"
+            />
+          </div>
+
+          {/* 5. Indeterminate Checkbox, localized Switch labels, RTL Switch & Tabs, and Compact targets */}
+          <div id="wp4-special-cases">
+            <Checkbox
+              id="wp4-indeterminate-checkbox"
+              label="Mixed state checkbox"
+              indeterminate={indeterminateState}
+              onCheckedChange={() => setIndeterminateState(false)}
+            />
+            <form id="wp4-uncontrolled-mixed-form">
+              <Checkbox
+                id="wp4-uncontrolled-mixed"
+                label="Uncontrolled mixed checkbox"
+                indeterminate
+              />
+              <button id="wp4-uncontrolled-mixed-reset" type="reset">
+                Reset mixed
+              </button>
+            </form>
+            <Checkbox
+              id="wp4-readonly-checkbox"
+              label="Read-only checkbox"
+              defaultChecked
+              readOnly
+            />
+            <Switch
+              id="wp4-readonly-switch"
+              label="Read-only switch"
+              defaultChecked
+              readOnly
+            />
+            <Switch
+              id="wp4-custom-label-switch"
+              label="Localized switch"
+              onLabel="入"
+              offLabel="切"
+              defaultChecked
+            />
+            <Switch
+              id="wp4-german-switch"
+              label="German switch"
+              onLabel="AKTIVIERT"
+              offLabel="DEAKTIVIERT"
+            />
+            <div id="wp4-ltr-zone" dir="ltr">
+              <Switch id="wp4-ltr-switch" label="LTR switch" />
+            </div>
+            <div id="wp4-rtl-zone" dir="rtl">
+              <Switch id="wp4-rtl-switch" label="RTL switch" />
+              <Tabs idPrefix="wp4-rtl-tabs" defaultValue="r1">
+                <TabsList ariaLabel="RTL tabs">
+                  <TabsTrigger value="r1">RTL 1</TabsTrigger>
+                  <TabsTrigger value="r2">RTL 2</TabsTrigger>
+                </TabsList>
+                <TabsContent value="r1">RTL body 1</TabsContent>
+                <TabsContent value="r2">RTL body 2</TabsContent>
+              </Tabs>
+            </div>
+            <div id="wp4-compact-targets">
+              <Checkbox id="wp4-compact-checkbox" density="compact" label="Compact checkbox" />
+              <RadioGroup
+                id="wp4-compact-radiogroup"
+                name="compactRadio"
+                density="compact"
+                label="Compact radio"
+                defaultValue="c1"
+                options={[
+                  { value: 'c1', label: 'Compact 1' },
+                  { value: 'c2', label: 'Compact 2' },
+                ]}
+              />
+              <Switch id="wp4-compact-switch" density="compact" label="Compact switch" />
+            </div>
+          </div>
+        </Panel>
+      </Scene>
+    </Sheet>
   );
 }
 

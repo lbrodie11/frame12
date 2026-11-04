@@ -558,7 +558,7 @@ for (const browserName of BROWSER_NAMES) {
       await ctx.close();
     }
 
-    // 3. Mobile (390x844) Dark Theme, Reduced Motion, and Table Overflow Containment
+    // 3. Mobile (390x844 and 320x640) Dark Theme, Reduced Motion, and Table Overflow Containment
     {
       const { ctx, page, errors } = await openGallery(browser, {
         w: 390,
@@ -598,15 +598,22 @@ for (const browserName of BROWSER_NAMES) {
         };
       });
 
+      await page.setViewportSize({ width: 320, height: 640 });
+      await page.waitForTimeout(100);
+      const noDocOverflow320 = await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      );
+
       check(
         mobileState.sheetToken === '#050505' &&
           mobileState.indTransition === '0s' &&
           mobileState.stacked &&
           mobileState.noDocOverflow &&
+          noDocOverflow320 &&
           mobileState.tableContained &&
           errors.length === 0,
-        `[${browserName} 390px dark + reduced-motion] Dark tokens (#050505), transition: 0s, single-column stack, Table overflow containment, and zero errors`,
-        errors.length ? errors.join('; ') : JSON.stringify(mobileState),
+        `[${browserName} 390px & 320px dark + reduced-motion] Dark tokens (#050505), transition: 0s, single-column stack, Table overflow containment, and zero overflow/errors`,
+        errors.length ? errors.join('; ') : JSON.stringify({ ...mobileState, noDocOverflow320 }),
       );
 
       await ctx.close();
@@ -631,6 +638,10 @@ for (const browserName of BROWSER_NAMES) {
         const denseFill = document.querySelector('.f12-int-fill-dense');
         const warnTag = document.querySelector('#fixture-tag-warning');
         const dangerTag = document.querySelector('#fixture-tag-danger');
+        const chkInput = document.querySelector('#gal-checkbox');
+        const radioInput = document.querySelector('input[type="radio"][name="galCadence"]');
+        const switchTrack = document.querySelector('#gal-switch + .f12-switch-track');
+        const activeTab = document.querySelector('.f12-tabs-trigger[aria-selected="true"]');
         const tagBorder = getComputedStyle(tag).borderTopWidth;
         const warnBorderStyle = warnTag ? getComputedStyle(warnTag).borderTopStyle : '';
         const dangerBorderStyle = dangerTag ? getComputedStyle(dangerTag).borderTopStyle : '';
@@ -638,6 +649,12 @@ for (const browserName of BROWSER_NAMES) {
         const rngBorder = getComputedStyle(rngInd).borderTopWidth;
         const hatchBgImg = hatchFill ? getComputedStyle(hatchFill).backgroundImage : '';
         const denseBgImg = denseFill ? getComputedStyle(denseFill).backgroundImage : '';
+        const chkBorder = chkInput ? parseFloat(getComputedStyle(chkInput).borderTopWidth) : 0;
+        const radioBorder = radioInput ? parseFloat(getComputedStyle(radioInput).borderTopWidth) : 0;
+        const switchBorder = switchTrack
+          ? parseFloat(getComputedStyle(switchTrack).borderTopWidth)
+          : 0;
+        const activeTabOutline = activeTab ? getComputedStyle(activeTab).outlineWidth : '';
         return {
           matchesFC,
           tagBorder,
@@ -647,6 +664,10 @@ for (const browserName of BROWSER_NAMES) {
           rngBorder,
           hatchBgImg,
           denseBgImg,
+          chkBorder,
+          radioBorder,
+          switchBorder,
+          activeTabOutline,
         };
       });
 
@@ -659,8 +680,12 @@ for (const browserName of BROWSER_NAMES) {
           fcState.rngBorder === '2px' &&
           fcState.hatchBgImg === 'none' &&
           fcState.denseBgImg === 'none' &&
+          fcState.chkBorder >= 1 &&
+          fcState.radioBorder >= 1 &&
+          fcState.switchBorder >= 1 &&
+          fcState.activeTabOutline === '2px' &&
           errors.length === 0,
-        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, preserves distinct status border styles (dashed/double), clears hatch/dense bar gradients, disables mix-blend-mode, and has zero errors`,
+        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, preserves distinct status border styles (dashed/double), styles Checkbox/RadioGroup/Switch/Tabs, clears hatch/dense bar gradients, disables mix-blend-mode, and has zero errors`,
         errors.length ? errors.join('; ') : JSON.stringify(fcState),
       );
 

@@ -218,18 +218,120 @@
       ]
     },
     {
+      "name": "field",
+      "type": "registry:ui",
+      "title": "Field",
+      "description": "Shared form field coordinator for label, hint, marker-flagged error alert, required indicator, density, and aria-describedby/aria-invalid context.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json"
+      ],
+      "files": [
+        {
+          "path": "ui/field.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/field.tsx"
+        }
+      ]
+    },
+    {
       "name": "input",
       "type": "registry:ui",
       "title": "Input",
       "description": "Ink-framed text input with accessible label, hint, and marker-flagged error message.",
       "registryDependencies": [
-        "https://frame12.dev/r/frame12-styles.json"
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/field.json"
       ],
       "files": [
         {
           "path": "ui/input.tsx",
           "type": "registry:ui",
           "target": "components/frame12/input.tsx"
+        }
+      ]
+    },
+    {
+      "name": "textarea",
+      "type": "registry:ui",
+      "title": "Textarea",
+      "description": "Ink-framed multi-line text input with accessible label, hint, marker-flagged error message, and Field context support.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/field.json"
+      ],
+      "files": [
+        {
+          "path": "ui/textarea.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/textarea.tsx"
+        }
+      ]
+    },
+    {
+      "name": "checkbox",
+      "type": "registry:ui",
+      "title": "Checkbox",
+      "description": "Native ink-framed checkbox with SVG checkmark and indeterminate mixed-state line, label, hint, error, and Field context support.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/field.json"
+      ],
+      "files": [
+        {
+          "path": "ui/checkbox.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/checkbox.tsx"
+        }
+      ]
+    },
+    {
+      "name": "radio-group",
+      "type": "registry:ui",
+      "title": "RadioGroup",
+      "description": "Accessible fieldset/legend radio group built on native radio inputs with vertical/horizontal orientation and Field context support.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/field.json"
+      ],
+      "files": [
+        {
+          "path": "ui/radio-group.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/radio-group.tsx"
+        }
+      ]
+    },
+    {
+      "name": "switch",
+      "type": "registry:ui",
+      "title": "Switch",
+      "description": "Exposure-sheet toggle switch built on native checkbox role=switch with configurable ON/OFF glyph, logical RTL-ready thumb, and stepped 12fps motion.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/field.json"
+      ],
+      "files": [
+        {
+          "path": "ui/switch.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/switch.tsx"
+        }
+      ]
+    },
+    {
+      "name": "tabs",
+      "type": "registry:ui",
+      "title": "Tabs",
+      "description": "WAI-ARIA tablist, tab, and tabpanel primitives with roving focus, automatic or manual keyboard activation, and default quiet panel context.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/panel.json"
+      ],
+      "files": [
+        {
+          "path": "ui/tabs.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/tabs.tsx"
         }
       ]
     },
@@ -375,7 +477,8 @@
       "description": "FRAME/12 skin for accessible select menus built on @radix-ui/react-select with ink frame and marker-yellow caret.",
       "dependencies": ["@radix-ui/react-select"],
       "registryDependencies": [
-        "https://frame12.dev/r/frame12-styles.json"
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/field.json"
       ],
       "files": [
         {
@@ -493,9 +596,39 @@
           "target": "components/frame12/button.tsx"
         },
         {
+          "path": "ui/field.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/field.tsx"
+        },
+        {
           "path": "ui/input.tsx",
           "type": "registry:ui",
           "target": "components/frame12/input.tsx"
+        },
+        {
+          "path": "ui/textarea.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/textarea.tsx"
+        },
+        {
+          "path": "ui/checkbox.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/checkbox.tsx"
+        },
+        {
+          "path": "ui/radio-group.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/radio-group.tsx"
+        },
+        {
+          "path": "ui/switch.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/switch.tsx"
+        },
+        {
+          "path": "ui/tabs.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/tabs.tsx"
         },
         {
           "path": "ui/badge.tsx",

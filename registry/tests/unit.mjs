@@ -47,7 +47,7 @@ import {
     if (!existsSync(p)) missingJson.push(item.name);
   }
   check(
-    missingJson.length === 0 && reg.items.length >= 21,
+    missingJson.length === 0 && reg.items.length >= 28,
     `shadcn registry: ${reg.items.length} items emitted to site/public/r/*.json`,
     missingJson.join(', '),
   );
@@ -56,6 +56,12 @@ import {
   const conflictingShadcnNames = new Set([
     'button',
     'input',
+    'textarea',
+    'checkbox',
+    'radio-group',
+    'switch',
+    'field',
+    'tabs',
     'badge',
     'dialog',
     'select',
@@ -1098,6 +1104,520 @@ await page.waitForSelector('#unit-test-fixtures');
       'WP3 grammar: <Panel variant="quiet"> (1px rule, nested expressive keeps 2.5px, slant clearance 32px), <PanelPair variant="quiet">, <Metric variant="quiet">, non-yellow warning + synced Tag/Badge status glyphs ([i]/[+]/[!]/[×]) + srLabel/user-select:none + logical border-inline-start, bar patterns, and 13px compact density',
       JSON.stringify(wp3Check),
     );
+
+    // 3n. WP4: Essential Form Kit (Field, Textarea, Checkbox, RadioGroup, Switch) & Tabs
+    {
+      // 1. Real <form>: FormData, required, form=, and reset
+      await page.click('#wp4-form-submit');
+      const initialFormJson = await page.innerText('#wp4-form-output');
+      const initialFormData = JSON.parse(initialFormJson || '{}');
+
+      // Mutate form controls, then click reset and re-submit
+      await page.fill('#wp4-form-input', 'changed-handle');
+      await page.fill('#wp4-form-textarea', 'changed-notes');
+      await page.click('#wp4-form-checkbox'); // uncheck
+      await page.click('#wp4-form-radio-wk'); // select weekly
+      await page.click('#wp4-form-switch'); // uncheck
+
+      const validityWhenRequiredUnchecked = await page.evaluate(() =>
+        document.querySelector('#wp4-real-form').checkValidity(),
+      );
+
+      await page.click('#wp4-form-reset');
+      const afterResetState = await page.evaluate(() => ({
+        handle: document.querySelector('#wp4-form-input').value,
+        notes: document.querySelector('#wp4-form-textarea').value,
+        audit: document.querySelector('#wp4-form-checkbox').checked,
+        cadenceDaily: document.querySelector('#wp4-form-radio-daily').checked,
+        cadenceWk: document.querySelector('#wp4-form-radio-wk').checked,
+        replay: document.querySelector('#wp4-form-switch').checked,
+        replayTrackBg: getComputedStyle(document.querySelector('#wp4-form-switch')).backgroundColor,
+        validAfterReset: document.querySelector('#wp4-real-form').checkValidity(),
+      }));
+
+      check(
+        initialFormData.handle === 'atelier-prod' &&
+          initialFormData.notes === 'Initial note' &&
+          initialFormData.audit === 'enabled' &&
+          initialFormData.cadence === 'daily' &&
+          initialFormData.replay === 'on' &&
+          initialFormData.externalFlag === 'ext-yes' &&
+          !validityWhenRequiredUnchecked &&
+          afterResetState.handle === 'atelier-prod' &&
+          afterResetState.notes === 'Initial note' &&
+          afterResetState.audit === true &&
+          afterResetState.cadenceDaily === true &&
+          afterResetState.cadenceWk === false &&
+          afterResetState.replay === true &&
+          afterResetState.validAfterReset === true,
+        'WP4 real <form>: FormData submission, form="wp4-real-form" association, required validity, and native <button type="reset"> across Input, Textarea, Checkbox, RadioGroup, and Switch',
+        JSON.stringify({ initialFormData, validityWhenRequiredUnchecked, afterResetState }),
+      );
+
+      // 2. react-hook-form register() simulation & label-click toggling (including RadioGroupItem name override)
+      await page.click('label[for="wp4-rhf-checkbox"]');
+      await page.click('label[for="wp4-rhf-switch"]');
+      await page.click('label[for="wp4-rhf-radio-free"]');
+      await page.fill('#wp4-rhf-textarea', 'Hook form payload');
+      const rhfResult = await page.evaluate(() => {
+        const out = document.querySelector('#wp4-rhf-output');
+        const freeRadio = document.querySelector('#wp4-rhf-radio-free');
+        const proRadio = document.querySelector('#wp4-rhf-radio-pro');
+        return {
+          check: out.getAttribute('data-check'),
+          sw: out.getAttribute('data-sw'),
+          notes: out.getAttribute('data-notes'),
+          plan: out.getAttribute('data-plan'),
+          freeName: freeRadio.getAttribute('name'),
+          proName: proRadio.getAttribute('name'),
+          freeChecked: freeRadio.checked,
+          proChecked: proRadio.checked,
+          checkTag: out.getAttribute('data-check-tag'),
+          swTag: out.getAttribute('data-sw-tag'),
+          notesTag: out.getAttribute('data-notes-tag'),
+        };
+      });
+      check(
+        rhfResult.check === 'true' &&
+          rhfResult.sw === 'true' &&
+          rhfResult.notes === 'Hook form payload' &&
+          rhfResult.plan === 'free' &&
+          rhfResult.freeName === 'rhfPlan' &&
+          rhfResult.proName === 'rhfPlan' &&
+          rhfResult.freeChecked === true &&
+          rhfResult.proChecked === false &&
+          rhfResult.checkTag === 'INPUT' &&
+          rhfResult.swTag === 'INPUT' &&
+          rhfResult.notesTag === 'TEXTAREA',
+        'WP4 react-hook-form register() & label clicks: forwards native INPUT/TEXTAREA refs, preserves RadioGroupItem name="rhfPlan" when RadioGroup has no name, fires onChange, and toggles Checkbox/Switch/Radio when clicking <label>',
+        JSON.stringify(rhfResult),
+      );
+
+      // 3. Field + Control deduplication, composition (labeled Checkbox in Field, multi-Checkbox Field, Field id vs child id, native <input>, render-prop & wrapped RadioGroup), & standalone error announcements
+      const dedupAndErrorInfo = await page.evaluate(() => {
+        const zone = document.querySelector('#wp4-field-dedup-zone');
+        const fields = [...zone.querySelectorAll('.f12-field')];
+        const perFieldCounts = fields.map((f) => ({
+          labels: f.querySelectorAll('label.f12-label, label.f12-check-label').length,
+          legends: f.querySelectorAll('legend.f12-label').length,
+          hints: f.querySelectorAll('.f12-hint').length,
+          errors: f.querySelectorAll('.f12-error[role="alert"]').length,
+        }));
+        const controlLabelCounts = [
+          '#wp4-dedup-input',
+          '#wp4-dedup-textarea',
+          '#wp4-dedup-checkbox',
+          '#wp4-dedup-switch',
+        ].map((sel) => document.querySelector(sel).labels?.length ?? 0);
+        const radioInputs = [
+          ...document.querySelectorAll('#wp4-dedup-radiogroup input[type="radio"]'),
+        ];
+        const radioInputsOneLabel = radioInputs.every((r) => r.labels?.length === 1);
+        const radioInputsNoDuplicateGroupDesc = radioInputs.every(
+          (r) => !r.hasAttribute('aria-describedby'),
+        );
+        const noLabelForFieldset = !zone.querySelector('label[for="wp4-dedup-radiogroup"]');
+
+        // Composition zone checks:
+        // (a) <Field label="Notifications"><Checkbox label="Email me weekly" /></Field>
+        const notifField = document.querySelector('#wp4-notif-field');
+        const notifCheckbox = document.querySelector('#wp4-notif-checkbox');
+        const notifGroupOk =
+          notifField?.getAttribute('role') === 'group' &&
+          notifField?.getAttribute('aria-labelledby') === 'wp4-notif-field-label' &&
+          document.getElementById('wp4-notif-field-label')?.textContent?.trim() ===
+            'Notifications' &&
+          notifCheckbox?.labels?.length === 1 &&
+          notifCheckbox?.labels?.[0]?.textContent?.trim() === 'Email me weekly';
+
+        // (b) <Field label="Channels"><Checkbox label="Email channel" /><Checkbox label="SMS channel" /></Field>
+        const channelsField = document.querySelector('#wp4-channels-field');
+        const channelChecks = [...(channelsField?.querySelectorAll('input[type="checkbox"]') || [])];
+        const channelsGroupOk =
+          channelsField?.getAttribute('role') === 'group' &&
+          channelsField?.getAttribute('aria-labelledby') === 'wp4-channels-field-label' &&
+          channelChecks.length === 2 &&
+          Boolean(channelChecks[0].id) &&
+          Boolean(channelChecks[1].id) &&
+          channelChecks[0].id !== channelChecks[1].id &&
+          channelChecks[0].labels?.[0]?.textContent?.trim() === 'Email channel' &&
+          channelChecks[1].labels?.[0]?.textContent?.trim() === 'SMS channel';
+
+        // (c) <Field id="wp4-wrapper-id-field" label="Explicit child ID"><Input id="wp4-child-explicit-id" /></Field>
+        const wrapperField = document.querySelector('#wp4-wrapper-id-field');
+        const explicitInput = document.querySelector('#wp4-child-explicit-id');
+        const explicitIdOk =
+          wrapperField?.classList.contains('f12-field') &&
+          explicitInput?.labels?.length === 1 &&
+          explicitInput?.labels?.[0]?.getAttribute('for') === 'wp4-child-explicit-id';
+
+        // (d) <Field id="wp4-native-field" label="Native input in Field"><input id="wp4-native-input" /></Field>
+        const nativeInput = document.querySelector('#wp4-native-input');
+        const nativeInputOk =
+          nativeInput?.classList.contains('f12-input') &&
+          nativeInput?.labels?.length === 1 &&
+          nativeInput?.labels?.[0]?.getAttribute('for') === 'wp4-native-input';
+
+        // (e) Render-prop and <div>-wrapped RadioGroup inside <Field>
+        const rpRadio = document.querySelector('#wp4-rp-radiogroup');
+        const rpField = rpRadio?.closest('.f12-field');
+        const wrappedRadio = document.querySelector('#wp4-wrapped-radiogroup');
+        const wrappedField = wrappedRadio?.closest('.f12-field');
+        const nestedRadioGroupsOk =
+          rpField?.querySelectorAll('legend.f12-label').length === 1 &&
+          rpField?.querySelectorAll('label.f12-label').length === 0 &&
+          wrappedField?.querySelectorAll('legend.f12-label').length === 1 &&
+          wrappedField?.querySelectorAll('label.f12-label').length === 0;
+
+        // No duplicate IDs anywhere in #fixture-wp4-sheet
+        const allIds = [...document.querySelectorAll('#fixture-wp4-sheet [id]')].map((n) => n.id);
+        const dupIds = allIds.filter((id, idx) => allIds.indexOf(id) !== idx);
+
+        const standaloneErrControls = [
+          '#wp4-err-textarea',
+          '#wp4-err-checkbox',
+          '#wp4-err-radiogroup',
+          '#wp4-err-switch',
+        ];
+        const standaloneErrorsOk = standaloneErrControls.every((sel) => {
+          const el = document.querySelector(sel);
+          if (!el || el.getAttribute('aria-invalid') !== 'true') return false;
+          const descIds = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+          const errEl = descIds
+            .map((id) => document.getElementById(id))
+            .find((n) => n && n.getAttribute('role') === 'alert');
+          return Boolean(errEl && errEl.textContent.trim().length > 0);
+        });
+
+        return {
+          fieldCount: fields.length,
+          perFieldCounts,
+          controlLabelCounts,
+          radioInputsOneLabel,
+          radioInputsNoDuplicateGroupDesc,
+          noLabelForFieldset,
+          notifGroupOk,
+          channelsGroupOk,
+          explicitIdOk,
+          nativeInputOk,
+          nestedRadioGroupsOk,
+          dupIds,
+          standaloneErrorsOk,
+        };
+      });
+      check(
+        dedupAndErrorInfo.fieldCount === 5 &&
+          dedupAndErrorInfo.controlLabelCounts.every((n) => n === 1) &&
+          dedupAndErrorInfo.radioInputsOneLabel &&
+          dedupAndErrorInfo.radioInputsNoDuplicateGroupDesc &&
+          dedupAndErrorInfo.noLabelForFieldset &&
+          dedupAndErrorInfo.notifGroupOk &&
+          dedupAndErrorInfo.channelsGroupOk &&
+          dedupAndErrorInfo.explicitIdOk &&
+          dedupAndErrorInfo.nativeInputOk &&
+          dedupAndErrorInfo.nestedRadioGroupsOk &&
+          dedupAndErrorInfo.dupIds.length === 0 &&
+          dedupAndErrorInfo.perFieldCounts.every((c) => c.hints === 1 && c.errors === 1) &&
+          dedupAndErrorInfo.standaloneErrorsOk,
+        'WP4 Field coordination, composition (labeled Checkbox, multi-Checkbox group, Field id vs child id, native <input>, render-prop/wrapped RadioGroup), zero duplicate IDs, and role="alert" error announcements',
+        JSON.stringify(dedupAndErrorInfo),
+      );
+
+      // 4. Checkbox mixed state (SSR class + DOM indeterminate, uncontrolled click/reset sync, no invalid aria-checked="mixed"), localized & long German Switch labels, RTL Switch & Tabs, and WCAG 2.5.8 24×24px compact targets
+      const specialInfo = await page.evaluate(async () => {
+        const indEl = document.querySelector('#wp4-indeterminate-checkbox');
+        const indDomProp = indEl.indeterminate === true;
+        const indNoInvalidAriaChecked =
+          !indEl.hasAttribute('aria-checked') &&
+          indEl.getAttribute('data-indeterminate') === 'true';
+        const indHasClass = indEl.classList.contains('f12-checkbox-indeterminate');
+        // Simulate pre-hydration SSR state where DOM .indeterminate is false
+        indEl.indeterminate = false;
+        const markEl = indEl.parentElement.querySelector('.f12-checkbox-mark');
+        const ssrMarkVisible = getComputedStyle(markEl).opacity === '1';
+        indEl.indeterminate = true;
+
+        // Uncontrolled mixed checkbox: clicking clears .f12-checkbox-indeterminate and switches to checkmark; form.reset() restores mixed state
+        const uncMixed = document.querySelector('#wp4-uncontrolled-mixed');
+        const uncBefore = {
+          ind: uncMixed.indeterminate,
+          cls: uncMixed.classList.contains('f12-checkbox-indeterminate'),
+        };
+        uncMixed.click();
+        await Promise.resolve();
+        const uncAfterClick = {
+          ind: uncMixed.indeterminate,
+          checked: uncMixed.checked,
+          cls: uncMixed.classList.contains('f12-checkbox-indeterminate'),
+        };
+        document.querySelector('#wp4-uncontrolled-mixed-reset').click();
+        await new Promise((r) => setTimeout(r, 10));
+        const uncAfterReset = {
+          ind: uncMixed.indeterminate,
+          checked: uncMixed.checked,
+          cls: uncMixed.classList.contains('f12-checkbox-indeterminate'),
+        };
+
+        // Read-only Checkbox and Switch expose aria-readonly="true" and do not toggle on click
+        const roCb = document.querySelector('#wp4-readonly-checkbox');
+        const roSw = document.querySelector('#wp4-readonly-switch');
+        roCb.click();
+        roSw.click();
+        const readOnlyOk =
+          roCb?.getAttribute('aria-readonly') === 'true' &&
+          roSw?.getAttribute('aria-readonly') === 'true' &&
+          roCb?.checked === true &&
+          roSw?.checked === true;
+
+        const customSw = document.querySelector('#wp4-custom-label-switch');
+        const customTrack = customSw.parentElement.querySelector('.f12-switch-track');
+        const customTrackHidden = customTrack.getAttribute('aria-hidden') === 'true';
+        const onGlyph = customTrack.querySelector('.f12-switch-glyph-on')?.textContent;
+        const offGlyph = customTrack.querySelector('.f12-switch-glyph-off')?.textContent;
+
+        // Long German Switch labels ("AKTIVIERT" / "DEAKTIVIERT") auto-size track without clipping or thumb overlap
+        const deSw = document.querySelector('#wp4-german-switch');
+        const deTrack = deSw.parentElement.querySelector('.f12-switch-track');
+        const deThumb = deSw.parentElement.querySelector('.f12-switch-thumb');
+        const deOffGlyph = deTrack.querySelector('.f12-switch-glyph-off');
+        const deOnGlyph = deTrack.querySelector('.f12-switch-glyph-on');
+        deThumb.style.transition = 'none';
+        const deTrackRect = deTrack.getBoundingClientRect();
+        const deThumbUncheckedRect = deThumb.getBoundingClientRect();
+        const deOffRect = deOffGlyph.getBoundingClientRect();
+        const deOffStyle = getComputedStyle(deOffGlyph);
+        const deOffTextLeft = deOffRect.left + parseFloat(deOffStyle.paddingLeft);
+        const deOffTextRight = deOffRect.right - parseFloat(deOffStyle.paddingRight);
+        const deUncheckedNoClip =
+          deTrackRect.width > 54 &&
+          deTrack.scrollWidth <= deTrack.clientWidth &&
+          deOffTextLeft >= deThumbUncheckedRect.right &&
+          deOffTextRight <= deTrackRect.right;
+        deSw.click();
+        const deThumbCheckedRect = deThumb.getBoundingClientRect();
+        const deOnRect = deOnGlyph.getBoundingClientRect();
+        const deOnStyle = getComputedStyle(deOnGlyph);
+        const deOnTextLeft = deOnRect.left + parseFloat(deOnStyle.paddingLeft);
+        const deOnTextRight = deOnRect.right - parseFloat(deOnStyle.paddingRight);
+        const deCheckedNoClip =
+          deTrack.scrollWidth <= deTrack.clientWidth &&
+          deOnTextLeft >= deTrackRect.left &&
+          deOnTextRight <= deThumbCheckedRect.left;
+        deSw.click();
+        deThumb.style.transition = '';
+
+        // LTR vs RTL Switch thumb movement
+        const ltrSw = document.querySelector('#wp4-ltr-switch');
+        const ltrThumb = ltrSw.parentElement.querySelector('.f12-switch-thumb');
+        ltrThumb.style.transition = 'none';
+        const ltrBefore = ltrThumb.getBoundingClientRect().left;
+        ltrSw.click();
+        const ltrAfter = ltrThumb.getBoundingClientRect().left;
+        ltrThumb.style.transition = '';
+
+        const rtlSw = document.querySelector('#wp4-rtl-switch');
+        const rtlThumb = rtlSw.parentElement.querySelector('.f12-switch-thumb');
+        rtlThumb.style.transition = 'none';
+        const rtlBefore = rtlThumb.getBoundingClientRect().left;
+        rtlSw.click();
+        const rtlAfter = rtlThumb.getBoundingClientRect().left;
+        rtlThumb.style.transition = '';
+
+        // Compact target sizes (>= 24×24px)
+        const compactTargets = [
+          document.querySelector('#wp4-compact-checkbox'),
+          ...document.querySelectorAll('#wp4-compact-radiogroup .f12-radio-input'),
+          document.querySelector('#wp4-compact-switch'),
+          ...document.querySelectorAll('#wp4-tabs-manual .f12-tabs-trigger'),
+        ];
+        const allTargetsAtLeast24 = compactTargets.every((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width >= 24 && r.height >= 24;
+        });
+
+        return {
+          indDomProp,
+          indNoInvalidAriaChecked,
+          indHasClass,
+          ssrMarkVisible,
+          uncBefore,
+          uncAfterClick,
+          uncAfterReset,
+          readOnlyOk,
+          customTrackHidden,
+          onGlyph,
+          offGlyph,
+          deTrackWidth: Math.round(deTrackRect.width),
+          deUncheckedNoClip,
+          deCheckedNoClip,
+          ltrDelta: Math.round(ltrAfter - ltrBefore),
+          rtlDelta: Math.round(rtlAfter - rtlBefore),
+          allTargetsAtLeast24,
+        };
+      });
+      check(
+        specialInfo.indDomProp &&
+          specialInfo.indNoInvalidAriaChecked &&
+          specialInfo.indHasClass &&
+          specialInfo.ssrMarkVisible &&
+          specialInfo.uncBefore.ind === true &&
+          specialInfo.uncBefore.cls === true &&
+          specialInfo.uncAfterClick.ind === false &&
+          specialInfo.uncAfterClick.checked === true &&
+          specialInfo.uncAfterClick.cls === false &&
+          specialInfo.uncAfterReset.ind === true &&
+          specialInfo.uncAfterReset.checked === false &&
+          specialInfo.uncAfterReset.cls === true &&
+          specialInfo.readOnlyOk &&
+          specialInfo.customTrackHidden &&
+          specialInfo.onGlyph === '入' &&
+          specialInfo.offGlyph === '切' &&
+          specialInfo.deUncheckedNoClip &&
+          specialInfo.deCheckedNoClip &&
+          specialInfo.ltrDelta > 0 &&
+          specialInfo.rtlDelta < 0 &&
+          specialInfo.allTargetsAtLeast24,
+        'WP4 Checkbox mixed SSR/DOM state + uncontrolled click/reset sync, Switch configurable/long German auto-sizing labels without clipping, RTL Switch reverse thumb travel, and >=24×24px WCAG 2.5.8 compact targets',
+        JSON.stringify(specialInfo),
+      );
+
+      // 5. Tabs: default quiet panels inside Tabs, non-shifting autoCut numbers across tab switches, keyboard navigation, wrapped triggers (with and without defaultValue), collision-free value encoding ("a b" vs "a-b"), and custom trigger/panel IDs
+      const cutsBeforeTabSwitch = isChromium
+        ? await getRenderedCuts(page, { directSheetId: 'fixture-wp4-sheet' })
+        : null;
+      await page.focus('#wp4-tabs-tab-one');
+      await page.keyboard.press('ArrowRight'); // skips disabled tab, activates "two"
+      const afterRight = await page.evaluate(() => ({
+        activeId: document.activeElement?.id,
+        twoSelected: document.querySelector('#wp4-tabs-tab-two')?.getAttribute('aria-selected'),
+        twoHidden: document.querySelector('#wp4-tabs-panel-two')?.hidden,
+        onePanelQuiet: document
+          .querySelector('#wp4-tab-one-panel')
+          ?.classList.contains('f12-panel-quiet'),
+        twoPanelQuiet: document
+          .querySelector('#wp4-tab-two-panel')
+          ?.classList.contains('f12-panel-quiet'),
+      }));
+      await page.keyboard.press('End'); // activates "three" (which contains an explicit expressive panel)
+      const cutsOnTabThree = isChromium
+        ? await getRenderedCuts(page, { directSheetId: 'fixture-wp4-sheet' })
+        : null;
+      await page.keyboard.press('Home'); // activates "one"
+
+      // Manual activation tabs: ArrowRight moves focus without changing aria-selected until Enter
+      await page.focus('#wp4-tabs-manual-tab-m1');
+      await page.keyboard.press('ArrowRight');
+      const manualFocusOnly = await page.evaluate(() => ({
+        activeId: document.activeElement?.id,
+        m1Selected: document.querySelector('#wp4-tabs-manual-tab-m1')?.getAttribute('aria-selected'),
+        m2Selected: document.querySelector('#wp4-tabs-manual-tab-m2')?.getAttribute('aria-selected'),
+      }));
+      await page.keyboard.press('Enter');
+      const manualAfterEnter = await page.evaluate(() =>
+        document.querySelector('#wp4-tabs-manual-tab-m2')?.getAttribute('aria-selected'),
+      );
+
+      // RTL horizontal tabs: ArrowLeft moves forward from r1 to r2
+      await page.focus('#wp4-rtl-tabs-tab-r1');
+      await page.keyboard.press('ArrowLeft');
+      const rtlTabSelected = await page.evaluate(() =>
+        document.querySelector('#wp4-rtl-tabs-tab-r2')?.getAttribute('aria-selected'),
+      );
+
+      // Wrapped triggers without defaultValue: w1 auto-selected, panel visible, ArrowRight moves to w2
+      const wrappedNoDefaultBefore = await page.evaluate(() => ({
+        w1Selected: document
+          .querySelector('#wp4-tabs-wrapped-nodefault-tab-w1')
+          ?.getAttribute('aria-selected'),
+        w1TabIndex: document.querySelector('#wp4-tabs-wrapped-nodefault-tab-w1')?.tabIndex,
+        w1PanelHidden: document.querySelector('#wp4-tabs-wrapped-nodefault-panel-w1')?.hidden,
+      }));
+      await page.focus('#wp4-tabs-wrapped-nodefault-tab-w1');
+      await page.keyboard.press('ArrowRight');
+      const wrappedNoDefaultAfterRight = await page.evaluate(() => ({
+        activeId: document.activeElement?.id,
+        w2Selected: document
+          .querySelector('#wp4-tabs-wrapped-nodefault-tab-w2')
+          ?.getAttribute('aria-selected'),
+        w2PanelHidden: document.querySelector('#wp4-tabs-wrapped-nodefault-panel-w2')?.hidden,
+      }));
+
+      // Wrapped trigger with defaultValue alongside a direct trigger, collision-free IDs ("a b" vs "a-b"), and custom trigger/panel IDs
+      const extraTabsInfo = await page.evaluate(() => {
+        const wsel = document.querySelector('#wp4-tabs-wrapped-default-tab-wsel');
+        const wother = document.querySelector('#wp4-tabs-wrapped-default-tab-wother');
+        const wrappedDefaultOk =
+          wsel?.getAttribute('aria-selected') === 'true' &&
+          wsel?.tabIndex === 0 &&
+          wother?.getAttribute('aria-selected') === 'false' &&
+          wother?.tabIndex === -1;
+
+        const collisionTabs = [
+          ...document.querySelectorAll('#wp4-tabs-collision-tab-a_20_b, #wp4-tabs-collision-tab-a-b'),
+        ];
+        const collisionPanels = [
+          ...document.querySelectorAll(
+            '#wp4-tabs-collision-panel-a_20_b, #wp4-tabs-collision-panel-a-b',
+          ),
+        ];
+        const collisionOk =
+          collisionTabs.length === 2 &&
+          collisionPanels.length === 2 &&
+          collisionTabs[0].id !== collisionTabs[1].id &&
+          collisionPanels[0].id !== collisionPanels[1].id &&
+          collisionTabs[0].getAttribute('aria-controls') === collisionPanels[0].id &&
+          collisionPanels[0].getAttribute('aria-labelledby') === collisionTabs[0].id;
+
+        const customTab = document.querySelector('#wp4-custom-tab-id');
+        const customPanel = document.querySelector('#wp4-custom-panel-id');
+        const customTab2 = document.querySelector('#wp4-custom-tab-id-2');
+        const customPanel2 = document.querySelector('#wp4-tabs-custom-ids-panel-cid2');
+        const customIdsOk =
+          customTab?.getAttribute('aria-controls') === 'wp4-custom-panel-id' &&
+          customPanel?.getAttribute('aria-labelledby') === 'wp4-custom-tab-id' &&
+          customTab2?.getAttribute('aria-controls') === 'wp4-tabs-custom-ids-panel-cid2' &&
+          customPanel2?.getAttribute('aria-labelledby') === 'wp4-custom-tab-id-2';
+
+        return { wrappedDefaultOk, collisionOk, customIdsOk };
+      });
+
+      check(
+        afterRight.activeId === 'wp4-tabs-tab-two' &&
+          afterRight.twoSelected === 'true' &&
+          afterRight.twoHidden === false &&
+          afterRight.onePanelQuiet === true &&
+          afterRight.twoPanelQuiet === true &&
+          (!isChromium ||
+            (cutsBeforeTabSwitch.join(',') === 'C-01,C-02' &&
+              cutsOnTabThree.join(',') === 'C-01,C-02')) &&
+          manualFocusOnly.activeId === 'wp4-tabs-manual-tab-m2' &&
+          manualFocusOnly.m1Selected === 'true' &&
+          manualFocusOnly.m2Selected === 'false' &&
+          manualAfterEnter === 'true' &&
+          rtlTabSelected === 'true' &&
+          wrappedNoDefaultBefore.w1Selected === 'true' &&
+          wrappedNoDefaultBefore.w1TabIndex === 0 &&
+          wrappedNoDefaultBefore.w1PanelHidden === false &&
+          wrappedNoDefaultAfterRight.activeId === 'wp4-tabs-wrapped-nodefault-tab-w2' &&
+          wrappedNoDefaultAfterRight.w2Selected === 'true' &&
+          wrappedNoDefaultAfterRight.w2PanelHidden === false &&
+          extraTabsInfo.wrappedDefaultOk &&
+          extraTabsInfo.collisionOk &&
+          extraTabsInfo.customIdsOk,
+        'WP4 Tabs: WAI-ARIA keyboard navigation, wrapped triggers (with/without defaultValue), collision-free value encoding, custom ID pairing, default quiet inner panels, and stable C-01/C-02 autoCut numbering across tab switches',
+        JSON.stringify({
+          afterRight,
+          cutsBeforeTabSwitch,
+          cutsOnTabThree,
+          manualFocusOnly,
+          manualAfterEnter,
+          rtlTabSelected,
+          wrappedNoDefaultBefore,
+          wrappedNoDefaultAfterRight,
+          extraTabsInfo,
+        }),
+      );
+    }
   }
 }
 

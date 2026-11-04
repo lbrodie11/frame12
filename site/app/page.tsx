@@ -251,7 +251,7 @@ export default function HomePage() {
             </div>
             <div className="f12-row-pair">
               <Link href="/components" className="f12-link-btn" id="home-link-components">
-                Browse 19 Components
+                Browse 25 Components
               </Link>
             </div>
           </div>

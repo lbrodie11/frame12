@@ -79,6 +79,22 @@
 .f12-btn,
 .f12-field,
 .f12-input,
+.f12-textarea,
+.f12-check-field,
+.f12-checkbox-control,
+.f12-checkbox-input,
+.f12-radio-group,
+.f12-radio-item,
+.f12-radio-control,
+.f12-radio-input,
+.f12-switch,
+.f12-switch-input,
+.f12-switch-track,
+.f12-switch-thumb,
+.f12-tabs,
+.f12-tabs-list,
+.f12-tabs-trigger,
+.f12-tabs-content,
 .f12-dialog,
 .f12-select,
 .f12-select-content,
@@ -102,6 +118,10 @@
 .f12-panel *,
 .f12-panel *::before,
 .f12-panel *::after,
+.f12-field *,
+.f12-check-field *,
+.f12-radio-group *,
+.f12-tabs *,
 .f12-dialog *,
 .f12-select *,
 .f12-select-content *,
@@ -590,6 +610,10 @@
   text-transform: uppercase;
   color: var(--f-ink-2);
 }
+.f12-field-req {
+  color: var(--f-ink);
+  font-weight: 700;
+}
 .f12-input {
   width: 100%;
   padding: 9px 12px;
@@ -608,12 +632,51 @@
   outline: 3px solid var(--f-ink);
   outline-offset: 2px;
 }
+.f12-input:disabled {
+  cursor: not-allowed;
+  border-style: dashed;
+  color: var(--f-ink-2);
+  background: var(--f-panel);
+}
 .f12-field.f12-field-compact {
   gap: 4px;
 }
 .f12-input.f12-input-compact {
   padding: 6px 10px;
   font-size: 13px;
+  border-width: 1.5px;
+}
+.f12-textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: 9px 12px;
+  font-family: var(--font-f-body);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--f-ink);
+  background: var(--f-panel);
+  border: 2.5px solid var(--f-rule);
+  border-radius: 0;
+  resize: vertical;
+}
+.f12-textarea::placeholder {
+  color: var(--f-ink-2);
+}
+.f12-textarea:focus-visible {
+  outline: 3px solid var(--f-ink);
+  outline-offset: 2px;
+}
+.f12-textarea:disabled {
+  cursor: not-allowed;
+  border-style: dashed;
+  color: var(--f-ink-2);
+  background: var(--f-panel);
+}
+.f12-textarea.f12-textarea-compact {
+  min-height: 68px;
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1.4;
   border-width: 1.5px;
 }
 .f12-hint {
@@ -636,6 +699,382 @@
   color: var(--f-marker-ink);
   padding: 0 4px;
   font-weight: 700;
+}
+
+/* ===================================================================== Checkbox, RadioGroup, Switch & Tabs */
+.f12-check-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-f-body);
+  color: var(--f-ink);
+}
+.f12-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.f12-check-label {
+  font-family: var(--font-f-body);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--f-ink);
+  cursor: pointer;
+  user-select: none;
+}
+.f12-check-field-compact .f12-check-label,
+.f12-field-compact .f12-check-label,
+.f12-radio-item-compact .f12-check-label {
+  font-size: 13px;
+}
+[data-disabled] .f12-check-label {
+  color: var(--f-ink-2);
+  cursor: not-allowed;
+}
+.f12-check-meta {
+  padding-inline-start: 34px;
+}
+
+.f12-checkbox-control,
+.f12-radio-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+.f12-checkbox-input,
+.f12-radio-input {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  width: 24px;
+  height: 24px;
+  background: var(--f-panel);
+  border: 2.5px solid var(--f-rule);
+  cursor: pointer;
+  display: block;
+}
+.f12-checkbox-input {
+  border-radius: 0;
+}
+.f12-radio-input {
+  border-radius: 50%;
+}
+.f12-checkbox-input.f12-checkbox-compact,
+.f12-radio-input.f12-radio-compact {
+  border-width: 1.5px;
+}
+.f12-checkbox-input:focus-visible,
+.f12-radio-input:focus-visible {
+  outline: 3px solid var(--f-ink);
+  outline-offset: 2px;
+}
+.f12-checkbox-input:disabled,
+.f12-radio-input:disabled {
+  cursor: not-allowed;
+  border-style: dashed;
+  opacity: 0.6;
+}
+.f12-checkbox-input:checked,
+.f12-checkbox-input:indeterminate,
+.f12-checkbox-input.f12-checkbox-indeterminate,
+.f12-checkbox-input[data-indeterminate="true"] {
+  background: var(--f-ink);
+}
+.f12-checkbox-mark,
+.f12-radio-mark {
+  position: absolute;
+  inset: 0;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+  pointer-events: none;
+  opacity: 0;
+}
+.f12-checkbox-mark {
+  color: var(--f-panel);
+}
+.f12-radio-mark {
+  color: var(--f-ink);
+}
+.f12-checkbox-input:checked + .f12-checkbox-mark,
+.f12-checkbox-input:indeterminate + .f12-checkbox-mark,
+.f12-checkbox-input.f12-checkbox-indeterminate + .f12-checkbox-mark,
+.f12-checkbox-input[data-indeterminate="true"] + .f12-checkbox-mark,
+.f12-radio-input:checked + .f12-radio-mark {
+  opacity: 1;
+}
+
+.f12-radio-group {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--font-f-body);
+  color: var(--f-ink);
+}
+.f12-radio-group.f12-radio-group-compact {
+  gap: 6px;
+}
+.f12-radio-legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+.f12-radio-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.f12-radio-group.f12-radio-group-compact .f12-radio-items {
+  gap: 6px;
+}
+.f12-radio-group.f12-radio-group-horizontal .f12-radio-items {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+.f12-radio-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.f12-switch {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  min-width: 54px;
+  width: max-content;
+  height: 28px;
+}
+.f12-switch.f12-switch-compact {
+  min-width: 48px;
+  height: 24px;
+}
+.f12-switch-input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--f-panel);
+  border: 2.5px solid var(--f-rule);
+  border-radius: 0;
+  cursor: pointer;
+  display: block;
+}
+.f12-switch-input.f12-switch-input-compact {
+  border-width: 1.5px;
+}
+.f12-switch-input:checked {
+  background: var(--f-ink);
+}
+.f12-switch-input:focus-visible {
+  outline: 3px solid var(--f-ink);
+  outline-offset: 2px;
+}
+.f12-switch-input:disabled {
+  cursor: not-allowed;
+  border-style: dashed;
+  opacity: 0.6;
+}
+.f12-switch-track {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: inline-grid;
+  align-items: center;
+  overflow: hidden;
+  background: var(--f-panel);
+  border: 2.5px solid var(--f-rule);
+  box-sizing: border-box;
+}
+.f12-switch-input.f12-switch-input-compact + .f12-switch-track {
+  border-width: 1.5px;
+}
+.f12-switch-input:checked + .f12-switch-track {
+  background: var(--f-ink);
+}
+.f12-switch-input:disabled + .f12-switch-track {
+  border-style: dashed;
+  opacity: 0.6;
+}
+.f12-switch-glyph {
+  grid-area: 1 / 1;
+  font-family: var(--font-f-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+}
+.f12-switch-glyph-on {
+  justify-self: start;
+  padding-inline-start: 4px;
+  padding-inline-end: 22px;
+  color: var(--f-panel);
+  opacity: 0;
+}
+.f12-switch-glyph-off {
+  justify-self: end;
+  padding-inline-start: 22px;
+  padding-inline-end: 4px;
+  color: var(--f-ink-2);
+  opacity: 1;
+}
+.f12-switch.f12-switch-compact .f12-switch-glyph-on {
+  padding-inline-start: 4px;
+  padding-inline-end: 20px;
+}
+.f12-switch.f12-switch-compact .f12-switch-glyph-off {
+  padding-inline-start: 20px;
+  padding-inline-end: 4px;
+}
+.f12-switch-input:checked + .f12-switch-track .f12-switch-glyph-on {
+  opacity: 1;
+}
+.f12-switch-input:checked + .f12-switch-track .f12-switch-glyph-off {
+  opacity: 0;
+}
+.f12-switch-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 16px;
+  inset-inline-start: 2px;
+  background: var(--f-ink);
+  border: 1.5px solid var(--f-rule);
+}
+.f12-switch.f12-switch-compact .f12-switch-thumb {
+  top: 2px;
+  bottom: 2px;
+  width: 14px;
+  inset-inline-start: 2px;
+}
+.f12-switch-input:checked + .f12-switch-track .f12-switch-thumb {
+  inset-inline-start: calc(100% - 18px);
+  background: var(--f-panel);
+  border-color: var(--f-panel);
+}
+.f12-switch.f12-switch-compact .f12-switch-input:checked + .f12-switch-track .f12-switch-thumb {
+  inset-inline-start: calc(100% - 16px);
+}
+
+.f12-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  font-family: var(--font-f-body);
+  color: var(--f-ink);
+}
+.f12-tabs.f12-tabs-compact {
+  gap: 10px;
+}
+.f12-tabs.f12-tabs-vertical {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 18px;
+}
+.f12-tabs-list {
+  display: flex;
+  flex-wrap: wrap;
+  border: 2.5px solid var(--f-rule);
+  background: var(--f-panel);
+  width: fit-content;
+  max-width: 100%;
+}
+.f12-tabs-list.f12-tabs-list-compact {
+  border-width: 1.5px;
+}
+.f12-tabs.f12-tabs-vertical > .f12-tabs-list {
+  flex-direction: column;
+  flex: none;
+}
+.f12-tabs-trigger {
+  cursor: pointer;
+  background: var(--f-panel);
+  color: var(--f-ink);
+  border: 0;
+  padding: 8px 16px;
+  min-height: 36px;
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.f12-tabs-trigger + .f12-tabs-trigger {
+  border-inline-start: 2px solid var(--f-rule);
+}
+.f12-tabs.f12-tabs-vertical > .f12-tabs-list .f12-tabs-trigger + .f12-tabs-trigger {
+  border-inline-start: 0;
+  border-top: 2px solid var(--f-rule);
+}
+.f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger {
+  padding: 5px 12px;
+  min-height: 28px;
+  font-size: 11px;
+}
+.f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
+  border-inline-start-width: 1.5px;
+}
+.f12-tabs.f12-tabs-vertical > .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
+  border-inline-start-width: 0;
+  border-top-width: 1.5px;
+}
+.f12-tabs-trigger[aria-selected="true"] {
+  background: var(--f-ink);
+  color: var(--f-panel);
+}
+.f12-tabs-trigger:disabled {
+  cursor: not-allowed;
+  color: var(--f-ink-2);
+  opacity: 0.55;
+}
+.f12-tabs-trigger:focus-visible {
+  outline: 3px solid var(--f-ink);
+  outline-offset: -5px;
+}
+.f12-tabs-trigger[aria-selected="true"]:focus-visible {
+  outline-color: var(--f-panel);
+}
+.f12-tabs-content {
+  min-width: 0;
+  flex: 1;
+  width: 100%;
+  --f12-autocut-display: none;
+}
+.f12-tabs-content[hidden] {
+  display: none;
+}
+.f12-tabs-content .f12-cut[data-autocut] {
+  display: none;
+  counter-increment: none;
+}
+.f12-tabs-content:focus-visible {
+  outline: 3px solid var(--f-ink);
+  outline-offset: 2px;
 }
 
 /* ===================================================================== Metric, Delta & Spark */
@@ -1465,6 +1904,12 @@ dialog.f12-dialog::backdrop {
   .f12-m-value {
     font-size: 30px;
   }
+  .f12-tabs.f12-tabs-vertical {
+    flex-direction: column;
+  }
+  .f12-tabs.f12-tabs-vertical > .f12-tabs-list {
+    width: 100%;
+  }
 }
 
 @container (max-width: 360px) {
@@ -1474,6 +1919,10 @@ dialog.f12-dialog::backdrop {
   }
   .f12-rng-n {
     font-size: 15px;
+  }
+  .f12-tabs-trigger {
+    padding: 6px 10px;
+    font-size: 11px;
   }
 }
 
@@ -1486,6 +1935,12 @@ dialog.f12-dialog::backdrop {
 }
 .f12-m-stepped .f12-rng-ind {
   transition: transform 250ms steps(3, end), width 250ms steps(3, end);
+}
+.f12-m-smooth .f12-switch-thumb {
+  transition: inset-inline-start 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.f12-m-stepped .f12-switch-thumb {
+  transition: inset-inline-start 250ms steps(3, end);
 }
 
 .f12-m-smooth .f12-enter {
@@ -1665,9 +2120,72 @@ dialog.f12-dialog::backdrop {
   }
   .f12-rng-btn[aria-pressed="true"],
   .f12-int-row[aria-pressed="true"],
-  .f12-select-item[data-state="checked"] {
+  .f12-select-item[data-state="checked"],
+  .f12-tabs-trigger[aria-selected="true"] {
     outline: 2px solid Highlight;
     outline-offset: -2px;
+  }
+  .f12-checkbox-input,
+  .f12-radio-input,
+  .f12-switch-input,
+  .f12-switch-track {
+    forced-color-adjust: none;
+    background: Canvas;
+    border-color: CanvasText;
+  }
+  .f12-checkbox-input:checked,
+  .f12-checkbox-input:indeterminate,
+  .f12-checkbox-input.f12-checkbox-indeterminate,
+  .f12-checkbox-input[data-indeterminate="true"],
+  .f12-switch-input:checked,
+  .f12-switch-input:checked + .f12-switch-track {
+    background: Highlight;
+    border-color: Highlight;
+  }
+  .f12-checkbox-mark {
+    forced-color-adjust: none;
+    color: HighlightText;
+  }
+  .f12-radio-input:checked {
+    border-color: Highlight;
+  }
+  .f12-radio-mark {
+    forced-color-adjust: none;
+    color: Highlight;
+  }
+  .f12-switch-thumb {
+    forced-color-adjust: none;
+    background: CanvasText;
+    border-color: Canvas;
+  }
+  .f12-switch-input:checked + .f12-switch-track .f12-switch-thumb {
+    background: HighlightText;
+    border-color: Highlight;
+  }
+  .f12-switch-glyph-on {
+    forced-color-adjust: none;
+    color: HighlightText;
+  }
+  .f12-switch-glyph-off {
+    forced-color-adjust: none;
+    color: CanvasText;
+  }
+  .f12-checkbox-input:disabled,
+  .f12-radio-input:disabled,
+  .f12-switch-input:disabled,
+  .f12-switch-input:disabled + .f12-switch-track,
+  .f12-input:disabled,
+  .f12-textarea:disabled,
+  .f12-select-trigger:disabled {
+    border-color: GrayText;
+  }
+  .f12-input:disabled,
+  .f12-textarea:disabled,
+  .f12-select-trigger:disabled,
+  .f12-tabs-trigger:disabled,
+  [data-disabled] .f12-check-label,
+  .f12-switch-input:disabled + .f12-switch-track .f12-switch-glyph-off {
+    color: GrayText;
   }
   .f12-frame :focus-visible,
   .f12-sheet :focus-visible,
@@ -1682,7 +2200,15 @@ dialog.f12-dialog::backdrop {
   .f12-tag,
   .f12-badge,
   .f12-status-warning,
-  .f12-status-danger {
+  .f12-status-danger,
+  .f12-checkbox-input,
+  .f12-checkbox-mark,
+  .f12-radio-input,
+  .f12-radio-mark,
+  .f12-switch-input,
+  .f12-switch-track,
+  .f12-switch-thumb,
+  .f12-tabs-trigger[aria-selected="true"] {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

@@ -8,7 +8,16 @@ import {
   Panel,
   PanelPair,
   SegmentedControl,
+  Field,
   Input,
+  Textarea,
+  Checkbox,
+  RadioGroup,
+  Switch,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
   Select,
   SelectTrigger,
   SelectValue,
@@ -127,6 +136,12 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
   const [threshold, setThreshold] = React.useState<string>('15');
   const [channel, setChannel] = React.useState<string>('webhook');
   const [endpoint, setEndpoint] = React.useState<string>(ENV_PRESETS.prod.endpoint);
+  const [cadence, setCadence] = React.useState<string>('realtime');
+  const [autoReplay, setAutoReplay] = React.useState<boolean>(true);
+  const [dualSignoff, setDualSignoff] = React.useState<boolean>(true);
+  const [runbookNotes, setRunbookNotes] = React.useState<string>(
+    'Escalate to on-call if 5xx exceeds 1.5% over 3 consecutive cuts.',
+  );
   const [statusMessage, setStatusMessage] = React.useState<string>('All dispatch rules synchronized');
 
   const preset = ENV_PRESETS[env];
@@ -285,6 +300,75 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                 </Select>
               </div>
 
+              <Tabs idPrefix="settings-tabs" defaultValue="policy" density="compact">
+                <TabsList ariaLabel="Dispatch policy and runbook tabs">
+                  <TabsTrigger value="policy">Policy &amp; Cadence</TabsTrigger>
+                  <TabsTrigger value="runbook">Runbook Notes</TabsTrigger>
+                </TabsList>
+                <TabsContent value="policy">
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--f-gutter-pair)',
+                    }}
+                  >
+                    <RadioGroup
+                      id="settings-cadence"
+                      name="settingsCadence"
+                      density="compact"
+                      orientation="horizontal"
+                      label="Digest cadence"
+                      value={cadence}
+                      onValueChange={setCadence}
+                      options={[
+                        { value: 'realtime', label: 'Real-time' },
+                        { value: 'daily', label: 'Daily cut' },
+                        { value: 'weekly', label: 'Weekly rollup' },
+                      ]}
+                    />
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 'var(--f-gutter-scene)',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Switch
+                        id="settings-auto-replay"
+                        density="compact"
+                        label="Auto-replay failed deliveries"
+                        checked={autoReplay}
+                        onCheckedChange={setAutoReplay}
+                      />
+                      <Checkbox
+                        id="settings-dual-signoff"
+                        density="compact"
+                        label="Require dual-key signoff"
+                        checked={dualSignoff}
+                        onCheckedChange={setDualSignoff}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="runbook">
+                  <Panel id="settings-tab-default-quiet" label="Incident runbook configuration">
+                    <Field
+                      id="settings-runbook-notes"
+                      density="compact"
+                      label="Incident runbook notes"
+                      hint="Included in webhook alert payloads"
+                    >
+                      <Textarea
+                        value={runbookNotes}
+                        onChange={(e) => setRunbookNotes(e.target.value)}
+                      />
+                    </Field>
+                  </Panel>
+                </TabsContent>
+              </Tabs>
+
               <Panel
                 variant="quiet"
                 id="settings-quiet-summary"
@@ -333,6 +417,9 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                     setThreshold('15');
                     setEndpoint(preset.endpoint);
                     setChannel('webhook');
+                    setCadence('realtime');
+                    setAutoReplay(true);
+                    setDualSignoff(true);
                     setStatusMessage('Restored default workspace parameters');
                   }}
                 >

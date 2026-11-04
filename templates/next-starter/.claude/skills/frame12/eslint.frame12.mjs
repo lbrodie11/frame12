@@ -14,6 +14,30 @@ export const frame12RestrictedImports = {
       message: 'Use FRAME/12 <Input> from @/components/frame12 instead of raw shadcn input.',
     },
     {
+      name: '@/components/ui/textarea',
+      message: 'Use FRAME/12 <Textarea> from @/components/frame12 instead of raw shadcn textarea.',
+    },
+    {
+      name: '@/components/ui/checkbox',
+      message: 'Use FRAME/12 <Checkbox> from @/components/frame12 instead of raw shadcn checkbox.',
+    },
+    {
+      name: '@/components/ui/radio-group',
+      message: 'Use FRAME/12 <RadioGroup> from @/components/frame12 instead of raw shadcn radio-group.',
+    },
+    {
+      name: '@/components/ui/switch',
+      message: 'Use FRAME/12 <Switch> from @/components/frame12 instead of raw shadcn switch.',
+    },
+    {
+      name: '@/components/ui/field',
+      message: 'Use FRAME/12 <Field> from @/components/frame12 instead of raw shadcn field.',
+    },
+    {
+      name: '@/components/ui/label',
+      message: 'Use FRAME/12 <Field> or the built-in label prop on form controls from @/components/frame12.',
+    },
+    {
       name: '@/components/ui/badge',
       message: 'Use FRAME/12 <Badge> or <Tag> from @/components/frame12 instead of raw shadcn badge.',
     },
@@ -23,7 +47,7 @@ export const frame12RestrictedImports = {
     },
     {
       name: '@/components/ui/tabs',
-      message: 'Use FRAME/12 <SegmentedControl> from @/components/frame12 instead of Tabs.',
+      message: 'Use FRAME/12 <Tabs> (for switching content panels) or <SegmentedControl> (for changing the view of the same content) from @/components/frame12.',
     },
     {
       name: '@/components/ui/dialog',

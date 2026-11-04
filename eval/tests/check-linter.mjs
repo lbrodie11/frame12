@@ -761,6 +761,47 @@ function check(ok, label, detail = '') {
       ternaryAndNullishInPairSlot,
     }),
   );
+
+  // 5e. TabsContent provides default variant="quiet" to Panel and PanelPair
+  const tabsContentDefaultQuietNumbered = lintSource(
+    `
+    export const TabsCutCheck = () => (
+      <Sheet>
+        <Panel cut="C-01">Hero</Panel>
+        <Tabs defaultValue="a">
+          <TabsContent value="a">
+            <Panel label="Quiet by default">No cut needed</Panel>
+            <Panel cut="C-02">Invalid numbered default-quiet panel</Panel>
+          </TabsContent>
+        </Tabs>
+      </Sheet>
+    );
+  `,
+    'eval/screens/tabs-cut-check.tsx',
+  );
+  const tabsContentExplicitExpressive = lintSource(
+    `
+    export const TabsExpressiveCheck = () => (
+      <Sheet>
+        <Panel cut="C-01">Hero</Panel>
+        <Tabs defaultValue="a">
+          <TabsContent value="a">
+            <Panel variant="expressive" cut="C-02">Explicit expressive panel</Panel>
+          </TabsContent>
+        </Tabs>
+      </Sheet>
+    );
+  `,
+    'eval/screens/tabs-expressive-check.tsx',
+  );
+  check(
+    tabsContentDefaultQuietNumbered.length === 1 &&
+      tabsContentDefaultQuietNumbered[0].rule === 'cut-order' &&
+      tabsContentDefaultQuietNumbered[0].message.includes('Quiet panels') &&
+      tabsContentExplicitExpressive.length === 0,
+    'linter [cut-order]: treats <Panel> and <PanelPair> inside <TabsContent> as default variant="quiet" unless variant="expressive" is explicitly set',
+    JSON.stringify({ tabsContentDefaultQuietNumbered, tabsContentExplicitExpressive }),
+  );
 }
 
 // 6. Rule 5: raw-shadcn-import
@@ -768,14 +809,20 @@ function check(ok, label, detail = '') {
   const badImports = `
     import { Button } from '@/components/ui/button';
     import { Tabs } from '@/components/ui/tabs';
+    import { Checkbox } from '@/components/ui/checkbox';
+    import { RadioGroup } from '@/components/ui/radio-group';
+    import { Switch } from '@/components/ui/switch';
+    import { Textarea } from '@/components/ui/textarea';
+    import { Field } from '@/components/ui/field';
+    import { Label } from '@/components/ui/label';
     import * as DialogPrimitive from '@radix-ui/react-dialog';
     import { AreaChart } from 'recharts';
     export const X = () => null;
   `;
   const res = lintSource(badImports, 'eval/screens/bad-imports.tsx');
   check(
-    res.length === 4 && res.every((v) => v.rule === 'raw-shadcn-import'),
-    'linter [raw-shadcn-import]: flags @/components/ui/button, tabs, @radix-ui/react-dialog, and recharts',
+    res.length === 10 && res.every((v) => v.rule === 'raw-shadcn-import'),
+    'linter [raw-shadcn-import]: flags @/components/ui/{button,tabs,checkbox,radio-group,switch,textarea,field,label}, @radix-ui/react-dialog, and recharts',
   );
 }
 

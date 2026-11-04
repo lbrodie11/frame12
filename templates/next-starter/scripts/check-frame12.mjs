@@ -50,6 +50,12 @@ const LEGAL_TAILWIND_GAP_CLASSES = new Set([
 const FORBIDDEN_SHADCN_MODULES = new Set([
   'button',
   'input',
+  'textarea',
+  'checkbox',
+  'radio-group',
+  'switch',
+  'field',
+  'label',
   'badge',
   'tag',
   'card',
@@ -266,6 +272,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
   const visitedDeferredInitializers = new Set();
   const activeInitializers = new Set();
   let trackDeferredInitializers = false;
+  let inTabsContent = false;
 
   function resolveLocalIdentifier(idNode, seenIds = new Set()) {
     const name = idNode.text;
@@ -344,12 +351,16 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
   function getCanonicalTagName(tagNameNode) {
     const raw = tagNameNode.getText(sourceFile);
-    if (CUT_OWNER_TAGS.has(raw) || raw === 'Sheet') return raw;
+    if (CUT_OWNER_TAGS.has(raw) || raw === 'Sheet' || raw === 'TabsContent') return raw;
     if (ts.isIdentifier(tagNameNode)) {
       const resolved = unwrapExpression(tagNameNode);
       if (resolved && ts.isIdentifier(resolved)) {
         const targetName = resolved.text;
-        if (CUT_OWNER_TAGS.has(targetName) || targetName === 'Sheet') {
+        if (
+          CUT_OWNER_TAGS.has(targetName) ||
+          targetName === 'Sheet' ||
+          targetName === 'TabsContent'
+        ) {
           return targetName;
         }
       }
@@ -921,7 +932,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
   function visitCutOwnerOrElement(node, tagName, attributes, inAutoCut) {
     const isCutOwner = CUT_OWNER_TAGS.has(tagName);
-    if (!isCutOwner && tagName !== 'Sheet') {
+    if (!isCutOwner && tagName !== 'Sheet' && tagName !== 'TabsContent') {
       for (const prop of attributes.properties) {
         if (ts.isJsxAttribute(prop) && prop.name.getText(sourceFile) === 'children') {
           if (prop.initializer) {
@@ -945,7 +956,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
     const props = resolveElementProps(attributes);
 
-    if (tagName === 'Sheet') {
+    if (tagName === 'Sheet' || tagName === 'TabsContent') {
       for (const extra of props.extraNodes) {
         visit(extra, inAutoCut);
       }
@@ -964,7 +975,8 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       const slotState = inheritedSlot?.slotState;
       const propVariant =
         props.variant !== UNSET && props.variant !== null ? props.variant : undefined;
-      const effectiveVariant = propVariant ?? inheritedSlot?.variant ?? 'expressive';
+      const defaultVariant = tagName === 'Panel' && inTabsContent ? 'quiet' : 'expressive';
+      const effectiveVariant = propVariant ?? inheritedSlot?.variant ?? defaultVariant;
       const childCut = props.cut !== UNSET && props.cut !== null ? props.cut : undefined;
       const fallbackCut =
         inheritedSlot?.fallbackCut &&
@@ -1023,9 +1035,10 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     }
 
     // tagName === 'PanelPair'
+    const defaultPairVariant = inTabsContent ? 'quiet' : 'expressive';
     const pairVariant =
       (props.variant !== UNSET && props.variant !== null ? props.variant : undefined) ??
-      'expressive';
+      defaultPairVariant;
     const pairTopCut =
       props.topCut !== UNSET && props.topCut !== null ? props.topCut : undefined;
     const pairBottomCut =
@@ -1095,7 +1108,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
   function preScanDeferrals(node) {
     if (ts.isJsxElement(node)) {
       const tagName = getCanonicalTagName(node.openingElement.tagName);
-      if (CUT_OWNER_TAGS.has(tagName) || tagName === 'Sheet') {
+      if (CUT_OWNER_TAGS.has(tagName) || tagName === 'Sheet' || tagName === 'TabsContent') {
         const props = resolveElementProps(node.openingElement.attributes);
         if (props.children !== UNSET && props.children !== null) {
           preScanRenderedExpr(props.children);
@@ -1129,7 +1142,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       }
     } else if (ts.isJsxSelfClosingElement(node)) {
       const tagName = getCanonicalTagName(node.tagName);
-      if (CUT_OWNER_TAGS.has(tagName) || tagName === 'Sheet') {
+      if (CUT_OWNER_TAGS.has(tagName) || tagName === 'Sheet' || tagName === 'TabsContent') {
         const props = resolveElementProps(node.attributes);
         if (props.children !== UNSET && props.children !== null) {
           preScanRenderedExpr(props.children);
@@ -1182,14 +1195,26 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       const tagName = getCanonicalTagName(node.openingElement.tagName);
       const nextAutoCut =
         tagName === 'Sheet' ? getSheetAutoCut(node.openingElement.attributes) : inAutoCut;
-      visitCutOwnerOrElement(node, tagName, node.openingElement.attributes, nextAutoCut);
+      const prevTabs = inTabsContent;
+      if (tagName === 'TabsContent') inTabsContent = true;
+      try {
+        visitCutOwnerOrElement(node, tagName, node.openingElement.attributes, nextAutoCut);
+      } finally {
+        inTabsContent = prevTabs;
+      }
       return;
     }
 
     if (ts.isJsxSelfClosingElement(node)) {
       const tagName = getCanonicalTagName(node.tagName);
       const nextAutoCut = tagName === 'Sheet' ? getSheetAutoCut(node.attributes) : inAutoCut;
-      visitCutOwnerOrElement(node, tagName, node.attributes, nextAutoCut);
+      const prevTabs = inTabsContent;
+      if (tagName === 'TabsContent') inTabsContent = true;
+      try {
+        visitCutOwnerOrElement(node, tagName, node.attributes, nextAutoCut);
+      } finally {
+        inTabsContent = prevTabs;
+      }
       return;
     }
 

@@ -393,6 +393,23 @@ for (const screen of SCREENS) {
     ),
   );
   await page.fill('#settings-threshold', '15');
+
+  // Switch C-01 Tabs to "Runbook Notes" and verify default quiet Panel inside TabsContent does not shift C-01..C-05
+  const checkboxChecked = await page.evaluate(
+    () => document.getElementById('settings-dual-signoff')?.checked || false,
+  );
+  await page.click('#settings-tabs-tab-runbook');
+  const runbookTabState = await page.evaluate(() => {
+    const quietInTab = document.getElementById('settings-tab-default-quiet');
+    const textarea = document.getElementById('settings-runbook-notes');
+    return {
+      isQuietPanel: quietInTab?.classList.contains('f12-panel-quiet') || false,
+      hasTextarea: Boolean(textarea),
+    };
+  });
+  const cutsInRunbookTab = await getRenderedCuts(page, { panelsOnly: true });
+  await page.click('#settings-tabs-tab-policy');
+
   await page.click('#settings-revoke-open');
   const dlgCut = await page.evaluate(
     () => document.querySelector('dialog.f12-dialog[open] .f12-cut')?.textContent,
@@ -400,8 +417,15 @@ for (const screen of SCREENS) {
   await page.click('#settings-revoke-confirm');
   const dlgClosed = await page.evaluate(() => !document.querySelector('dialog.f12-dialog').open);
   check(
-    envSub.includes('Staging') && hasAlert && dlgCut === 'C-06' && dlgClosed,
-    'eval/settings interactions: environment switch, threshold alert, and C-06 revocation dialog',
+    envSub.includes('Staging') &&
+      hasAlert &&
+      runbookTabState.isQuietPanel &&
+      runbookTabState.hasTextarea &&
+      checkboxChecked &&
+      cutsInRunbookTab.join(',') === 'C-01,C-02,C-03,C-04,C-05' &&
+      dlgCut === 'C-06' &&
+      dlgClosed,
+    'eval/settings interactions: environment switch, threshold alert, Tabs runbook panel (default quiet with stable C-01..C-05 cuts), and C-06 revocation dialog',
   );
   await ctx.close();
 }

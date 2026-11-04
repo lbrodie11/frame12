@@ -160,18 +160,174 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 ```
 
+### `Field` (`ui/field.tsx`)
+Reusable form field coordinator linking `<label>`, optional `hint`, and `role="alert"` `error` message to a child control (`Input`, `Textarea`, `Checkbox`, `Switch`, `Select`, or `RadioGroup`) via `FieldContext` so wrapping a control inside `<Field>` never renders duplicate labels, hints, or errors. For single `Input`/`Textarea`/`Select` controls, `<Field label="...">` takes precedence over a child's `label` prop. For `Checkbox` or `Switch` children that pass their own `label` (or when multiple controls are placed inside `<Field>`), `<Field>` renders as `role="group"` with `aria-labelledby` while each option keeps its own `<label htmlFor>`. When wrapping `<RadioGroup>`, `Field` delegates the group label to `RadioGroup`'s `<legend>` inside `<fieldset>`. Do not nest a `<Field>` inside another `<Field>`.
+
+```tsx
+export type FieldDensity = 'comfortable' | 'compact';
+
+export interface FieldContextValue {
+  id: string;
+  label?: React.ReactNode;
+  labelId?: string;
+  hintId?: string;
+  errorId?: string;
+  describedBy?: string;
+  invalid?: boolean;
+  disabled?: boolean;
+  required?: boolean;
+  density: FieldDensity;
+}
+
+export interface FieldProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
+  id?: string;
+  htmlFor?: string;
+  label?: React.ReactNode;
+  hint?: React.ReactNode;
+  error?: React.ReactNode;
+  density?: FieldDensity; // default: 'comfortable'
+  required?: boolean;
+  disabled?: boolean;
+  children?: React.ReactNode | ((field: FieldContextValue) => React.ReactNode);
+}
+```
+
 ### `Input` (`ui/input.tsx`)
-Accessible field with linked `<label>`, optional hint, and marker-flagged `role="alert"` error message.
+Accessible field with linked `<label>`, optional hint, and marker-flagged `role="alert"` error message. Can be used standalone (`<Input label="Name" />`) or inside `<Field label="Name"><Input /></Field>`.
 
 ```tsx
 export type InputDensity = 'comfortable' | 'compact';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label: string;
-  hint?: string;
-  error?: string;
+  label?: React.ReactNode;
+  hint?: React.ReactNode;
+  error?: React.ReactNode;
   density?: InputDensity; // default: 'comfortable'
   fieldClassName?: string;
+}
+```
+
+### `Textarea` (`ui/textarea.tsx`)
+Multi-line exposure-sheet text input (`<textarea>`) matching `Input` ink borders, focus ring, `density`, and `FieldContext` / `aria-describedby` semantics.
+
+```tsx
+export type TextareaDensity = 'comfortable' | 'compact';
+
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: React.ReactNode;
+  hint?: React.ReactNode;
+  error?: React.ReactNode;
+  density?: TextareaDensity; // default: 'comfortable'
+  fieldClassName?: string;
+}
+```
+
+### `Checkbox` (`ui/checkbox.tsx`)
+Native `<input type="checkbox">` with `2.5px` (`1.5px` compact) ink frame, geometric SVG check mark, and SSR-safe `indeterminate` mixed mark (`.f12-checkbox-indeterminate`, `data-indeterminate="true"`, and DOM `node.indeterminate` synchronized across user activation, controlled updates, `readOnly`, and `form.reset()`).
+
+```tsx
+export type CheckboxDensity = 'comfortable' | 'compact';
+
+export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> {
+  label?: React.ReactNode;
+  hint?: React.ReactNode;
+  error?: React.ReactNode;
+  indeterminate?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  density?: CheckboxDensity; // default: 'comfortable'
+  fieldClassName?: string;
+}
+```
+
+### `RadioGroup` & `RadioGroupItem` (`ui/radio-group.tsx`)
+Native `<fieldset role="radiogroup">` + `<legend>` + `<input type="radio">` options with circular `24×24px` outer ink frame and solid inner ink dot when selected. Preserves native browser arrow-key navigation, single Tab stop, `FormData`, and `form.reset()`. For `react-hook-form`, pass `{...register('field')}` to each `<RadioGroupItem>` (item-level `name` wins when `RadioGroup` omits `name`), or use `<Controller>` when passing the `options` array to `<RadioGroup>`.
+
+```tsx
+export type RadioGroupOrientation = 'vertical' | 'horizontal';
+export type RadioGroupDensity = 'comfortable' | 'compact';
+
+export interface RadioOption {
+  value: string;
+  label: React.ReactNode;
+  hint?: React.ReactNode;
+  disabled?: boolean;
+}
+
+export interface RadioGroupProps
+  extends Omit<React.FieldsetHTMLAttributes<HTMLFieldSetElement>, 'onChange'> {
+  name?: string;
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  options?: RadioOption[];
+  label?: React.ReactNode;
+  hint?: React.ReactNode;
+  error?: React.ReactNode;
+  density?: RadioGroupDensity;         // default: 'comfortable'
+  orientation?: RadioGroupOrientation; // default: 'vertical'
+  disabled?: boolean;
+  required?: boolean;
+}
+
+export interface RadioGroupItemProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'value'> {
+  value: string;
+  label?: React.ReactNode;
+  hint?: React.ReactNode;
+  density?: RadioGroupDensity;
+}
+```
+
+### `Switch` (`ui/switch.tsx`)
+Exposure-sheet rectangular toggle built on native `<input type="checkbox" role="switch">` with configurable `onLabel` (default `'ON'`) and `offLabel` (default `'OFF'`) track glyphs (`aria-hidden="true"`), logical `inset-inline-start` RTL thumb travel, stepped 3-pose motion (`steps(3, end)`), and full native `<form>` (`FormData`, `form.reset()`, `required`, `form=`) and `react-hook-form` `register()` compatibility.
+
+```tsx
+export type SwitchDensity = 'comfortable' | 'compact';
+
+export interface SwitchProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'role'> {
+  label?: React.ReactNode;
+  hint?: React.ReactNode;
+  error?: React.ReactNode;
+  onLabel?: React.ReactNode;  // default: 'ON'
+  offLabel?: React.ReactNode; // default: 'OFF'
+  onCheckedChange?: (checked: boolean) => void;
+  density?: SwitchDensity; // default: 'comfortable'
+  fieldClassName?: string;
+}
+```
+
+### `Tabs` (`ui/tabs.tsx`)
+WAI-ARIA tabbed interface (`role="tablist"`, `role="tab"`, `role="tabpanel"`) with roving `tabIndex`, `ArrowLeft`/`ArrowRight`/`ArrowUp`/`ArrowDown`/`Home`/`End` navigation (including `dir="rtl"` horizontal flip and modified-key guard), and `activationMode?: 'automatic' | 'manual'` (default `'automatic'`). Always pass `defaultValue` (or controlled `value`) when wrapping `TabsTrigger` in custom components so the initial panel is visible in server-rendered HTML before hydration.
+- **When to use `Tabs` vs `SegmentedControl`:** Use `Tabs` to switch between distinct content panels (`role="tabpanel"`). Use `SegmentedControl` (`role="group"` + `aria-pressed`) to switch the view, mode, or time window of the same content.
+- **Cut numbers inside `TabsContent`:** Any `<Panel>` or `<PanelPair>` placed inside `<TabsContent>` defaults to `variant="quiet"` (unnumbered `1px` exposure-sheet frame) and `.f12-tabs-content` suppresses `autoCut` counter increments so switching tabs never renumbers `C-01..C-0n` panels on the surrounding `<Sheet autoCut>`. If you explicitly opt into `<Panel variant="expressive" cut="C-02">` inside a tab on a manually numbered sheet, cuts remain file-wide sequential (`C-01`, `C-02`, `C-03`, ... without duplicates across tabs).
+
+```tsx
+export type TabsOrientation = 'horizontal' | 'vertical';
+export type TabsActivationMode = 'automatic' | 'manual';
+export type TabsDensity = 'comfortable' | 'compact';
+
+export interface TabsProps extends React.HTMLAttributes<HTMLDivElement> {
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  orientation?: TabsOrientation;       // default: 'horizontal'
+  activationMode?: TabsActivationMode; // default: 'automatic'
+  density?: TabsDensity;               // default: 'comfortable'
+  idPrefix?: string;
+}
+
+export interface TabsListProps extends React.HTMLAttributes<HTMLDivElement> {
+  ariaLabel?: string;
+}
+
+export interface TabsTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  value: string;
+}
+
+export interface TabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  value: string;
+  forceMount?: boolean;
 }
 ```
 

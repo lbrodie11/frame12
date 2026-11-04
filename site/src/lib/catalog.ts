@@ -367,19 +367,19 @@ export function ActionRow() {
     props: [
       {
         name: 'label',
-        type: 'string',
-        defaultValue: 'required',
-        description: 'Visible label text programmatically linked to the <input> via htmlFor/id.',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Visible label text programmatically linked to the <input> via htmlFor/id (optional when wrapped in <Field>).',
       },
       {
         name: 'hint',
-        type: 'string',
+        type: 'React.ReactNode',
         defaultValue: 'undefined',
         description: 'Optional helper text linked via aria-describedby.',
       },
       {
         name: 'error',
-        type: 'string',
+        type: 'React.ReactNode',
         defaultValue: 'undefined',
         description: 'Validation error message rendered in a role="alert" live region with a marker flag.',
       },
@@ -391,7 +391,7 @@ export function ActionRow() {
       },
     ],
     a11yNotes: [
-      'Automatically generates a stable ID via React.useId() when id is omitted.',
+      'Automatically generates a stable ID via React.useId() when id is omitted, or inherits FieldContext when placed inside <Field>.',
       'Sets aria-invalid={Boolean(error)} and chains hintId/errorId into aria-describedby.',
     ],
     grammarNotes: [
@@ -407,6 +407,356 @@ export function WebhookField() {
       hint="Rotated every 90 days across production endpoints"
       defaultValue="whsec_f12_99481a"
     />
+  );
+}`,
+  },
+  {
+    slug: 'field',
+    title: 'Field',
+    category: 'Controls',
+    summary:
+      'Shared form field coordinator that links label, hint, marker-flagged error alert, required indicator, and density across form controls via FieldContext.',
+    registryUrl: 'https://frame12.dev/r/field.json',
+    sourceFile: 'registry/ui/field.tsx',
+    props: [
+      {
+        name: 'label',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Uppercase monospace field label linked to the child control via htmlFor/id (or <legend> when wrapping <RadioGroup>).',
+      },
+      {
+        name: 'hint',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Helper text rendered below the control and chained into aria-describedby.',
+      },
+      {
+        name: 'error',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Marker-flagged error message rendered in a role="alert" live region and setting aria-invalid="true".',
+      },
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Propagates comfortable or compact density to child Input, Textarea, Checkbox, RadioGroup, Switch, or Select controls.',
+      },
+      {
+        name: 'required / disabled',
+        type: 'boolean',
+        defaultValue: 'false',
+        description: 'Propagates required and disabled states to child controls via FieldContext.',
+      },
+    ],
+    a11yNotes: [
+      'Prevents duplicate labels, hints, and error alerts when wrapping Input, Textarea, Checkbox, Switch, RadioGroup, or Select. For single Input/Textarea/Select controls, <Field label="..."> takes precedence over a child label; for Checkbox/Switch children with their own label (or multiple controls), <Field> becomes role="group" with aria-labelledby while each option keeps its own <label htmlFor>.',
+      'Supports both FieldContext-aware components and render-prop children ((field) => ...) or native <input>/<textarea>/<select> elements. Do not nest <Field> inside another <Field>.',
+    ],
+    grammarNotes: [
+      'Uses .f12-label uppercase monospace headers and .f12-error-flag marker badges for validation alerts.',
+    ],
+    usageTemplate: `import { Field, Input } from '@/components/frame12';
+
+export function EndpointField() {
+  return (
+    <Field
+      label="Webhook endpoint URL"
+      hint="Must accept TLS 1.3 POST requests"
+      required
+    >
+      <Input defaultValue="https://api.acme.dev/webhooks/f12" />
+    </Field>
+  );
+}`,
+  },
+  {
+    slug: 'textarea',
+    title: 'Textarea',
+    category: 'Controls',
+    summary:
+      'Ink-framed multi-line text input with linked monospace label, hint, marker-flagged error alert, and FieldContext integration.',
+    registryUrl: 'https://frame12.dev/r/textarea.json',
+    sourceFile: 'registry/ui/textarea.tsx',
+    props: [
+      {
+        name: 'label',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Visible label text programmatically linked to the <textarea> via htmlFor/id (optional inside <Field>).',
+      },
+      {
+        name: 'hint',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Optional helper text linked via aria-describedby.',
+      },
+      {
+        name: 'error',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Validation error message rendered in a role="alert" live region.',
+      },
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Switches to a 1.5px rule and tighter padding for dense operational forms.',
+      },
+    ],
+    a11yNotes: [
+      'Forwards ref to a native <textarea> element for direct compatibility with FormData and react-hook-form register().',
+      'Chains hintId, errorId, and FieldContext describedBy IDs into aria-describedby.',
+    ],
+    grammarNotes: [
+      'Square 2.5px ink rule (1.5px in compact density) with vertical resize and dashed border when disabled.',
+    ],
+    usageTemplate: `import { Textarea } from '@/components/frame12';
+
+export function RunbookNotes() {
+  return (
+    <Textarea
+      label="Incident runbook notes"
+      hint="Included in webhook alert payloads"
+      defaultValue="Escalate to on-call if 5xx exceeds 1.5% over 3 consecutive cuts."
+    />
+  );
+}`,
+  },
+  {
+    slug: 'checkbox',
+    title: 'Checkbox',
+    category: 'Controls',
+    summary:
+      'Native ink-framed checkbox with crisp SVG checkmark, SSR-safe indeterminate mixed mark, and 24×24px minimum target size.',
+    registryUrl: 'https://frame12.dev/r/checkbox.json',
+    sourceFile: 'registry/ui/checkbox.tsx',
+    props: [
+      {
+        name: 'label',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Inline label linked to the native <input type="checkbox"> via htmlFor/id.',
+      },
+      {
+        name: 'indeterminate',
+        type: 'boolean',
+        defaultValue: 'false',
+        description: 'Renders the horizontal mixed-state mark in SSR HTML/CSS and syncs DOM input.indeterminate across user activation and form.reset().',
+      },
+      {
+        name: 'onCheckedChange',
+        type: '(checked: boolean) => void',
+        defaultValue: 'undefined',
+        description: 'Convenience callback invoked with the boolean checked state on change.',
+      },
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Reduces border weight to 1.5px while preserving a 24×24px WCAG 2.5.8 click target.',
+      },
+    ],
+    a11yNotes: [
+      'Built on a native <input type="checkbox"> with appearance: none so FormData, form.reset(), required, form=, label clicks, and react-hook-form register() work natively.',
+      'Provides explicit system-color rules under @media (forced-colors: active).',
+    ],
+    grammarNotes: [
+      'Uses a square 24×24px ink frame that fills with --f-ink when checked or indeterminate.',
+    ],
+    usageTemplate: `import { Checkbox } from '@/components/frame12';
+
+export function AuditToggle() {
+  return (
+    <Checkbox
+      label="Require dual-key signoff on production cuts"
+      hint="Enforced for all expressive storyboard sheets"
+      defaultChecked
+    />
+  );
+}`,
+  },
+  {
+    slug: 'radio-group',
+    title: 'RadioGroup',
+    category: 'Controls',
+    summary:
+      'Accessible radio group built on native <fieldset>, <legend>, and <input type="radio"> elements with vertical or horizontal layout.',
+    registryUrl: 'https://frame12.dev/r/radio-group.json',
+    sourceFile: 'registry/ui/radio-group.tsx',
+    props: [
+      {
+        name: 'label',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Group caption rendered inside <legend className="f12-label">.',
+      },
+      {
+        name: 'options',
+        type: 'RadioOption[]',
+        defaultValue: 'undefined',
+        description: 'Shorthand array of { value, label, hint?, disabled? } items; or pass <RadioGroupItem> children.',
+      },
+      {
+        name: 'orientation',
+        type: "'vertical' | 'horizontal'",
+        defaultValue: "'vertical'",
+        description: 'Stacks radio items vertically or wraps them horizontally.',
+      },
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Switches to 1.5px radio borders and tighter spacing while keeping 24×24px targets.',
+      },
+    ],
+    a11yNotes: [
+      'Relies on native <input type="radio"> inside <fieldset> + <legend> for browser-native arrow-key navigation, single tab stop, FormData, and form.reset().',
+      'When wrapped in <Field label="..."> (including via render-prop or wrapper), renders the Field label as the <fieldset> <legend> so no invalid <label htmlFor="fieldset"> or duplicate label is produced.',
+      'For react-hook-form, spread {...register("field")} onto each <RadioGroupItem>, or wrap <RadioGroup> in <Controller> when using the options prop.',
+    ],
+    grammarNotes: [
+      'Uses circular 24×24px ink frames to distinguish single-choice radio buttons from square multi-choice checkboxes.',
+    ],
+    usageTemplate: `import { RadioGroup } from '@/components/frame12';
+
+export function CadenceRadio() {
+  return (
+    <RadioGroup
+      label="Digest cadence"
+      name="cadence"
+      defaultValue="daily"
+      options={[
+        { value: 'realtime', label: 'Real-time', hint: 'Immediate webhook dispatch' },
+        { value: 'daily', label: 'Daily cut', hint: '09:00 UTC exposure sheet summary' },
+        { value: 'weekly', label: 'Weekly rollup', hint: 'Monday 09:00 UTC digest' },
+      ]}
+    />
+  );
+}`,
+  },
+  {
+    slug: 'switch',
+    title: 'Switch',
+    category: 'Controls',
+    summary:
+      'Exposure-sheet toggle switch built on native <input type="checkbox" role="switch"> with configurable ON/OFF glyph, RTL-ready logical thumb, and stepped 12fps motion.',
+    registryUrl: 'https://frame12.dev/r/switch.json',
+    sourceFile: 'registry/ui/switch.tsx',
+    props: [
+      {
+        name: 'label',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Inline label linked to the native <input type="checkbox" role="switch">.',
+      },
+      {
+        name: 'onLabel / offLabel',
+        type: 'React.ReactNode',
+        defaultValue: "'ON' / 'OFF'",
+        description: 'Configurable visual track glyphs (marked aria-hidden="true" so role="switch" never double-announces English text).',
+      },
+      {
+        name: 'onCheckedChange',
+        type: '(checked: boolean) => void',
+        defaultValue: 'undefined',
+        description: 'Callback fired with the boolean checked state on toggle.',
+      },
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Selects 54×28px (2.5px border) or 48×24px (1.5px border) exposure-sheet cell dimensions.',
+      },
+    ],
+    a11yNotes: [
+      'Built on a native <input type="checkbox" role="switch"> so FormData, form.reset(), required, form=, label clicks, and react-hook-form register() work out of the box.',
+      'Uses logical inset-inline-start positioning so the thumb moves in the reverse direction under dir="rtl".',
+    ],
+    grammarNotes: [
+      'When checked, the track inverts to --f-ink with a --f-panel thumb that steps across the track in 3 held poses (steps(3, end)) in stepped motion mode.',
+    ],
+    usageTemplate: `import { Switch } from '@/components/frame12';
+
+export function ReplaySwitch() {
+  return (
+    <Switch
+      label="Auto-replay failed webhook deliveries"
+      hint="Retries up to 3 times with exponential backoff"
+      defaultChecked
+    />
+  );
+}`,
+  },
+  {
+    slug: 'tabs',
+    title: 'Tabs',
+    category: 'Controls',
+    summary:
+      'WAI-ARIA tablist, tab, and tabpanel primitives with roving focus, automatic or manual keyboard activation, and default quiet panel context.',
+    registryUrl: 'https://frame12.dev/r/tabs.json',
+    sourceFile: 'registry/ui/tabs.tsx',
+    props: [
+      {
+        name: 'value / defaultValue',
+        type: 'string',
+        defaultValue: "''",
+        description: 'Controlled or uncontrolled active tab value.',
+      },
+      {
+        name: 'onValueChange',
+        type: '(value: string) => void',
+        defaultValue: 'undefined',
+        description: 'Callback invoked when the active tab changes.',
+      },
+      {
+        name: 'orientation',
+        type: "'horizontal' | 'vertical'",
+        defaultValue: "'horizontal'",
+        description: 'Tab list orientation (vertical stacks automatically below 760px container width).',
+      },
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Adjusts tab trigger padding and rule weight (2.5px vs 1.5px).',
+      },
+      {
+        name: 'activationMode',
+        type: "'automatic' | 'manual'",
+        defaultValue: "'automatic'",
+        description: 'Whether arrow keys activate the focused tab immediately (automatic) or only move focus until Enter/Space (manual).',
+      },
+    ],
+    a11yNotes: [
+      'Implements WAI-ARIA role="tablist", role="tab" (aria-selected, aria-controls), and role="tabpanel" (aria-labelledby) with roving tabIndex and Home/End/Arrow key support.',
+      'Inactive TabsContent elements remain mounted with hidden so aria-controls always references a valid DOM ID. Always pass defaultValue (or value) when wrapping TabsTrigger in custom components so the initial panel renders visibly in SSR HTML before hydration.',
+    ],
+    grammarNotes: [
+      'Use <Tabs> when switching between distinct content panels (e.g., Routing vs. Retries vs. Signing Keys); use <SegmentedControl> when changing the view or time range of the same content.',
+      'Panels inside <TabsContent> default to variant="quiet" and suppress CSS autoCut counters so switching tabs never shifts C-01/C-02 cut numbers on the sheet.',
+    ],
+    usageTemplate: `import { Tabs, TabsList, TabsTrigger, TabsContent, Panel, Input } from '@/components/frame12';
+
+export function SettingsTabs() {
+  return (
+    <Tabs defaultValue="routing">
+      <TabsList ariaLabel="Pipeline configuration">
+        <TabsTrigger value="routing">Routing</TabsTrigger>
+        <TabsTrigger value="retries">Retries</TabsTrigger>
+      </TabsList>
+      <TabsContent value="routing">
+        <Panel label="Routing configuration">
+          <Input label="Primary endpoint" defaultValue="https://api.acme.dev/hooks" />
+        </Panel>
+      </TabsContent>
+      <TabsContent value="retries">
+        <Panel label="Retry configuration">
+          <Input label="Max retry attempts" defaultValue="5" />
+        </Panel>
+      </TabsContent>
+    </Tabs>
   );
 }`,
   },
