@@ -17,10 +17,15 @@ import {
   const uiFiles = readdirSync(resolve(REGISTRY_ROOT, 'ui')).map((f) =>
     resolve(REGISTRY_ROOT, 'ui', f),
   );
+  const blockFiles = existsSync(resolve(REGISTRY_ROOT, 'blocks'))
+    ? readdirSync(resolve(REGISTRY_ROOT, 'blocks')).map((f) =>
+        resolve(REGISTRY_ROOT, 'blocks', f),
+      )
+    : [];
   const hookFiles = readdirSync(resolve(REGISTRY_ROOT, 'hooks')).map((f) =>
     resolve(REGISTRY_ROOT, 'hooks', f),
   );
-  const codeFiles = [...uiFiles, ...hookFiles];
+  const codeFiles = [...uiFiles, ...blockFiles, ...hookFiles];
 
   const colorViolations = [];
   for (const file of codeFiles) {

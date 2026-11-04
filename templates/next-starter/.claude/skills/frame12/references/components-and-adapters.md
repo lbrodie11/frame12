@@ -537,3 +537,10 @@ FRAME/12 wraps the five complex interactive primitives in accessible adapters th
 5. **`Table` (`ui/table.tsx`):**
    - Exports: `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`, `type TableDensity`.
    - Monospace uppercase headers with `2.5px` bottom ink rule, `scope="col"` by default on `TableHead`, `density?: 'comfortable' | 'compact'` (`<Table density="compact">`), and `tabular-nums` alignment.
+
+---
+
+## 7. Application Blocks (`registry:block`)
+
+### `DeveloperConsole` (`blocks/developer-console.tsx`)
+Flagship API & webhook control-plane Developer Console block (`npx shadcn@latest add https://frame12.dev/r/developer-console.json`). Demonstrates Expressive hero KPIs (`Metric`), 45° screentone throughput charts (`ToneAreaChart`), and ranked service insights (`ToneBarList`) alongside Quiet exposure-sheet views (`<Panel variant="quiet">`, `Table density="compact"`, `Field`, `Switch`, `Dialog`, `Pagination`, `ToastProvider`) across Overview, Services & Endpoints, Masked Fictional API Keys (`f12_sim_*`), and Request Logs, with reconciled deterministic fixtures and populated/loading/empty/error states.

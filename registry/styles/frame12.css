@@ -2059,7 +2059,8 @@
 }
 .f12-tbl summary {
   cursor: pointer;
-  width: max-content;
+  width: fit-content;
+  max-width: 100%;
   padding: 4px 0;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -2532,6 +2533,182 @@ dialog.f12-dialog::backdrop {
   border-bottom-width: 1.5px;
 }
 
+/* ===================================================================== Application Block & Layout Utilities */
+.f12-stack-pair {
+  display: flex;
+  flex-direction: column;
+  gap: var(--f-gutter-pair);
+  min-width: 0;
+}
+.f12-stack-scene {
+  display: flex;
+  flex-direction: column;
+  gap: var(--f-gutter-scene);
+  min-width: 0;
+}
+.f12-row-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--f-gutter-pair);
+}
+.f12-row-between {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--f-gutter-pair) var(--f-gutter-scene);
+}
+.f12-section-title {
+  margin: 0;
+  font-family: var(--font-f-display);
+  font-weight: 400;
+  font-size: clamp(20px, 3vw, 28px);
+  line-height: 1.1;
+  color: var(--f-ink);
+}
+.f12-body-copy {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--f-ink);
+  max-width: 68ch;
+}
+.f12-muted-copy {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--f-ink-2);
+  max-width: 66ch;
+}
+.f12-mono-note {
+  margin: 0;
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--f-ink-2);
+}
+.f12-code-inline {
+  font-family: var(--font-f-mono);
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border: 1px solid var(--f-grid);
+  background-color: var(--f-sheet);
+  color: var(--f-ink);
+  overflow-wrap: anywhere;
+}
+.f12-nowrap {
+  white-space: nowrap;
+}
+
+.f12-console-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--f-gutter-pair) var(--f-gutter-scene);
+  min-width: 0;
+}
+.f12-console-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--f-gutter-pair);
+  align-items: end;
+  min-width: 0;
+}
+.f12-console-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--f-gutter-pair);
+  min-width: 0;
+}
+.f12-console-kv-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--f-gutter-pair);
+  margin: 0;
+  min-width: 0;
+}
+.f12-console-kv-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--f-grid);
+  background: var(--f-sheet);
+}
+.f12-console-kv-label {
+  font-family: var(--font-f-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--f-ink-2);
+}
+.f12-console-kv-value {
+  margin-top: 2px;
+  font-family: var(--font-f-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--f-ink);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.f12-console-code {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1.5px solid var(--f-rule);
+  background: var(--f-sheet);
+  color: var(--f-ink);
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow-x: auto;
+}
+.f12-console-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.f12-console-feed-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--f-gutter-pair);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--f-grid);
+  font-size: 13px;
+}
+.f12-console-feed-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.f12-console-quiet-title {
+  margin: 0;
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--f-ink);
+}
+.f12-console-quiet-sub {
+  margin: 0;
+  font-family: var(--font-f-body);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--f-ink-2);
+}
+
 /* ===================================================================== Responsive Container Rules */
 @media (max-width: 760px) {
   .f12-frame {
@@ -2550,7 +2727,10 @@ dialog.f12-dialog::backdrop {
   .f12-scene,
   .f12-scene.f12-scene-split,
   .f12-scene.f12-scene-equal,
-  .f12-scene.f12-scene-three {
+  .f12-scene.f12-scene-three,
+  .f12-console-filters,
+  .f12-console-grid-2,
+  .f12-console-kv-list {
     grid-template-columns: minmax(0, 1fr);
   }
   .f12-rng-btn {
@@ -2595,12 +2775,19 @@ dialog.f12-dialog::backdrop {
 }
 
 @container (max-width: 360px) {
+  .f12-rng {
+    max-width: 100%;
+  }
   .f12-rng-btn {
-    padding: 5px 6px 4px;
-    min-width: 44px;
+    padding: 5px 5px 4px;
+    min-width: 40px;
   }
   .f12-rng-n {
-    font-size: 15px;
+    font-size: 13px;
+  }
+  .f12-rng-u {
+    font-size: 9px;
+    letter-spacing: 0.08em;
   }
   .f12-tabs-trigger {
     padding: 6px 10px;
@@ -2792,7 +2979,9 @@ dialog.f12-dialog::backdrop {
     fill: Canvas;
     stroke: CanvasText;
   }
-  .f12-panel.f12-panel-quiet {
+  .f12-panel.f12-panel-quiet,
+  .f12-console-kv-item,
+  .f12-console-code {
     border-color: CanvasText;
   }
   .f12-tag,

@@ -239,6 +239,7 @@ const ROUTES = [
   '/components/tone-area-chart',
   '/components/toast',
   '/components/pagination',
+  '/blocks/developer-console',
   '/agents',
   '/style-sheet',
   '/get-started',
@@ -276,6 +277,7 @@ try {
     'frame12-base.json',
     'font-dela-gothic-one.json',
     'frame12.json',
+    'developer-console.json',
     'registry.json',
   ]) {
     const res = await fetch(`${baseUrl}/r/${item}`);
@@ -336,6 +338,7 @@ try {
     '/opengraph-image',
     '/motion/opengraph-image',
     '/components/opengraph-image',
+    '/blocks/developer-console/opengraph-image',
     '/agents/opengraph-image',
     '/style-sheet/opengraph-image',
     '/get-started/opengraph-image',
@@ -649,6 +652,149 @@ try {
       'site /motion interactive flow: comparison mode toggle and synchronized Play comparison trigger',
     );
 
+    // 5b. Developer Console Flagship Block (/blocks/developer-console) end-to-end interactive verification
+    await page.goto(`${baseUrl}/blocks/developer-console`, { waitUntil: 'networkidle' });
+    await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+
+    // Dataset state transitions: loading -> empty -> error -> retry recovery
+    await page.click('#dev-console-dataset-state-loading');
+    const hasSkeletonInLoading = await page.evaluate(
+      () => document.querySelectorAll('.f12-skeleton').length >= 6,
+    );
+    await page.click('#dev-console-dataset-state-empty');
+    const hasEmptyWorkspace = await page.evaluate(() =>
+      Boolean(document.getElementById('dev-console-empty-workspace')),
+    );
+    await page.click('#dev-console-dataset-state-error');
+    const hasErrorBanner = await page.evaluate(() =>
+      Boolean(document.getElementById('dev-console-error-banner')),
+    );
+    await page.click('#dev-console-retry-telemetry');
+    const recoveredFromError = await page.evaluate(
+      () =>
+        !document.getElementById('dev-console-error-banner') &&
+        document.querySelectorAll('.f12-toast').length >= 1,
+    );
+    check(
+      hasSkeletonInLoading && hasEmptyWorkspace && hasErrorBanner && recoveredFromError,
+      'site /blocks/developer-console dataset states: loading skeletons, empty state, 503 error banner, and retry recovery with toast',
+      JSON.stringify({
+        hasSkeletonInLoading,
+        hasEmptyWorkspace,
+        hasErrorBanner,
+        recoveredFromError,
+      }),
+    );
+
+    // Overview: time range switching & ranked service selection
+    await page.click('#dev-console-range-7d');
+    await page.click('#int-dev-console-svc-bar-svc-inventory-ledger');
+    const overviewUpdated = await page.evaluate(() => {
+      const text = document.body.textContent || '';
+      return text.includes('9,840,200') && text.includes('OVERLAY: SVC-03');
+    });
+    check(
+      overviewUpdated,
+      'site /blocks/developer-console Overview: 7d time window and ranked service overlay selection reconcile KPIs & chart',
+    );
+
+    // Services & Endpoints: circuit-breaker switch, search empty state, and filter reset
+    await page.click('#dev-console-tab-services');
+    await page.click('#dev-console-shed-svc-webhook-dispatch');
+    await page.fill('#dev-console-endpoint-search', 'nonexistent-route-xyz');
+    const hasEndpointsEmpty = await page.evaluate(() =>
+      Boolean(document.getElementById('dev-console-endpoints-empty')),
+    );
+    await page.click('#dev-console-reset-endpoint-filters');
+    const endpointsRestored = await page.evaluate(
+      () =>
+        !document.getElementById('dev-console-endpoints-empty') &&
+        document.querySelectorAll('#dev-console-sheet tbody tr').length === 8,
+    );
+    check(
+      hasEndpointsEmpty && endpointsRestored,
+      'site /blocks/developer-console Services & Endpoints: circuit-breaker toggle, search empty state, and filter reset',
+      JSON.stringify({ hasEndpointsEmpty, endpointsRestored }),
+    );
+
+    // API Keys: validation error on short label, valid key issuance, and modal Dialog revocation confirmation
+    await page.click('#dev-console-tab-api-keys');
+    await page.fill('#dev-console-key-label-input', 'ab');
+    await page.click('#dev-console-issue-key-submit');
+    const hasValidationError = await page.evaluate(() => {
+      const input = document.getElementById('dev-console-key-label-input');
+      return input?.getAttribute('aria-invalid') === 'true';
+    });
+    await page.fill('#dev-console-key-label-input', 'Tokyo Edge Worker');
+    await page.click('#dev-console-issue-key-submit');
+    const issuedBannerVisible = await page.evaluate(() =>
+      Boolean(document.getElementById('dev-console-issued-key-banner')),
+    );
+    await page.click('#dev-console-revoke-key-key-prod-primary');
+    await page.waitForSelector('dialog[open]', { timeout: 3000 });
+    await page.click('#dev-console-confirm-revoke');
+    const revokedApplied = await page.evaluate(
+      () =>
+        !document.querySelector('dialog[open]') &&
+        !document.getElementById('dev-console-revoke-key-key-prod-primary'),
+    );
+    check(
+      hasValidationError && issuedBannerVisible && revokedApplied,
+      'site /blocks/developer-console API Keys: Field validation, simulated f12_sim_* issuance, and Dialog revocation confirmation',
+      JSON.stringify({ hasValidationError, issuedBannerVisible, revokedApplied }),
+    );
+
+    // Request Logs: status filter, pagination, detail trace Dialog, and simulated request replay
+    await page.click('#dev-console-tab-request-logs');
+    await page.click('#dev-console-log-status-5xx');
+    const fiveXxRows = await page.evaluate(
+      () => document.querySelectorAll('#dev-console-sheet tbody tr').length,
+    );
+    await page.click('#dev-console-inspect-log-log-2');
+    await page.waitForSelector('dialog[open]', { timeout: 3000 });
+    await page.click('#dev-console-replay-log-btn');
+    await page.click('#dev-console-close-log-dialog');
+    await page.click('#dev-console-log-status-all');
+    const hasReplayedBadge = await page.evaluate(() =>
+      (document.body.textContent || '').includes('req_01J9Z9RPL'),
+    );
+    check(
+      fiveXxRows === 2 && hasReplayedBadge,
+      'site /blocks/developer-console Request Logs: 5xx filtering, trace inspection Dialog, and simulated request replay',
+      JSON.stringify({ fiveXxRows, hasReplayedBadge }),
+    );
+
+    // Verify 320px narrow mobile containment across all 4 console tabs + forced-colors: active
+    await page.setViewportSize({ width: 320, height: 640 });
+    const tabOverflow320 = {};
+    for (const tabId of [
+      '#dev-console-tab-overview',
+      '#dev-console-tab-services',
+      '#dev-console-tab-api-keys',
+      '#dev-console-tab-request-logs',
+    ]) {
+      await page.click(tabId);
+      await page.waitForTimeout(60);
+      tabOverflow320[tabId] = await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      );
+    }
+    await page.emulateMedia({ forcedColors: 'active' });
+    const fcConsoleOk = await page.evaluate(() => {
+      const quietPanel = document.querySelector('.f12-panel.f12-panel-quiet');
+      const kvItem = document.querySelector('.f12-console-kv-item');
+      return (
+        window.matchMedia('(forced-colors: active)').matches &&
+        Boolean(quietPanel && getComputedStyle(quietPanel).borderTopStyle === 'solid') &&
+        Boolean(kvItem && getComputedStyle(kvItem).borderTopStyle === 'solid')
+      );
+    });
+    check(
+      Object.values(tabOverflow320).every(Boolean) && fcConsoleOk,
+      'site /blocks/developer-console (320px mobile & forced-colors): zero horizontal overflow across all 4 tabs and high-contrast system borders',
+      JSON.stringify({ tabOverflow320, fcConsoleOk }),
+    );
+
     await ctx.close();
   }
 
@@ -805,7 +951,7 @@ try {
           );
 
           if (scheme === 'light') {
-            // Test 768px container-query transition & 390px mobile on /components and /
+            // Test 768px container-query transition & 390px mobile on /components and /blocks/developer-console
             await page.setViewportSize({ width: 768, height: 900 });
             await page.waitForTimeout(100);
             const ok768 = await page.evaluate(
@@ -816,9 +962,13 @@ try {
             const ok390 = await page.evaluate(
               () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
             );
+            await page.goto(`${baseUrl}/blocks/developer-console`, { waitUntil: 'networkidle' });
+            const okConsole390 = await page.evaluate(
+              () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+            );
             check(
-              ok768 && ok390 && errors.length === 0,
-              `site [${engineName} 768px & 390px] /components: zero horizontal overflow across container-query & mobile viewports`,
+              ok768 && ok390 && okConsole390 && errors.length === 0,
+              `site [${engineName} 768px & 390px] /components & /blocks/developer-console: zero horizontal overflow across container-query & mobile viewports`,
               errors.join('; '),
             );
           }

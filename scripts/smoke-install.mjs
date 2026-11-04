@@ -563,9 +563,112 @@ console.log('R19_RUNTIME_OK:' + html.length);
   });
   check(
     validateRes.status === 0,
-    'npx shadcn registry validate passes across root registry.json and registry/registry.json (38 items)',
+    'npx shadcn registry validate passes across root registry.json and registry/registry.json (39 items)',
     validateRes.status !== 0 ? `${validateRes.stdout}\n${validateRes.stderr}` : '',
   );
+
+  // 6b. Flagship Block consumer installation (/r/developer-console.json)
+  const blockDir = mkdtempSync(join(tmpdir(), 'frame12-block-'));
+  try {
+    mkdirSync(join(blockDir, 'src/app'), { recursive: true });
+    mkdirSync(join(blockDir, '.shim-bin'), { recursive: true });
+    const blockShim = join(blockDir, '.shim-bin/npm');
+    writeFileSync(blockShim, '#!/bin/sh\nexit 0\n');
+    chmodSync(blockShim, 0o755);
+    writeFileSync(join(blockDir, 'src/app/globals.css'), '/* host globals */\n');
+    writeFileSync(
+      join(blockDir, 'package.json'),
+      readFileSync(join(tempDir, 'package.json'), 'utf8'),
+    );
+    writeFileSync(
+      join(blockDir, 'package-lock.json'),
+      readFileSync(join(tempDir, 'package-lock.json'), 'utf8'),
+    );
+    writeFileSync(
+      join(blockDir, 'tsconfig.json'),
+      readFileSync(join(tempDir, 'tsconfig.json'), 'utf8'),
+    );
+    writeFileSync(
+      join(blockDir, 'components.json'),
+      readFileSync(join(tempDir, 'components.json'), 'utf8'),
+    );
+
+    const blockUrl = `http://127.0.0.1:${port}/r/developer-console.json`;
+    const blockAdd = await runAsync(
+      'npx',
+      ['--yes', 'shadcn', 'add', blockUrl, '--yes', '--overwrite'],
+      {
+        cwd: blockDir,
+        env: {
+          ...process.env,
+          CI: 'true',
+          PATH: `${join(blockDir, '.shim-bin')}:${process.env.PATH || ''}`,
+        },
+      },
+    );
+    const hasBlockFiles =
+      existsSync(join(blockDir, 'src/components/frame12/blocks/developer-console.tsx')) &&
+      existsSync(join(blockDir, 'src/components/frame12/index.ts')) &&
+      existsSync(join(blockDir, 'src/hooks/use-on-twos.ts')) &&
+      existsSync(join(blockDir, 'src/styles/frame12.css'));
+    symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(blockDir, 'node_modules'), 'dir');
+    writeFileSync(
+      join(blockDir, 'src/app/block-check.tsx'),
+      `import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import '@/styles/frame12.css';
+import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';
+
+export function BlockConsumerCheck() {
+  return <DeveloperConsole defaultSection="overview" />;
+}
+export function renderBlockHtml() {
+  return renderToStaticMarkup(<BlockConsumerCheck />);
+}
+`,
+    );
+    const blockTsc = spawnSync(tscBin, ['--noEmit', '-p', join(blockDir, 'tsconfig.json')], {
+      cwd: blockDir,
+      encoding: 'utf8',
+    });
+    const blockBundle = join(blockDir, 'block-ssr.cjs');
+    const blockBuild = spawnSync(
+      esbuildBin,
+      [
+        join(blockDir, 'src/app/block-check.tsx'),
+        '--bundle',
+        '--platform=node',
+        '--format=cjs',
+        '--loader:.css=empty',
+        `--outfile=${blockBundle}`,
+      ],
+      { cwd: blockDir, encoding: 'utf8' },
+    );
+    const blockSsr =
+      blockBuild.status === 0
+        ? spawnSync(
+            process.execPath,
+            ['-e', `console.log(require(${JSON.stringify(blockBundle)}).renderBlockHtml())`],
+            { cwd: blockDir, encoding: 'utf8' },
+          )
+        : blockBuild;
+    check(
+      blockAdd.status === 0 &&
+        hasBlockFiles &&
+        blockTsc.status === 0 &&
+        blockSsr.status === 0 &&
+        (blockSsr.stdout || '').includes('Developer Console') &&
+        (blockSsr.stdout || '').includes('1,482,900'),
+      'Flagship Block install (/r/developer-console.json) installs components/frame12/blocks/developer-console.tsx + full kit, passes tsc --noEmit, and renders deterministic SSR markup',
+      blockTsc.status !== 0
+        ? `${blockTsc.stdout}\n${blockTsc.stderr}`
+        : blockSsr.status !== 0
+          ? `${blockSsr.stdout}\n${blockSsr.stderr}`
+          : '',
+    );
+  } finally {
+    rmSync(blockDir, { recursive: true, force: true });
+  }
 
   // 7. Individual component consumer installation (/r/sheet.json + /r/panel.json + /r/badge.json + /r/switch.json + /r/alert.json + /r/pagination.json via registryDependencies)
   const singleDir = mkdtempSync(join(tmpdir(), 'frame12-single-'));

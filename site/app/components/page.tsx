@@ -79,7 +79,7 @@ export default function ComponentsIndexPage() {
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
             @/components/frame12 · shadcn-compatible JSON
-            <Tag>{componentCount} Components · 34 Registry Payloads</Tag>
+            <Tag>{componentCount} Components · 39 Registry Payloads</Tag>
           </p>
           <h1 className="f12-title">Components & adapters</h1>
           <p className="f12-muted-copy">
@@ -103,9 +103,18 @@ export default function ComponentsIndexPage() {
                 </div>
                 <h2 className="f12-section-title">Install via shadcn CLI</h2>
               </div>
-              <Link href="/get-started" className="f12-link-btn primary" id="comp-index-get-started">
-                Full Setup Guide
-              </Link>
+              <div className="f12-row-pair">
+                <Link
+                  href="/blocks/developer-console"
+                  className="f12-link-btn"
+                  id="comp-index-developer-console"
+                >
+                  Flagship Block: Developer Console →
+                </Link>
+                <Link href="/get-started" className="f12-link-btn primary" id="comp-index-get-started">
+                  Full Setup Guide
+                </Link>
+              </div>
             </div>
             <CopyCommand
               id="comp-copy-bundle"
