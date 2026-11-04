@@ -79,7 +79,7 @@ export default function ComponentsIndexPage() {
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
             @/components/frame12 · shadcn-compatible JSON
-            <Tag>{componentCount} Components · 28 Registry Payloads</Tag>
+            <Tag>{componentCount} Components · 34 Registry Payloads</Tag>
           </p>
           <h1 className="f12-title">Components & adapters</h1>
           <p className="f12-muted-copy">
@@ -98,7 +98,7 @@ export default function ComponentsIndexPage() {
                 <div className="f12-row-pair">
                   <Badge burst={false}>Bundle · frame12.json</Badge>
                   <span className="f12-mono-note">
-                    20 core components + 5 primitive adapters + useOnTwos hooks + CSS tokens
+                    26 core components + 5 primitive adapters + useOnTwos hooks + CSS tokens
                   </span>
                 </div>
                 <h2 className="f12-section-title">Install via shadcn CLI</h2>
@@ -136,7 +136,7 @@ export default function ComponentsIndexPage() {
             <div className="f12-row-pair">
               <Tag>02 · Controls</Tag>
               <span className="f12-mono-note">
-                SegmentedControl · Tabs · Button · Field · Input · Textarea · Checkbox · RadioGroup · Switch · Badge · Tag
+                SegmentedControl · Tabs · Button · Field · Input · Textarea · Checkbox · RadioGroup · Switch · Badge · Tag · Alert · Toast · Skeleton · EmptyState · Breadcrumb · Pagination
               </span>
             </div>
             <h2 className="f12-section-title">Exposure-sheet controls & markers</h2>

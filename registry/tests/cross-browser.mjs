@@ -655,6 +655,14 @@ for (const browserName of BROWSER_NAMES) {
           ? parseFloat(getComputedStyle(switchTrack).borderTopWidth)
           : 0;
         const activeTabOutline = activeTab ? getComputedStyle(activeTab).outlineWidth : '';
+        const warnAlert = document.querySelector('#wp5-alert-warning-dedup');
+        const dangerAlert = document.querySelector('#wp5-alert-danger');
+        const activePage = document.querySelector(
+          '#wp5-pagination-controlled .f12-pagination-link[aria-current="page"]',
+        );
+        const warnAlertBorder = warnAlert ? getComputedStyle(warnAlert).borderTopStyle : '';
+        const dangerAlertBorder = dangerAlert ? getComputedStyle(dangerAlert).borderTopStyle : '';
+        const activePageOutline = activePage ? getComputedStyle(activePage).outlineWidth : '';
         return {
           matchesFC,
           tagBorder,
@@ -668,6 +676,9 @@ for (const browserName of BROWSER_NAMES) {
           radioBorder,
           switchBorder,
           activeTabOutline,
+          warnAlertBorder,
+          dangerAlertBorder,
+          activePageOutline,
         };
       });
 
@@ -684,8 +695,11 @@ for (const browserName of BROWSER_NAMES) {
           fcState.radioBorder >= 1 &&
           fcState.switchBorder >= 1 &&
           fcState.activeTabOutline === '2px' &&
+          fcState.warnAlertBorder === 'dashed' &&
+          fcState.dangerAlertBorder === 'double' &&
+          fcState.activePageOutline === '2px' &&
           errors.length === 0,
-        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, preserves distinct status border styles (dashed/double), styles Checkbox/RadioGroup/Switch/Tabs, clears hatch/dense bar gradients, disables mix-blend-mode, and has zero errors`,
+        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, preserves distinct status border styles (dashed/double) on Tag/Alert, styles Checkbox/RadioGroup/Switch/Tabs/Pagination, clears hatch/dense bar gradients, disables mix-blend-mode, and has zero errors`,
         errors.length ? errors.join('; ') : JSON.stringify(fcState),
       );
 

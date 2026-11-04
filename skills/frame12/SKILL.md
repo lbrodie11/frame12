@@ -17,7 +17,7 @@ For worked screen examples, common drift fixes, and ESLint enforcement, read [re
 Install the full kit or individual components via the `shadcn` CLI:
 
 ```bash
-# Full kit (styles, hooks, 20 core components, and 5 primitive adapters)
+# Full kit (styles, hooks, 26 core components, and 5 primitive adapters)
 npx shadcn@latest add https://frame12.dev/r/frame12.json
 
 # Or individual registry items
@@ -125,6 +125,12 @@ When you installed the full kit (`frame12.json`) or started from `templates/next
 | Binary on/off toggle | `Switch` (`label`, `onLabel`, `offLabel`, `onCheckedChange`) | Custom toggle `<button>` or raw `@/components/ui/switch` |
 | Highlight callout with impact burst | `Badge` (`pop`, `burst`) | Colored status pills (green/red/blue badges) |
 | Compact metadata marker | `Tag` | Colored chips |
+| Inline status banner / static notice | `Alert` & `Notice` (`status="neutral" \| "info" \| "success" \| "warning" \| "danger"`, `live="off" \| "polite" \| "assertive"`) | Raw `@/components/ui/alert` or colored banners |
+| Ephemeral notification stack | `ToastProvider`, `useToast`, `Toast` (`maxVisible={3}`, hover/focus timer pause, `Escape` dismissal) | `sonner`, `react-hot-toast`, or raw `@/components/ui/toast` |
+| Zero-CLS loading placeholder | `Skeleton` & `SkeletonText` (`variant="block" \| "line" \| "circle" \| "metric" \| "panel"`) | Blurred shimmer gradients or raw `@/components/ui/skeleton` |
+| Zero-data / filtered-empty view | `EmptyState` (`code`, `title`, `description`, `action`, `secondaryAction`) | Ad-hoc empty text divs or raw `@/components/ui/empty-state` |
+| Hierarchical path navigation | `Breadcrumb` (`items` or `BreadcrumbList` / `BreadcrumbItem` / `BreadcrumbLink` / `BreadcrumbPage`) | Unstructured `>` links or raw `@/components/ui/breadcrumb` |
+| Page range navigation | `Pagination` (`page`, `totalPages`, `onPageChange`, `showSummary`) | Custom page buttons or raw `@/components/ui/pagination` |
 | Headline KPI + directional delta | `Metric` & `Delta` | Custom stat card |
 | Time-series or trend chart | `ToneAreaChart` | Recharts, Chart.js, Visx |
 | Ranked comparison bar list | `ToneBarList` | Progress bars, horizontal bar chart libraries |

@@ -336,6 +336,88 @@ Both render `--f-marker` yellow backgrounds with `--f-marker-ink` text by defaul
 - `Badge`: bordered (`2px solid var(--f-rule)`), supports `pop?: boolean`, `burst?: boolean` (14-ray SVG impact burst; defaults to `true` when `status` is omitted and `false` when `status` is set), `status?: BadgeStatus`, `glyph?: string | false`, and `srLabel?: string | false`.
 - `Tag`: flat inline marker strip (`<Tag>Production</Tag>` or `<Tag status="warning">Degraded</Tag>`).
 
+### `Alert` & `Notice` (`ui/alert.tsx`)
+Non-color semantic status callouts (`status?: 'neutral' | 'info' | 'success' | 'warning' | 'danger'`) with `[i]`/`[+]`/`[!]`/`[×]` glyph stamps, deduplicated `.f12-sr-only` prefix, optional dismiss button (`onDismiss`), and compound subcomponents (`AlertTitle`, `AlertDescription`, `AlertActions`).
+- **Live-region restraint:** `Notice` defaults to `live="off"` (`role="note"`) for static page-load notices. `Alert` defaults to `role="alert"` (`live="assertive"`) only when `status="danger"` (and `role="note"` otherwise unless `live="polite"` -> `role="status"` or `live="assertive"` -> `role="alert"` is passed).
+
+```tsx
+export type AlertStatus = TagStatus;
+export type AlertLive = 'off' | 'polite' | 'assertive';
+export type AlertDensity = 'comfortable' | 'compact';
+
+export interface AlertProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
+  status?: AlertStatus;       // default: 'info'
+  title?: React.ReactNode;
+  glyph?: string | false;
+  srLabel?: string | false;
+  actions?: React.ReactNode;
+  onDismiss?: () => void;
+  dismissLabel?: string;      // default: 'Dismiss alert'
+  density?: AlertDensity;     // default: 'comfortable'
+  live?: AlertLive;
+}
+```
+
+### `Toast` (`ui/toast.tsx`)
+Bounded exposure-sheet notification stack (`ToastProvider`, `useToast`, `ToastViewport`, `Toast`, `ToastTitle`, `ToastDescription`, `ToastAction`, `ToastClose`) with `maxVisible` (default `3`), `+N QUEUED` indicator, hover/focus timer pause with remaining duration tracking, `Escape` key dismissal, `role="alert"` for `danger` vs `role="status"` for non-danger toasts, and stepped 12fps entrance (`steps(3, end)`).
+
+```tsx
+export type ToastStatus = TagStatus;
+
+export interface ToastOptions {
+  id?: string;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  status?: ToastStatus;       // default: 'neutral'
+  glyph?: string | false;
+  srLabel?: string | false;
+  duration?: number;          // default: 5000 (0 disables auto-dismiss)
+  action?: React.ReactNode;
+  dismissLabel?: string;
+  onDismiss?: () => void;
+}
+```
+
+### `Skeleton` & `SkeletonText` (`ui/skeleton.tsx`)
+Zero-CLS loading placeholders using rotated screentone dot fills (`var(--f-tone)`) and 4-step 12fps opacity pulse (`f12SkeletonStep`). Decorative skeletons default to `aria-hidden="true"`; passing `label="Loading..."` sets `role="status" aria-busy="true"` with a `.f12-sr-only` label.
+
+```tsx
+export type SkeletonVariant = 'block' | 'line' | 'circle' | 'metric' | 'panel';
+
+export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: SkeletonVariant;  // default: 'block'
+  width?: number | string;
+  height?: number | string;
+  animated?: boolean;         // default: true
+  label?: string;
+}
+```
+
+### `EmptyState` (`ui/empty-state.tsx`)
+Structured zero-data and filtered-empty state (`EmptyState`, `EmptyStateIcon`, `EmptyStateTitle`, `EmptyStateDescription`, `EmptyStateActions`) with default `[ ∅ ]` registration glyph (`aria-hidden="true"`), monospace `code` badge, `variant?: 'dashed' | 'quiet'`, and primary/secondary action slots.
+
+```tsx
+export type EmptyStateVariant = 'dashed' | 'quiet';
+export type EmptyStateDensity = 'comfortable' | 'compact';
+
+export interface EmptyStateProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
+  icon?: React.ReactNode | false;
+  code?: string;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  action?: React.ReactNode;
+  secondaryAction?: React.ReactNode;
+  variant?: EmptyStateVariant; // default: 'dashed'
+  density?: EmptyStateDensity; // default: 'comfortable'
+}
+```
+
+### `Breadcrumb` (`ui/breadcrumb.tsx`)
+Accessible hierarchical path navigation (`<nav aria-label="Breadcrumb">` + `<ol>`) supporting shorthand `items` or compound `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink` (React 18/19-safe `asChild`), `BreadcrumbPage` (`aria-current="page"`), `BreadcrumbSeparator` (`role="presentation" aria-hidden="true"`), and `BreadcrumbEllipsis` (`.f12-sr-only` outside `aria-hidden="true"`).
+
+### `Pagination` (`ui/pagination.tsx`)
+Deterministic page navigation (`<nav aria-label="Pagination">`) supporting data-driven `page`, `totalPages`, `onPageChange`, `siblingCount`, `boundaryCount`, `showSummary` (`PAGE X OF Y`), and `density?: 'comfortable' | 'compact'`, or compound `PaginationContent`, `PaginationItem`, `PaginationLink` (`aria-current="page"` ink inversion), `PaginationPrevious`, `PaginationNext`, `PaginationEllipsis`, and `buildPaginationRange`.
+
 ---
 
 ## 5. Data & Visualization Components

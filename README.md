@@ -2,14 +2,14 @@
 
 [![Release: v0.1.0](https://img.shields.io/badge/Release-v0.1.0_·_Experimental-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://github.com/lbrodie11/frame12/releases/tag/v0.1.0)
 [![React 18 & 19](https://img.shields.io/badge/React-18_%26_19_·_TypeScript-121212?style=flat-square&labelColor=121212&color=ffffff)](registry/)
-[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-25_Components_·_28_Payloads-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
+[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-31_Components_·_34_Payloads-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
 [![License: MIT](https://img.shields.io/badge/License-MIT-121212?style=flat-square&labelColor=121212&color=ffffff)](LICENSE)
 
 **A React design system that makes interfaces look like comic pages and move like hand-drawn animation.**
 
 Build expressive dashboards, developer tools, and editorial interfaces with ink-framed panels, screentone charts, deliberate `12fps` motion ("on twos"), and a visual grammar that both humans and AI coding agents can follow consistently.
 
-**[Live Demo → frame12.dev](https://frame12.dev)** · **[Motion on Twos Studio](https://frame12.dev/motion)** · **[Components (25)](https://frame12.dev/components)** · **[AI Agent Skill & Linter](https://frame12.dev/agents)** · **[Get Started Guide](https://frame12.dev/get-started)**
+**[Live Demo → frame12.dev](https://frame12.dev)** · **[Motion on Twos Studio](https://frame12.dev/motion)** · **[Components (31)](https://frame12.dev/components)** · **[AI Agent Skill & Linter](https://frame12.dev/agents)** · **[Get Started Guide](https://frame12.dev/get-started)**
 
 ![FRAME/12 — Designing Interfaces on Twos](docs/images/social-hero.png)
 
@@ -63,7 +63,7 @@ npx shadcn@latest add https://frame12.dev/r/select.json
 
 > **Upgrading & Customizing Tokens:** Do not edit `styles/frame12.css` directly—put custom `--f-*` token overrides in your own stylesheet (such as `app/globals.css`). When upgrading or adding components after a FRAME/12 update (or in non-interactive CI/agent shells where `shadcn add -y` will skip installing if `styles/frame12.css` differs and still exit `0`), pass `--overwrite` and verify that `components/frame12/<name>.tsx` exists on disk.
 
-Browse all 25 components and 32 registry items at **[frame12.dev/components](https://frame12.dev/components)**.
+Browse all 31 components and 38 registry items at **[frame12.dev/components](https://frame12.dev/components)**.
 </details>
 
 ### 2. Import the stylesheet and fonts (`app/layout.tsx`)

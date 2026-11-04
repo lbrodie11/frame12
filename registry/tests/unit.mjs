@@ -1617,6 +1617,249 @@ await page.waitForSelector('#unit-test-fixtures');
           extraTabsInfo,
         }),
       );
+
+      // 6. WP5 Feedback, Loading & Navigation Kit (Alert/Notice, Toast, Skeleton, EmptyState, Breadcrumb, Pagination)
+      if (await page.locator('#fixture-wp5-sheet').count()) {
+        // 6a. Alert & Notice roles, status borders, SR deduplication, compound slots, and dismiss target size
+        const alertBeforeDismiss = await page.evaluate(() => {
+          const getRole = (id) => document.getElementById(id)?.getAttribute('role');
+          const getSrText = (id) =>
+            document.getElementById(id)?.querySelector('.f12-sr-only')?.textContent ?? null;
+          const dismissBtn = document.querySelector('#wp5-alert-dismissible .f12-alert-dismiss');
+          const dismissRect = dismissBtn?.getBoundingClientRect();
+          const compoundDescCount = document.querySelectorAll(
+            '#wp5-alert-hidden-prefix .f12-alert-description',
+          ).length;
+          return {
+            noticeNeutralRole: getRole('wp5-notice-neutral'),
+            noticeDangerRole: getRole('wp5-notice-danger-static'),
+            alertInfoRole: getRole('wp5-alert-info'),
+            alertSuccessRole: getRole('wp5-alert-success'),
+            alertWarnRole: getRole('wp5-alert-warning-dedup'),
+            alertDangerRole: getRole('wp5-alert-danger'),
+            alertPoliteRole: getRole('wp5-alert-polite'),
+            successSr: getSrText('wp5-alert-success'),
+            warnDedupSr: getSrText('wp5-alert-warning-dedup'),
+            hiddenPrefixSr: getSrText('wp5-alert-hidden-prefix'),
+            compoundDescCount,
+            infoBorder: getComputedStyle(document.getElementById('wp5-alert-info')).borderTopStyle,
+            warnBorder: getComputedStyle(document.getElementById('wp5-alert-warning-dedup'))
+              .borderTopStyle,
+            dangerBorder: getComputedStyle(document.getElementById('wp5-alert-danger'))
+              .borderTopStyle,
+            dismissTargetOk: Boolean(
+              dismissRect && dismissRect.width >= 24 && dismissRect.height >= 24,
+            ),
+          };
+        });
+        await page.click('#wp5-alert-dismissible .f12-alert-dismiss');
+        const alertAfterDismiss = await page.evaluate(
+          () =>
+            !document.getElementById('wp5-alert-dismissible') &&
+            document.getElementById('wp5-alert-dismissed')?.getAttribute('data-dismissed') ===
+              'true',
+        );
+        check(
+          alertBeforeDismiss.noticeNeutralRole === 'note' &&
+            alertBeforeDismiss.noticeDangerRole === 'note' &&
+            alertBeforeDismiss.alertInfoRole === 'note' &&
+            alertBeforeDismiss.alertSuccessRole === 'note' &&
+            alertBeforeDismiss.alertWarnRole === 'note' &&
+            alertBeforeDismiss.alertDangerRole === 'alert' &&
+            alertBeforeDismiss.alertPoliteRole === 'status' &&
+            alertBeforeDismiss.successSr === 'Success: ' &&
+            alertBeforeDismiss.warnDedupSr === null &&
+            alertBeforeDismiss.hiddenPrefixSr === 'Error: ' &&
+            alertBeforeDismiss.compoundDescCount === 1 &&
+            alertBeforeDismiss.infoBorder === 'solid' &&
+            alertBeforeDismiss.warnBorder === 'dashed' &&
+            alertBeforeDismiss.dangerBorder === 'double' &&
+            alertBeforeDismiss.dismissTargetOk &&
+            alertAfterDismiss,
+          'WP5 Alert & Notice: restrained ARIA roles (note vs status vs alert), non-color status borders, SR prefix deduplication (ignoring aria-hidden children), single compound description wrapper, and >=24×24px dismiss button',
+          JSON.stringify({ alertBeforeDismiss, alertAfterDismiss }),
+        );
+
+        // 6b. ToastProvider, ToastViewport (wrapped single viewport), bounded queue, action, Escape dismissal, hover pause, and single onDismiss per toast
+        await page.click('#wp5-toast-push-four');
+        const toastQueueInitial = await page.evaluate(() => {
+          const viewports = document.querySelectorAll(
+            '#fixture-wp5-feedback .f12-toast-viewport',
+          ).length;
+          const visibleIds = [
+            ...document.querySelectorAll('#wp5-toast-viewport .f12-toast'),
+          ].map((el) => el.id);
+          const queueBadge =
+            document.querySelector('#wp5-toast-viewport .f12-toast-queue-badge')?.textContent ?? '';
+          const t1Role = document.getElementById('t-1')?.getAttribute('role');
+          const t1Live = document.getElementById('t-1')?.getAttribute('aria-live');
+          const t2Sr = document.querySelector('#t-2 .f12-sr-only');
+          return {
+            viewports,
+            visibleIds,
+            queueBadge,
+            t1Role,
+            t1Live,
+            t2Deduped: t2Sr === null,
+          };
+        });
+        await page.keyboard.press('Escape'); // dismisses most recent visible toast (#t-2) while focus is outside toasts, promoting #t-3 (danger)
+        await page.click('#t-1 .f12-toast-action');
+        const toastAfterEsc = await page.evaluate(() => {
+          const visibleIds = [
+            ...document.querySelectorAll('#wp5-toast-viewport .f12-toast'),
+          ].map((el) => el.id);
+          const queueBadge =
+            document.querySelector('#wp5-toast-viewport .f12-toast-queue-badge')?.textContent ?? '';
+          const t3Role = document.getElementById('t-3')?.getAttribute('role');
+          const t3Live = document.getElementById('t-3')?.getAttribute('aria-live');
+          const actions =
+            document.getElementById('wp5-toast-output')?.getAttribute('data-actions') ?? '';
+          return { visibleIds, queueBadge, t3Role, t3Live, actions };
+        });
+        await page.hover('#t-1');
+        const pausedOnHover = await page.evaluate(
+          () => document.getElementById('t-1')?.getAttribute('data-paused') === 'true',
+        );
+        await page.hover('#wp5-toast-dismiss-all');
+        await page.click('#wp5-toast-dismiss-all');
+        const toastAfterClear = await page.evaluate(() => ({
+          remaining: document.querySelectorAll('#wp5-toast-viewport .f12-toast').length,
+          dismissedList:
+            document.getElementById('wp5-toast-output')?.getAttribute('data-dismissed') ?? '',
+        }));
+
+        // Timed toast pause-on-hover and resume-on-leave
+        await page.click('#wp5-toast-push-timed');
+        await page.hover('#t-timed');
+        await page.waitForTimeout(260);
+        const timedStillPresentWhileHovered = await page.evaluate(() =>
+          Boolean(document.getElementById('t-timed')),
+        );
+        await page.hover('#wp5-toast-dismiss-all');
+        await page.waitForFunction(() => !document.getElementById('t-timed'), null, {
+          timeout: 2000,
+        });
+
+        check(
+          toastQueueInitial.viewports === 1 &&
+            toastQueueInitial.visibleIds.join(',') === 't-1,t-2' &&
+            toastQueueInitial.queueBadge === '+2 QUEUED' &&
+            toastQueueInitial.t1Role === 'status' &&
+            toastQueueInitial.t1Live === 'polite' &&
+            toastQueueInitial.t2Deduped &&
+            toastAfterEsc.visibleIds.join(',') === 't-1,t-3' &&
+            toastAfterEsc.queueBadge === '+1 QUEUED' &&
+            toastAfterEsc.t3Role === 'alert' &&
+            toastAfterEsc.t3Live === 'assertive' &&
+            toastAfterEsc.actions === 't-1' &&
+            pausedOnHover &&
+            toastAfterClear.remaining === 0 &&
+            toastAfterClear.dismissedList === 't-2,t-1,t-3,t-4' &&
+            timedStillPresentWhileHovered,
+          'WP5 Toast: wrapped ToastViewport deduplication, maxVisible=2 bounded queue (+N QUEUED), Escape dismissal promoting queued danger toast (role="alert"), hover timer pause/resume, and single onDismiss invocation per toast',
+          JSON.stringify({
+            toastQueueInitial,
+            toastAfterEsc,
+            pausedOnHover,
+            toastAfterClear,
+            timedStillPresentWhileHovered,
+          }),
+        );
+
+        // 6c. Skeleton, EmptyState, Breadcrumb, and Pagination
+        await page.click('#wp5-breadcrumb-aschild');
+        await page.click('#wp5-pagination-controlled .f12-pagination-next');
+        const navAndSkeletonInfo = await page.evaluate(() => {
+          const skelDec = document.getElementById('wp5-skeleton-decorative');
+          const skelDecRect = skelDec?.getBoundingClientRect();
+          const skelLab = document.getElementById('wp5-skeleton-labeled');
+          const skelLines = document.querySelectorAll('#wp5-skeleton-text .f12-skeleton-line');
+          const skeletonOk =
+            skelDec?.getAttribute('aria-hidden') === 'true' &&
+            !skelDec?.hasAttribute('role') &&
+            Math.round(skelDecRect?.width ?? 0) === 180 &&
+            Math.round(skelDecRect?.height ?? 0) === 24 &&
+            skelLab?.getAttribute('role') === 'status' &&
+            skelLab?.getAttribute('aria-busy') === 'true' &&
+            skelLab?.getAttribute('aria-label') === 'Loading revenue metric' &&
+            !skelLab?.hasAttribute('aria-hidden') &&
+            skelLines.length === 3 &&
+            (skelLines[2]?.getAttribute('style') || '').includes('60%');
+
+          const emptyDefaultIcons = document.querySelectorAll(
+            '#wp5-empty-default .f12-empty-icon',
+          ).length;
+          const emptyCompoundIcons = document.querySelectorAll(
+            '#wp5-empty-compound .f12-empty-icon',
+          ).length;
+          const emptyOk =
+            emptyDefaultIcons === 1 &&
+            emptyCompoundIcons === 1 &&
+            document.querySelector('#wp5-empty-default .f12-empty-title')?.tagName === 'H3';
+
+          const bcItems = document.getElementById('wp5-breadcrumb-items');
+          const bcCurrent = bcItems?.querySelector('.f12-breadcrumb-page');
+          const bcAsChild = document.getElementById('wp5-breadcrumb-aschild');
+          const bcOut = document.getElementById('wp5-breadcrumb-output');
+          const bcSepLi = document.getElementById('wp5-breadcrumb-sep-li');
+          const bcSepSpan = document.getElementById('wp5-breadcrumb-sep-span');
+          const bcEllipsisSr = document.querySelector(
+            '#wp5-breadcrumb-ellipsis .f12-sr-only',
+          )?.textContent;
+          const breadcrumbOk =
+            bcItems?.tagName === 'NAV' &&
+            bcItems?.getAttribute('aria-label') === 'Breadcrumb' &&
+            bcCurrent?.getAttribute('aria-current') === 'page' &&
+            bcAsChild?.classList.contains('f12-breadcrumb-link') &&
+            bcAsChild?.classList.contains('custom-crumb-link') &&
+            bcOut?.getAttribute('data-clicks') === 'outer,inner' &&
+            bcOut?.getAttribute('data-ref-tag') === 'A' &&
+            bcSepLi?.tagName === 'LI' &&
+            bcSepSpan?.tagName === 'SPAN' &&
+            bcEllipsisSr === 'More breadcrumb levels';
+
+          const pgRanges = document.getElementById('wp5-pagination-ranges');
+          const pgSummary =
+            document.querySelector('#wp5-pagination-controlled .f12-pagination-summary')
+              ?.textContent ?? '';
+          const pgActive = document.querySelector(
+            '#wp5-pagination-controlled .f12-pagination-link[aria-current="page"]',
+          )?.textContent;
+          const pgEllipsisSr = document.querySelector(
+            '#wp5-pagination-controlled .f12-pagination-ellipsis .f12-sr-only',
+          )?.textContent;
+          const pgCompactLinks = [
+            ...document.querySelectorAll('#wp5-pagination-compact .f12-pagination-link'),
+          ];
+          const pgCompactTargetsOk = pgCompactLinks.every((el) => {
+            const r = el.getBoundingClientRect();
+            return r.width >= 24 && r.height >= 24;
+          });
+          const paginationOk =
+            pgRanges?.getAttribute('data-small') === '[1,2,3,4,5]' &&
+            pgRanges?.getAttribute('data-start') === '[1,2,3,4,5,"ellipsis-end",10]' &&
+            pgRanges?.getAttribute('data-middle') ===
+              '[1,"ellipsis-start",4,5,6,"ellipsis-end",10]' &&
+            pgRanges?.getAttribute('data-end') === '[1,"ellipsis-start",6,7,8,9,10]' &&
+            pgRanges?.getAttribute('data-page') === '3' &&
+            pgActive === '3' &&
+            pgSummary === 'PAGE 03 OF 10 · 41–60 OF 194' &&
+            pgEllipsisSr === 'More pages' &&
+            pgCompactTargetsOk;
+
+          return { skeletonOk, emptyOk, breadcrumbOk, paginationOk };
+        });
+
+        check(
+          navAndSkeletonInfo.skeletonOk &&
+            navAndSkeletonInfo.emptyOk &&
+            navAndSkeletonInfo.breadcrumbOk &&
+            navAndSkeletonInfo.paginationOk,
+          'WP5 Skeleton (zero-CLS dimensions + decorative/labeled ARIA), EmptyState (default vs compound icon), Breadcrumb (nav/ol, aria-current, asChild ref/click merge, context-aware separator, SR ellipsis), and Pagination (range builder, aria-current, summary, >=24×24px compact targets)',
+          JSON.stringify(navAndSkeletonInfo),
+        );
+      }
     }
   }
 }

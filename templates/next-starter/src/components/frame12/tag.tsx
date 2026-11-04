@@ -3,6 +3,7 @@
 import * as React from 'react';
 
 export type SemanticStatus = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+export type TagStatus = SemanticStatus;
 
 export const STATUS_GLYPHS: Record<SemanticStatus, string | undefined> = {
   neutral: undefined,
@@ -42,14 +43,34 @@ export function extractTextContent(node: React.ReactNode): string {
   return '';
 }
 
-export function startsWithStatusLabel(text: string, label: string): boolean {
-  const lowerText = text.toLowerCase();
-  const lowerLabel = label.toLowerCase();
-  if (!lowerText.startsWith(lowerLabel)) return false;
-  const rest = lowerText.slice(lowerLabel.length);
-  if (rest === '' || !/^\p{L}/u.test(rest)) return true;
-  if (lowerLabel === 'error' && /^(ed|s)\b/.test(rest)) return true;
-  if ((lowerLabel === 'warn' || lowerLabel === 'warning') && /^s\b/.test(rest)) return true;
+export const STATUS_SYNONYMS: Record<SemanticStatus, readonly string[]> = {
+  neutral: [],
+  info: ['info', 'information'],
+  success: ['success', 'succeeded'],
+  warning: ['warning', 'warn', 'caution'],
+  danger: ['error', 'danger', 'critical', 'failed'],
+};
+
+export function startsWithStatusLabel(
+  text: string,
+  label: string,
+  status?: SemanticStatus,
+): boolean {
+  const lowerText = text.trimStart().toLowerCase();
+  const candidates =
+    status && label === STATUS_SR_LABELS[status]
+      ? STATUS_SYNONYMS[status]
+      : [label.toLowerCase()];
+
+  for (const candidate of candidates) {
+    if (!lowerText.startsWith(candidate)) continue;
+    const rest = lowerText.slice(candidate.length);
+    if (rest === '' || !/^\p{L}/u.test(rest)) return true;
+    if (candidate === 'error' && /^(ed|s)(?!\p{L})/u.test(rest)) return true;
+    if ((candidate === 'warn' || candidate === 'warning') && /^s(?!\p{L})/u.test(rest)) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -84,7 +105,7 @@ export const Tag = React.forwardRef<HTMLSpanElement, TagProps>(function Tag(
   const childText = extractTextContent(children).trim();
   const showSrLabel =
     Boolean(resolvedSrLabel) &&
-    !(childText && resolvedSrLabel && startsWithStatusLabel(childText, resolvedSrLabel));
+    !(childText && resolvedSrLabel && startsWithStatusLabel(childText, resolvedSrLabel, status));
 
   return (
     <span

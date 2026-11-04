@@ -864,6 +864,329 @@ export function EyebrowTag() {
 }`,
   },
   {
+    slug: 'alert',
+    title: 'Alert & Notice',
+    category: 'Controls',
+    summary:
+      'Inline non-color semantic status notices and alerts with restrained ARIA live regions, orthographic status glyphs, and optional dismiss control.',
+    registryUrl: 'https://frame12.dev/r/alert.json',
+    sourceFile: 'registry/ui/alert.tsx',
+    props: [
+      {
+        name: 'status',
+        type: "'neutral' | 'info' | 'success' | 'warning' | 'danger'",
+        defaultValue: "'info'",
+        description:
+          'Non-color semantic status combining [i]/[+]/[!]/[×] glyph prefix, screen-reader prefix, and border/rail treatment.',
+      },
+      {
+        name: 'title',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Optional inline title or use <AlertTitle> compound subcomponent.',
+      },
+      {
+        name: 'live',
+        type: "'off' | 'polite' | 'assertive'",
+        defaultValue: "Notice: 'off' | Alert: 'assertive' on danger, 'off' otherwise",
+        description:
+          'Controls ARIA live-region behavior: off -> role="note", polite -> role="status", assertive -> role="alert".',
+      },
+      {
+        name: 'onDismiss',
+        type: '() => void',
+        defaultValue: 'undefined',
+        description: 'Renders a 24×24px minimum dismiss button when provided.',
+      },
+    ],
+    a11yNotes: [
+      'Notice defaults to role="note" so static page load notices never spam screen-reader live regions.',
+      'Alert defaults to role="alert" only when status="danger" (or live="assertive"), and role="status" when live="polite".',
+    ],
+    grammarNotes: [
+      'Preserves --f-panel card contrast for inner text and action buttons while encoding status via border style, inline-start rail, and glyph stamp.',
+    ],
+    usageTemplate: `import { Alert, Notice } from '@/components/frame12';
+
+export function WebhookNotices() {
+  return (
+    <div className="f12-stack-pair">
+      <Notice status="info" title="Dual-key rotation window">
+        Both webhook signing keys remain valid for 24 hours.
+      </Notice>
+      <Alert status="danger" title="Dead-letter queue threshold exceeded">
+        14 checkout events require manual replay.
+      </Alert>
+    </div>
+  );
+}`,
+  },
+  {
+    slug: 'toast',
+    title: 'Toast',
+    category: 'Controls',
+    summary:
+      'Bounded exposure-sheet notification stack with hover/focus timer pause, Escape dismissal, +N QUEUED indicator, and stepped 12fps entrance.',
+    registryUrl: 'https://frame12.dev/r/toast.json',
+    sourceFile: 'registry/ui/toast.tsx',
+    props: [
+      {
+        name: 'maxVisible',
+        type: 'number',
+        defaultValue: '3',
+        description: 'Maximum simultaneously visible toasts before showing the +N QUEUED indicator.',
+      },
+      {
+        name: 'duration',
+        type: 'number',
+        defaultValue: '5000',
+        description: 'Auto-dismiss timeout in milliseconds (0 disables auto-dismiss; pauses on hover or focus-within).',
+      },
+      {
+        name: 'status',
+        type: "'neutral' | 'info' | 'success' | 'warning' | 'danger'",
+        defaultValue: "'neutral'",
+        description: 'Non-color semantic status with [i]/[+]/[!]/[×] glyph and deduplicated screen-reader prefix.',
+      },
+    ],
+    a11yNotes: [
+      'Uses role="alert" for status="danger" and role="status" for all other statuses.',
+      'Pauses auto-dismiss timers while hovered or focused, and dismisses the newest visible toast on Escape.',
+    ],
+    grammarNotes: [
+      'Enters on twos (steps(3, end)) with a hard ink offset shadow and zero opacity blur.',
+    ],
+    usageTemplate: `import { ToastProvider, useToast, Button } from '@/components/frame12';
+
+function ReplayTrigger() {
+  const { toast } = useToast();
+  return (
+    <Button
+      variant="secondary"
+      onClick={() =>
+        toast({
+          status: 'success',
+          title: 'Webhook replayed',
+          description: 'Dispatched cut C-04 to primary endpoint.',
+        })
+      }
+    >
+      Trigger Toast
+    </Button>
+  );
+}
+
+export function ToastDemo() {
+  return (
+    <ToastProvider>
+      <ReplayTrigger />
+    </ToastProvider>
+  );
+}`,
+  },
+  {
+    slug: 'skeleton',
+    title: 'Skeleton',
+    category: 'Controls',
+    summary:
+      'Zero-CLS loading placeholder using rotated screentone dot fills (var(--f-tone)) and stepped 12fps opacity cadence.',
+    registryUrl: 'https://frame12.dev/r/skeleton.json',
+    sourceFile: 'registry/ui/skeleton.tsx',
+    props: [
+      {
+        name: 'variant',
+        type: "'block' | 'line' | 'circle' | 'metric' | 'panel'",
+        defaultValue: "'block'",
+        description: 'Selects pre-sized geometry matching text lines, avatars, KPI metrics, or full panels.',
+      },
+      {
+        name: 'label',
+        type: 'string',
+        defaultValue: 'undefined',
+        description:
+          'When omitted, renders aria-hidden="true"; when provided, renders role="status" aria-busy="true" with a .f12-sr-only label.',
+      },
+      {
+        name: 'animated',
+        type: 'boolean',
+        defaultValue: 'true',
+        description: 'Enables the 4-step 12fps opacity pulse (automatically disabled under prefers-reduced-motion: reduce).',
+      },
+    ],
+    a11yNotes: [
+      'Decorative skeletons default to aria-hidden="true" so screen readers are not flooded; pass label="Loading metrics" on the container skeleton for a single polite status announcement.',
+    ],
+    grammarNotes: [
+      'Uses --f-tone halftone dots framed by a dashed --f-rule border instead of blurred shimmer gradients.',
+    ],
+    usageTemplate: `import { Skeleton, SkeletonText } from '@/components/frame12';
+
+export function LoadingPanel() {
+  return (
+    <div className="f12-stack-pair">
+      <Skeleton variant="metric" label="Loading revenue metric" />
+      <SkeletonText lines={3} />
+    </div>
+  );
+}`,
+  },
+  {
+    slug: 'empty-state',
+    title: 'EmptyState',
+    category: 'Controls',
+    summary:
+      'Structured zero-data and filtered-empty state with registration-mark glyph ([ ∅ ]), monospace code badge, and primary/secondary action slots.',
+    registryUrl: 'https://frame12.dev/r/empty-state.json',
+    sourceFile: 'registry/ui/empty-state.tsx',
+    props: [
+      {
+        name: 'title',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Headline title for the empty state (or use <EmptyStateTitle>).',
+      },
+      {
+        name: 'description',
+        type: 'React.ReactNode',
+        defaultValue: 'undefined',
+        description: 'Supporting explanation or recovery guidance (or use <EmptyStateDescription>).',
+      },
+      {
+        name: 'code',
+        type: 'string',
+        defaultValue: 'undefined',
+        description: 'Optional uppercase monospace status code stamp (e.g., "0 MATCHING ROWS").',
+      },
+      {
+        name: 'variant',
+        type: "'dashed' | 'quiet'",
+        defaultValue: "'dashed'",
+        description: 'Selects a 2px dashed ink frame or a quiet 1px exposure-sheet frame.',
+      },
+    ],
+    a11yNotes: [
+      'Default [ ∅ ] registration glyph is marked aria-hidden="true" while title, description, and action buttons remain in natural reading order.',
+    ],
+    grammarNotes: [
+      'Centers an inked registration stamp and clear recovery actions inside a dashed storyboard frame.',
+    ],
+    usageTemplate: `import { EmptyState, Button } from '@/components/frame12';
+
+export function ZeroLedger({ onReset }: { onReset: () => void }) {
+  return (
+    <EmptyState
+      code="0 MATCHING ROWS"
+      title="No matching interventions"
+      description="Clear the search filter or broaden the exposure window."
+      action={<Button variant="secondary" size="sm" onClick={onReset}>Reset filters</Button>}
+    />
+  );
+}`,
+  },
+  {
+    slug: 'breadcrumb',
+    title: 'Breadcrumb',
+    category: 'Controls',
+    summary:
+      'Accessible hierarchical path navigation (<nav aria-label="Breadcrumb"> + <ol>) with monospace separators, React 18/19 asChild links, and ellipsis collapse.',
+    registryUrl: 'https://frame12.dev/r/breadcrumb.json',
+    sourceFile: 'registry/ui/breadcrumb.tsx',
+    props: [
+      {
+        name: 'items',
+        type: 'BreadcrumbEntry[]',
+        defaultValue: 'undefined',
+        description: 'Optional shorthand array of { label, href?, current?, onClick? } items.',
+      },
+      {
+        name: 'separator',
+        type: 'React.ReactNode',
+        defaultValue: "'/'",
+        description: 'Custom visual separator rendered between breadcrumb items with aria-hidden="true".',
+      },
+      {
+        name: 'ariaLabel',
+        type: 'string',
+        defaultValue: "'Breadcrumb'",
+        description: 'Accessible landmark label for the outer <nav> element.',
+      },
+    ],
+    a11yNotes: [
+      'Marks the active page with aria-current="page" and hides separators with role="presentation" aria-hidden="true".',
+      'BreadcrumbEllipsis keeps its .f12-sr-only label outside the aria-hidden glyph so screen readers announce collapsed levels.',
+    ],
+    grammarNotes: [
+      'Uses uppercase monospace path tokens with 24×24px minimum interactive link targets.',
+    ],
+    usageTemplate: `import { Breadcrumb } from '@/components/frame12';
+
+export function SheetPath() {
+  return (
+    <Breadcrumb
+      items={[
+        { label: 'Workspace', href: '#workspace' },
+        { label: 'Sheets', href: '#sheets' },
+        { label: 'Cut C-04 Ledger', current: true },
+      ]}
+    />
+  );
+}`,
+  },
+  {
+    slug: 'pagination',
+    title: 'Pagination',
+    category: 'Controls',
+    summary:
+      'Deterministic page navigation (<nav aria-label="Pagination">) with ink-inverted aria-current="page" buttons, ellipsis range builder, and exposure-sheet summary.',
+    registryUrl: 'https://frame12.dev/r/pagination.json',
+    sourceFile: 'registry/ui/pagination.tsx',
+    props: [
+      {
+        name: 'page / totalPages',
+        type: 'number',
+        defaultValue: 'undefined',
+        description: 'Current 1-indexed page and total page count for data-driven rendering.',
+      },
+      {
+        name: 'onPageChange',
+        type: '(page: number) => void',
+        defaultValue: 'undefined',
+        description: 'Callback fired when a page number or Prev/Next button is activated.',
+      },
+      {
+        name: 'showSummary',
+        type: 'boolean',
+        defaultValue: 'false',
+        description: 'Renders the monospace PAGE X OF Y exposure-sheet counter alongside the page buttons.',
+      },
+      {
+        name: 'density',
+        type: "'comfortable' | 'compact'",
+        defaultValue: "'comfortable'",
+        description: 'Switches to 1.5px rules and compact padding while preserving >= 24×24px targets.',
+      },
+    ],
+    a11yNotes: [
+      'Sets aria-current="page" on the active page control and disables Previous/Next at range boundaries.',
+      'PaginationEllipsis exposes a .f12-sr-only "More pages" label outside its aria-hidden visual glyph.',
+    ],
+    grammarNotes: [
+      'Active page control inverts to --f-ink background with --f-sheet text for high-contrast storyboard clarity.',
+    ],
+    usageTemplate: `import { Pagination } from '@/components/frame12';
+
+export function LedgerPagination({ page, onChange }: { page: number; onChange: (p: number) => void }) {
+  return (
+    <Pagination
+      page={page}
+      totalPages={12}
+      onPageChange={onChange}
+      showSummary
+    />
+  );
+}`,
+  },
+  {
     slug: 'metric',
     title: 'Metric',
     category: 'Data & Charts',

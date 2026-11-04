@@ -369,6 +369,104 @@
       ]
     },
     {
+      "name": "alert",
+      "type": "registry:ui",
+      "title": "Alert & Notice",
+      "description": "Non-color semantic status notice (neutral, info, success, warning, danger) with glyph stamp, deduplicated screen-reader prefix, and restrained ARIA live-region defaults.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/tag.json"
+      ],
+      "files": [
+        {
+          "path": "ui/alert.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/alert.tsx"
+        }
+      ]
+    },
+    {
+      "name": "toast",
+      "type": "registry:ui",
+      "title": "Toast",
+      "description": "Transient notification queue with bounded visible stack, queued count indicator, hover/focus timer pause, Escape dismissal, and stepped 12fps entrance.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/tag.json"
+      ],
+      "files": [
+        {
+          "path": "ui/toast.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/toast.tsx"
+        }
+      ]
+    },
+    {
+      "name": "skeleton",
+      "type": "registry:ui",
+      "title": "Skeleton",
+      "description": "Zero-CLS loading placeholder using screentone dot fill and stepped 12fps cadence across block, line, circle, metric, and panel variants.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json"
+      ],
+      "files": [
+        {
+          "path": "ui/skeleton.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/skeleton.tsx"
+        }
+      ]
+    },
+    {
+      "name": "empty-state",
+      "type": "registry:ui",
+      "title": "EmptyState",
+      "description": "No-data and zero-results panel state with registration glyph, monospace code, editorial title, description, and action slots.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json"
+      ],
+      "files": [
+        {
+          "path": "ui/empty-state.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/empty-state.tsx"
+        }
+      ]
+    },
+    {
+      "name": "breadcrumb",
+      "type": "registry:ui",
+      "title": "Breadcrumb",
+      "description": "Hierarchical navigation trail (<nav aria-label=\"Breadcrumb\"> + <ol>) with aria-current=\"page\", presentation separators, ellipsis, and asChild link composition.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json"
+      ],
+      "files": [
+        {
+          "path": "ui/breadcrumb.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/breadcrumb.tsx"
+        }
+      ]
+    },
+    {
+      "name": "pagination",
+      "type": "registry:ui",
+      "title": "Pagination",
+      "description": "ink-framed page navigation (<nav aria-label=\"Pagination\">) with deterministic ellipsis range builder, tabular summary, and aria-current=\"page\" ink inversion.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json"
+      ],
+      "files": [
+        {
+          "path": "ui/pagination.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/pagination.tsx"
+        }
+      ]
+    },
+    {
       "name": "metric",
       "type": "registry:ui",
       "title": "Metric & Delta",
@@ -639,6 +737,36 @@
           "path": "ui/tag.tsx",
           "type": "registry:ui",
           "target": "components/frame12/tag.tsx"
+        },
+        {
+          "path": "ui/alert.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/alert.tsx"
+        },
+        {
+          "path": "ui/toast.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/toast.tsx"
+        },
+        {
+          "path": "ui/skeleton.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/skeleton.tsx"
+        },
+        {
+          "path": "ui/empty-state.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/empty-state.tsx"
+        },
+        {
+          "path": "ui/breadcrumb.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/breadcrumb.tsx"
+        },
+        {
+          "path": "ui/pagination.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/pagination.tsx"
         },
         {
           "path": "ui/metric.tsx",

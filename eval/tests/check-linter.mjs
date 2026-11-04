@@ -815,14 +815,22 @@ function check(ok, label, detail = '') {
     import { Textarea } from '@/components/ui/textarea';
     import { Field } from '@/components/ui/field';
     import { Label } from '@/components/ui/label';
+    import { Alert } from '@/components/ui/alert';
+    import { Toast } from '@/components/ui/toast';
+    import { Toaster } from '@/components/ui/toaster';
+    import { Toaster as Sonner } from '@/components/ui/sonner';
+    import { Skeleton } from '@/components/ui/skeleton';
+    import { EmptyState } from '@/components/ui/empty-state';
+    import { Breadcrumb } from '@/components/ui/breadcrumb';
+    import { Pagination } from '@/components/ui/pagination';
     import * as DialogPrimitive from '@radix-ui/react-dialog';
     import { AreaChart } from 'recharts';
     export const X = () => null;
   `;
   const res = lintSource(badImports, 'eval/screens/bad-imports.tsx');
   check(
-    res.length === 10 && res.every((v) => v.rule === 'raw-shadcn-import'),
-    'linter [raw-shadcn-import]: flags @/components/ui/{button,tabs,checkbox,radio-group,switch,textarea,field,label}, @radix-ui/react-dialog, and recharts',
+    res.length === 18 && res.every((v) => v.rule === 'raw-shadcn-import'),
+    'linter [raw-shadcn-import]: flags @/components/ui/{button,tabs,checkbox,radio-group,switch,textarea,field,label,alert,toast,toaster,sonner,skeleton,empty-state,breadcrumb,pagination}, @radix-ui/react-dialog, and recharts',
   );
 }
 

@@ -42,6 +42,38 @@ export const frame12RestrictedImports = {
       message: 'Use FRAME/12 <Badge> or <Tag> from @/components/frame12 instead of raw shadcn badge.',
     },
     {
+      name: '@/components/ui/alert',
+      message: 'Use FRAME/12 <Alert> or <Notice> from @/components/frame12 instead of raw shadcn alert.',
+    },
+    {
+      name: '@/components/ui/toast',
+      message: 'Use FRAME/12 <ToastProvider> and <Toast> from @/components/frame12 instead of raw shadcn toast.',
+    },
+    {
+      name: '@/components/ui/toaster',
+      message: 'Use FRAME/12 <ToastProvider> and <ToastViewport> from @/components/frame12 instead of raw shadcn toaster.',
+    },
+    {
+      name: '@/components/ui/sonner',
+      message: 'Use FRAME/12 <ToastProvider> and <Toast> from @/components/frame12 instead of raw shadcn sonner.',
+    },
+    {
+      name: '@/components/ui/skeleton',
+      message: 'Use FRAME/12 <Skeleton> or <SkeletonText> from @/components/frame12 instead of raw shadcn skeleton.',
+    },
+    {
+      name: '@/components/ui/empty-state',
+      message: 'Use FRAME/12 <EmptyState> from @/components/frame12 instead of raw shadcn empty-state.',
+    },
+    {
+      name: '@/components/ui/breadcrumb',
+      message: 'Use FRAME/12 <Breadcrumb> from @/components/frame12 instead of raw shadcn breadcrumb.',
+    },
+    {
+      name: '@/components/ui/pagination',
+      message: 'Use FRAME/12 <Pagination> from @/components/frame12 instead of raw shadcn pagination.',
+    },
+    {
       name: '@/components/ui/card',
       message: 'Use FRAME/12 <Panel> or <PanelPair> from @/components/frame12 instead of Card.',
     },

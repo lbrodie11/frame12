@@ -265,6 +265,12 @@ try {
     'radio-group.json',
     'switch.json',
     'tabs.json',
+    'alert.json',
+    'toast.json',
+    'skeleton.json',
+    'empty-state.json',
+    'breadcrumb.json',
+    'pagination.json',
     'frame12-base.json',
     'font-dela-gothic-one.json',
     'frame12.json',
@@ -777,7 +783,7 @@ try {
           const compGeom = await page.evaluate(() => {
             const cells = [...document.querySelectorAll('.f12-comp-cell code.f12-nowrap')];
             const allSingleLine =
-              cells.length >= 25 &&
+              cells.length >= 31 &&
               cells.every(
                 (c) =>
                   getComputedStyle(c).whiteSpace === 'nowrap' && c.getClientRects().length === 1,

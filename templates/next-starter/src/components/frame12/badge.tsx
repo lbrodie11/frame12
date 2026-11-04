@@ -68,7 +68,7 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(function Badg
   const childText = extractTextContent(children).trim();
   const showSrLabel =
     Boolean(resolvedSrLabel) &&
-    !(childText && resolvedSrLabel && startsWithStatusLabel(childText, resolvedSrLabel));
+    !(childText && resolvedSrLabel && startsWithStatusLabel(childText, resolvedSrLabel, status));
 
   return (
     <span

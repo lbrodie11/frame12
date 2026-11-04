@@ -476,15 +476,25 @@ for (const screen of SCREENS) {
   const searchRows = await page.evaluate(
     () => document.querySelectorAll('#table-scene-primary .f12-table tbody tr').length,
   );
-  await page.click('#ledger-reset-btn');
-  const quietPanelsOk = await page.evaluate(() => {
+  await page.fill('#ledger-search', 'ORD-0000');
+  const emptyStateRendered = await page.evaluate(() =>
+    Boolean(document.getElementById('table-empty-state')),
+  );
+  await page.click('#table-empty-reset');
+  const quietPanelsAndNavOk = await page.evaluate(() => {
     const filterQuiet = document.querySelector('#table-filter-quiet-panel');
     const inspectorQuiet = document.querySelector('#table-inspector-quiet-panel');
+    const breadcrumb = document.querySelector('#table-breadcrumb');
+    const notice = document.querySelector('#table-ledger-notice');
+    const pagination = document.querySelector('#table-pagination');
     return Boolean(
       filterQuiet?.classList.contains('f12-panel-quiet') &&
         !filterQuiet.querySelector('.f12-cut') &&
         inspectorQuiet?.classList.contains('f12-panel-quiet') &&
-        !inspectorQuiet.querySelector('.f12-cut'),
+        !inspectorQuiet.querySelector('.f12-cut') &&
+        breadcrumb?.getAttribute('aria-label') === 'Breadcrumb' &&
+        notice?.getAttribute('role') === 'note' &&
+        pagination?.getAttribute('aria-label') === 'Pagination',
     );
   });
   await page.click('#table-payload-open');
@@ -493,13 +503,18 @@ for (const screen of SCREENS) {
   );
   await page.click('#table-payload-replay');
   const statusText = await page.innerText('#table-status');
+  const replayToastRendered = await page.evaluate(() =>
+    Boolean(document.getElementById('replay-toast')),
+  );
   check(
     wonRows === 5 &&
       searchRows === 1 &&
-      quietPanelsOk &&
+      emptyStateRendered &&
+      quietPanelsAndNavOk &&
       dlgCut === 'C-06' &&
-      statusText.includes('Replayed webhook'),
-    'eval/table interactions: status filter, search input, reset, Quiet subgroup panels inside <Sheet autoCut>, and C-06 webhook replay dialog',
+      statusText.includes('Replayed webhook') &&
+      replayToastRendered,
+    'eval/table interactions: status filter, search input, EmptyState zero-results reset, Breadcrumb/Notice/Pagination, Quiet subgroup panels inside <Sheet autoCut>, and C-06 webhook replay dialog + Toast',
   );
   await ctx.close();
 }

@@ -24,6 +24,12 @@ import {
   Button,
   Badge,
   Tag,
+  Notice,
+  ToastProvider,
+  useToast,
+  EmptyState,
+  Breadcrumb,
+  Pagination,
   Metric,
   ToneBarList,
   ToneSpark,
@@ -176,12 +182,39 @@ const CHANNEL_META: Array<{ id: LedgerRow['channelId']; name: string }> = [
   { id: 'stock', name: 'Back-in-stock alert' },
 ];
 
+function ReplayPayloadButton({
+  orderId,
+  onReplayed,
+}: {
+  orderId: string;
+  onReplayed: () => void;
+}) {
+  const { toast } = useToast();
+  return (
+    <DialogClose
+      id="table-payload-replay"
+      variant="primary"
+      onClick={() => {
+        onReplayed();
+        toast({
+          id: 'replay-toast',
+          status: 'success',
+          title: 'Webhook replayed',
+          description: `Re-dispatched envelope for ${orderId}`,
+        });
+      }}
+    >
+      Replay webhook
+    </DialogClose>
+  );
+}
+
 export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' }) {
+  const [motion, setMotion] = React.useState<MotionMode>('stepped');
+  const [theme] = React.useState<'light' | 'dark' | undefined>(initialTheme);
   const [statusFilter, setStatusFilter] = React.useState<DispatchStatus>('all');
   const [channelFilter, setChannelFilter] = React.useState<string>('all');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
-  const [motion, setMotion] = React.useState<MotionMode>('stepped');
-  const [theme] = React.useState<'light' | 'dark' | undefined>(initialTheme);
   const [selectedOrderId, setSelectedOrderId] = React.useState<string>('ORD-9041');
   const [actionNote, setActionNote] = React.useState<string>('Showing live dispatch ledger');
 
@@ -245,20 +278,30 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
   return (
     <main className="eval-screen-root">
       <Sheet autoCut motion={motion} theme={theme} id="table-sheet">
-        <header className="f12-hd">
-          <div className="f12-hd-text">
-            <p className="f12-eyebrow">
-              Ledger Sheet · Live Dispatch Log
-              <Tag status="info">{filteredRows.length} rows</Tag>
-              <Badge pop={changed} burst>
-                {fmtMoney(totalAmount)}
-              </Badge>
-            </p>
-            <h1 className="f12-title">Order Recovery Ledger</h1>
-            <p className="f12-sub" id="table-status">
-              {filteredRows.length} matching dispatches · {actionNote}
-            </p>
-          </div>
+        <ToastProvider maxVisible={3} density="compact">
+      <header className="f12-hd">
+        <div className="f12-hd-text">
+          <Breadcrumb
+            id="table-breadcrumb"
+            density="compact"
+            items={[
+              { label: 'Atelier', href: '#atelier' },
+              { label: 'Recovery', href: '#recovery' },
+              { label: 'Dispatch Ledger' },
+            ]}
+          />
+          <p className="f12-eyebrow">
+            Ledger Sheet · Live Dispatch Log
+            <Tag status="info">{filteredRows.length} rows</Tag>
+            <Badge pop={changed} burst>
+              {fmtMoney(totalAmount)}
+            </Badge>
+          </p>
+          <h1 className="f12-title">Order Recovery Ledger</h1>
+          <p className="f12-sub" id="table-status">
+            {filteredRows.length} matching dispatches · {actionNote}
+          </p>
+        </div>
           <div
             style={{
               display: 'flex',
@@ -400,68 +443,112 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
                 </div>
               </Panel>
 
-              <Table density="compact" id="table-ledger-compact">
-                <TableCaption>
-                  Showing {filteredRows.length} of {LEDGER_ROWS.length} recorded dispatches
-                </TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Channel</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        <strong>{row.orderId}</strong>
-                      </TableCell>
-                      <TableCell>{row.customer}</TableCell>
-                      <TableCell>{row.channelLabel}</TableCell>
-                      <TableCell>
-                        <Tag
-                          status={
-                            row.status === 'recovered'
-                              ? 'success'
-                              : row.status === 'pending'
-                                ? 'warning'
-                                : 'neutral'
-                          }
-                        >
-                          {row.statusTag}
-                        </Tag>
-                      </TableCell>
-                      <TableCell>{fmtMoney(row.amount)}</TableCell>
-                      <TableCell>
-                        <Button
-                          id={`inspect-${row.id}`}
-                          size="sm"
-                          variant={selectedOrderId === row.orderId ? 'primary' : 'secondary'}
-                          onClick={() => {
-                            setSelectedOrderId(row.orderId);
-                            setActionNote(`Inspecting ${row.orderId}`);
-                          }}
-                        >
-                          Inspect
-                        </Button>
-                      </TableCell>
+              <Notice
+                id="table-ledger-notice"
+                status={statusFilter === 'pending' ? 'warning' : 'info'}
+                density="compact"
+                title={statusFilter === 'pending' ? 'Retry queue active' : 'Ledger synchronized'}
+              >
+                {actionNote}
+              </Notice>
+
+              {filteredRows.length === 0 ? (
+                <EmptyState
+                  id="table-empty-state"
+                  density="compact"
+                  code="0 MATCHING DISPATCHES"
+                  title="No dispatches match active filters"
+                  description="Clear the search query or reset channel and status filters to restore the ledger."
+                  action={
+                    <Button
+                      id="table-empty-reset"
+                      size="sm"
+                      variant="primary"
+                      onClick={() => {
+                        setStatusFilter('all');
+                        setChannelFilter('all');
+                        setSearchQuery('');
+                        setActionNote('Cleared all ledger filters');
+                      }}
+                    >
+                      Reset filters
+                    </Button>
+                  }
+                />
+              ) : (
+                <Table density="compact" id="table-ledger-compact">
+                  <TableCaption>
+                    Showing {filteredRows.length} of {LEDGER_ROWS.length} recorded dispatches
+                  </TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Channel</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Action</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-                <TableFooter>
-                  <TableRow>
-                    <TableCell colSpan={4}>
-                      Filtered Total ({filteredRows.length} dispatches)
-                    </TableCell>
-                    <TableCell>{fmtMoney(totalAmount)}</TableCell>
-                    <TableCell>100%</TableCell>
-                  </TableRow>
-                </TableFooter>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredRows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <strong>{row.orderId}</strong>
+                        </TableCell>
+                        <TableCell>{row.customer}</TableCell>
+                        <TableCell>{row.channelLabel}</TableCell>
+                        <TableCell>
+                          <Tag
+                            status={
+                              row.status === 'recovered'
+                                ? 'success'
+                                : row.status === 'pending'
+                                  ? 'warning'
+                                  : 'neutral'
+                            }
+                          >
+                            {row.statusTag}
+                          </Tag>
+                        </TableCell>
+                        <TableCell>{fmtMoney(row.amount)}</TableCell>
+                        <TableCell>
+                          <Button
+                            id={`inspect-${row.id}`}
+                            size="sm"
+                            variant={selectedOrderId === row.orderId ? 'primary' : 'secondary'}
+                            onClick={() => {
+                              setSelectedOrderId(row.orderId);
+                              setActionNote(`Inspecting ${row.orderId}`);
+                            }}
+                          >
+                            Inspect
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={4}>
+                        Filtered Total ({filteredRows.length} dispatches)
+                      </TableCell>
+                      <TableCell>{fmtMoney(totalAmount)}</TableCell>
+                      <TableCell>100%</TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              )}
+
+              <Pagination
+                id="table-pagination"
+                density="compact"
+                page={1}
+                totalPages={1}
+                showSummary
+                totalItems={filteredRows.length}
+                pageSize={10}
+              />
             </div>
           </Panel>
 
@@ -643,15 +730,12 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
                       <DialogClose id="table-payload-close" variant="secondary">
                         Close
                       </DialogClose>
-                      <DialogClose
-                        id="table-payload-replay"
-                        variant="primary"
-                        onClick={() =>
+                      <ReplayPayloadButton
+                        orderId={inspectedRow.orderId}
+                        onReplayed={() =>
                           setActionNote(`Replayed webhook for ${inspectedRow.orderId}`)
                         }
-                      >
-                        Replay webhook
-                      </DialogClose>
+                      />
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -659,6 +743,7 @@ export function TableScreen({ initialTheme }: { initialTheme?: 'light' | 'dark' 
             </div>
           </Panel>
         </Scene>
+        </ToastProvider>
       </Sheet>
     </main>
   );
