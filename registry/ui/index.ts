@@ -162,6 +162,7 @@ export {
 export {
   ToastProvider,
   useToast,
+  useOptionalToast,
   ToastViewport,
   Toast,
   ToastTitle,

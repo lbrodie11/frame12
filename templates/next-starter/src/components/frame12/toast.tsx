@@ -69,12 +69,17 @@ export function useToast(): ToastContextValue {
   return ctx;
 }
 
+export function useOptionalToast(): ToastContextValue | null {
+  return React.useContext(ToastContext);
+}
+
 const ToastItemContext = React.createContext<{
   id?: string;
   onDismiss?: () => void;
 } | null>(null);
 
 const DefaultViewportContext = React.createContext<boolean>(false);
+const ToastInViewportContext = React.createContext<boolean>(false);
 
 function hasExplicitToastViewport(node: React.ReactNode): boolean {
   let found = false;
@@ -219,7 +224,9 @@ export function ToastProvider({
   }, []);
 
   const setRemainingDuration = React.useCallback((id: string, remaining: number) => {
-    remainingByIdRef.current.set(id, remaining);
+    if (toastsRef.current.some((t) => t.id === id)) {
+      remainingByIdRef.current.set(id, remaining);
+    }
   }, []);
 
   const dismiss = React.useCallback(
@@ -496,6 +503,8 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
     const preFocusElementRef = React.useRef<HTMLElement | null>(null);
     const hadFocusInsideRef = React.useRef<boolean>(false);
     const prevIdsRef = React.useRef<string[]>([]);
+    const lastPointerPosRef = React.useRef<{ x: number; y: number } | null>(null);
+    const ignoreStationaryEnterRef = React.useRef<boolean>(false);
     const [hovered, setHovered] = React.useState(false);
     const [focused, setFocused] = React.useState(false);
     const [modalDialogHost, setModalDialogHost] = React.useState<HTMLDialogElement | null>(null);
@@ -558,6 +567,10 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
       };
     }, [hasVisibleToasts, visibleIdsKey]);
 
+    const needsViewportTabStop =
+      visibleToasts.length > 0 &&
+      visibleToasts.every((t) => t.dismissible === false && !t.action);
+
     // Reconcile focus and hover whenever visibleToasts changes so unmounting a toast
     // by click or keyboard never leaves the viewport stuck in a paused state.
     useIsomorphicLayoutEffect(() => {
@@ -567,8 +580,17 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
       prevIdsRef.current = currentIds;
 
       const vp = vpRef.current;
+      const vpIsTabStop =
+        needsViewportTabStop || vp?.getAttribute('tabindex') === '0';
+      const isControlInside = (el: Element | null) =>
+        Boolean(
+          vp &&
+            el &&
+            el !== document.body &&
+            (vpIsTabStop ? vp.contains(el) : el !== vp && vp.contains(el)),
+        );
       const active = typeof document !== 'undefined' ? document.activeElement : null;
-      let activeInside = Boolean(vp && active && vp !== document.body && vp.contains(active));
+      let activeInside = isControlInside(active);
 
       if (hadFocusInsideRef.current && !activeInside) {
         hadFocusInsideRef.current = false;
@@ -585,12 +607,15 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
           } catch {
             // Ignore focus restoration errors
           }
+        } else if (vp && active === vp && !vpIsTabStop) {
+          vp.blur();
         }
         const nextActive = typeof document !== 'undefined' ? document.activeElement : null;
-        activeInside = Boolean(vp && nextActive && vp !== document.body && vp.contains(nextActive));
+        activeInside = isControlInside(nextActive);
       }
 
       if (currentIds.length === 0) {
+        ignoreStationaryEnterRef.current = false;
         hadFocusInsideRef.current = false;
         setFocused(false);
         setHovered(false);
@@ -599,6 +624,7 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
       }
 
       if (removedAny) {
+        ignoreStationaryEnterRef.current = true;
         setFocused(activeInside);
         setHovered(false);
         setViewportPaused?.(activeInside);
@@ -606,7 +632,7 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
         setFocused(false);
         setViewportPaused?.(hovered);
       }
-    }, [visibleIdsKey, focused, hovered, setViewportPaused]);
+    }, [visibleIdsKey, focused, hovered, needsViewportTabStop, setViewportPaused]);
 
     React.useEffect(() => {
       if (!focused || typeof document === 'undefined') return;
@@ -634,11 +660,14 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
         const vp = vpRef.current;
         if (!vp) return;
         const controls = vp.querySelectorAll<HTMLElement>(
-          '.f12-toast-action:not([disabled]), .f12-toast-close:not([disabled])',
+          '.f12-toast-action:not([disabled]), .f12-toast-close:not([disabled]), .f12-toast button:not([disabled]), .f12-toast a[href], .f12-toast input:not([disabled]), .f12-toast select:not([disabled]), .f12-toast textarea:not([disabled]), .f12-toast [tabindex]:not([tabindex="-1"]):not([disabled])',
         );
         const target = controls.length > 0 ? controls[controls.length - 1] : vp;
         if (target) {
           e.preventDefault();
+          if (target === vp && !vp.hasAttribute('tabindex')) {
+            vp.setAttribute('tabindex', '0');
+          }
           if (
             document.activeElement instanceof HTMLElement &&
             !vp.contains(document.activeElement)
@@ -654,107 +683,157 @@ export const ToastViewport = React.forwardRef<HTMLDivElement, ToastViewportProps
       };
     }, [hotkey, visibleToasts.length]);
 
-    const needsViewportTabStop =
-      visibleToasts.length > 0 &&
-      visibleToasts.every((t) => t.dismissible === false && !t.action);
-
     const viewportNode = (
-      <div
-        ref={setRefs}
-        role="region"
-        aria-label={userAriaLabel ?? label}
-        tabIndex={needsViewportTabStop ? 0 : -1}
-        data-density={isCompact ? 'compact' : undefined}
-        data-paused={hovered || focused ? 'true' : 'false'}
-        data-queued-count={queuedCount}
-        className={`f12-toast-viewport${isCompact ? ' f12-toast-viewport-compact' : ''}${className ? ` ${className}` : ''}`}
-        onMouseEnter={(e) => {
-          onMouseEnter?.(e);
-          if (visibleToasts.length > 0) {
-            setHovered(true);
-          }
-        }}
-        onMouseLeave={(e) => {
-          onMouseLeave?.(e);
-          setHovered(false);
-        }}
-        onFocusCapture={(e) => {
-          onFocusCapture?.(e);
-          if (
-            e.relatedTarget instanceof HTMLElement &&
-            !vpRef.current?.contains(e.relatedTarget)
-          ) {
-            preFocusElementRef.current = e.relatedTarget;
-          }
-          hadFocusInsideRef.current = true;
-          setFocused(true);
-        }}
-        onBlurCapture={(e) => {
-          onBlurCapture?.(e);
-          if (!vpRef.current?.contains(e.relatedTarget as Node | null)) {
-            hadFocusInsideRef.current = false;
-            setFocused(false);
-          }
-        }}
-        onKeyDown={(e) => {
-          onKeyDown?.(e);
-          if (e.key === 'Escape' && !e.defaultPrevented) {
-            const dismissibleVisible = [...visibleToasts]
-              .reverse()
-              .find((t) => t.dismissible !== false);
-            if (dismissibleVisible) {
-              e.preventDefault();
-              e.stopPropagation();
-              ctx?.dismiss(dismissibleVisible.id);
+      <ToastInViewportContext.Provider value={true}>
+        <div
+          ref={setRefs}
+          role="region"
+          aria-label={userAriaLabel ?? label}
+          tabIndex={needsViewportTabStop ? 0 : undefined}
+          data-density={isCompact ? 'compact' : undefined}
+          data-paused={hovered || focused ? 'true' : 'false'}
+          data-queued-count={queuedCount}
+          className={`f12-toast-viewport${isCompact ? ' f12-toast-viewport-compact' : ''}${className ? ` ${className}` : ''}`}
+          onPointerDownCapture={(e) => {
+            lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+          }}
+          onMouseDownCapture={(e) => {
+            lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+          }}
+          onMouseEnter={(e) => {
+            onMouseEnter?.(e);
+            if (e.relatedTarget instanceof Node && !e.relatedTarget.isConnected) {
+              return;
             }
-          }
-        }}
-        {...rest}
-      >
-        {visibleToasts.map((item) => {
-          const isDescriptor =
-            Boolean(item.action) &&
-            typeof item.action === 'object' &&
-            !React.isValidElement(item.action) &&
-            'label' in (item.action as ToastActionDescriptor) &&
-            'onClick' in (item.action as ToastActionDescriptor);
-          const actionNode = isDescriptor ? (
-            <ToastAction
-              altText={(item.action as ToastActionDescriptor).altText}
-              onClick={(item.action as ToastActionDescriptor).onClick}
-            >
-              {(item.action as ToastActionDescriptor).label}
-            </ToastAction>
-          ) : (
-            (item.action as React.ReactNode)
-          );
+            if (ignoreStationaryEnterRef.current) {
+              const last = lastPointerPosRef.current;
+              if (last && Math.abs(e.clientX - last.x) <= 2 && Math.abs(e.clientY - last.y) <= 2) {
+                return;
+              }
+              ignoreStationaryEnterRef.current = false;
+            }
+            lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+            if (visibleToasts.length > 0) {
+              setHovered(true);
+            }
+          }}
+          onMouseMove={(e) => {
+            if (ignoreStationaryEnterRef.current) {
+              const last = lastPointerPosRef.current;
+              if (last && Math.abs(e.clientX - last.x) <= 2 && Math.abs(e.clientY - last.y) <= 2) {
+                return;
+              }
+              ignoreStationaryEnterRef.current = false;
+            }
+            lastPointerPosRef.current = { x: e.clientX, y: e.clientY };
+            if (!hovered && visibleToasts.length > 0) {
+              setHovered(true);
+            }
+          }}
+          onMouseLeave={(e) => {
+            onMouseLeave?.(e);
+            if (e.relatedTarget instanceof Node && !e.relatedTarget.isConnected) {
+              return;
+            }
+            ignoreStationaryEnterRef.current = false;
+            setHovered(false);
+          }}
+          onFocusCapture={(e) => {
+            onFocusCapture?.(e);
+            const vpIsTabStop =
+              needsViewportTabStop || vpRef.current?.getAttribute('tabindex') === '0';
+            if (!vpIsTabStop && e.target === vpRef.current) {
+              return;
+            }
+            if (
+              e.relatedTarget instanceof HTMLElement &&
+              !vpRef.current?.contains(e.relatedTarget)
+            ) {
+              preFocusElementRef.current = e.relatedTarget;
+            }
+            hadFocusInsideRef.current = true;
+            setFocused(true);
+          }}
+          onBlurCapture={(e) => {
+            onBlurCapture?.(e);
+            const nextTarget = e.relatedTarget as Node | null;
+            const vpIsTabStop =
+              needsViewportTabStop || vpRef.current?.getAttribute('tabindex') === '0';
+            const nextInside = Boolean(
+              vpRef.current &&
+                nextTarget &&
+                (vpIsTabStop
+                  ? vpRef.current.contains(nextTarget)
+                  : nextTarget !== vpRef.current && vpRef.current.contains(nextTarget)),
+            );
+            if (!nextInside) {
+              if (!needsViewportTabStop && vpRef.current?.hasAttribute('tabindex')) {
+                vpRef.current.removeAttribute('tabindex');
+              }
+              hadFocusInsideRef.current = false;
+              setFocused(false);
+            }
+          }}
+          onKeyDown={(e) => {
+            onKeyDown?.(e);
+            if (e.key === 'Escape' && !e.defaultPrevented) {
+              const dismissibleVisible = [...visibleToasts]
+                .reverse()
+                .find((t) => t.dismissible !== false);
+              if (dismissibleVisible) {
+                e.preventDefault();
+                e.stopPropagation();
+                ctx?.dismiss(dismissibleVisible.id);
+              }
+            }
+          }}
+          {...rest}
+        >
+          {visibleToasts.map((item) => {
+            const isDescriptor =
+              Boolean(item.action) &&
+              typeof item.action === 'object' &&
+              !React.isValidElement(item.action) &&
+              'label' in (item.action as ToastActionDescriptor) &&
+              'onClick' in (item.action as ToastActionDescriptor);
+            const actionNode = isDescriptor ? (
+              <ToastAction
+                altText={(item.action as ToastActionDescriptor).altText}
+                onClick={(item.action as ToastActionDescriptor).onClick}
+              >
+                {(item.action as ToastActionDescriptor).label}
+              </ToastAction>
+            ) : (
+              (item.action as React.ReactNode)
+            );
 
-          return (
-            <Toast
-              key={item.id}
-              id={item.id}
-              status={item.status}
-              glyph={item.glyph}
-              srLabel={item.srLabel}
-              title={item.title}
-              description={item.description}
-              action={actionNode}
-              duration={item.duration}
-              resetKey={item.updateCount}
-              dismissible={item.dismissible}
-              dismissLabel={item.dismissLabel}
-              density={effectiveDensity}
-              onDismiss={() => ctx?.dismiss(item.id)}
-            />
-          );
-        })}
-        {queuedCount > 0 && (
-          <div className="f12-toast-queue-badge" aria-live="off">
-            {`+${queuedCount} QUEUED`}
-          </div>
-        )}
-        {children}
-      </div>
+            return (
+              <Toast
+                key={item.id}
+                id={item.id}
+                status={item.status}
+                glyph={item.glyph}
+                srLabel={item.srLabel}
+                title={item.title}
+                description={item.description}
+                action={actionNode}
+                duration={item.duration}
+                resetKey={item.updateCount}
+                dismissible={item.dismissible}
+                dismissLabel={item.dismissLabel}
+                density={effectiveDensity}
+                onDismiss={() => ctx?.dismiss(item.id)}
+              />
+            );
+          })}
+          {queuedCount > 0 && (
+            <div className="f12-toast-queue-badge" aria-live="off">
+              {`+${queuedCount} QUEUED`}
+            </div>
+          )}
+          {children}
+        </div>
+      </ToastInViewportContext.Provider>
     );
 
     const portaledContent = (
@@ -830,6 +909,7 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(function Toast
   forwardedRef,
 ) {
   const ctx = React.useContext(ToastContext);
+  const inViewport = React.useContext(ToastInViewportContext);
   const toastRef = React.useRef<HTMLDivElement | null>(null);
   const [hovered, setHovered] = React.useState(false);
   const [focused, setFocused] = React.useState(false);
@@ -846,7 +926,9 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(function Toast
       : 0);
   const isPaused = Boolean(
     controlledPaused ??
-      (hovered || focused || ctx?.viewportPaused || ctx?.documentHidden),
+      (inViewport && ctx
+        ? ctx.viewportPaused || ctx.documentHidden
+        : (ctx?.documentHidden ?? false) || hovered || focused),
   );
 
   const initialRemaining =
@@ -860,16 +942,17 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(function Toast
   const onDismissRef = React.useRef(onDismiss);
   onDismissRef.current = onDismiss;
 
-  if (prevResetKeyRef.current !== resetKey || prevDurationRef.current !== effectiveDuration) {
-    prevResetKeyRef.current = resetKey;
-    prevDurationRef.current = effectiveDuration;
-    remainingRef.current = effectiveDuration;
-    if (id && ctx?.setRemainingDuration) {
-      ctx.setRemainingDuration(id, effectiveDuration);
-    }
-  }
+  const setRemainingDuration = ctx?.setRemainingDuration;
 
   React.useEffect(() => {
+    if (prevResetKeyRef.current !== resetKey || prevDurationRef.current !== effectiveDuration) {
+      prevResetKeyRef.current = resetKey;
+      prevDurationRef.current = effectiveDuration;
+      remainingRef.current = effectiveDuration;
+      if (id && setRemainingDuration) {
+        setRemainingDuration(id, effectiveDuration);
+      }
+    }
     if (
       !onDismissRef.current ||
       !effectiveDuration ||
@@ -885,8 +968,8 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(function Toast
     const waitMs = Math.max(0, remainingRef.current);
     const timer = window.setTimeout(() => {
       remainingRef.current = 0;
-      if (id && ctx?.setRemainingDuration) {
-        ctx.setRemainingDuration(id, 0);
+      if (id && setRemainingDuration) {
+        setRemainingDuration(id, 0);
       }
       onDismissRef.current?.();
     }, waitMs);
@@ -896,11 +979,11 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(function Toast
       const elapsed = Date.now() - startedAtRef.current;
       const nextRemaining = Math.max(0, remainingRef.current - elapsed);
       remainingRef.current = nextRemaining;
-      if (id && ctx?.setRemainingDuration) {
-        ctx.setRemainingDuration(id, nextRemaining);
+      if (id && setRemainingDuration) {
+        setRemainingDuration(id, nextRemaining);
       }
     };
-  }, [isPaused, effectiveDuration, resetKey, id, ctx]);
+  }, [isPaused, effectiveDuration, resetKey, id, setRemainingDuration]);
 
   const setRefs = React.useCallback(
     (node: HTMLDivElement | null) => {

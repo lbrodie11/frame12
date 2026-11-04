@@ -20,6 +20,7 @@
     ],
     "paths": {
       "@/components/frame12": ["../registry/ui/index.ts"],
+      "@/components/frame12/blocks/*": ["../registry/blocks/*"],
       "@/components/frame12/*": ["../registry/ui/*"],
       "@/hooks/*": ["../registry/hooks/*"],
       "@/styles/*": ["../registry/styles/*"],
@@ -36,6 +37,7 @@
     "../registry/ui/index.ts",
     "../registry/hooks/**/*.ts",
     "../registry/ui/**/*.tsx",
+    "../registry/blocks/**/*.tsx",
     ".next/types/**/*.ts"
   ],
   "exclude": ["node_modules", ".next"]

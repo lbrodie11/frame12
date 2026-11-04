@@ -239,6 +239,7 @@ const ROUTES = [
   '/components/tone-area-chart',
   '/components/toast',
   '/components/pagination',
+  '/blocks/developer-console',
   '/agents',
   '/style-sheet',
   '/get-started',
@@ -276,6 +277,7 @@ try {
     'frame12-base.json',
     'font-dela-gothic-one.json',
     'frame12.json',
+    'developer-console.json',
     'registry.json',
   ]) {
     const res = await fetch(`${baseUrl}/r/${item}`);
@@ -336,6 +338,7 @@ try {
     '/opengraph-image',
     '/motion/opengraph-image',
     '/components/opengraph-image',
+    '/blocks/developer-console/opengraph-image',
     '/agents/opengraph-image',
     '/style-sheet/opengraph-image',
     '/get-started/opengraph-image',
@@ -649,6 +652,323 @@ try {
       'site /motion interactive flow: comparison mode toggle and synchronized Play comparison trigger',
     );
 
+    // 5b. Developer Console Flagship Block (/blocks/developer-console) end-to-end interactive verification
+    await page.goto(`${baseUrl}/blocks/developer-console`, { waitUntil: 'networkidle' });
+    await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+
+    // Dataset state transitions: loading -> empty -> error -> retry recovery
+    await page.click('#dev-console-dataset-state-loading');
+    const hasSkeletonInLoading = await page.evaluate(
+      () => document.querySelectorAll('.f12-skeleton').length >= 6,
+    );
+    await page.click('#dev-console-dataset-state-empty');
+    const emptyOverviewTelemetry = await page.evaluate(() => {
+      const hasEmptyBanner = Boolean(document.getElementById('dev-console-empty-workspace'));
+      const hasEmptyChart = Boolean(document.getElementById('dev-console-chart-empty'));
+      const noChartSvg = !document.querySelector('#dev-console-sheet .f12-chart');
+      const text = document.getElementById('dev-console-sheet')?.textContent || '';
+      const hasZeroServiceTotal = text.includes('Total 0 requests');
+      const hasZeroLogsTab = text.includes('04 · Request Logs (0)');
+      return (
+        hasEmptyBanner &&
+        hasEmptyChart &&
+        noChartSvg &&
+        hasZeroServiceTotal &&
+        hasZeroLogsTab
+      );
+    });
+    await page.click('#dev-console-tab-request-logs');
+    const emptyLogsTabOk = await page.evaluate(
+      () =>
+        Boolean(document.getElementById('dev-console-logs-empty')) &&
+        document.querySelectorAll('#dev-console-sheet tbody tr').length === 0,
+    );
+    await page.click('#dev-console-tab-overview');
+    const hasEmptyWorkspace = emptyOverviewTelemetry && emptyLogsTabOk;
+    await page.click('#dev-console-dataset-state-error');
+    const hasErrorBanner = await page.evaluate(() =>
+      Boolean(document.getElementById('dev-console-error-banner')),
+    );
+    await page.click('#dev-console-retry-telemetry');
+    const recoveredFromError = await page.evaluate(
+      () =>
+        !document.getElementById('dev-console-error-banner') &&
+        document.querySelectorAll('.f12-toast').length >= 1,
+    );
+    check(
+      hasSkeletonInLoading && hasEmptyWorkspace && hasErrorBanner && recoveredFromError,
+      'site /blocks/developer-console dataset states: loading skeletons, consistent empty state across Overview & Request Logs, 503 error banner, and retry recovery with toast',
+      JSON.stringify({
+        hasSkeletonInLoading,
+        emptyOverviewTelemetry,
+        emptyLogsTabOk,
+        hasErrorBanner,
+        recoveredFromError,
+      }),
+    );
+
+    // Overview: time range switching, SLO breach badge on 7d/30d vs 24h within budget, & ranked service selection
+    const slo24hOk = await page.evaluate(() => {
+      const tag = document.getElementById('dev-console-slo-status-tag');
+      return (
+        Boolean(tag?.textContent?.includes('SLO WITHIN BUDGET')) &&
+        Boolean(tag?.classList.contains('f12-status-success'))
+      );
+    });
+    await page.click('#dev-console-range-7d');
+    await page.click('#int-dev-console-svc-bar-svc-inventory-ledger');
+    const overviewUpdated = await page.evaluate(() => {
+      const text = document.body.textContent || '';
+      const tag = document.getElementById('dev-console-slo-status-tag');
+      return (
+        text.includes('9,840,200') &&
+        text.includes('OVERLAY: SVC-03') &&
+        Boolean(tag?.textContent?.includes('SLO BUDGET BREACHED')) &&
+        Boolean(tag?.classList.contains('f12-status-warning'))
+      );
+    });
+    await page.click('#dev-console-range-30d');
+    const slo30dOk = await page.evaluate(() => {
+      const tag = document.getElementById('dev-console-slo-status-tag');
+      return (
+        Boolean(tag?.textContent?.includes('SLO BUDGET BREACHED')) &&
+        Boolean(tag?.classList.contains('f12-status-warning'))
+      );
+    });
+    await page.click('#dev-console-range-24h');
+    check(
+      slo24hOk && overviewUpdated && slo30dOk,
+      'site /blocks/developer-console Overview: 24h/7d/30d SLO status badge accuracy and ranked service overlay selection reconcile KPIs & chart',
+      JSON.stringify({ slo24hOk, overviewUpdated, slo30dOk }),
+    );
+
+    // Services & Endpoints: circuit-breaker switch, search empty state, and filter reset
+    await page.click('#dev-console-tab-services');
+    await page.click('#dev-console-shed-svc-webhook-dispatch');
+    await page.fill('#dev-console-endpoint-search', 'nonexistent-route-xyz');
+    const hasEndpointsEmpty = await page.evaluate(() =>
+      Boolean(document.getElementById('dev-console-endpoints-empty')),
+    );
+    await page.click('#dev-console-reset-endpoint-filters');
+    const endpointsRestored = await page.evaluate(
+      () =>
+        !document.getElementById('dev-console-endpoints-empty') &&
+        document.querySelectorAll('#dev-console-sheet tbody tr').length === 8,
+    );
+    check(
+      hasEndpointsEmpty && endpointsRestored,
+      'site /blocks/developer-console Services & Endpoints: circuit-breaker toggle, search empty state, and filter reset',
+      JSON.stringify({ hasEndpointsEmpty, endpointsRestored }),
+    );
+
+    // API Keys: validation error on short label, valid key issuance, and modal Dialog revocation confirmation
+    await page.click('#dev-console-tab-api-keys');
+    await page.fill('#dev-console-key-label-input', 'ab');
+    await page.click('#dev-console-issue-key-submit');
+    const hasValidationError = await page.evaluate(() => {
+      const input = document.getElementById('dev-console-key-label-input');
+      return input?.getAttribute('aria-invalid') === 'true';
+    });
+    await page.fill('#dev-console-key-label-input', 'Tokyo Edge Worker');
+    await page.click('#dev-console-issue-key-submit');
+    const issuedBannerVisible = await page.evaluate(() =>
+      Boolean(document.getElementById('dev-console-issued-key-banner')),
+    );
+    await page.click('#dev-console-revoke-key-key-prod-primary');
+    await page.waitForSelector('dialog[open]', { timeout: 3000 });
+    await page.click('#dev-console-confirm-revoke');
+    const revokedApplied = await page.evaluate(
+      () =>
+        !document.querySelector('dialog[open]') &&
+        !document.getElementById('dev-console-revoke-key-key-prod-primary'),
+    );
+    check(
+      hasValidationError && issuedBannerVisible && revokedApplied,
+      'site /blocks/developer-console API Keys: Field validation, simulated f12_sim_* issuance, and Dialog revocation confirmation',
+      JSON.stringify({ hasValidationError, issuedBannerVisible, revokedApplied }),
+    );
+
+    // Request Logs: revoked key replay rejection (401), active key replay (202), page-3 replay focus restoration, dialog centering under Tailwind margin:0 reset, and route/overview drilldown focus + filter reset
+    await page.click('#dev-console-tab-request-logs');
+    // Inject a simulated Tailwind base reset (*, dialog { margin: 0; }) at the start of <head> to verify dialog.f12-dialog { margin: auto; } keeps modals centered with unclipped C-05 cut labels
+    await page.evaluate(() => {
+      const resetStyle = document.createElement('style');
+      resetStyle.id = 'test-tailwind-preflight';
+      resetStyle.textContent = '*, ::before, ::after, dialog { margin: 0; }';
+      document.head.insertBefore(resetStyle, document.head.firstChild);
+    });
+    // 1) Replay log-1 whose key (key-prod-primary) was just revoked -> must return 401 (4XX) and dialog must be centered with visible C-05 cut
+    await page.click('#dev-console-inspect-log-log-1');
+    await page.waitForSelector('dialog[open]', { timeout: 3000 });
+    const dialogCenteredAndCutVisible = await page.evaluate(() => {
+      const dlg = document.querySelector('dialog.f12-dialog[open]');
+      const cut = dlg?.querySelector('.f12-cut');
+      if (!dlg || !cut) return false;
+      const r = dlg.getBoundingClientRect();
+      const cr = cut.getBoundingClientRect();
+      const centerXDelta = Math.abs((r.left + r.right) / 2 - window.innerWidth / 2);
+      return centerXDelta <= 24 && r.top >= 16 && cr.top >= 4 && cr.left >= 4;
+    });
+    await page.click('#dev-console-replay-log-btn');
+    const revokedReplay401 = await page.evaluate(() => {
+      const dlgText = document.querySelector('dialog[open]')?.textContent || '';
+      return dlgText.includes('401 (4XX)') && dlgText.includes('revoked_api_key');
+    });
+    await page.click('#dev-console-close-log-dialog');
+
+    // 2) Navigate to Page 3, inspect log-11 (active key-eu-staging), replay (switches to Page 1), and close dialog -> focus must land on the connected replayed row's Inspect button, not document.body
+    await page.click('.f12-pagination button:has-text("3")');
+    await page.click('#dev-console-inspect-log-log-11');
+    await page.waitForSelector('dialog[open]', { timeout: 3000 });
+    await page.click('#dev-console-replay-log-btn');
+    await page.click('#dev-console-close-log-dialog');
+    await page.waitForTimeout(50);
+    const focusAfterPage3Replay = await page.evaluate(() => {
+      const active = document.activeElement;
+      return {
+        id: active?.id || '',
+        tag: active?.tagName || '',
+        connected: Boolean(active?.isConnected && active !== document.body),
+      };
+    });
+
+    // 3) Status filter 5XX + route drilldown from Services & Endpoints must clear stale 5XX filter AND move focus to #dev-console-log-search
+    await page.click('#dev-console-log-status-5xx');
+    const fiveXxRows = await page.evaluate(
+      () => document.querySelectorAll('#dev-console-sheet tbody tr').length,
+    );
+    await page.click('#dev-console-tab-services');
+    await page.click('#dev-console-inspect-ep-ep-session-get');
+    await page.click('#dev-console-ep-filter-logs');
+    await page.waitForTimeout(40);
+    const drilldownClearedStaleFilter = await page.evaluate(() => {
+      const rows = document.querySelectorAll('#dev-console-sheet tbody tr').length;
+      const statusAllPressed =
+        document
+          .getElementById('dev-console-log-status-all')
+          ?.getAttribute('aria-pressed') === 'true';
+      const focusedSearch = document.activeElement?.id === 'dev-console-log-search';
+      return (
+        rows >= 1 &&
+        statusAllPressed &&
+        focusedSearch &&
+        !document.getElementById('dev-console-logs-empty')
+      );
+    });
+
+    // 3b) Overview "Inspect request logs →" shortcut must also move focus to #dev-console-log-search (never document.body) and Overview layout must have 1 peak balloon and balanced panels
+    await page.click('#dev-console-tab-overview');
+    const overviewVisualPolishOk = await page.evaluate(() => {
+      const balloons = document.querySelectorAll('#dev-console-sheet .f12-balloon').length;
+      const serviceNames = [
+        ...document.querySelectorAll('#dev-console-sheet .f12-int-name'),
+      ];
+      const maxServiceLines = Math.max(
+        0,
+        ...serviceNames.map((el) => el.getClientRects().length),
+      );
+      const expressivePanels = [
+        ...document.querySelectorAll(
+          '#dev-console-sheet .f12-tabs-content:not([hidden]) .f12-panel:not(.f12-panel-quiet)',
+        ),
+      ];
+      const heightDiff =
+        expressivePanels.length === 2
+          ? Math.abs(
+              expressivePanels[0].getBoundingClientRect().height -
+                expressivePanels[1].getBoundingClientRect().height,
+            )
+          : 999;
+      return balloons === 1 && maxServiceLines <= 2 && heightDiff <= 120;
+    });
+    await page.click('#dev-console-overview-goto-logs');
+    await page.waitForTimeout(40);
+    const overviewShortcutFocusedSearch = await page.evaluate(
+      () => document.activeElement?.id === 'dev-console-log-search',
+    );
+
+    // 4) Reset sandbox restores form defaults and initial logs
+    await page.click('#dev-console-tab-api-keys');
+    await page.click('#dev-console-key-hmac');
+    await page.click('#dev-console-reset-sandbox');
+    const sandboxResetComplete = await page.evaluate(() => {
+      const hmacEl = document.getElementById('dev-console-key-hmac');
+      const hmacChecked = Boolean(hmacEl && 'checked' in hmacEl && hmacEl.checked);
+      const revokeBtnRestored = Boolean(
+        document.getElementById('dev-console-revoke-key-key-prod-primary'),
+      );
+      return hmacChecked && revokeBtnRestored;
+    });
+
+    check(
+      dialogCenteredAndCutVisible &&
+        revokedReplay401 &&
+        focusAfterPage3Replay.connected &&
+        focusAfterPage3Replay.id.startsWith('dev-console-inspect-log-log-replay-') &&
+        fiveXxRows === 2 &&
+        drilldownClearedStaleFilter &&
+        overviewVisualPolishOk &&
+        overviewShortcutFocusedSearch &&
+        sandboxResetComplete,
+      'site /blocks/developer-console Request Logs, Overview Polish, Dialog Centering & Sandbox Reset: centered modal with visible cut under margin:0 reset, revoked-key 401 replay, page-3 replay focus restoration, cross-tab drilldown focus on search input, single peak balloon, and full sandbox reset',
+      JSON.stringify({
+        dialogCenteredAndCutVisible,
+        revokedReplay401,
+        focusAfterPage3Replay,
+        fiveXxRows,
+        drilldownClearedStaleFilter,
+        overviewVisualPolishOk,
+        overviewShortcutFocusedSearch,
+        sandboxResetComplete,
+      }),
+    );
+
+    // Verify 320px narrow mobile containment + full-width stacked tabs across all 4 console tabs + forced-colors: active
+    await page.setViewportSize({ width: 320, height: 640 });
+    const mobileTabsFullWidth = await page.evaluate(() => {
+      const list = document.querySelector('#dev-console-sheet .f12-tabs-list');
+      const triggers = [
+        ...document.querySelectorAll('#dev-console-sheet .f12-tabs-trigger'),
+      ];
+      if (!list || triggers.length !== 4) return false;
+      const listClientW = list.clientWidth;
+      return triggers.every((t, idx) => {
+        const w = t.getBoundingClientRect().width;
+        const st = getComputedStyle(t);
+        const borderOk =
+          idx === 0 || (parseFloat(st.borderTopWidth) >= 1.5 && parseFloat(st.borderLeftWidth) === 0);
+        return Math.abs(w - listClientW) <= 2 && borderOk;
+      });
+    });
+    const tabOverflow320 = {};
+    for (const tabId of [
+      '#dev-console-tab-overview',
+      '#dev-console-tab-services',
+      '#dev-console-tab-api-keys',
+      '#dev-console-tab-request-logs',
+    ]) {
+      await page.click(tabId);
+      await page.waitForTimeout(60);
+      tabOverflow320[tabId] = await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      );
+    }
+    await page.emulateMedia({ forcedColors: 'active' });
+    const fcConsoleOk = await page.evaluate(() => {
+      const quietPanel = document.querySelector('.f12-panel.f12-panel-quiet');
+      const kvItem = document.querySelector('.f12-console-kv-item');
+      return (
+        window.matchMedia('(forced-colors: active)').matches &&
+        Boolean(quietPanel && getComputedStyle(quietPanel).borderTopStyle === 'solid') &&
+        Boolean(kvItem && getComputedStyle(kvItem).borderTopStyle === 'solid')
+      );
+    });
+    check(
+      mobileTabsFullWidth && Object.values(tabOverflow320).every(Boolean) && fcConsoleOk,
+      'site /blocks/developer-console (320px mobile & forced-colors): full-width stacked mobile tabs, zero horizontal overflow across all 4 tabs, and high-contrast system borders',
+      JSON.stringify({ mobileTabsFullWidth, tabOverflow320, fcConsoleOk }),
+    );
+
     await ctx.close();
   }
 
@@ -805,7 +1125,7 @@ try {
           );
 
           if (scheme === 'light') {
-            // Test 768px container-query transition & 390px mobile on /components and /
+            // Test 768px container-query transition & 390px mobile on /components and /blocks/developer-console
             await page.setViewportSize({ width: 768, height: 900 });
             await page.waitForTimeout(100);
             const ok768 = await page.evaluate(
@@ -816,9 +1136,13 @@ try {
             const ok390 = await page.evaluate(
               () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
             );
+            await page.goto(`${baseUrl}/blocks/developer-console`, { waitUntil: 'networkidle' });
+            const okConsole390 = await page.evaluate(
+              () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+            );
             check(
-              ok768 && ok390 && errors.length === 0,
-              `site [${engineName} 768px & 390px] /components: zero horizontal overflow across container-query & mobile viewports`,
+              ok768 && ok390 && okConsole390 && errors.length === 0,
+              `site [${engineName} 768px & 390px] /components & /blocks/developer-console: zero horizontal overflow across container-query & mobile viewports`,
               errors.join('; '),
             );
           }

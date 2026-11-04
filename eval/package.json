@@ -8,7 +8,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "test:linter": "node tests/check-linter.mjs",
-    "test:typecheck": "npx tsc -p tsconfig.json --noEmit && node ../scripts/check-frame12.mjs screens next-app ../registry/ui",
+    "test:typecheck": "npx tsc -p tsconfig.json --noEmit && node ../scripts/check-frame12.mjs screens next-app ../registry/ui ../registry/blocks",
     "test:a11y": "node tests/eval-a11y.mjs",
     "test": "npm run build && npm run test:linter && npm run test:typecheck && npm run test:a11y"
   }

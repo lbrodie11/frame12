@@ -29,6 +29,19 @@ for (const entry of fs.readdirSync(uiDir)) {
   }
 }
 
+// 1b. registry/blocks/* -> templates/next-starter/src/components/frame12/blocks/*
+const blocksDir = path.join(ROOT, 'registry/blocks');
+if (fs.existsSync(blocksDir)) {
+  for (const entry of fs.readdirSync(blocksDir)) {
+    if (entry.endsWith('.tsx') || entry.endsWith('.ts')) {
+      FILE_MAPPINGS.push({
+        src: path.join(blocksDir, entry),
+        dest: path.join(ROOT, 'templates/next-starter/src/components/frame12/blocks', entry),
+      });
+    }
+  }
+}
+
 // 2. registry/hooks/use-on-twos.ts -> templates/next-starter/src/hooks/use-on-twos.ts
 FILE_MAPPINGS.push({
   src: path.join(ROOT, 'registry/hooks/use-on-twos.ts'),
