@@ -724,6 +724,23 @@ function check(ok, label, detail = '') {
   `,
     'eval/screens/cond-and-alias.tsx',
   );
+  const ternaryAndNullishInPairSlot = lintSource(
+    `
+    export const TernaryAndNullishPair = ({ flag, maybe }: { flag: boolean; maybe?: React.ReactNode }) => (
+      <Sheet>
+        <PanelPair topCut="C-01" bottomCut="C-02">
+          {flag ? <Panel>A</Panel> : <Panel>B</Panel>}
+          <Panel>C</Panel>
+        </PanelPair>
+        <PanelPair topCut="C-03" bottomCut="C-04">
+          {maybe ?? <Panel>D</Panel>}
+          <Panel>E</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/ternary-and-nullish-pair.tsx',
+  );
 
   check(
     hoistedQuietChildInPanel.length === 1 &&
@@ -733,13 +750,15 @@ function check(ok, label, detail = '') {
       hoistedChildInAutoCutSheet.every((v) => v.rule === 'explicit-cut-in-autocut') &&
       emptyCutAndDroppedPairSlots.length === 0 &&
       conditionalSlotInQuietPairAndAlias.length === 2 &&
-      conditionalSlotInQuietPairAndAlias.every((v) => v.message.includes('Quiet panels')),
-    'linter [cut-order & explicit-cut-in-autocut]: resolves hoisted child references at render sites, ignores cut="" and dropped PanelPair slots, and handles conditional quiet slots and local Panel aliases',
+      conditionalSlotInQuietPairAndAlias.every((v) => v.message.includes('Quiet panels')) &&
+      ternaryAndNullishInPairSlot.length === 0,
+    'linter [cut-order & explicit-cut-in-autocut]: resolves hoisted child references at render sites, ignores cut="" and dropped PanelPair slots, and handles conditional/ternary/nullish pair slots and local Panel aliases',
     JSON.stringify({
       hoistedQuietChildInPanel,
       hoistedChildInAutoCutSheet,
       emptyCutAndDroppedPairSlots,
       conditionalSlotInQuietPairAndAlias,
+      ternaryAndNullishInPairSlot,
     }),
   );
 }

@@ -146,11 +146,20 @@ srv.listen(0, '127.0.0.1', async () => {
       'import { Sheet } from "@/components/frame12/sheet";',
       'import { Panel } from "@/components/frame12/panel";',
       'import { Badge } from "@/components/frame12/badge";',
+      'import { Tag } from "@/components/frame12/tag";',
       '',
       'export default function Page() {',
       '  return (',
       '    <Sheet autoCut>',
-      '      <Panel label="First">One <Badge status="warning">Warn</Badge></Panel>',
+      '      <Panel label="First">',
+      '        One <Badge status="warning">Warn</Badge>',
+      '        <Tag id="tailwind-icon-tag">',
+      '          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">',
+      '            <rect width="10" height="10" />',
+      '          </svg>',
+      '          LIVE',
+      '        </Tag>',
+      '      </Panel>',
       '      <Panel label="Second">Two</Panel>',
       '    </Sheet>',
       '  );',
@@ -184,6 +193,19 @@ srv.listen(0, '127.0.0.1', async () => {
         const cuts = await getRenderedCuts(page);
         if (cuts.join(',') !== 'C-01,C-02') {
           throw new Error(`Expected C-01,C-02 in fresh app, got: ${cuts.join(',')}`);
+        }
+        const tagIconOk = await page.evaluate(() => {
+          const tag = document.querySelector('#tailwind-icon-tag');
+          const svg = document.querySelector('#tailwind-icon-tag svg');
+          return Boolean(
+            tag &&
+              svg &&
+              getComputedStyle(svg).display === 'inline-block' &&
+              tag.getBoundingClientRect().height <= 26,
+          );
+        });
+        if (!tagIconOk) {
+          throw new Error('Expected <Tag><svg/>LIVE</Tag> to stay inline on one line in Tailwind app');
         }
         console.log(
           'PASS  Fresh app individual sheet.json + panel.json <Sheet autoCut> rendered:',

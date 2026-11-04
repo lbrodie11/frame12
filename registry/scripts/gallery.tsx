@@ -927,6 +927,25 @@ function UnitTestFixtures() {
                     <Tag id="fixture-tag-errored" status="danger">
                       Errored
                     </Tag>
+                    <Tag id="fixture-tag-hidden-prefix" status="danger">
+                      <span aria-hidden="true">Error</span> Offline
+                    </Tag>
+                    <Tag id="fixture-tag-dom-hidden-prefix" status="danger">
+                      <span hidden>Error</span> Offline
+                    </Tag>
+                    <style>{`svg { display: block; }`}</style>
+                    <Tag id="fixture-tag-icon">
+                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                        <rect width="10" height="10" />
+                      </svg>
+                      LIVE
+                    </Tag>
+                    <Badge id="fixture-badge-icon" burst={false}>
+                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                        <rect width="10" height="10" />
+                      </svg>
+                      LIVE
+                    </Badge>
                     <Badge id="fixture-badge-neutral" status="neutral">
                       ORD-01
                     </Badge>

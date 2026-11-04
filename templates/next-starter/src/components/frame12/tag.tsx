@@ -23,7 +23,20 @@ export const STATUS_SR_LABELS: Record<SemanticStatus, string | undefined> = {
 export function extractTextContent(node: React.ReactNode): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(extractTextContent).join('');
-  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+  if (
+    React.isValidElement<{
+      children?: React.ReactNode;
+      hidden?: boolean;
+      'aria-hidden'?: boolean | 'true' | 'false';
+    }>(node)
+  ) {
+    if (
+      node.props.hidden ||
+      node.props['aria-hidden'] === true ||
+      node.props['aria-hidden'] === 'true'
+    ) {
+      return '';
+    }
     return extractTextContent(node.props.children);
   }
   return '';

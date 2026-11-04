@@ -338,7 +338,7 @@ for (const screen of SCREENS) {
   }
 }
 
-// 2. Mobile (390px) responsive & contrast checks across all 3 screens
+// 2. Mobile (390px and 320px) responsive & contrast checks across all 3 screens
 for (const screen of SCREENS) {
   for (const scheme of ['light', 'dark']) {
     const { ctx, page, errors } = await openScreen(browser, screen, {
@@ -353,10 +353,23 @@ for (const screen of SCREENS) {
         (el) => el.getBoundingClientRect().height <= 26,
       ),
     );
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.waitForTimeout(100);
+    const sw320 = await page.evaluate(() => document.documentElement.scrollWidth);
+    const tableTagsSingleLine320 = await page.evaluate(() =>
+      [...document.querySelectorAll('.f12-table .f12-tag')].every(
+        (el) => el.getBoundingClientRect().height <= 26,
+      ),
+    );
     check(
-      c.length === 0 && sw <= 390 && tableTagsSingleLine && errors.length === 0,
-      `eval/${screen} (${scheme}, 390px mobile): WCAG AA contrast, single-line table tags & zero horizontal overflow`,
-      `scrollWidth=${sw} tableTagsSingleLine=${tableTagsSingleLine} contrast=${c.slice(0, 2).join('; ')}`,
+      c.length === 0 &&
+        sw <= 390 &&
+        sw320 <= 320 &&
+        tableTagsSingleLine &&
+        tableTagsSingleLine320 &&
+        errors.length === 0,
+      `eval/${screen} (${scheme}, 390px & 320px mobile): WCAG AA contrast, single-line table tags & zero horizontal overflow`,
+      `scrollWidth390=${sw} scrollWidth320=${sw320} tableTags390=${tableTagsSingleLine} tableTags320=${tableTagsSingleLine320} contrast=${c.slice(0, 2).join('; ')}`,
     );
     await ctx.close();
   }

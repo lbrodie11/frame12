@@ -709,25 +709,65 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     }
   }
 
-  function processPairChildSlot(slotNode, fallbackCut, pairVariant, inAutoCut) {
+  function slotHasDirectPanel(slotNode, seen = new Set()) {
+    if (!slotNode || seen.has(slotNode)) return false;
+    seen.add(slotNode);
+    const unwrapped = unwrapExpression(slotNode) || slotNode;
+    if (ts.isBinaryExpression(unwrapped)) {
+      const op = unwrapped.operatorToken.kind;
+      if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
+        return slotHasDirectPanel(unwrapped.right, seen);
+      }
+      if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken) {
+        return (
+          slotHasDirectPanel(unwrapped.left, seen) ||
+          slotHasDirectPanel(unwrapped.right, seen)
+        );
+      }
+    }
+    if (ts.isConditionalExpression(unwrapped)) {
+      return (
+        slotHasDirectPanel(unwrapped.whenTrue, seen) ||
+        slotHasDirectPanel(unwrapped.whenFalse, seen)
+      );
+    }
+    return (
+      (ts.isJsxElement(unwrapped) &&
+        getCanonicalTagName(unwrapped.openingElement.tagName) === 'Panel') ||
+      (ts.isJsxSelfClosingElement(unwrapped) &&
+        getCanonicalTagName(unwrapped.tagName) === 'Panel')
+    );
+  }
+
+  function processPairChildSlot(
+    slotNode,
+    fallbackCut,
+    pairVariant,
+    inAutoCut,
+    slotState = {
+      fallbackRecorded: false,
+      quietFallbackChecked: false,
+      hasDirectPanel: slotHasDirectPanel(slotNode),
+    },
+  ) {
     const unwrapped = unwrapExpression(slotNode) || slotNode;
     if (ts.isBinaryExpression(unwrapped)) {
       const op = unwrapped.operatorToken.kind;
       if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
         visit(unwrapped.left, inAutoCut);
-        processPairChildSlot(unwrapped.right, fallbackCut, pairVariant, inAutoCut);
+        processPairChildSlot(unwrapped.right, fallbackCut, pairVariant, inAutoCut, slotState);
         return;
       }
       if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken) {
-        processPairChildSlot(unwrapped.left, fallbackCut, pairVariant, inAutoCut);
-        processPairChildSlot(unwrapped.right, fallbackCut, pairVariant, inAutoCut);
+        processPairChildSlot(unwrapped.left, fallbackCut, pairVariant, inAutoCut, slotState);
+        processPairChildSlot(unwrapped.right, fallbackCut, pairVariant, inAutoCut, slotState);
         return;
       }
     }
     if (ts.isConditionalExpression(unwrapped)) {
       visit(unwrapped.condition, inAutoCut);
-      processPairChildSlot(unwrapped.whenTrue, fallbackCut, pairVariant, inAutoCut);
-      processPairChildSlot(unwrapped.whenFalse, fallbackCut, pairVariant, inAutoCut);
+      processPairChildSlot(unwrapped.whenTrue, fallbackCut, pairVariant, inAutoCut, slotState);
+      processPairChildSlot(unwrapped.whenFalse, fallbackCut, pairVariant, inAutoCut, slotState);
       return;
     }
 
@@ -742,10 +782,22 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       panelSlotInheritedMap.set(unwrapped, {
         variant: pairVariant,
         fallbackCut,
+        slotState,
       });
       visit(unwrapped, inAutoCut);
     } else {
-      if (fallbackCut && fallbackCut !== UNSET && fallbackCut !== false) {
+      const isNonJsxBranch =
+        !ts.isJsxElement(unwrapped) &&
+        !ts.isJsxSelfClosingElement(unwrapped) &&
+        !ts.isJsxFragment(unwrapped);
+      if (
+        !(isNonJsxBranch && slotState.hasDirectPanel) &&
+        !slotState.fallbackRecorded &&
+        fallbackCut &&
+        fallbackCut !== UNSET &&
+        fallbackCut !== false
+      ) {
+        slotState.fallbackRecorded = true;
         recordCut(
           fallbackCut.raw,
           fallbackCut.node,
@@ -909,6 +961,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
     if (tagName === 'Panel' || tagName === 'DialogContent') {
       const inheritedSlot = tagName === 'Panel' ? panelSlotInheritedMap.get(node) : null;
+      const slotState = inheritedSlot?.slotState;
       const propVariant =
         props.variant !== UNSET && props.variant !== null ? props.variant : undefined;
       const effectiveVariant = propVariant ?? inheritedSlot?.variant ?? 'expressive';
@@ -921,24 +974,39 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
           : null;
 
       if (inAutoCut && tagName === 'Panel' && childCut && childCut !== false && fallbackCut) {
-        recordCut(
-          fallbackCut.raw,
-          fallbackCut.node,
-          'PanelPair',
-          inAutoCut,
-          effectiveVariant === 'quiet',
-        );
+        if (!slotState || !slotState.fallbackRecorded) {
+          if (slotState) slotState.fallbackRecorded = true;
+          recordCut(
+            fallbackCut.raw,
+            fallbackCut.node,
+            'PanelPair',
+            inAutoCut,
+            effectiveVariant === 'quiet',
+          );
+        }
       }
 
-      const effectiveCut = childCut === false ? null : (childCut ?? fallbackCut);
-      if (effectiveCut) {
-        recordCut(
-          effectiveCut.raw,
-          effectiveCut.node,
-          tagName,
-          inAutoCut,
-          effectiveVariant === 'quiet',
-        );
+      if (childCut !== false) {
+        if (childCut) {
+          recordCut(
+            childCut.raw,
+            childCut.node,
+            tagName,
+            inAutoCut,
+            effectiveVariant === 'quiet',
+          );
+        } else if (fallbackCut) {
+          const isQuiet = effectiveVariant === 'quiet';
+          if (isQuiet) {
+            if (!slotState || !slotState.quietFallbackChecked) {
+              if (slotState) slotState.quietFallbackChecked = true;
+              recordCut(fallbackCut.raw, fallbackCut.node, tagName, inAutoCut, true);
+            }
+          } else if (!slotState || !slotState.fallbackRecorded) {
+            if (slotState) slotState.fallbackRecorded = true;
+            recordCut(fallbackCut.raw, fallbackCut.node, tagName, inAutoCut, false);
+          }
+        }
       }
 
       for (const extra of props.extraNodes) {

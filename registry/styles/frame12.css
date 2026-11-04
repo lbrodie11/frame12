@@ -356,6 +356,7 @@
 
 /* ===================================================================== Tag & Badge */
 .f12-tag {
+  position: relative;
   display: inline-block;
   vertical-align: middle;
   max-width: 100%;
@@ -389,15 +390,19 @@
   position: relative;
   z-index: 1;
 }
+.f12-tag svg,
+.f12-badge-t svg {
+  display: inline-block;
+  vertical-align: middle;
+  margin-inline-end: 4px;
+}
 .f12-status-glyph {
+  margin-inline-end: 4px;
   font-weight: 700;
   letter-spacing: 0;
   text-transform: none;
   user-select: none;
   -webkit-user-select: none;
-}
-.f12-status-glyph:not(:last-child) {
-  margin-inline-end: 4px;
 }
 .f12-status-neutral {
   background: var(--f-panel);
@@ -1459,6 +1464,16 @@ dialog.f12-dialog::backdrop {
   }
   .f12-m-value {
     font-size: 30px;
+  }
+}
+
+@container (max-width: 360px) {
+  .f12-rng-btn {
+    padding: 5px 6px 4px;
+    min-width: 44px;
+  }
+  .f12-rng-n {
+    font-size: 15px;
   }
 }
 

@@ -967,6 +967,26 @@ await page.waitForSelector('#unit-test-fixtures');
       const suppressedSrEl = document.querySelector('#fixture-tag-no-sr .f12-sr-only');
       const successorSrText = document.querySelector('#fixture-tag-successor .f12-sr-only')?.textContent;
       const erroredSrEl = document.querySelector('#fixture-tag-errored .f12-sr-only');
+      const hiddenPrefixSrText = document.querySelector(
+        '#fixture-tag-hidden-prefix .f12-sr-only',
+      )?.textContent;
+      const domHiddenPrefixSrText = document.querySelector(
+        '#fixture-tag-dom-hidden-prefix .f12-sr-only',
+      )?.textContent;
+      const tagIconEl = document.querySelector('#fixture-tag-icon');
+      const tagIconSvg = document.querySelector('#fixture-tag-icon svg');
+      const badgeIconEl = document.querySelector('#fixture-badge-icon');
+      const badgeIconSvg = document.querySelector('#fixture-badge-icon .f12-badge-t svg');
+      const iconInlineOk = Boolean(
+        tagIconEl &&
+          tagIconSvg &&
+          badgeIconEl &&
+          badgeIconSvg &&
+          getComputedStyle(tagIconSvg).display === 'inline-block' &&
+          getComputedStyle(badgeIconSvg).display === 'inline-block' &&
+          tagIconEl.getBoundingClientRect().height <= 26 &&
+          badgeIconEl.getBoundingClientRect().height <= 26,
+      );
       const tableTagEl = document.querySelector('#fixture-table-tag');
       const tableTagOneLine = tableTagEl ? tableTagEl.getBoundingClientRect().height <= 26 : false;
       const narrowTagEl = document.querySelector('#fixture-narrow-tag');
@@ -1030,7 +1050,10 @@ await page.waitForSelector('#unit-test-fixtures');
           customSrText === '警告: ' &&
           !suppressedSrEl &&
           successorSrText === 'Success: ' &&
-          !erroredSrEl,
+          !erroredSrEl &&
+          hiddenPrefixSrText === 'Error: ' &&
+          domHiddenPrefixSrText === 'Error: ' &&
+          iconInlineOk,
         tableTagOneLine,
         narrowWrapOk,
         copyCleanOk: Boolean(copyCleanOk),
