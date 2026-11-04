@@ -237,6 +237,8 @@ const ROUTES = [
   '/components',
   '/components/panel',
   '/components/tone-area-chart',
+  '/components/toast',
+  '/components/pagination',
   '/agents',
   '/style-sheet',
   '/get-started',
@@ -265,6 +267,12 @@ try {
     'radio-group.json',
     'switch.json',
     'tabs.json',
+    'alert.json',
+    'toast.json',
+    'skeleton.json',
+    'empty-state.json',
+    'breadcrumb.json',
+    'pagination.json',
     'frame12-base.json',
     'font-dela-gothic-one.json',
     'frame12.json',
@@ -489,11 +497,12 @@ try {
       await page.waitForTimeout(200);
 
       const c = await page.evaluate(CONTRAST);
+      const axeMobile = await new AxeBuilder({ page }).analyze();
       const sw = await page.evaluate(() => document.documentElement.scrollWidth);
       check(
-        c.length === 0 && sw <= 390 && errors.length === 0,
-        `site ${route} (${scheme}, 390px mobile): WCAG AA contrast & zero horizontal overflow`,
-        `scrollWidth=${sw} contrast=${c.slice(0, 2).join('; ')} errors=${errors.join('; ')}`,
+        c.length === 0 && axeMobile.violations.length === 0 && sw <= 390 && errors.length === 0,
+        `site ${route} (${scheme}, 390px mobile): WCAG AA contrast, @axe-core/playwright zero violations, & zero horizontal overflow`,
+        `scrollWidth=${sw} axe=${axeMobile.violations.map((v) => v.id).join(',')} contrast=${c.slice(0, 2).join('; ')} errors=${errors.join('; ')}`,
       );
       await ctx.close();
     }
@@ -777,7 +786,7 @@ try {
           const compGeom = await page.evaluate(() => {
             const cells = [...document.querySelectorAll('.f12-comp-cell code.f12-nowrap')];
             const allSingleLine =
-              cells.length >= 25 &&
+              cells.length >= 31 &&
               cells.every(
                 (c) =>
                   getComputedStyle(c).whiteSpace === 'nowrap' && c.getClientRects().length === 1,

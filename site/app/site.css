@@ -404,6 +404,10 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   min-width: 0;
   width: 100%;
 }
+.sp-scroll:focus-visible {
+  outline: 2.5px solid var(--f-ink);
+  outline-offset: 2px;
+}
 
 .grammar {
   display: block;

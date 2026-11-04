@@ -273,6 +273,12 @@ try {
     'src/components/frame12/tabs.tsx',
     'src/components/frame12/badge.tsx',
     'src/components/frame12/tag.tsx',
+    'src/components/frame12/alert.tsx',
+    'src/components/frame12/toast.tsx',
+    'src/components/frame12/skeleton.tsx',
+    'src/components/frame12/empty-state.tsx',
+    'src/components/frame12/breadcrumb.tsx',
+    'src/components/frame12/pagination.tsx',
     'src/components/frame12/metric.tsx',
     'src/components/frame12/balloon.tsx',
     'src/components/frame12/tone-area-chart.tsx',
@@ -340,6 +346,14 @@ import {
   TabsContent,
   Badge,
   Tag,
+  Alert,
+  Notice,
+  ToastProvider,
+  Skeleton,
+  SkeletonText,
+  EmptyState,
+  Breadcrumb,
+  Pagination,
   Metric,
   Balloon,
   ToneAreaChart,
@@ -375,6 +389,15 @@ export function ConsumerSmokeTest() {
           <Balloon>Peak</Balloon>
           <Badge>New</Badge>
           <Tag>Note</Tag>
+          <Notice status="info" title="Notice">Ready</Notice>
+          <Alert status="warning" live="off" title="Warn">Check</Alert>
+          <ToastProvider maxVisible={3}>
+            <Skeleton variant="line" />
+            <SkeletonText lines={2} />
+            <EmptyState code="0 ROWS" title="Empty" description="No rows" />
+            <Breadcrumb items={[{ label: 'Home', href: '#home' }, { label: 'Page', current: true }]} />
+            <Pagination page={1} totalPages={3} showSummary />
+          </ToastProvider>
           <Field label="Operator Name" hint="Public handle">
             <Input />
           </Field>
@@ -540,11 +563,11 @@ console.log('R19_RUNTIME_OK:' + html.length);
   });
   check(
     validateRes.status === 0,
-    'npx shadcn registry validate passes across root registry.json and registry/registry.json (32 items)',
+    'npx shadcn registry validate passes across root registry.json and registry/registry.json (38 items)',
     validateRes.status !== 0 ? `${validateRes.stdout}\n${validateRes.stderr}` : '',
   );
 
-  // 7. Individual component consumer installation (/r/sheet.json + /r/panel.json + /r/badge.json + /r/switch.json via registryDependencies)
+  // 7. Individual component consumer installation (/r/sheet.json + /r/panel.json + /r/badge.json + /r/switch.json + /r/alert.json + /r/pagination.json via registryDependencies)
   const singleDir = mkdtempSync(join(tmpdir(), 'frame12-single-'));
   try {
     mkdirSync(join(singleDir, 'src/app'), { recursive: true });
@@ -574,6 +597,8 @@ console.log('R19_RUNTIME_OK:' + html.length);
     const panelUrl = `http://127.0.0.1:${port}/r/panel.json`;
     const badgeUrl = `http://127.0.0.1:${port}/r/badge.json`;
     const switchUrl = `http://127.0.0.1:${port}/r/switch.json`;
+    const alertUrl = `http://127.0.0.1:${port}/r/alert.json`;
+    const paginationUrl = `http://127.0.0.1:${port}/r/pagination.json`;
     const baseUrl = `http://127.0.0.1:${port}/r/frame12-base.json`;
 
     const viewBase = await runAsync('npx', ['--yes', 'shadcn', 'add', baseUrl, '--view'], {
@@ -588,7 +613,19 @@ console.log('R19_RUNTIME_OK:' + html.length);
 
     const singleAdd = await runAsync(
       'npx',
-      ['--yes', 'shadcn', 'add', sheetUrl, panelUrl, badgeUrl, switchUrl, '--yes', '--overwrite'],
+      [
+        '--yes',
+        'shadcn',
+        'add',
+        sheetUrl,
+        panelUrl,
+        badgeUrl,
+        switchUrl,
+        alertUrl,
+        paginationUrl,
+        '--yes',
+        '--overwrite',
+      ],
       {
         cwd: singleDir,
         env: {
@@ -605,6 +642,8 @@ console.log('R19_RUNTIME_OK:' + html.length);
       existsSync(join(singleDir, 'src/components/frame12/tag.tsx')) &&
       existsSync(join(singleDir, 'src/components/frame12/switch.tsx')) &&
       existsSync(join(singleDir, 'src/components/frame12/field.tsx')) &&
+      existsSync(join(singleDir, 'src/components/frame12/alert.tsx')) &&
+      existsSync(join(singleDir, 'src/components/frame12/pagination.tsx')) &&
       existsSync(join(singleDir, 'src/hooks/use-on-twos.ts')) &&
       existsSync(join(singleDir, 'src/styles/frame12.css'));
     symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(singleDir, 'node_modules'), 'dir');
@@ -617,13 +656,15 @@ import { Sheet } from '@/components/frame12/sheet';
 import { Panel } from '@/components/frame12/panel';
 import { Badge } from '@/components/frame12/badge';
 import { Switch } from '@/components/frame12/switch';
+import { Notice } from '@/components/frame12/alert';
+import { Pagination } from '@/components/frame12/pagination';
 export function SingleCheck() {
   return (
     <Sheet autoCut>
       <Panel label="First">One <Badge status="warning">Warn</Badge> <Switch label="TLS" defaultChecked /></Panel>
-      <Panel label="Second">Two</Panel>
+      <Panel label="Second"><Notice status="info">Two</Notice></Panel>
       <Panel cut={false} label="Unnumbered">None</Panel>
-      <Panel label="Third">Three</Panel>
+      <Panel label="Third"><Pagination page={1} totalPages={3} /></Panel>
     </Sheet>
   );
 }
@@ -638,7 +679,7 @@ export function renderSingleHtml() {
     });
     check(
       singleAdd.status === 0 && hasSingleFiles && singleTsc.status === 0,
-      'Individual install (/r/sheet.json + /r/panel.json + /r/badge.json + /r/switch.json) resolves frame12-styles, use-on-twos, tag.json, and field.json via registryDependencies and passes tsc --noEmit',
+      'Individual install (/r/sheet.json + /r/panel.json + /r/badge.json + /r/switch.json + /r/alert.json + /r/pagination.json) resolves frame12-styles, use-on-twos, tag.json, and field.json via registryDependencies and passes tsc --noEmit',
       singleTsc.status !== 0 ? `${singleTsc.stdout}\n${singleTsc.stderr}` : '',
     );
 

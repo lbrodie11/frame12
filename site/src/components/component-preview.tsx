@@ -20,6 +20,15 @@ import {
   TabsContent,
   Badge,
   Tag,
+  Alert,
+  Notice,
+  Toast,
+  ToastAction,
+  Skeleton,
+  SkeletonText,
+  EmptyState,
+  Breadcrumb,
+  Pagination,
   Metric,
   ToneAreaChart,
   ToneBarList,
@@ -82,6 +91,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
   const [radioValue, setRadioValue] = React.useState('daily');
   const [switchChecked, setSwitchChecked] = React.useState(true);
   const [tabValue, setTabValue] = React.useState('routing');
+  const [pageNum, setPageNum] = React.useState(2);
   const [actionNote, setActionNote] = React.useState('Ready');
   const changed = useChanged(range);
   const tweenProgress = useOnTwos(range, 600, motion);
@@ -408,6 +418,107 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
               <Tag>Production · US-East</Tag>
               <Tag>12fps · On Twos</Tag>
             </div>
+          </div>
+        );
+
+      case 'alert':
+        return (
+          <div className="f12-preview-sheet">
+            <div className="f12-stack-pair">
+              <Notice status="info" title={`Dual-key rotation window (${previewTheme})`}>
+                Both webhook signing keys remain valid for 24 hours during cut migration.
+              </Notice>
+              <Alert
+                status="warning"
+                live="off"
+                title="Elevated retry latency"
+                onDismiss={() => setActionNote('Alert dismissed')}
+              >
+                Secondary eu-central-1 ingress is averaging 420ms across the last 3 cuts.
+              </Alert>
+            </div>
+          </div>
+        );
+
+      case 'toast':
+        return (
+          <div className="f12-preview-sheet">
+            <div className="f12-stack-pair">
+              <Toast
+                id={`${pfx}-toast`}
+                status="success"
+                duration={0}
+                title={`Webhook replayed (${previewTheme})`}
+                description="Dispatched cut C-04 to primary endpoint in 38ms."
+                action={
+                  <ToastAction
+                    id={`${pfx}-toast-undo`}
+                    onClick={() => setActionNote('Toast action clicked')}
+                  >
+                    Inspect
+                  </ToastAction>
+                }
+                onDismiss={() => setActionNote('Toast dismissed')}
+              />
+            </div>
+          </div>
+        );
+
+      case 'skeleton':
+        return (
+          <div className="f12-preview-sheet">
+            <div className="f12-stack-pair">
+              <Skeleton variant="metric" label={`Loading metric (${previewTheme})`} />
+              <SkeletonText lines={3} />
+            </div>
+          </div>
+        );
+
+      case 'empty-state':
+        return (
+          <div className="f12-preview-sheet">
+            <EmptyState
+              code="0 MATCHING ROWS"
+              title={`No matching interventions (${previewTheme})`}
+              description="Clear the search filter or broaden the exposure window to inspect historical cuts."
+              action={
+                <Button
+                  id={`${pfx}-empty-reset`}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setActionNote('Filters reset')}
+                >
+                  Reset filters
+                </Button>
+              }
+            />
+          </div>
+        );
+
+      case 'breadcrumb':
+        return (
+          <div className="f12-preview-sheet">
+            <Breadcrumb
+              ariaLabel={`Breadcrumb (${previewTheme})`}
+              items={[
+                { label: 'Workspace', href: '#workspace' },
+                { label: 'Storyboards', href: '#storyboards' },
+                { label: 'Cut C-04 Ledger', current: true },
+              ]}
+            />
+          </div>
+        );
+
+      case 'pagination':
+        return (
+          <div className="f12-preview-sheet">
+            <Pagination
+              ariaLabel={`Pagination (${previewTheme})`}
+              page={pageNum}
+              totalPages={8}
+              onPageChange={setPageNum}
+              showSummary
+            />
           </div>
         );
 

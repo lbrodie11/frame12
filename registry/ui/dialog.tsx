@@ -87,14 +87,38 @@ function getTopmostOpenDialog(): HTMLDialogElement | undefined {
 function mergeRefs<T>(
   ...refs: Array<React.Ref<T> | undefined>
 ): React.RefCallback<T> {
-  return (value: T) => {
+  let activeCleanups: Array<() => void> = [];
+  const runCleanups = () => {
+    const toRun = activeCleanups;
+    activeCleanups = [];
+    for (const cleanup of toRun) {
+      cleanup();
+    }
+  };
+  return (value: T | null) => {
+    runCleanups();
+    if (value === null) {
+      return;
+    }
+    const cleanups: Array<() => void> = [];
     for (const ref of refs) {
       if (typeof ref === 'function') {
-        ref(value);
+        const cleanup = ref(value);
+        if (typeof cleanup === 'function') {
+          cleanups.push(cleanup);
+        } else {
+          cleanups.push(() => {
+            ref(null);
+          });
+        }
       } else if (ref != null) {
         (ref as React.MutableRefObject<T | null>).current = value;
+        cleanups.push(() => {
+          (ref as React.MutableRefObject<T | null>).current = null;
+        });
       }
     }
+    activeCleanups = cleanups;
   };
 }
 

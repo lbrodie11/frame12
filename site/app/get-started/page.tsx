@@ -242,7 +242,7 @@ export default function GetStartedPage() {
                 </p>
               </div>
               <Link href="/components" className="f12-link-btn" id="start-link-components">
-                Browse 25 Components
+                Browse 31 Components
               </Link>
             </div>
 

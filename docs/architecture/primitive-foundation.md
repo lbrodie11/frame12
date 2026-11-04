@@ -75,7 +75,7 @@ Use zero-dependency semantic HTML elements paired with FRAME/12 hooks (`useId`, 
     - `Tabs` (`role="tablist"` / `role="tab"` / `role="tabpanel"` with horizontal/vertical roving `tabIndex`, `dir="rtl"` arrow awareness, `activationMode?: 'automatic' | 'manual'`, and automatic default `variant="quiet"` + suppressed `autoCut` counters inside `TabsContent` so switching tabs never shifts sheet cut numbers; use `Tabs` to switch between distinct content panels and `SegmentedControl` to change the view or time range of the same content)
   - **WP5 Feedback, Loading and Navigation Kit:**
     - `Alert`/`Notice` (built on WP3 non-color status semantics without overusing `role="alert"` on static notices)
-    - `Toast` (`role="status"` / `role="alert"` with bounded queue, hover/focus pause, and reduced-motion support)
+    - `Toast` (shared `.f12-sr-only` `aria-live="polite"` / `aria-live="assertive"` live regions portaled alongside `ToastViewport` into any open modal `<dialog>`, bounded queue, hover/focus pause, and reduced-motion support)
     - `Skeleton` (static screentone / minimal stepped placeholder preserving final geometry)
     - `EmptyState` (structured explanation and next action with optional decoration)
     - `Breadcrumb` (`<nav aria-label="Breadcrumb">`)
