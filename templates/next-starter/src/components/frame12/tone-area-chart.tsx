@@ -210,7 +210,7 @@ export function ToneAreaChart({
     }
   };
 
-  const clipW = pad.l + iw * p + 2;
+  const clipW = pad.l + iw * p + 5;
   const hd = hover != null && safeData[hover] ? safeData[hover] : null;
   const bLeft = W ? Math.max(pad.l, Math.min(px - bw / 2, W - pad.r - bw)) : 0;
   const tailX = Math.min(Math.max(px, bLeft + 14), Math.max(bLeft + 14, bLeft + bw - 14));

@@ -934,9 +934,32 @@ await page.waitForSelector('#unit-test-fixtures');
       const tagNeutralGlyph = document.querySelector('#fixture-tag-neutral .f12-status-glyph');
       const tagSuppressedGlyph = document.querySelector('#fixture-tag-no-glyph .f12-status-glyph');
 
+      const tagWarningEl = document.querySelector('#fixture-tag-warning');
+      const warningBg = tagWarningEl ? getComputedStyle(tagWarningEl).backgroundColor : '';
+      const warningBgImg = tagWarningEl ? getComputedStyle(tagWarningEl).backgroundImage : '';
+
+      const statusSyncOk = [
+        ['neutral', '#fixture-tag-neutral', '#fixture-badge-neutral', undefined, undefined],
+        ['info', '#fixture-tag-info', '#fixture-badge-info', '[i]', 'Info: '],
+        ['success', '#fixture-tag-success', '#fixture-badge-status', '[+]', 'Success: '],
+        ['warning', '#fixture-tag-warning', '#fixture-badge-burst', '[!]', 'Warning: '],
+        ['danger', '#fixture-tag-danger', '#fixture-badge-danger', '[×]', 'Error: '],
+      ].every(([, tagSel, badgeSel, expectedGlyph, expectedSr]) => {
+        const tG = document.querySelector(`${tagSel} .f12-status-glyph`)?.textContent;
+        const bG = document.querySelector(`${badgeSel} .f12-status-glyph`)?.textContent;
+        const tSr = document.querySelector(`${tagSel} .f12-sr-only`)?.textContent;
+        const bSr = document.querySelector(`${badgeSel} .f12-sr-only`)?.textContent;
+        return tG === expectedGlyph && bG === expectedGlyph && tSr === expectedSr && bSr === expectedSr;
+      });
+
       const badgeStatusBurst = document.querySelector('#fixture-badge-status .f12-burst');
       const badgeExplicitBurst = document.querySelector('#fixture-badge-burst .f12-burst');
       const badgeStatusGlyph = document.querySelector('#fixture-badge-status .f12-status-glyph')?.textContent;
+
+      const nestedExpPoly = document.querySelector(
+        '#fixture-nested-expressive-in-quiet > .f12-panel-frame > polygon',
+      );
+      const nestedExpStrokeWidth = nestedExpPoly ? getComputedStyle(nestedExpPoly).strokeWidth : '0px';
 
       const compactInput = document.querySelector('#fixture-input-compact');
       const compactSelect = document.querySelector('#fixture-select-compact');
@@ -952,14 +975,18 @@ await page.waitForSelector('#unit-test-fixtures');
         quietBorder,
         quietPairAllRect,
         quietMetricFontSize,
+        nestedExpStrokeWidth,
+        warningNotMarkerYellow:
+          warningBg === 'rgb(255, 255, 255)' && warningBgImg.includes('linear-gradient'),
+        statusSyncOk,
         glyphsOk:
           tagInfo === '[i]' &&
-          tagSuccess === '[✓]' &&
+          tagSuccess === '[+]' &&
           tagWarning === '[!]' &&
           tagDanger === '[×]' &&
           !tagNeutralGlyph &&
           !tagSuppressedGlyph,
-        badgeOk: !badgeStatusBurst && Boolean(badgeExplicitBurst) && badgeStatusGlyph === '[✓]',
+        badgeOk: !badgeStatusBurst && Boolean(badgeExplicitBurst) && badgeStatusGlyph === '[+]',
         compactOk:
           Boolean(compactInput?.classList.contains('f12-input-compact')) &&
           Boolean(compactSelect?.closest('.f12-select-compact')) &&
@@ -976,10 +1003,13 @@ await page.waitForSelector('#unit-test-fixtures');
         wp3Check.quietBorder === '1px' &&
         wp3Check.quietPairAllRect &&
         wp3Check.quietMetricFontSize === '22px' &&
+        wp3Check.nestedExpStrokeWidth === '2.5px' &&
+        wp3Check.warningNotMarkerYellow &&
+        wp3Check.statusSyncOk &&
         wp3Check.glyphsOk &&
         wp3Check.badgeOk &&
         wp3Check.compactOk,
-      'WP3 grammar: <Panel variant="quiet"> (1px rule, no SVG/cut), <PanelPair variant="quiet">, <Metric variant="quiet">, semantic status glyphs ([i]/[✓]/[!]/[×]), bar patterns, and compact density',
+      'WP3 grammar: <Panel variant="quiet"> (1px rule, nested expressive keeps 2.5px), <PanelPair variant="quiet">, <Metric variant="quiet">, non-yellow warning + synced Tag/Badge status glyphs ([i]/[+]/[!]/[×]) + sr-only labels, bar patterns, and compact density',
       JSON.stringify(wp3Check),
     );
   }

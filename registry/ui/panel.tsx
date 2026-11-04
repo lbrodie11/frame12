@@ -14,12 +14,16 @@ export interface PanelProps extends React.HTMLAttributes<HTMLElement> {
   children?: React.ReactNode;
 }
 
+const INACTIVE_SIZE_REF: { readonly current: HTMLElement | null } = { current: null };
+
 export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
   { cut, shape = 'rect', variant = 'expressive', className = '', label, children, ...rest },
   forwardedRef,
 ) {
   const innerRef = React.useRef<HTMLElement | null>(null);
   const warnedCutRef = React.useRef<string | null>(null);
+  const isQuiet = variant === 'quiet';
+  const showSvgFrame = !isQuiet || shape !== 'rect';
   const setRefs = React.useCallback(
     (node: HTMLElement | null) => {
       innerRef.current = node;
@@ -46,7 +50,7 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
     }
   }, [cut]);
 
-  const { w, h } = useSize(innerRef);
+  const { w, h } = useSize(showSvgFrame ? innerRef : INACTIVE_SIZE_REF);
   const s = 1.25; // half of 2.5px stroke
   const d = 16; // slant rise in px
   let pts: string;
@@ -65,8 +69,6 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
         ? '0.35,6.8 99.65,0.35 99.65,99.65 0.35,99.65'
         : '0.35,0.35 99.65,0.35 99.65,99.65 0.35,99.65';
 
-  const isQuiet = variant === 'quiet';
-  const showSvgFrame = !isQuiet || shape !== 'rect';
   const variantClass = isQuiet ? ' f12-panel-quiet' : '';
 
   return (

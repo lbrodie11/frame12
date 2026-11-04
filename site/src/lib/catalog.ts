@@ -424,7 +424,7 @@ export function WebhookField() {
         type: "'neutral' | 'info' | 'success' | 'warning' | 'danger'",
         defaultValue: 'undefined',
         description:
-          'Non-color semantic status combining [i]/[✓]/[!]/[×] glyph prefix, border weight/style, and fill inversion.',
+          'Non-color semantic status combining [i]/[+]/[!]/[×] glyph prefix, screen-reader status announcement, border weight/style, and fill inversion.',
       },
       {
         name: 'glyph',
@@ -472,7 +472,7 @@ export function LeaderBadge() {
         type: "'neutral' | 'info' | 'success' | 'warning' | 'danger'",
         defaultValue: 'undefined',
         description:
-          'Non-color semantic status combining [i]/[✓]/[!]/[×] glyph prefix, border weight/style, and fill inversion.',
+          'Non-color semantic status combining [i]/[+]/[!]/[×] glyph prefix, screen-reader status announcement, border weight/style, and fill inversion.',
       },
       {
         name: 'glyph',

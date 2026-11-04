@@ -445,6 +445,91 @@ function check(ok, label, detail = '') {
     'linter [cut-order]: allows unnumbered <Panel variant="quiet"> subgroups between C-01 and C-02 and flags explicit cut on variant="quiet"',
     JSON.stringify(resQuiet),
   );
+
+  // 5b. Effective variant resolution across spreads, nested spreads, and PanelPair slot/child inheritance
+  const spreadOverriddenByJsxExpressive = lintSource(
+    `
+    export const SpreadToExpressive = () => (
+      <Sheet>
+        <Panel {...{ variant: 'quiet', cut: 'C-01' }} variant="expressive">A</Panel>
+        <Panel cut="C-02">B</Panel>
+      </Sheet>
+    );
+  `,
+    'eval/screens/spread-to-expressive.tsx',
+  );
+  const jsxExpressiveOverriddenBySpreadQuiet = lintSource(
+    `
+    export const ExpressiveToQuiet = () => (
+      <Sheet>
+        <Panel {...{ variant: 'expressive', cut: 'C-01' }} variant="quiet">A</Panel>
+      </Sheet>
+    );
+  `,
+    'eval/screens/expressive-to-quiet.tsx',
+  );
+  const nestedSpreadsPrecedence = lintSource(
+    `
+    const quietCut = { variant: 'quiet', cut: 'C-01' };
+    const expressiveOverride = { ...quietCut, variant: 'expressive' };
+    const quietOverride = { ...expressiveOverride, cut: 'C-02', variant: 'quiet' };
+    export const NestedSpreads = () => (
+      <Sheet>
+        <Panel {...expressiveOverride}>Valid C-01</Panel>
+        <Panel {...quietOverride}>Invalid quiet C-02</Panel>
+      </Sheet>
+    );
+  `,
+    'eval/screens/nested-spreads.tsx',
+  );
+  const panelPairSlotOverrides = lintSource(
+    `
+    export const PairSlots = () => (
+      <Sheet>
+        <PanelPair
+          variant="quiet"
+          top={{ ...{ variant: 'quiet', cut: 'C-01' }, variant: 'expressive' }}
+          bottom={{ cut: 'C-02' }}
+        />
+      </Sheet>
+    );
+  `,
+    'eval/screens/pair-slots.tsx',
+  );
+  const panelPairInheritedQuietChildren = lintSource(
+    `
+    export const PairChildren = () => (
+      <Sheet>
+        <PanelPair variant="quiet">
+          <Panel cut="C-01">Inherited quiet 1</Panel>
+          <Panel variant="expressive" cut="C-01">Explicit expressive override</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/pair-children.tsx',
+  );
+
+  check(
+    spreadOverriddenByJsxExpressive.length === 0 &&
+      jsxExpressiveOverriddenBySpreadQuiet.length === 1 &&
+      jsxExpressiveOverriddenBySpreadQuiet[0].rule === 'cut-order' &&
+      jsxExpressiveOverriddenBySpreadQuiet[0].message.includes('Quiet panels') &&
+      nestedSpreadsPrecedence.length === 1 &&
+      nestedSpreadsPrecedence[0].snippet === "cut: 'C-02'" &&
+      panelPairSlotOverrides.length === 1 &&
+      panelPairSlotOverrides[0].snippet === "cut: 'C-02'" &&
+      panelPairInheritedQuietChildren.length === 1 &&
+      panelPairInheritedQuietChildren[0].line === 5,
+    'linter [cut-order]: resolves effective variant in JSX/spread precedence order and propagates PanelPair variant to slots and direct Panel children',
+    JSON.stringify({
+      spreadOverriddenByJsxExpressive,
+      jsxExpressiveOverriddenBySpreadQuiet,
+      nestedSpreadsPrecedence,
+      panelPairSlotOverrides,
+      panelPairInheritedQuietChildren,
+    }),
+  );
 }
 
 // 6. Rule 5: raw-shadcn-import

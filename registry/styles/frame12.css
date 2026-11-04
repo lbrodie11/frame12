@@ -337,7 +337,7 @@
   background: none;
   border: 0;
 }
-.f12-panel.f12-panel-quiet .f12-panel-frame polygon {
+.f12-panel.f12-panel-quiet > .f12-panel-frame > polygon {
   stroke-width: 1;
 }
 .f12-panel.f12-panel-quiet > .f12-panel-body {
@@ -403,13 +403,18 @@
   font-weight: 700;
 }
 .f12-status-warning {
-  background: var(--f-marker);
-  color: var(--f-marker-ink);
-  border: 1.5px dashed var(--f-marker-ink);
+  background-color: var(--f-panel);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0 5px,
+    var(--f-grid) 5px 6.5px
+  );
+  color: var(--f-ink);
+  border: 2px dashed var(--f-rule);
   font-weight: 700;
 }
 .f12-status-warning .f12-status-glyph {
-  color: var(--f-marker-ink);
+  color: var(--f-ink);
 }
 .f12-status-danger {
   background: var(--f-ink);
@@ -1015,7 +1020,7 @@
   background-size: 5px 5px;
   border-right: 2px solid var(--f-rule);
 }
-.f12-int-fill.f12-int-fill-hatch {
+.f12-int-fill-hatch {
   background-image: repeating-linear-gradient(
     -45deg,
     var(--f-tone) 0,
@@ -1025,7 +1030,7 @@
   );
   background-size: auto;
 }
-.f12-int-fill.f12-int-fill-dense {
+.f12-int-fill-dense {
   background-image: radial-gradient(circle, var(--f-tone) 1.55px, transparent 1.85px);
   background-size: 4px 4px;
 }
@@ -1573,6 +1578,7 @@ dialog.f12-dialog::backdrop {
   .f12-tag,
   .f12-badge {
     border: 1px solid CanvasText;
+    background-image: none;
   }
   .f12-l-total,
   .f12-l-focus,

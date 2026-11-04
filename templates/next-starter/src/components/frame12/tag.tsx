@@ -7,9 +7,17 @@ export type SemanticStatus = 'neutral' | 'info' | 'success' | 'warning' | 'dange
 export const STATUS_GLYPHS: Record<SemanticStatus, string | undefined> = {
   neutral: undefined,
   info: '[i]',
-  success: '[✓]',
+  success: '[+]',
   warning: '[!]',
   danger: '[×]',
+};
+
+const STATUS_SR_LABELS: Record<SemanticStatus, string | undefined> = {
+  neutral: undefined,
+  info: 'Info',
+  success: 'Success',
+  warning: 'Warning',
+  danger: 'Error',
 };
 
 export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -31,6 +39,13 @@ export const Tag = React.forwardRef<HTMLSpanElement, TagProps>(function Tag(
         : status
           ? STATUS_GLYPHS[status]
           : undefined;
+  const srLabel = status ? STATUS_SR_LABELS[status] : undefined;
+  const showSrLabel =
+    srLabel &&
+    !(
+      typeof children === 'string' &&
+      children.trim().toLowerCase().startsWith(srLabel.toLowerCase())
+    );
 
   return (
     <span
@@ -44,6 +59,7 @@ export const Tag = React.forwardRef<HTMLSpanElement, TagProps>(function Tag(
           {resolvedGlyph}
         </span>
       )}
+      {showSrLabel && <span className="f12-sr-only">{`${srLabel}: `}</span>}
       {children}
     </span>
   );

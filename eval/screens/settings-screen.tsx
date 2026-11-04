@@ -73,9 +73,9 @@ const ENV_PRESETS: Record<EnvKey, EnvPreset> = {
     deliverySpark: [99.1, 99.3, 99.4, 99.2, 99.5, 99.6, 99.7, 99.5, 99.6, 99.8, 99.6, 99.7, 99.6, 99.6],
     latencySpark: [168, 162, 159, 155, 151, 149, 148, 146, 145, 144, 143, 141, 142, 142],
     keys: [
-      { id: 'k1', prefix: 'f12_live_98a4…31c0', scope: 'dispatch:write', created: 'Oct 02', status: 'ACTIVE' },
-      { id: 'k2', prefix: 'f12_live_41b9…88e2', scope: 'ledger:read', created: 'Sep 14', status: 'ACTIVE' },
-      { id: 'k3', prefix: 'f12_live_10f2…77d1', scope: 'webhook:sign', created: 'Aug 19', status: 'STANDBY' },
+      { id: 'k1', prefix: 'f12_live_98a4', scope: 'dispatch:write', created: 'Oct 02', status: 'ACTIVE' },
+      { id: 'k2', prefix: 'f12_live_41b9', scope: 'ledger:read', created: 'Sep 14', status: 'ACTIVE' },
+      { id: 'k3', prefix: 'f12_live_10f2', scope: 'webhook:sign', created: 'Aug 19', status: 'STANDBY' },
     ],
   },
   stage: {
@@ -88,8 +88,8 @@ const ENV_PRESETS: Record<EnvKey, EnvPreset> = {
     deliverySpark: [97.4, 97.8, 98.0, 97.9, 98.1, 98.3, 98.0, 98.2, 98.4, 98.1, 98.2, 98.3, 98.2, 98.2],
     latencySpark: [204, 198, 195, 192, 190, 189, 191, 188, 187, 185, 186, 187, 186, 186],
     keys: [
-      { id: 'k1', prefix: 'f12_stg_72c1…09a4', scope: 'dispatch:write', created: 'Oct 18', status: 'ACTIVE' },
-      { id: 'k2', prefix: 'f12_stg_33d8…54b7', scope: 'ledger:read', created: 'Oct 01', status: 'ACTIVE' },
+      { id: 'k1', prefix: 'f12_stg_72c1', scope: 'dispatch:write', created: 'Oct 18', status: 'ACTIVE' },
+      { id: 'k2', prefix: 'f12_stg_33d8', scope: 'ledger:read', created: 'Oct 01', status: 'ACTIVE' },
     ],
   },
   dev: {
@@ -102,7 +102,7 @@ const ENV_PRESETS: Record<EnvKey, EnvPreset> = {
     deliverySpark: [95.2, 94.9, 95.1, 94.0, 94.5, 94.8, 95.0, 94.7, 94.6, 94.9, 94.8, 94.7, 94.8, 94.8],
     latencySpark: [210, 214, 218, 220, 225, 222, 228, 226, 224, 223, 225, 224, 224, 224],
     keys: [
-      { id: 'k1', prefix: 'f12_dev_55e0…12f9', scope: 'dispatch:all', created: 'Oct 29', status: 'ACTIVE' },
+      { id: 'k1', prefix: 'f12_dev_55e0', scope: 'dispatch:all', created: 'Oct 29', status: 'ACTIVE' },
     ],
   },
 };
@@ -440,7 +440,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                 <TableCaption>Active HMAC signing keys for {preset.label}</TableCaption>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Key Prefix</TableHead>
+                    <TableHead>Key</TableHead>
                     <TableHead>Scope</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Status</TableHead>
@@ -493,6 +493,35 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                 Revoking the active signing secret immediately invalidates in-flight webhook
                 headers for {preset.label}. Consumers must load the standby secret before rotation.
               </p>
+
+              <PanelPair
+                variant="quiet"
+                id="settings-quiet-pair"
+                top={{
+                  label: 'Rotation cutoff grace window',
+                  children: (
+                    <Metric
+                      variant="quiet"
+                      headingLevel="h3"
+                      label="Rotation grace window"
+                      value={0}
+                      format={(v) => `${v} s (immediate)`}
+                    />
+                  ),
+                }}
+                bottom={{
+                  label: 'In-flight replay buffer',
+                  children: (
+                    <Metric
+                      variant="quiet"
+                      headingLevel="h3"
+                      label="In-flight replay buffer"
+                      value={300}
+                      format={(v) => `${v} s window`}
+                    />
+                  ),
+                }}
+              />
 
               <div
                 style={{

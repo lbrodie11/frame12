@@ -333,7 +333,7 @@ export function LandingScreen({ initialTheme }: { initialTheme?: 'light' | 'dark
           <Panel cut="C-04" label="Capability breakdown">
             <ToneBarList
               title="Recovery by capability"
-              subtitle={`Last ${windowDays} days · click a bar to overlay on C-01`}
+              subtitle={`Last ${windowDays} days · pattern encodes tier (dense: primary · hatch: session · dots: scheduled)`}
               items={barItems}
               selectedId={selectedCapId}
               onSelect={(id) => {

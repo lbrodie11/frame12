@@ -370,6 +370,7 @@ for (const screen of SCREENS) {
       document.querySelector('.f12-error[role="alert"]') &&
         document.querySelector('#settings-quiet-summary .f12-status-danger') &&
         document.querySelector('#settings-quiet-summary.f12-panel-quiet .f12-metric-quiet') &&
+        document.querySelectorAll('#settings-quiet-pair .f12-panel-quiet.f12-rect').length === 2 &&
         document.querySelector('#settings-keys-table.f12-table-compact'),
     ),
   );

@@ -898,28 +898,37 @@ function UnitTestFixtures() {
                 children: (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                     <Tag id="fixture-tag-neutral" status="neutral">
-                      Neutral
+                      ORD-01
                     </Tag>
                     <Tag id="fixture-tag-info" status="info">
-                      Info
+                      ORD-02
                     </Tag>
                     <Tag id="fixture-tag-success" status="success">
-                      Success
+                      ORD-03
                     </Tag>
                     <Tag id="fixture-tag-warning" status="warning">
-                      Warning
+                      ORD-04
                     </Tag>
                     <Tag id="fixture-tag-danger" status="danger">
-                      Danger
+                      ORD-05
                     </Tag>
                     <Tag id="fixture-tag-no-glyph" status="info" glyph={false}>
                       No Glyph
                     </Tag>
+                    <Badge id="fixture-badge-neutral" status="neutral">
+                      ORD-01
+                    </Badge>
+                    <Badge id="fixture-badge-info" status="info">
+                      ORD-02
+                    </Badge>
                     <Badge id="fixture-badge-status" status="success">
-                      Badge Ready
+                      ORD-03
                     </Badge>
                     <Badge id="fixture-badge-burst" status="warning" burst>
-                      Burst Warning
+                      ORD-04
+                    </Badge>
+                    <Badge id="fixture-badge-danger" status="danger">
+                      ORD-05
                     </Badge>
                   </div>
                 ),
@@ -958,6 +967,14 @@ function UnitTestFixtures() {
                     </TableRow>
                   </TableBody>
                 </Table>
+                <Panel
+                  variant="expressive"
+                  cut={false}
+                  id="fixture-nested-expressive-in-quiet"
+                  label="Nested expressive panel inside quiet panel"
+                >
+                  Nested expressive frame keeps 2.5px stroke
+                </Panel>
               </div>
             </Panel>
             <Panel variant="quiet" id="fixture-wp3-patterns" label="Pattern bar list">

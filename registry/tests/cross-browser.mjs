@@ -621,14 +621,19 @@ for (const browserName of BROWSER_NAMES) {
         forcedColors: 'active',
       });
 
+      await page.evaluate(() => window.__mountUnitFixtures && window.__mountUnitFixtures());
       const fcState = await page.evaluate(() => {
         const matchesFC = window.matchMedia('(forced-colors: active)').matches;
         const tag = document.querySelector('.f12-tag');
         const rngInd = document.querySelector('.f12-rng-ind');
+        const hatchFill = document.querySelector('.f12-int-fill-hatch');
+        const denseFill = document.querySelector('.f12-int-fill-dense');
         const tagBorder = getComputedStyle(tag).borderTopWidth;
         const rngMixBlend = getComputedStyle(rngInd).mixBlendMode;
         const rngBorder = getComputedStyle(rngInd).borderTopWidth;
-        return { matchesFC, tagBorder, rngMixBlend, rngBorder };
+        const hatchBgImg = hatchFill ? getComputedStyle(hatchFill).backgroundImage : '';
+        const denseBgImg = denseFill ? getComputedStyle(denseFill).backgroundImage : '';
+        return { matchesFC, tagBorder, rngMixBlend, rngBorder, hatchBgImg, denseBgImg };
       });
 
       check(
@@ -636,8 +641,10 @@ for (const browserName of BROWSER_NAMES) {
           fcState.tagBorder === '1px' &&
           fcState.rngMixBlend === 'normal' &&
           fcState.rngBorder === '2px' &&
+          fcState.hatchBgImg === 'none' &&
+          fcState.denseBgImg === 'none' &&
           errors.length === 0,
-        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, disables mix-blend-mode, and has zero errors`,
+        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, clears hatch/dense bar gradients, disables mix-blend-mode, and has zero errors`,
         errors.length ? errors.join('; ') : JSON.stringify(fcState),
       );
 

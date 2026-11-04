@@ -359,39 +359,158 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
   const cutMatches = [];
 
-  function getObjectVariant(rawExpr, seenObjs = new Set()) {
+  function resolveObjectProps(rawExpr, seenObjs = new Set()) {
     const obj = unwrapExpression(rawExpr);
-    if (!obj || !ts.isObjectLiteralExpression(obj) || seenObjs.has(obj)) return null;
-    seenObjs.add(obj);
-    let variant = null;
+    const resolved = {
+      variant: undefined,
+      cut: undefined,
+      topCut: undefined,
+      bottomCut: undefined,
+      top: undefined,
+      bottom: undefined,
+    };
+    if (!obj || !ts.isObjectLiteralExpression(obj) || seenObjs.has(obj)) return resolved;
+    const nextSeen = new Set(seenObjs);
+    nextSeen.add(obj);
+
     for (const prop of obj.properties) {
       if (ts.isSpreadAssignment(prop)) {
-        const sub = getObjectVariant(prop.expression, seenObjs);
-        if (sub !== null) variant = sub;
-      } else if (
-        ts.isPropertyAssignment(prop) &&
-        (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)) &&
-        prop.name.text === 'variant'
-      ) {
+        const sub = resolveObjectProps(prop.expression, nextSeen);
+        if (sub.variant !== undefined) resolved.variant = sub.variant;
+        if (sub.cut !== undefined) resolved.cut = sub.cut;
+        if (sub.topCut !== undefined) resolved.topCut = sub.topCut;
+        if (sub.bottomCut !== undefined) resolved.bottomCut = sub.bottomCut;
+        if (sub.top !== undefined) resolved.top = sub.top;
+        if (sub.bottom !== undefined) resolved.bottom = sub.bottom;
+        continue;
+      }
+      if (!ts.isPropertyAssignment(prop)) continue;
+      if (!ts.isIdentifier(prop.name) && !ts.isStringLiteral(prop.name)) continue;
+      const propName = prop.name.text;
+      if (propName === 'variant') {
         const val = getStringValue(prop.initializer);
-        if (val !== null) variant = val;
+        if (val !== null) resolved.variant = val;
+      } else if (CUT_PROP_NAMES.has(propName)) {
+        const strVal = getStringValue(prop.initializer);
+        if (strVal !== null) {
+          resolved[propName] = { raw: strVal, node: prop };
+        } else if (
+          getBooleanValue(prop.initializer) === false ||
+          (ts.isIdentifier(prop.initializer) && prop.initializer.text === 'undefined')
+        ) {
+          resolved[propName] = null;
+        }
+      } else if (propName === 'top' || propName === 'bottom') {
+        resolved[propName] = resolveObjectProps(prop.initializer, nextSeen);
       }
     }
-    return variant;
+    return resolved;
   }
 
-  function getElementVariant(attributes) {
-    let variant = null;
+  function resolveElementProps(attributes) {
+    const resolved = {
+      variant: undefined,
+      cut: undefined,
+      topCut: undefined,
+      bottomCut: undefined,
+      top: undefined,
+      bottom: undefined,
+    };
     for (const prop of attributes.properties) {
-      if (ts.isJsxAttribute(prop) && prop.name.getText(sourceFile) === 'variant') {
-        const val = getStringValue(prop.initializer);
-        if (val !== null) variant = val;
-      } else if (ts.isJsxSpreadAttribute(prop)) {
-        const val = getObjectVariant(prop.expression);
-        if (val !== null) variant = val;
+      if (ts.isJsxSpreadAttribute(prop)) {
+        const sub = resolveObjectProps(prop.expression);
+        if (sub.variant !== undefined) resolved.variant = sub.variant;
+        if (sub.cut !== undefined) resolved.cut = sub.cut;
+        if (sub.topCut !== undefined) resolved.topCut = sub.topCut;
+        if (sub.bottomCut !== undefined) resolved.bottomCut = sub.bottomCut;
+        if (sub.top !== undefined) resolved.top = sub.top;
+        if (sub.bottom !== undefined) resolved.bottom = sub.bottom;
+      } else if (ts.isJsxAttribute(prop)) {
+        const attrName = prop.name.getText(sourceFile);
+        if (attrName === 'variant') {
+          const val = getStringValue(prop.initializer);
+          if (val !== null) resolved.variant = val;
+        } else if (CUT_PROP_NAMES.has(attrName)) {
+          const strVal = getStringValue(prop.initializer);
+          if (strVal !== null) {
+            resolved[attrName] = { raw: strVal, node: prop };
+          } else if (
+            getBooleanValue(prop.initializer) === false ||
+            (prop.initializer &&
+              ts.isJsxExpression(prop.initializer) &&
+              prop.initializer.expression &&
+              ts.isIdentifier(prop.initializer.expression) &&
+              prop.initializer.expression.text === 'undefined')
+          ) {
+            resolved[attrName] = null;
+          }
+        } else if (
+          (attrName === 'top' || attrName === 'bottom') &&
+          prop.initializer &&
+          ts.isJsxExpression(prop.initializer) &&
+          prop.initializer.expression
+        ) {
+          resolved[attrName] = resolveObjectProps(prop.initializer.expression);
+        }
       }
     }
-    return variant;
+    return resolved;
+  }
+
+  function collectDirectSlotPanelNodes(nodes, out = []) {
+    for (const child of nodes) {
+      if (ts.isJsxElement(child)) {
+        if (child.openingElement.tagName.getText(sourceFile) === 'Panel') {
+          out.push(child);
+        }
+      } else if (ts.isJsxSelfClosingElement(child)) {
+        if (child.tagName.getText(sourceFile) === 'Panel') {
+          out.push(child);
+        }
+      } else if (ts.isJsxFragment(child)) {
+        collectDirectSlotPanelNodes(child.children, out);
+      } else if (ts.isJsxExpression(child) && child.expression) {
+        const expr = unwrapExpression(child.expression);
+        if (expr && ts.isArrayLiteralExpression(expr)) {
+          collectDirectSlotPanelNodes(expr.elements, out);
+        } else if (expr) {
+          collectDirectSlotPanelNodes([expr], out);
+        }
+      }
+    }
+    return out;
+  }
+
+  function getPanelPairDirectSlotPanelNodes(node, attributes) {
+    const out = [];
+    for (const prop of attributes.properties) {
+      if (
+        ts.isJsxAttribute(prop) &&
+        prop.name.getText(sourceFile) === 'children' &&
+        prop.initializer &&
+        ts.isJsxExpression(prop.initializer) &&
+        prop.initializer.expression
+      ) {
+        collectDirectSlotPanelNodes([prop.initializer.expression], out);
+      } else if (ts.isJsxSpreadAttribute(prop)) {
+        const obj = unwrapExpression(prop.expression);
+        if (obj && ts.isObjectLiteralExpression(obj)) {
+          for (const sp of obj.properties) {
+            if (
+              ts.isPropertyAssignment(sp) &&
+              (ts.isIdentifier(sp.name) || ts.isStringLiteral(sp.name)) &&
+              sp.name.text === 'children'
+            ) {
+              collectDirectSlotPanelNodes([sp.initializer], out);
+            }
+          }
+        }
+      }
+    }
+    if (ts.isJsxElement(node)) {
+      collectDirectSlotPanelNodes(node.children, out);
+    }
+    return out;
   }
 
   function recordCut(rawCut, node, ownerTag, inAutoCut, isQuiet = false) {
@@ -442,60 +561,70 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     }
   }
 
-  function inspectObjectForCuts(
-    rawExpr,
-    ownerTag,
-    inAutoCut,
-    parentQuiet = false,
-    seenObjs = new Set(),
-  ) {
-    const obj = unwrapExpression(rawExpr);
-    if (!obj || !ts.isObjectLiteralExpression(obj) || seenObjs.has(obj)) return;
-    seenObjs.add(obj);
+  const panelSlotInheritedMap = new Map();
 
-    const objVariant = getObjectVariant(obj);
-    const isQuiet = objVariant ? objVariant === 'quiet' : parentQuiet;
-
-    for (const prop of obj.properties) {
-      if (ts.isSpreadAssignment(prop)) {
-        inspectObjectForCuts(prop.expression, ownerTag, inAutoCut, isQuiet, seenObjs);
-        continue;
-      }
-      if (!ts.isPropertyAssignment(prop)) continue;
-      if (!ts.isIdentifier(prop.name) && !ts.isStringLiteral(prop.name)) continue;
-      const propName = prop.name.text;
-
-      if (CUT_PROP_NAMES.has(propName)) {
-        const rawCut = getStringValue(prop.initializer);
-        if (rawCut !== null) {
-          recordCut(rawCut, prop, ownerTag, inAutoCut, isQuiet);
+  function inspectElementAttributes(attributes, ownerTag, inAutoCut, node) {
+    const isCutOwner = CUT_OWNER_TAGS.has(ownerTag);
+    if (isCutOwner) {
+      const props = resolveElementProps(attributes);
+      if (ownerTag === 'Panel' || ownerTag === 'DialogContent') {
+        const inheritedSlot = ownerTag === 'Panel' ? panelSlotInheritedMap.get(node) : null;
+        const effectiveVariant = props.variant ?? inheritedSlot?.variant ?? 'expressive';
+        const effectiveCut =
+          props.cut !== undefined ? props.cut : (inheritedSlot?.fallbackCut ?? null);
+        if (effectiveCut) {
+          recordCut(
+            effectiveCut.raw,
+            effectiveCut.node,
+            ownerTag,
+            inAutoCut,
+            effectiveVariant === 'quiet',
+          );
         }
-      } else if (ownerTag === 'PanelPair' && (propName === 'top' || propName === 'bottom')) {
-        inspectObjectForCuts(prop.initializer, ownerTag, inAutoCut, isQuiet, seenObjs);
+      } else if (ownerTag === 'PanelPair') {
+        const pairVariant = props.variant ?? 'expressive';
+        const directPanels =
+          props.top && props.bottom ? [] : getPanelPairDirectSlotPanelNodes(node, attributes);
+        if (directPanels[0]) {
+          panelSlotInheritedMap.set(directPanels[0], {
+            variant: pairVariant,
+            fallbackCut: props.topCut,
+          });
+        }
+        if (directPanels[1]) {
+          panelSlotInheritedMap.set(directPanels[1], {
+            variant: pairVariant,
+            fallbackCut: props.bottomCut,
+          });
+        }
+
+        if (props.cut) {
+          recordCut(props.cut.raw, props.cut.node, ownerTag, inAutoCut, pairVariant === 'quiet');
+        }
+        if (!directPanels[0]) {
+          const topVariant = props.top?.variant ?? pairVariant;
+          const topCut = props.top?.cut !== undefined ? props.top.cut : props.topCut;
+          if (topCut) {
+            recordCut(topCut.raw, topCut.node, ownerTag, inAutoCut, topVariant === 'quiet');
+          }
+        }
+        if (!directPanels[1]) {
+          const bottomVariant = props.bottom?.variant ?? pairVariant;
+          const bottomCut = props.bottom?.cut !== undefined ? props.bottom.cut : props.bottomCut;
+          if (bottomCut) {
+            recordCut(
+              bottomCut.raw,
+              bottomCut.node,
+              ownerTag,
+              inAutoCut,
+              bottomVariant === 'quiet',
+            );
+          }
+        }
       }
     }
-  }
 
-  function inspectElementAttributes(attributes, ownerTag, inAutoCut) {
-    const isCutOwner = CUT_OWNER_TAGS.has(ownerTag);
-    const isQuiet = isCutOwner && getElementVariant(attributes) === 'quiet';
     for (const prop of attributes.properties) {
-      if (isCutOwner) {
-        if (ts.isJsxAttribute(prop)) {
-          const attrName = prop.name.getText(sourceFile);
-          if (CUT_PROP_NAMES.has(attrName)) {
-            const rawCut = getStringValue(prop.initializer);
-            if (rawCut !== null) {
-              recordCut(rawCut, prop, ownerTag, inAutoCut, isQuiet);
-            }
-          } else if (ownerTag === 'PanelPair' && (attrName === 'top' || attrName === 'bottom')) {
-            inspectObjectForCuts(prop.initializer, ownerTag, inAutoCut, isQuiet);
-          }
-        } else if (ts.isJsxSpreadAttribute(prop)) {
-          inspectObjectForCuts(prop.expression, ownerTag, inAutoCut, isQuiet);
-        }
-      }
-      // Traverse attribute initializer/expression for any nested JSX elements
       ts.forEachChild(prop, (child) => visit(child, inAutoCut));
     }
   }
@@ -505,7 +634,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
       const tagName = node.openingElement.tagName.getText(sourceFile);
       const nextAutoCut =
         tagName === 'Sheet' ? getSheetAutoCut(node.openingElement.attributes) : inAutoCut;
-      inspectElementAttributes(node.openingElement.attributes, tagName, nextAutoCut);
+      inspectElementAttributes(node.openingElement.attributes, tagName, nextAutoCut, node);
       for (const child of node.children) {
         visit(child, nextAutoCut);
       }
@@ -515,7 +644,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     if (ts.isJsxSelfClosingElement(node)) {
       const tagName = node.tagName.getText(sourceFile);
       const nextAutoCut = tagName === 'Sheet' ? getSheetAutoCut(node.attributes) : inAutoCut;
-      inspectElementAttributes(node.attributes, tagName, nextAutoCut);
+      inspectElementAttributes(node.attributes, tagName, nextAutoCut, node);
       return;
     }
 

@@ -7,9 +7,17 @@ export type BadgeStatus = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 const BADGE_STATUS_GLYPHS: Record<BadgeStatus, string | undefined> = {
   neutral: undefined,
   info: '[i]',
-  success: '[✓]',
+  success: '[+]',
   warning: '[!]',
   danger: '[×]',
+};
+
+const BADGE_STATUS_SR_LABELS: Record<BadgeStatus, string | undefined> = {
+  neutral: undefined,
+  info: 'Info',
+  success: 'Success',
+  warning: 'Warning',
+  danger: 'Error',
 };
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -57,6 +65,13 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(function Badg
         : status
           ? BADGE_STATUS_GLYPHS[status]
           : undefined;
+  const srLabel = status ? BADGE_STATUS_SR_LABELS[status] : undefined;
+  const showSrLabel =
+    srLabel &&
+    !(
+      typeof children === 'string' &&
+      children.trim().toLowerCase().startsWith(srLabel.toLowerCase())
+    );
 
   return (
     <span
@@ -72,6 +87,7 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(function Badg
             {resolvedGlyph}
           </span>
         )}
+        {showSrLabel && <span className="f12-sr-only">{`${srLabel}: `}</span>}
         {children}
       </span>
     </span>
