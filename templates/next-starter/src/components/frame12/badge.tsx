@@ -20,9 +20,19 @@ const BADGE_STATUS_SR_LABELS: Record<BadgeStatus, string | undefined> = {
   danger: 'Error',
 };
 
+function extractTextContent(node: React.ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(extractTextContent).join('');
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return extractTextContent(node.props.children);
+  }
+  return '';
+}
+
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   status?: BadgeStatus;
   glyph?: string | false;
+  srLabel?: string | false;
   pop?: boolean;
   burst?: boolean;
   children?: React.ReactNode;
@@ -52,7 +62,7 @@ export function Burst() {
 }
 
 export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(function Badge(
-  { status, glyph, pop = false, burst, className = '', children, ...rest },
+  { status, glyph, srLabel, pop = false, burst, className = '', children, ...rest },
   ref,
 ) {
   const showBurst = burst ?? status === undefined;
@@ -65,13 +75,18 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(function Badg
         : status
           ? BADGE_STATUS_GLYPHS[status]
           : undefined;
-  const srLabel = status ? BADGE_STATUS_SR_LABELS[status] : undefined;
+  const resolvedSrLabel =
+    srLabel === false
+      ? undefined
+      : srLabel !== undefined
+        ? srLabel
+        : status
+          ? BADGE_STATUS_SR_LABELS[status]
+          : undefined;
+  const childText = extractTextContent(children).trim();
   const showSrLabel =
-    srLabel &&
-    !(
-      typeof children === 'string' &&
-      children.trim().toLowerCase().startsWith(srLabel.toLowerCase())
-    );
+    Boolean(resolvedSrLabel) &&
+    !(childText && resolvedSrLabel && childText.toLowerCase().startsWith(resolvedSrLabel.toLowerCase()));
 
   return (
     <span
@@ -87,7 +102,7 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(function Badg
             {resolvedGlyph}
           </span>
         )}
-        {showSrLabel && <span className="f12-sr-only">{`${srLabel}: `}</span>}
+        {showSrLabel && <span className="f12-sr-only">{`${resolvedSrLabel}: `}</span>}
         {children}
       </span>
     </span>

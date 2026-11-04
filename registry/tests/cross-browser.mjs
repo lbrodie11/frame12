@@ -628,23 +628,38 @@ for (const browserName of BROWSER_NAMES) {
         const rngInd = document.querySelector('.f12-rng-ind');
         const hatchFill = document.querySelector('.f12-int-fill-hatch');
         const denseFill = document.querySelector('.f12-int-fill-dense');
+        const warnTag = document.querySelector('#fixture-tag-warning');
+        const dangerTag = document.querySelector('#fixture-tag-danger');
         const tagBorder = getComputedStyle(tag).borderTopWidth;
+        const warnBorderStyle = warnTag ? getComputedStyle(warnTag).borderTopStyle : '';
+        const dangerBorderStyle = dangerTag ? getComputedStyle(dangerTag).borderTopStyle : '';
         const rngMixBlend = getComputedStyle(rngInd).mixBlendMode;
         const rngBorder = getComputedStyle(rngInd).borderTopWidth;
         const hatchBgImg = hatchFill ? getComputedStyle(hatchFill).backgroundImage : '';
         const denseBgImg = denseFill ? getComputedStyle(denseFill).backgroundImage : '';
-        return { matchesFC, tagBorder, rngMixBlend, rngBorder, hatchBgImg, denseBgImg };
+        return {
+          matchesFC,
+          tagBorder,
+          warnBorderStyle,
+          dangerBorderStyle,
+          rngMixBlend,
+          rngBorder,
+          hatchBgImg,
+          denseBgImg,
+        };
       });
 
       check(
         fcState.matchesFC &&
           fcState.tagBorder === '1px' &&
+          fcState.warnBorderStyle === 'dashed' &&
+          fcState.dangerBorderStyle === 'double' &&
           fcState.rngMixBlend === 'normal' &&
           fcState.rngBorder === '2px' &&
           fcState.hatchBgImg === 'none' &&
           fcState.denseBgImg === 'none' &&
           errors.length === 0,
-        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, clears hatch/dense bar gradients, disables mix-blend-mode, and has zero errors`,
+        `[${browserName} forced-colors: active] activates CanvasText/Highlight borders, preserves distinct status border styles (dashed/double), clears hatch/dense bar gradients, disables mix-blend-mode, and has zero errors`,
         errors.length ? errors.join('; ') : JSON.stringify(fcState),
       );
 

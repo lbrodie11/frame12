@@ -37,16 +37,16 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
     return (
       <div ref={ref} className={classes} {...rest}>
         <Panel
-          cut={topCut}
-          label={topLabel}
           {...top}
+          cut={top.cut ?? topCut}
+          label={top.label ?? topLabel}
           variant={topVariant}
           shape={topVariant === 'quiet' ? 'rect' : 'slant-bottom'}
         />
         <Panel
-          cut={bottomCut}
-          label={bottomLabel}
           {...bottom}
+          cut={bottom.cut ?? bottomCut}
+          label={bottom.label ?? bottomLabel}
           variant={bottomVariant}
           shape={bottomVariant === 'quiet' ? 'rect' : 'slant-top'}
         />

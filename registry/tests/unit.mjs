@@ -960,11 +960,36 @@ await page.waitForSelector('#unit-test-fixtures');
         '#fixture-nested-expressive-in-quiet > .f12-panel-frame > polygon',
       );
       const nestedExpStrokeWidth = nestedExpPoly ? getComputedStyle(nestedExpPoly).strokeWidth : '0px';
+      const quietSlantTopBody = document.querySelector('#fixture-quiet-slant-top > .f12-panel-body');
+      const quietSlantTopPad = quietSlantTopBody ? getComputedStyle(quietSlantTopBody).paddingTop : '0px';
+
+      const customSrText = document.querySelector('#fixture-tag-custom-sr .f12-sr-only')?.textContent;
+      const suppressedSrEl = document.querySelector('#fixture-tag-no-sr .f12-sr-only');
+      const glyphEl = document.querySelector('#fixture-tag-warning .f12-status-glyph');
+      const srEl = document.querySelector('#fixture-tag-warning .f12-sr-only');
+      const copyCleanOk =
+        glyphEl &&
+        srEl &&
+        (getComputedStyle(glyphEl).userSelect === 'none' ||
+          getComputedStyle(glyphEl).webkitUserSelect === 'none') &&
+        (getComputedStyle(srEl).userSelect === 'none' ||
+          getComputedStyle(srEl).webkitUserSelect === 'none');
+      const successTagEl = document.querySelector('#fixture-tag-success');
+      const successInlineStartBorder = successTagEl
+        ? getComputedStyle(successTagEl).borderInlineStartWidth
+        : '0px';
 
       const compactInput = document.querySelector('#fixture-input-compact');
       const compactSelect = document.querySelector('#fixture-select-compact');
       const compactTable = document.querySelector('#fixture-table-compact');
       const compactBars = document.querySelector('#fixture-wp3-patterns .f12-ints-compact');
+      const compactFontSizesOk =
+        compactInput &&
+        compactSelect &&
+        compactTable &&
+        getComputedStyle(compactInput).fontSize === '13px' &&
+        getComputedStyle(compactSelect).fontSize === '13px' &&
+        getComputedStyle(compactTable).fontSize === '13px';
       const hatchFill = document.querySelector('#fixture-wp3-patterns .f12-int-fill-hatch');
       const denseFill = document.querySelector('#fixture-wp3-patterns .f12-int-fill-dense');
 
@@ -976,9 +1001,13 @@ await page.waitForSelector('#unit-test-fixtures');
         quietPairAllRect,
         quietMetricFontSize,
         nestedExpStrokeWidth,
+        quietSlantTopPad,
         warningNotMarkerYellow:
           warningBg === 'rgb(255, 255, 255)' && warningBgImg.includes('linear-gradient'),
         statusSyncOk,
+        srCustomOk: customSrText === '警告: ' && !suppressedSrEl,
+        copyCleanOk: Boolean(copyCleanOk),
+        successInlineStartBorder,
         glyphsOk:
           tagInfo === '[i]' &&
           tagSuccess === '[+]' &&
@@ -992,6 +1021,7 @@ await page.waitForSelector('#unit-test-fixtures');
           Boolean(compactSelect?.closest('.f12-select-compact')) &&
           Boolean(compactTable?.classList.contains('f12-table-compact')) &&
           Boolean(compactBars) &&
+          Boolean(compactFontSizesOk) &&
           Boolean(hatchFill) &&
           Boolean(denseFill),
       };
@@ -1004,12 +1034,16 @@ await page.waitForSelector('#unit-test-fixtures');
         wp3Check.quietPairAllRect &&
         wp3Check.quietMetricFontSize === '22px' &&
         wp3Check.nestedExpStrokeWidth === '2.5px' &&
+        wp3Check.quietSlantTopPad === '32px' &&
         wp3Check.warningNotMarkerYellow &&
         wp3Check.statusSyncOk &&
+        wp3Check.srCustomOk &&
+        wp3Check.copyCleanOk &&
+        wp3Check.successInlineStartBorder === '5px' &&
         wp3Check.glyphsOk &&
         wp3Check.badgeOk &&
         wp3Check.compactOk,
-      'WP3 grammar: <Panel variant="quiet"> (1px rule, nested expressive keeps 2.5px), <PanelPair variant="quiet">, <Metric variant="quiet">, non-yellow warning + synced Tag/Badge status glyphs ([i]/[+]/[!]/[×]) + sr-only labels, bar patterns, and compact density',
+      'WP3 grammar: <Panel variant="quiet"> (1px rule, nested expressive keeps 2.5px, slant clearance 32px), <PanelPair variant="quiet">, <Metric variant="quiet">, non-yellow warning + synced Tag/Badge status glyphs ([i]/[+]/[!]/[×]) + srLabel/user-select:none + logical border-inline-start, bar patterns, and 13px compact density',
       JSON.stringify(wp3Check),
     );
   }

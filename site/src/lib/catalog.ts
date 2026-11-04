@@ -433,6 +433,13 @@ export function WebhookField() {
         description: 'Overrides or suppresses (false) the automatic status glyph prefix.',
       },
       {
+        name: 'srLabel',
+        type: 'string | false',
+        defaultValue: 'undefined',
+        description:
+          'Overrides or suppresses (false) the screen-reader status announcement prefix (e.g., for localized labels).',
+      },
+      {
         name: 'pop',
         type: 'boolean',
         defaultValue: 'false',
@@ -479,6 +486,13 @@ export function LeaderBadge() {
         type: 'string | false',
         defaultValue: 'undefined',
         description: 'Overrides or suppresses (false) the automatic status glyph prefix.',
+      },
+      {
+        name: 'srLabel',
+        type: 'string | false',
+        defaultValue: 'undefined',
+        description:
+          'Overrides or suppresses (false) the screen-reader status announcement prefix (e.g., for localized labels).',
       },
       {
         name: 'children',

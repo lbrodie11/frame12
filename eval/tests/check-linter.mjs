@@ -530,6 +530,143 @@ function check(ok, label, detail = '') {
       panelPairInheritedQuietChildren,
     }),
   );
+
+  // 5c. Non-Panel child slots, JSX fragments, slot-children traversal order, explicit undefined vs false, shorthand props, and local scalar constants
+  const nonPanelFirstSlotThenPanel = lintSource(
+    `
+    export const MixedPairSlots = () => (
+      <Sheet>
+        <PanelPair topCut="C-01" bottomCut="C-02">
+          <div>A</div>
+          <Panel>B</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/mixed-pair-slots.tsx',
+  );
+  const nonPanelFirstSlotThenExplicitPanel = lintSource(
+    `
+    export const MixedPairExplicit = () => (
+      <Sheet>
+        <PanelPair topCut="C-01">
+          <div>A</div>
+          <Panel cut="C-02">B</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/mixed-pair-explicit.tsx',
+  );
+  const nonPanelFirstSlotDuplicatePanel = lintSource(
+    `
+    export const MixedPairDuplicate = () => (
+      <Sheet>
+        <PanelPair topCut="C-01">
+          <div>A</div>
+          <Panel cut="C-01">B</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/mixed-pair-dup.tsx',
+  );
+  const fragmentInsideQuietPair = lintSource(
+    `
+    export const FragmentInQuietPair = () => (
+      <Sheet>
+        <PanelPair variant="quiet">
+          <>
+            <Panel cut="C-01">A</Panel>
+            <Panel cut="C-02">B</Panel>
+          </>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/fragment-in-quiet-pair.tsx',
+  );
+  const slotChildrenBeforeNextSlot = lintSource(
+    `
+    const topConst = { cut: 'C-01', children: <Panel cut="C-02">Nested in top</Panel> };
+    export const SlotOrder = () => (
+      <Sheet>
+        <PanelPair
+          top={topConst}
+          bottom={{ cut: 'C-03', children: <Panel cut="C-04">Nested in bottom</Panel> }}
+        />
+        <PanelPair topCut="C-05" bottomCut="C-07">
+          <div><Panel cut="C-06">Nested in child slot 0</Panel></div>
+          <div>Bottom slot</div>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/slot-order.tsx',
+  );
+  const explicitUndefinedVariantOverride = lintSource(
+    `
+    export const UndefinedVariantOverride = () => (
+      <Sheet>
+        <Panel {...{ variant: 'quiet', cut: 'C-01' }} variant={undefined}>A</Panel>
+        <Panel {...{ variant: 'quiet', cut: 'C-02' }} {...{ variant: undefined }}>B</Panel>
+      </Sheet>
+    );
+  `,
+    'eval/screens/undefined-variant-override.tsx',
+  );
+  const undefinedCutFallsBackToTopCut = lintSource(
+    `
+    export const UndefinedCutFallback = () => (
+      <Sheet>
+        <PanelPair variant="quiet" topCut="C-01" bottomCut="C-02">
+          <Panel cut={undefined}>Falls back to topCut C-01 on quiet slot</Panel>
+          <Panel cut={false}>Suppresses bottomCut C-02</Panel>
+        </PanelPair>
+      </Sheet>
+    );
+  `,
+    'eval/screens/undefined-cut-fallback.tsx',
+  );
+  const shorthandAndLocalScalar = lintSource(
+    `
+    const variant = 'quiet';
+    const cut = 'C-01';
+    const v = 'quiet';
+    export const ShorthandAndScalar = () => (
+      <Sheet>
+        <Panel {...{ variant, cut }}>Shorthand quiet C-01</Panel>
+        <Panel variant={v} cut="C-02">Scalar quiet C-02</Panel>
+      </Sheet>
+    );
+  `,
+    'eval/screens/shorthand-and-scalar.tsx',
+  );
+
+  check(
+    nonPanelFirstSlotThenPanel.length === 0 &&
+      nonPanelFirstSlotThenExplicitPanel.length === 0 &&
+      nonPanelFirstSlotDuplicatePanel.length === 1 &&
+      nonPanelFirstSlotDuplicatePanel[0].message.includes('Duplicate cut number "C-01"') &&
+      fragmentInsideQuietPair.length === 0 &&
+      slotChildrenBeforeNextSlot.length === 0 &&
+      explicitUndefinedVariantOverride.length === 0 &&
+      undefinedCutFallsBackToTopCut.length === 1 &&
+      undefinedCutFallsBackToTopCut[0].snippet === 'topCut="C-01"' &&
+      shorthandAndLocalScalar.length === 2 &&
+      shorthandAndLocalScalar.every((v) => v.message.includes('Quiet panels')),
+    'linter [cut-order]: handles non-Panel child slots, fragments, slot-children-before-next-slot order, explicit undefined vs false, shorthand props, and local scalar constants',
+    JSON.stringify({
+      nonPanelFirstSlotThenPanel,
+      nonPanelFirstSlotThenExplicitPanel,
+      nonPanelFirstSlotDuplicatePanel,
+      fragmentInsideQuietPair,
+      slotChildrenBeforeNextSlot,
+      explicitUndefinedVariantOverride,
+      undefinedCutFallsBackToTopCut,
+      shorthandAndLocalScalar,
+    }),
+  );
 }
 
 // 6. Rule 5: raw-shadcn-import

@@ -20,14 +20,24 @@ const STATUS_SR_LABELS: Record<SemanticStatus, string | undefined> = {
   danger: 'Error',
 };
 
+function extractTextContent(node: React.ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(extractTextContent).join('');
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return extractTextContent(node.props.children);
+  }
+  return '';
+}
+
 export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
   status?: SemanticStatus;
   glyph?: string | false;
+  srLabel?: string | false;
   children?: React.ReactNode;
 }
 
 export const Tag = React.forwardRef<HTMLSpanElement, TagProps>(function Tag(
-  { status, glyph, className = '', children, ...rest },
+  { status, glyph, srLabel, className = '', children, ...rest },
   ref,
 ) {
   const statusClass = status ? ` f12-status-${status}` : '';
@@ -39,13 +49,18 @@ export const Tag = React.forwardRef<HTMLSpanElement, TagProps>(function Tag(
         : status
           ? STATUS_GLYPHS[status]
           : undefined;
-  const srLabel = status ? STATUS_SR_LABELS[status] : undefined;
+  const resolvedSrLabel =
+    srLabel === false
+      ? undefined
+      : srLabel !== undefined
+        ? srLabel
+        : status
+          ? STATUS_SR_LABELS[status]
+          : undefined;
+  const childText = extractTextContent(children).trim();
   const showSrLabel =
-    srLabel &&
-    !(
-      typeof children === 'string' &&
-      children.trim().toLowerCase().startsWith(srLabel.toLowerCase())
-    );
+    Boolean(resolvedSrLabel) &&
+    !(childText && resolvedSrLabel && childText.toLowerCase().startsWith(resolvedSrLabel.toLowerCase()));
 
   return (
     <span
@@ -59,7 +74,7 @@ export const Tag = React.forwardRef<HTMLSpanElement, TagProps>(function Tag(
           {resolvedGlyph}
         </span>
       )}
-      {showSrLabel && <span className="f12-sr-only">{`${srLabel}: `}</span>}
+      {showSrLabel && <span className="f12-sr-only">{`${resolvedSrLabel}: `}</span>}
       {children}
     </span>
   );

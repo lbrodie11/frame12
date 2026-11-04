@@ -130,6 +130,7 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
   const [statusMessage, setStatusMessage] = React.useState<string>('All dispatch rules synchronized');
 
   const preset = ENV_PRESETS[env];
+  const activeKeyCount = preset.keys.filter((k) => k.status === 'ACTIVE').length;
   const changed = useChanged(env);
 
   const handleEnvChange = (next: EnvKey) => {
@@ -302,8 +303,8 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                     variant="quiet"
                     headingLevel="h3"
                     label="Active signing keys"
-                    value={preset.keys.length}
-                    format={(v) => `${v} provisioned`}
+                    value={activeKeyCount}
+                    format={(v) => `${v} active`}
                     note="Subordinate Quiet exposure-sheet ledger"
                   />
                   <Tag status={thresholdError ? 'danger' : 'success'}>
@@ -461,7 +462,9 @@ export function SettingsScreen({ initialTheme }: { initialTheme?: 'light' | 'dar
                 <TableFooter>
                   <TableRow>
                     <TableCell colSpan={3}>Active keys in {preset.label}</TableCell>
-                    <TableCell>{preset.keys.length} total</TableCell>
+                    <TableCell>
+                      {activeKeyCount} active ({preset.keys.length} total)
+                    </TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>

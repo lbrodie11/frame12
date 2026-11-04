@@ -915,6 +915,12 @@ function UnitTestFixtures() {
                     <Tag id="fixture-tag-no-glyph" status="info" glyph={false}>
                       No Glyph
                     </Tag>
+                    <Tag id="fixture-tag-custom-sr" status="warning" srLabel="警告">
+                      ディスク 91%
+                    </Tag>
+                    <Tag id="fixture-tag-no-sr" status="warning" srLabel={false}>
+                      No SR
+                    </Tag>
                     <Badge id="fixture-badge-neutral" status="neutral">
                       ORD-01
                     </Badge>
@@ -974,6 +980,14 @@ function UnitTestFixtures() {
                   label="Nested expressive panel inside quiet panel"
                 >
                   Nested expressive frame keeps 2.5px stroke
+                </Panel>
+                <Panel
+                  variant="quiet"
+                  shape="slant-top"
+                  id="fixture-quiet-slant-top"
+                  label="Quiet slanted top panel"
+                >
+                  Quiet slant-top retains 32px clearance
                 </Panel>
               </div>
             </Panel>
