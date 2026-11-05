@@ -79,7 +79,7 @@ export default function ComponentsIndexPage() {
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
             @/components/frame12 · shadcn-compatible JSON
-            <Tag>{componentCount} Components · 39 Registry Payloads</Tag>
+            <Tag>{componentCount} Components · 40 Registry Payloads</Tag>
           </p>
           <h1 className="f12-title">Components & adapters</h1>
           <p className="f12-muted-copy">
@@ -109,7 +109,14 @@ export default function ComponentsIndexPage() {
                   className="f12-link-btn"
                   id="comp-index-developer-console"
                 >
-                  Flagship Block: Developer Console →
+                  Block: Developer Console →
+                </Link>
+                <Link
+                  href="/blocks/workspace-settings"
+                  className="f12-link-btn"
+                  id="comp-index-workspace-settings"
+                >
+                  Block: Workspace Settings →
                 </Link>
                 <Link href="/get-started" className="f12-link-btn primary" id="comp-index-get-started">
                   Full Setup Guide

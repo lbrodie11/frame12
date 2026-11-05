@@ -183,6 +183,7 @@ export const Field = React.forwardRef<HTMLDivElement, FieldProps>(function Field
   const autoId = React.useId().replace(/:/g, '');
   const [registeredRadioGroup, setRegisteredRadioGroup] = React.useState(false);
   const [registeredControlGroup, setRegisteredControlGroup] = React.useState(false);
+  const [registeredMultiControl, setRegisteredMultiControl] = React.useState(false);
   const [registeredControlId, setRegisteredControlId] = React.useState<string | undefined>(
     undefined,
   );
@@ -202,12 +203,16 @@ export const Field = React.forwardRef<HTMLDivElement, FieldProps>(function Field
       registeredInstancesRef.current.set(instanceId, explicitId);
       if (registeredInstancesRef.current.size > 1) {
         setRegisteredControlGroup((prev) => (prev ? prev : true));
+        setRegisteredMultiControl((prev) => (prev ? prev : true));
       }
       if (explicitId) {
         setRegisteredControlId((prev) => prev ?? explicitId);
       }
       return () => {
         registeredInstancesRef.current.delete(instanceId);
+        if (registeredInstancesRef.current.size <= 1) {
+          setRegisteredMultiControl(false);
+        }
       };
     },
     [],
@@ -230,7 +235,7 @@ export const Field = React.forwardRef<HTMLDivElement, FieldProps>(function Field
     describedBy: prelimDescribedBy,
     invalid: Boolean(error),
     disabled,
-    required,
+    required: registeredMultiControl ? undefined : required,
     density,
     isRadioGroup: registeredRadioGroup,
     isControlGroup: registeredControlGroup,
@@ -244,6 +249,8 @@ export const Field = React.forwardRef<HTMLDivElement, FieldProps>(function Field
   const inspected = inspectFieldSubtree(initialChildren);
 
   const isRadioGroup = inspected.hasRadioGroup || registeredRadioGroup;
+  const isMultiControlGroup =
+    !isRadioGroup && (inspected.controlCount > 1 || registeredMultiControl);
   const isControlGroup =
     !isRadioGroup &&
     (inspected.hasLabeledCheckOrSwitch ||
@@ -270,7 +277,7 @@ export const Field = React.forwardRef<HTMLDivElement, FieldProps>(function Field
       describedBy,
       invalid: Boolean(error),
       disabled,
-      required,
+      required: isMultiControlGroup ? undefined : required,
       density,
       isRadioGroup,
       isControlGroup,
@@ -291,6 +298,7 @@ export const Field = React.forwardRef<HTMLDivElement, FieldProps>(function Field
       density,
       isRadioGroup,
       isControlGroup,
+      isMultiControlGroup,
       registerRadioGroup,
       registerControlGroup,
       registerControlId,
@@ -304,7 +312,8 @@ export const Field = React.forwardRef<HTMLDivElement, FieldProps>(function Field
         hintId !== prelimHintId ||
         errorId !== prelimErrorId ||
         isRadioGroup !== registeredRadioGroup ||
-        isControlGroup !== registeredControlGroup
+        isControlGroup !== registeredControlGroup ||
+        contextValue.required !== prelimContext.required
         ? children(contextValue)
         : initialChildren
       : initialChildren;

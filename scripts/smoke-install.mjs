@@ -594,9 +594,10 @@ console.log('R19_RUNTIME_OK:' + html.length);
     );
 
     const blockUrl = `http://127.0.0.1:${port}/r/developer-console.json`;
+    const settingsBlockUrl = `http://127.0.0.1:${port}/r/workspace-settings.json`;
     const blockAdd = await runAsync(
       'npx',
-      ['--yes', 'shadcn', 'add', blockUrl, '--yes', '--overwrite'],
+      ['--yes', 'shadcn', 'add', blockUrl, settingsBlockUrl, '--yes', '--overwrite'],
       {
         cwd: blockDir,
         env: {
@@ -611,6 +612,7 @@ console.log('R19_RUNTIME_OK:' + html.length);
       : '';
     const hasBlockFiles =
       existsSync(join(blockDir, 'src/components/frame12/blocks/developer-console.tsx')) &&
+      existsSync(join(blockDir, 'src/components/frame12/blocks/workspace-settings.tsx')) &&
       existsSync(join(blockDir, 'src/components/frame12/index.ts')) &&
       existsSync(join(blockDir, 'src/hooks/use-on-twos.ts')) &&
       /dialog\.f12-dialog\s*\{[^}]*margin:\s*auto\s*;/s.test(installedBlockCss);
@@ -621,9 +623,16 @@ console.log('R19_RUNTIME_OK:' + html.length);
 import { renderToStaticMarkup } from 'react-dom/server';
 import '@/styles/frame12.css';
 import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';
+import { WorkspaceSettings } from '@/components/frame12/blocks/workspace-settings';
 
 export function BlockConsumerCheck() {
-  return <DeveloperConsole defaultSection="overview" />;
+  return (
+    <div>
+      <DeveloperConsole defaultSection="overview" />
+      <WorkspaceSettings initialSection="profile" />
+      <WorkspaceSettings initialSection="notifications" initialWorkspaceId="staging-atelier" />
+    </div>
+  );
 }
 export function renderBlockHtml() {
   return renderToStaticMarkup(<BlockConsumerCheck />);
@@ -655,19 +664,26 @@ export function renderBlockHtml() {
             { cwd: blockDir, encoding: 'utf8' },
           )
         : blockBuild;
+    const ssrHtml = blockSsr.stdout || '';
+    const idMatches = [...ssrHtml.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+    const duplicateIds = idMatches.filter((id, idx) => idMatches.indexOf(id) !== idx);
     check(
       blockAdd.status === 0 &&
         hasBlockFiles &&
         blockTsc.status === 0 &&
         blockSsr.status === 0 &&
-        (blockSsr.stdout || '').includes('Developer Console') &&
-        (blockSsr.stdout || '').includes('1,482,900'),
-      'Flagship Block install (/r/developer-console.json) installs components/frame12/blocks/developer-console.tsx + full kit, passes tsc --noEmit, and renders deterministic SSR markup',
+        ssrHtml.includes('Developer Console') &&
+        ssrHtml.includes('1,482,900') &&
+        ssrHtml.includes('Workspace &amp; Operator Settings') &&
+        duplicateIds.length === 0,
+      'Block installs (/r/developer-console.json & /r/workspace-settings.json) install block files + full kit, pass tsc --noEmit, and render deterministic SSR markup with zero duplicate IDs across multi-instance renders',
       blockTsc.status !== 0
         ? `${blockTsc.stdout}\n${blockTsc.stderr}`
         : blockSsr.status !== 0
           ? `${blockSsr.stdout}\n${blockSsr.stderr}`
-          : '',
+          : duplicateIds.length > 0
+            ? `Duplicate IDs: ${duplicateIds.slice(0, 5).join(', ')}`
+            : '',
     );
   } finally {
     rmSync(blockDir, { recursive: true, force: true });

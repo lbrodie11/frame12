@@ -837,6 +837,24 @@
           "target": "components/frame12/blocks/developer-console.tsx"
         }
       ]
+    },
+    {
+      "name": "workspace-settings",
+      "type": "registry:block",
+      "title": "Workspace Settings Operational Block",
+      "description": "Complete FRAME/12 Quiet-first operational settings experience covering profile, workspace preferences, notification routing, appearance, motion grammar, team RBAC directory, and danger zone lifecycle actions with unsaved-change detection, validation, and navigation protection.",
+      "dependencies": ["@radix-ui/react-select"],
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/frame12.json"
+      ],
+      "files": [
+        {
+          "path": "blocks/workspace-settings.tsx",
+          "type": "registry:block",
+          "target": "components/frame12/blocks/workspace-settings.tsx"
+        }
+      ]
     }
   ]
 }

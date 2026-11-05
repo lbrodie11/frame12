@@ -1235,18 +1235,37 @@ await page.waitForSelector('#unit-test-fixtures');
           notifCheckbox?.labels?.length === 1 &&
           notifCheckbox?.labels?.[0]?.textContent?.trim() === 'Email me weekly';
 
-        // (b) <Field label="Channels"><Checkbox label="Email channel" /><Checkbox label="SMS channel" /></Field>
+        // (b) <Field label="Channels" required><Checkbox label="Email channel" /><Checkbox label="SMS channel" /></Field>
         const channelsField = document.querySelector('#wp4-channels-field');
+        const channelsGroupLabel = document.getElementById('wp4-channels-field-label');
         const channelChecks = [...(channelsField?.querySelectorAll('input[type="checkbox"]') || [])];
         const channelsGroupOk =
           channelsField?.getAttribute('role') === 'group' &&
           channelsField?.getAttribute('aria-labelledby') === 'wp4-channels-field-label' &&
+          Boolean(channelsGroupLabel?.querySelector('.f12-field-req')) &&
           channelChecks.length === 2 &&
           Boolean(channelChecks[0].id) &&
           Boolean(channelChecks[1].id) &&
           channelChecks[0].id !== channelChecks[1].id &&
+          channelChecks.every(
+            (c) => !c.required && !c.labels?.[0]?.querySelector('.f12-field-req'),
+          ) &&
           channelChecks[0].labels?.[0]?.textContent?.trim() === 'Email channel' &&
           channelChecks[1].labels?.[0]?.textContent?.trim() === 'SMS channel';
+
+        // (b2) Single consent checkbox inside <Field label="Legal" required> stays required, while render-prop multi-checkbox group clears required and nested <Sheet motion="cut"> overrides outer motion="stepped"
+        const legalConsentCb = document.getElementById('wp4-legal-consent-checkbox');
+        const rpCh1 = document.getElementById('wp4-rp-ch-1');
+        const rpCh2 = document.getElementById('wp4-rp-ch-2');
+        const rpGroupLabel = document.getElementById('wp4-rp-channels-field-label');
+        const nestedCutThumb = document.querySelector('#wp4-nested-cut-sheet .f12-switch-thumb');
+        const singleRequiredAndNestedMotionOk =
+          legalConsentCb?.required === true &&
+          rpCh1?.required === false &&
+          rpCh2?.required === false &&
+          Boolean(rpGroupLabel?.querySelector('.f12-field-req')) &&
+          Boolean(nestedCutThumb) &&
+          getComputedStyle(nestedCutThumb).transitionDuration === '0s';
 
         // (c) <Field id="wp4-wrapper-id-field" label="Explicit child ID"><Input id="wp4-child-explicit-id" /></Field>
         const wrapperField = document.querySelector('#wp4-wrapper-id-field');
@@ -1303,6 +1322,7 @@ await page.waitForSelector('#unit-test-fixtures');
           noLabelForFieldset,
           notifGroupOk,
           channelsGroupOk,
+          singleRequiredAndNestedMotionOk,
           explicitIdOk,
           nativeInputOk,
           nestedRadioGroupsOk,
@@ -1318,6 +1338,7 @@ await page.waitForSelector('#unit-test-fixtures');
           dedupAndErrorInfo.noLabelForFieldset &&
           dedupAndErrorInfo.notifGroupOk &&
           dedupAndErrorInfo.channelsGroupOk &&
+          dedupAndErrorInfo.singleRequiredAndNestedMotionOk &&
           dedupAndErrorInfo.explicitIdOk &&
           dedupAndErrorInfo.nativeInputOk &&
           dedupAndErrorInfo.nestedRadioGroupsOk &&

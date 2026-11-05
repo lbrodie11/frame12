@@ -12,7 +12,7 @@
 
   --f-shadow-sheet: 0 1px 0 rgba(0, 0, 0, 0.05), 0 18px 40px -26px rgba(0, 0, 0, 0.5);
   --f-shadow-peg: inset 0 1px 2px rgba(0, 0, 0, 0.25);
-  --f-backdrop: rgba(18, 18, 18, 0.55);
+  --f-backdrop: rgba(12, 12, 12, 0.78);
   --f-diff: #ffffff;
 }
 
@@ -2228,7 +2228,7 @@ dialog.f12-dialog {
   color: var(--f-ink);
   border: 2.5px solid var(--f-rule);
   box-shadow: 6px 6px 0 var(--f-rule);
-  padding: 24px 22px 22px;
+  padding: 34px 22px 22px;
   max-width: 480px;
   width: calc(100% - 32px);
   font-family: var(--font-f-body);
@@ -2240,8 +2240,15 @@ dialog.f12-dialog::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;
   background-color: var(--f-backdrop);
-  background-image: radial-gradient(circle, var(--f-ink) 1px, transparent 1.5px);
-  background-size: 6px 6px;
+  background-image: radial-gradient(circle, rgba(18, 18, 18, 0.35) 0.85px, transparent 1.35px);
+  background-size: 8px 8px;
+}
+dialog.f12-dialog > .f12-cut {
+  top: 8px;
+  left: 22px;
+  padding: 1px 6px;
+  background: var(--f-sheet);
+  border: 1.5px solid var(--f-rule);
 }
 .f12-dialog-header {
   display: flex;
@@ -2714,6 +2721,113 @@ dialog.f12-dialog::backdrop {
   color: var(--f-ink-2);
 }
 
+.f12-settings .f12-settings-posture-panel > .f12-panel-body {
+  padding: 16px 18px 14px;
+}
+.f12-settings .f12-settings-posture-panel .f12-m-value {
+  font-size: clamp(22px, 2.8vw, 30px);
+}
+.f12-settings .f12-settings-posture-panel .f12-console-kv-list {
+  flex: 1 1 520px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.f12-settings td code.f12-code-inline {
+  white-space: nowrap;
+}
+.f12-settings[data-high-contrast-rules="true"] .f12-panel.f12-panel-quiet,
+.f12-settings[data-high-contrast-rules="true"] .f12-console-kv-item,
+.f12-settings[data-high-contrast-rules="true"] .f12-settings-bar,
+.f12-settings[data-high-contrast-rules="true"] .f12-settings-specimen {
+  border-width: 2px;
+  border-color: var(--f-rule);
+}
+.f12-settings[data-high-contrast-rules="true"] .f12-settings-danger-row {
+  border-bottom-width: 2px;
+  border-bottom-color: var(--f-rule);
+}
+.f12-settings-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--f-gutter-pair) var(--f-gutter-scene);
+  padding: 10px 14px;
+  border: 1.5px solid var(--f-rule);
+  background: var(--f-panel);
+  min-width: 0;
+}
+.f12-settings-bar[data-dirty="true"] {
+  border-inline-start: 6px solid var(--f-rule);
+  background-color: var(--f-sheet);
+}
+.f12-settings-specimen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--f-gutter-pair);
+  padding: 12px 14px;
+  border: 1px dashed var(--f-rule);
+  background: var(--f-sheet);
+  min-width: 0;
+}
+.f12-settings-danger-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--f-gutter-pair) var(--f-gutter-scene);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--f-grid);
+  min-width: 0;
+}
+.f12-settings-danger-row > .f12-stack-pair {
+  flex: 1 1 320px;
+}
+.f12-settings-danger-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger {
+  padding: 6px 10px;
+}
+
+@media (max-width: 960px) {
+  .f12-settings .f12-tabs-list {
+    flex-direction: column;
+    width: 100%;
+  }
+  .f12-settings .f12-tabs-trigger,
+  .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger {
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 34px;
+    padding: 6px 10px;
+  }
+  .f12-settings .f12-tabs-trigger + .f12-tabs-trigger,
+  .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
+    border-inline-start: 0;
+    border-top: 1.5px solid var(--f-rule);
+  }
+}
+
+@container (max-width: 900px) {
+  .f12-settings .f12-tabs-list {
+    flex-direction: column;
+    width: 100%;
+  }
+  .f12-settings .f12-tabs-trigger,
+  .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger {
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 34px;
+    padding: 6px 10px;
+  }
+  .f12-settings .f12-tabs-trigger + .f12-tabs-trigger,
+  .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
+    border-inline-start: 0;
+    border-top: 1.5px solid var(--f-rule);
+  }
+}
+
 /* ===================================================================== Responsive Container Rules */
 @media (max-width: 760px) {
   .f12-frame {
@@ -2735,7 +2849,8 @@ dialog.f12-dialog::backdrop {
   .f12-scene.f12-scene-three,
   .f12-console-filters,
   .f12-console-grid-2,
-  .f12-console-kv-list {
+  .f12-console-kv-list,
+  .f12-settings .f12-settings-posture-panel .f12-console-kv-list {
     grid-template-columns: minmax(0, 1fr);
   }
   .f12-rng-btn {
@@ -2859,29 +2974,38 @@ dialog.f12-dialog::backdrop {
    smooth  = continuous easing
    stepped = poses held on twos: 12 drawings/s, each pose 83.33ms
    cut     = instant, editorial hard cut */
-.f12-m-smooth .f12-rng-ind {
-  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), width 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+.f12-m-smooth {
+  --f-rng-ind-transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), width 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --f-switch-thumb-transition: inset-inline-start 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --f-skeleton-animation: f12SkeletonSmooth 1400ms ease-in-out infinite;
+  --f-enter-animation: f12EnterSmooth 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --f-pop-animation: f12PopSmooth 240ms cubic-bezier(0.2, 0.9, 0.3, 1.25);
+  --f-burst-animation: f12BurstSmooth 320ms ease-out;
 }
-.f12-m-stepped .f12-rng-ind {
-  transition: transform 250ms steps(3, end), width 250ms steps(3, end);
+.f12-m-stepped {
+  --f-rng-ind-transition: transform 250ms steps(3, end), width 250ms steps(3, end);
+  --f-switch-thumb-transition: inset-inline-start 250ms steps(3, end);
+  --f-skeleton-animation: f12SkeletonStep 333ms steps(4, end) infinite;
+  --f-enter-animation: f12EnterStep 250ms step-end;
+  --f-pop-animation: f12PopStep 333ms step-end;
+  --f-burst-animation: f12BurstStep 250ms step-end;
 }
-.f12-m-smooth .f12-switch-thumb {
-  transition: inset-inline-start 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+.f12-m-cut {
+  --f-rng-ind-transition: none;
+  --f-switch-thumb-transition: none;
+  --f-skeleton-animation: none;
+  --f-enter-animation: none;
+  --f-pop-animation: none;
+  --f-burst-animation: none;
 }
-.f12-m-stepped .f12-switch-thumb {
-  transition: inset-inline-start 250ms steps(3, end);
+.f12-rng-ind {
+  transition: var(--f-rng-ind-transition, none);
+}
+.f12-switch-thumb {
+  transition: var(--f-switch-thumb-transition, none);
 }
 .f12-skeleton-animated {
-  animation: f12SkeletonStep 333ms steps(4, end) infinite;
-}
-.f12-m-smooth .f12-skeleton-animated {
-  animation: f12SkeletonSmooth 1400ms ease-in-out infinite;
-}
-.f12-m-stepped .f12-skeleton-animated {
-  animation: f12SkeletonStep 333ms steps(4, end) infinite;
-}
-.f12-m-cut .f12-skeleton-animated {
-  animation: none;
+  animation: var(--f-skeleton-animation, f12SkeletonStep 333ms steps(4, end) infinite);
 }
 @keyframes f12SkeletonSmooth {
   0%,
@@ -2907,8 +3031,8 @@ dialog.f12-dialog::backdrop {
   }
 }
 
-.f12-m-smooth .f12-enter {
-  animation: f12EnterSmooth 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+.f12-enter {
+  animation: var(--f-enter-animation, none);
 }
 @keyframes f12EnterSmooth {
   from {
@@ -2919,10 +3043,6 @@ dialog.f12-dialog::backdrop {
     opacity: 1;
     transform: none;
   }
-}
-.f12-m-stepped .f12-enter {
-  animation: f12EnterStep 250ms;
-  animation-timing-function: step-end;
 }
 @keyframes f12EnterStep {
   0% {
@@ -2943,8 +3063,8 @@ dialog.f12-dialog::backdrop {
   }
 }
 
-.f12-m-smooth .f12-pop {
-  animation: f12PopSmooth 240ms cubic-bezier(0.2, 0.9, 0.3, 1.25);
+.f12-pop {
+  animation: var(--f-pop-animation, none);
 }
 @keyframes f12PopSmooth {
   from {
@@ -2955,10 +3075,6 @@ dialog.f12-dialog::backdrop {
     opacity: 1;
     transform: none;
   }
-}
-.f12-m-stepped .f12-pop {
-  animation: f12PopStep 333ms;
-  animation-timing-function: step-end;
 }
 @keyframes f12PopStep {
   0% {
@@ -2977,9 +3093,8 @@ dialog.f12-dialog::backdrop {
     transform: none;
   }
 }
-.f12-m-stepped .f12-pop .f12-burst {
-  animation: f12BurstStep 250ms;
-  animation-timing-function: step-end;
+.f12-pop .f12-burst {
+  animation: var(--f-burst-animation, none);
 }
 @keyframes f12BurstStep {
   0% {
@@ -2995,9 +3110,6 @@ dialog.f12-dialog::backdrop {
     opacity: 0;
   }
 }
-.f12-m-smooth .f12-pop .f12-burst {
-  animation: f12BurstSmooth 320ms ease-out;
-}
 @keyframes f12BurstSmooth {
   from {
     opacity: 0.9;
@@ -3010,6 +3122,17 @@ dialog.f12-dialog::backdrop {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root,
+  .f12-m-smooth,
+  .f12-m-stepped,
+  .f12-m-cut {
+    --f-rng-ind-transition: none;
+    --f-switch-thumb-transition: none;
+    --f-skeleton-animation: none;
+    --f-enter-animation: none;
+    --f-pop-animation: none;
+    --f-burst-animation: none;
+  }
   .f12-dash *,
   .f12-dash *::before,
   .f12-dash *::after,
@@ -3018,6 +3141,11 @@ dialog.f12-dialog::backdrop {
   .f12-sheet *::after,
   .f12-toast-viewport *,
   .f12-toast,
+  .f12-rng-ind,
+  .f12-switch-thumb,
+  .f12-enter,
+  .f12-pop,
+  .f12-pop .f12-burst,
   .f12-skeleton-animated {
     animation: none !important;
     transition: none !important;
@@ -3032,7 +3160,9 @@ dialog.f12-dialog::backdrop {
   }
   .f12-panel.f12-panel-quiet,
   .f12-console-kv-item,
-  .f12-console-code {
+  .f12-console-code,
+  .f12-settings-bar,
+  .f12-settings-specimen {
     border-color: CanvasText;
   }
   .f12-tag,
