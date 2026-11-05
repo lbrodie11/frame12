@@ -855,6 +855,24 @@
           "target": "components/frame12/blocks/workspace-settings.tsx"
         }
       ]
+    },
+    {
+      "name": "analytics-dashboard",
+      "type": "registry:block",
+      "title": "Revenue Recovery Analytics Block",
+      "description": "Complete FRAME/12 e-commerce revenue recovery analytics block extracted from the flagship storyboard and backed by an authoritative mulberry32(1207) fixture model where KPI overview, time-series analysis, period comparison, checkout segment breakdown, ranked interventions, and filterable daily ledgers reconcile 100%.",
+      "dependencies": ["@radix-ui/react-select"],
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/frame12.json"
+      ],
+      "files": [
+        {
+          "path": "blocks/analytics-dashboard.tsx",
+          "type": "registry:block",
+          "target": "components/frame12/blocks/analytics-dashboard.tsx"
+        }
+      ]
     }
   ]
 }

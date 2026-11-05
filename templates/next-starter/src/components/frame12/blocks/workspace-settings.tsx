@@ -1369,9 +1369,34 @@ function WorkspaceSettingsInner({
             aria-label="Workspace settings hierarchy"
             density="compact"
             items={[
-              { label: 'FRAME/12 Control Plane', href: '#control-plane' },
-              { label: draft.workspace.workspaceName, href: `#${draft.workspace.slug}` },
-              { label: 'Workspace Settings', current: true },
+              {
+                label: 'FRAME/12 Control Plane',
+                href: `#${resolvedIdPrefix}-sheet`,
+                onClick: (e) => {
+                  e.preventDefault();
+                  pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-tabs-tab-profile`;
+                  setActiveSection('profile');
+                  window.requestAnimationFrame(() => {
+                    document.getElementById(`${resolvedIdPrefix}-tabs-tab-profile`)?.focus();
+                  });
+                },
+              },
+              {
+                label: draft.workspace.workspaceName,
+                href: `#${resolvedIdPrefix}-ws-name`,
+                onClick: (e) => {
+                  e.preventDefault();
+                  pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-ws-name`;
+                  setActiveSection('workspace');
+                  window.requestAnimationFrame(() => {
+                    document.getElementById(`${resolvedIdPrefix}-ws-name`)?.focus();
+                  });
+                },
+              },
+              {
+                label: SECTION_LABELS[activeSection],
+                current: true,
+              },
             ]}
           />
           <p className="f12-eyebrow">

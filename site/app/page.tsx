@@ -6,73 +6,26 @@ import {
   Sheet,
   Scene,
   Panel,
-  PanelPair,
   SegmentedControl,
-  Metric,
-  ToneAreaChart,
-  ToneBarList,
-  ToneSpark,
   Tag,
   Badge,
 } from '@/components/frame12';
-import { useChanged } from '@/hooks/use-on-twos';
-import { REGISTRY_BASE_URL } from '@/lib/config';
 import {
-  SUMMARIES,
+  RevenueRecoveryCoreScenes,
   STORE,
   END_LABEL,
-  RANGES,
   DEFAULT_RANGE,
-  INTERVENTIONS,
-  fmtMoney,
-  fmtMoneyShort,
-  fmtPP,
+  RANGE_OPTIONS,
   type RangeDays,
-} from '@/lib/data';
+} from '@/components/frame12/blocks/analytics-dashboard';
+import { REGISTRY_BASE_URL } from '@/lib/config';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
-
-const RANGE_OPTIONS = RANGES.map((r) => ({
-  value: r,
-  label: String(r),
-  unit: 'days',
-}));
-
-const PROFIT_NOTE = 'Margin on recovered orders, after offer costs';
-const LIFT_NOTE = 'Checkout conversion vs. holdout group';
 
 export default function HomePage() {
   const { motion } = useSiteSettings();
   const [range, setRange] = React.useState<RangeDays>(DEFAULT_RANGE);
   const [focus, setFocus] = React.useState<string | null>(null);
-  const changed = useChanged(range);
-
-  const s = SUMMARIES[range];
-  const focusItem = focus ? INTERVENTIONS.find((i) => i.id === focus) ?? null : null;
-
-  const chartData = React.useMemo(
-    () =>
-      s.days.map((d) => ({
-        label: d.label,
-        longLabel: d.long,
-        value: d.total,
-        compareValue: focusItem ? d.byId[focusItem.id] : undefined,
-      })),
-    [s.days, focusItem],
-  );
-
-  const barItems = React.useMemo(
-    () =>
-      s.rows.map((r, idx) => ({
-        id: r.id,
-        name: r.name,
-        value: r.value,
-        formattedValue: fmtMoney(r.value),
-        share: r.share,
-        badge: idx === 0 ? 'Top performer' : undefined,
-      })),
-    [s.rows],
-  );
 
   return (
     <Sheet autoCut pegs motion={motion}>
@@ -102,112 +55,14 @@ export default function HomePage() {
         />
       </header>
 
-      <Scene gutter="scene" layout="split">
-        <Panel className="c01" label="Recovered revenue over time">
-          <div className="f12-c01-hd">
-            <Metric
-              label="Recovered revenue"
-              value={s.revenue}
-              format={fmtMoney}
-              delta={s.revenueDelta}
-              deltaKind="pct"
-              range={range}
-              motion={motion}
-              big
-            />
-            {focusItem ? (
-              <ul className="f12-legend" aria-label="Chart legend" role="list">
-                <li>
-                  <i className="f12-sw f12-sw-total" aria-hidden="true" />
-                  All interventions
-                </li>
-                <li>
-                  <i className="f12-sw f12-sw-focus" aria-hidden="true" />
-                  {focusItem.name}
-                </li>
-              </ul>
-            ) : (
-              <p className="f12-legend f12-legend-hint">
-                Select an intervention in C-04 to compare it with the total.
-              </p>
-            )}
-          </div>
-          <ToneAreaChart
-            data={chartData}
-            seriesLabel="Recovered revenue"
-            labelColumnHeader="Date"
-            compareLabel={focusItem?.name}
-            formatValue={fmtMoney}
-            formatShort={fmtMoneyShort}
-            motion={motion}
-            height={320}
-          />
-        </Panel>
-
-        <PanelPair
-          top={{
-            label: 'Incremental profit',
-            children: (
-              <Metric
-                label="Incremental profit"
-                value={s.profit}
-                format={fmtMoney}
-                delta={s.profitDelta}
-                deltaKind="pct"
-                range={range}
-                note={PROFIT_NOTE}
-                motion={motion}
-                spark={
-                  <ToneSpark
-                    values={s.days.map((d) => d.profit)}
-                    label="Daily profit"
-                    rangeKey={range}
-                    motion={motion}
-                  />
-                }
-              />
-            ),
-          }}
-          bottom={{
-            label: 'Conversion lift',
-            children: (
-              <Metric
-                label="Conversion lift"
-                value={s.lift}
-                format={fmtPP}
-                delta={s.liftDelta}
-                deltaKind="pp"
-                range={range}
-                note={LIFT_NOTE}
-                motion={motion}
-                spark={
-                  <ToneSpark
-                    values={s.days.map((d) => d.lift)}
-                    label="Daily lift"
-                    rangeKey={range}
-                    motion={motion}
-                  />
-                }
-              />
-            ),
-          }}
-        />
-      </Scene>
-
-      <Scene gutter="scene" layout="stack">
-        <Panel className="c04" label="Revenue by intervention">
-          <ToneBarList
-            title="Revenue by intervention"
-            subtitle={`Last ${s.range} days · share of recovered revenue`}
-            items={barItems}
-            selectedId={focus}
-            onSelect={setFocus}
-            motion={motion}
-            changed={changed}
-            idPrefix="home"
-          />
-        </Panel>
-      </Scene>
+      <RevenueRecoveryCoreScenes
+        range={range}
+        focus={focus}
+        onSelectFocus={setFocus}
+        motion={motion}
+        idPrefix="home"
+        chartHeight={320}
+      />
 
       <Scene gutter="scene" layout="three">
         <Panel label="Signature 1: Panel grammar">
@@ -292,8 +147,15 @@ export default function HomePage() {
                 <Link href="/get-started" className="f12-link-btn primary" id="home-link-start">
                   Get Started Guide
                 </Link>
+                <Link
+                  href="/blocks/analytics-dashboard"
+                  className="f12-link-btn"
+                  id="home-link-analytics-block"
+                >
+                  Analytics Block →
+                </Link>
                 <Link href="/agents" className="f12-link-btn" id="home-link-agents">
-                  Agent Skill & Linter
+                  Agent Skill &amp; Linter
                 </Link>
               </div>
             </div>
