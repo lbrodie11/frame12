@@ -2714,6 +2714,83 @@ dialog.f12-dialog::backdrop {
   color: var(--f-ink-2);
 }
 
+.f12-settings-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--f-gutter-pair) var(--f-gutter-scene);
+  padding: 10px 14px;
+  border: 1.5px solid var(--f-rule);
+  background: var(--f-panel);
+  min-width: 0;
+}
+.f12-settings-bar[data-dirty="true"] {
+  border-inline-start: 6px solid var(--f-rule);
+  background-color: var(--f-sheet);
+}
+.f12-settings-specimen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--f-gutter-pair);
+  padding: 12px 14px;
+  border: 1px dashed var(--f-rule);
+  background: var(--f-sheet);
+  min-width: 0;
+}
+.f12-settings-danger-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--f-gutter-pair) var(--f-gutter-scene);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--f-grid);
+  min-width: 0;
+}
+.f12-settings-danger-row > .f12-stack-pair {
+  flex: 1 1 320px;
+}
+.f12-settings-danger-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger {
+  padding: 6px 10px;
+}
+
+@media (max-width: 960px) {
+  .f12-settings .f12-tabs-list {
+    flex-direction: column;
+    width: 100%;
+  }
+  .f12-settings .f12-tabs-trigger {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .f12-settings .f12-tabs-trigger + .f12-tabs-trigger,
+  .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
+    border-inline-start: 0;
+    border-top: 1.5px solid var(--f-rule);
+  }
+}
+
+@container (max-width: 900px) {
+  .f12-settings .f12-tabs-list {
+    flex-direction: column;
+    width: 100%;
+  }
+  .f12-settings .f12-tabs-trigger {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .f12-settings .f12-tabs-trigger + .f12-tabs-trigger,
+  .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
+    border-inline-start: 0;
+    border-top: 1.5px solid var(--f-rule);
+  }
+}
+
 /* ===================================================================== Responsive Container Rules */
 @media (max-width: 760px) {
   .f12-frame {
@@ -3032,7 +3109,9 @@ dialog.f12-dialog::backdrop {
   }
   .f12-panel.f12-panel-quiet,
   .f12-console-kv-item,
-  .f12-console-code {
+  .f12-console-code,
+  .f12-settings-bar,
+  .f12-settings-specimen {
     border-color: CanvasText;
   }
   .f12-tag,

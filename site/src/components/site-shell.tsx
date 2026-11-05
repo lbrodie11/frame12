@@ -31,6 +31,7 @@ const NAV_ITEMS = [
   { href: '/motion', label: 'Motion', id: 'nav-motion' },
   { href: '/components', label: 'Components', id: 'nav-components' },
   { href: '/blocks/developer-console', label: 'Developer Console', id: 'nav-developer-console' },
+  { href: '/blocks/workspace-settings', label: 'Workspace Settings', id: 'nav-workspace-settings' },
   { href: '/agents', label: 'Agents', id: 'nav-agents' },
   { href: '/style-sheet', label: 'Style Sheet', id: 'nav-style-sheet' },
   { href: '/get-started', label: 'Get Started', id: 'nav-get-started' },
