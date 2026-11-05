@@ -14,12 +14,15 @@ import { chromium } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { lintFiles } from '../../scripts/check-frame12.mjs';
 import { getRenderedCuts } from '../../registry/tests/lib.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
+const require = createRequire(path.resolve(repoRoot, 'package.json'));
+const ts = require('typescript');
 const registryRoot = path.resolve(repoRoot, 'registry');
 const distRoot = path.resolve(__dirname, 'dist');
 const resultsDir = path.resolve(__dirname, 'results');
@@ -197,7 +200,107 @@ if (container) {
   return outHtml;
 }
 
+function runTypeCheckAllScreens(screenFiles) {
+  const tsconfigPath = path.resolve(repoRoot, 'eval/tsconfig.json');
+  const configFile = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
+  const parsed = ts.parseJsonConfigFileContent(
+    configFile.config,
+    ts.sys,
+    path.dirname(tsconfigPath),
+  );
+  const program = ts.createProgram({
+    rootNames: [...new Set([...parsed.fileNames, ...screenFiles])],
+    options: { ...parsed.options, noEmit: true },
+  });
+  const diagnostics = ts.getPreEmitDiagnostics(program);
+  const errorsByFile = new Map(screenFiles.map((f) => [path.resolve(f), []]));
+  const globalErrors = [];
+
+  for (const d of diagnostics) {
+    const msg = ts.flattenDiagnosticMessageText(d.messageText, '\n');
+    if (d.file) {
+      const resolved = path.resolve(d.file.fileName);
+      if (errorsByFile.has(resolved)) {
+        errorsByFile.get(resolved).push(msg);
+      }
+    } else {
+      globalErrors.push(msg);
+    }
+  }
+  return { errorsByFile, globalErrors };
+}
+
+async function verifyTaskWorkflow(page, conditionId, taskId) {
+  if (conditionId === 'c1-shadcn-baseline') {
+    const initialCount = await page.locator(`#c1-ledger-table-${taskId} tbody tr`).count();
+    await page.selectOption(`#c1-channel-${taskId}`, 'eu');
+    const euCount = await page.locator(`#c1-ledger-table-${taskId} tbody tr`).count();
+    await page.selectOption(`#c1-channel-${taskId}`, 'all');
+    const restoredCount = await page.locator(`#c1-ledger-table-${taskId} tbody tr`).count();
+    return initialCount === 3 && euCount === 1 && restoredCount === 3;
+  }
+
+  if (conditionId === 'c2-frame12-no-skill') {
+    await page.click(`#c2-range-${taskId}-7d`);
+    await page.click(`#c2-range-${taskId}-30d`);
+    return true;
+  }
+
+  // c3-frame12-with-skill and c4-frame12-skill-plus-checker
+  const tableRows = page.locator(`#eval-ledger-table-${taskId} tbody tr`);
+  const page1Count = await tableRows.count();
+  const page1FirstCell = await tableRows.first().locator('td').first().innerText();
+
+  await page.click('nav[aria-label="Pagination"] button[aria-label="Go to page 2"]');
+  const page2Count = await tableRows.count();
+  const page2FirstCell = await tableRows.first().locator('td').first().innerText();
+
+  await page.click('nav[aria-label="Pagination"] button[aria-label="Go to page 1"]');
+  const restoredFirstCell = await tableRows.first().locator('td').first().innerText();
+
+  let paginationSlicesOk =
+    page1Count === 2 &&
+    page2Count === 2 &&
+    page1FirstCell !== page2FirstCell &&
+    restoredFirstCell === page1FirstCell;
+
+  if (!paginationSlicesOk) return false;
+
+  if (taskId === '05-landing-page') {
+    const hasPlanTable = (await page.locator('#eval-plan-comparison-table tbody tr').count()) === 4;
+    await page.click('#eval-tier-05-landing-page-enterprise');
+    const tierText = await page.locator('#eval-active-tier-summary').innerText();
+    await page.click('#eval-tier-05-landing-page-growth');
+    return hasPlanTable && tierText.includes('Enterprise Tier · $990/mo');
+  }
+
+  if (taskId === '06-multi-step-form') {
+    const step1Text = await page.locator('#eval-wizard-step-indicator').innerText();
+    await page.click('#eval-wizard-next');
+    const step2Text = await page.locator('#eval-wizard-step-indicator').innerText();
+    await page.click('#eval-wizard-next');
+    const step3Text = await page.locator('#eval-wizard-step-indicator').innerText();
+    await page.click('#eval-wizard-prev');
+    await page.click('#eval-wizard-prev');
+    return (
+      step1Text.includes('STEP-1') &&
+      step2Text.includes('STEP-2') &&
+      step3Text.includes('STEP-3')
+    );
+  }
+
+  return true;
+}
+
 async function main() {
+  const allScreenFiles = [];
+  for (const condition of tasksConfig.conditions) {
+    for (const task of tasksConfig.tasks) {
+      allScreenFiles.push(path.resolve(__dirname, 'conditions', condition.id, `${task.id}.tsx`));
+    }
+  }
+  const { errorsByFile, globalErrors } = runTypeCheckAllScreens(allScreenFiles);
+
   const browser = await chromium.launch();
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
@@ -210,6 +313,12 @@ async function main() {
   for (const condition of tasksConfig.conditions) {
     for (const task of tasksConfig.tasks) {
       const screenFile = path.resolve(__dirname, 'conditions', condition.id, `${task.id}.tsx`);
+      const tsFileErrors = errorsByFile.get(screenFile) || [];
+      const tscOk = globalErrors.length === 0 && tsFileErrors.length === 0;
+      if (!tscOk) {
+        console.error(`TypeScript errors in ${condition.id}/${task.id}:`, [...globalErrors, ...tsFileErrors]);
+      }
+
       let buildOk = false;
       let htmlPath = '';
       try {
@@ -249,6 +358,9 @@ async function main() {
           cs.boxShadow !== 'none'
         );
       });
+
+      // Verify interactive task workflow (filter scope, pagination row slicing, tier switcher, 3-step wizard)
+      const taskWorkflowOk = await verifyTaskWorkflow(page, condition.id, task.id);
 
       // FRAME/12 Live DOM Grammar Checks (ONLY for C2, C3, C4)
       let grammarDom = null;
@@ -314,6 +426,8 @@ async function main() {
 
       const universalPass =
         buildOk &&
+        tscOk &&
+        taskWorkflowOk &&
         axeLight.violations.length === 0 &&
         axeDark.violations.length === 0 &&
         contrastLight.length === 0 &&
@@ -339,6 +453,8 @@ async function main() {
         universal: {
           pass: universalPass,
           buildOk,
+          tscOk,
+          taskWorkflowOk,
           axeViolationsLight: axeLight.violations.length,
           axeViolationsDark: axeDark.violations.length,
           contrastFailuresLight: contrastLight.length,

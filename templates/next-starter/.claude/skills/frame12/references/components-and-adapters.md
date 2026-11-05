@@ -357,6 +357,11 @@ export interface AlertProps extends Omit<React.HTMLAttributes<HTMLDivElement>, '
   density?: AlertDensity;     // default: 'comfortable'
   live?: AlertLive;
 }
+
+export type NoticeProps = AlertProps;
+export type AlertTitleProps = React.HTMLAttributes<HTMLDivElement>;
+export type AlertDescriptionProps = React.HTMLAttributes<HTMLDivElement>;
+export type AlertActionsProps = React.HTMLAttributes<HTMLDivElement>;
 ```
 
 ### `Toast` (`ui/toast.tsx`)
@@ -364,6 +369,7 @@ Bounded exposure-sheet notification stack (`ToastProvider`, `useToast`, `ToastVi
 
 ```tsx
 export type ToastStatus = TagStatus;
+export type ToastDensity = 'comfortable' | 'compact';
 
 export interface ToastOptions {
   id?: string;
@@ -378,6 +384,34 @@ export interface ToastOptions {
   dismissLabel?: string;
   onDismiss?: (id: string) => void;
 }
+
+export interface ToastProviderProps {
+  maxVisible?: number;        // default: 3
+  defaultDuration?: number;   // default: 5000
+  density?: ToastDensity;     // default: 'comfortable'
+  label?: string;             // default: 'Notifications'
+  renderViewport?: boolean;   // default: true
+  resetKey?: string | number;
+  children?: React.ReactNode;
+}
+
+export interface ToastViewportProps extends React.HTMLAttributes<HTMLDivElement> {
+  label?: string;
+  hotkey?: string[];          // default: ['F8']
+}
+
+export interface ToastProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'>, ToastOptions {
+  density?: ToastDensity;
+  paused?: boolean;
+}
+
+export interface ToastActionProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  altText?: string;
+}
+
+export type ToastTitleProps = React.HTMLAttributes<HTMLDivElement>;
+export type ToastDescriptionProps = React.HTMLAttributes<HTMLDivElement>;
+export type ToastCloseProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 ```
 
 ### `Skeleton` & `SkeletonText` (`ui/skeleton.tsx`)
@@ -391,6 +425,14 @@ export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: SkeletonVariant;  // default: 'block'
   width?: number | string;
   height?: number | string;
+  animated?: boolean;         // default: true
+  density?: SkeletonDensity;  // default: 'comfortable'
+  label?: string;
+}
+
+export interface SkeletonTextProps extends React.HTMLAttributes<HTMLDivElement> {
+  lines?: number;             // default: 3
+  lastLineWidth?: number | string; // default: '68%'
   animated?: boolean;         // default: true
   density?: SkeletonDensity;  // default: 'comfortable'
   label?: string;
@@ -416,13 +458,78 @@ export interface EmptyStateProps extends Omit<React.HTMLAttributes<HTMLDivElemen
   density?: EmptyStateDensity;           // default: 'comfortable'
   headingLevel?: EmptyStateHeadingLevel; // default: 'h3'
 }
+
+export interface EmptyStateTitleProps extends React.HTMLAttributes<HTMLElement> {
+  as?: EmptyStateHeadingLevel;           // default: 'h3'
+}
+
+export type EmptyStateIconProps = React.HTMLAttributes<HTMLDivElement>;
+export type EmptyStateDescriptionProps = React.HTMLAttributes<HTMLParagraphElement>;
+export type EmptyStateActionsProps = React.HTMLAttributes<HTMLDivElement>;
 ```
 
 ### `Breadcrumb` (`ui/breadcrumb.tsx`)
 Accessible hierarchical path navigation (`<nav aria-label="Breadcrumb">` + `<ol>`) supporting shorthand `items` or compound `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink` (React 18/19-safe `asChild`), `BreadcrumbPage` (`aria-current="page"`), `BreadcrumbSeparator` (`role="presentation" aria-hidden="true"`), and `BreadcrumbEllipsis` (`.f12-sr-only` outside `aria-hidden="true"`).
 
+```tsx
+export interface BreadcrumbProps extends React.HTMLAttributes<HTMLElement> {
+  items?: BreadcrumbItemDescriptor[];
+  separator?: React.ReactNode;
+  density?: 'comfortable' | 'compact';
+  ariaLabel?: string; // default: 'Breadcrumb'
+}
+
+export interface BreadcrumbLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  asChild?: boolean;
+}
+
+export interface BreadcrumbPageProps extends React.HTMLAttributes<HTMLSpanElement> {
+  'aria-current'?: React.AriaAttributes['aria-current']; // default: 'page'
+}
+
+export type BreadcrumbListProps = React.OlHTMLAttributes<HTMLOListElement>;
+export type BreadcrumbItemProps = React.LiHTMLAttributes<HTMLLIElement>;
+export type BreadcrumbSeparatorProps = React.LiHTMLAttributes<HTMLLIElement>;
+export type BreadcrumbEllipsisProps = React.HTMLAttributes<HTMLSpanElement>;
+```
+
 ### `Pagination` (`ui/pagination.tsx`)
 Deterministic page navigation (`<nav aria-label="Pagination">`) supporting data-driven `page`, `totalPages`, `onPageChange`, `siblingCount`, `boundaryCount`, `showSummary` (`PAGE X OF Y`), and `density?: 'comfortable' | 'compact'`, or compound `PaginationContent`, `PaginationItem`, `PaginationLink` (`aria-current="page"` ink inversion), `PaginationPrevious`, `PaginationNext`, `PaginationEllipsis`, and `buildPaginationRange`.
+
+```tsx
+export interface PaginationProps extends Omit<React.HTMLAttributes<HTMLElement>, 'onChange'> {
+  page?: number;
+  defaultPage?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
+  siblingCount?: number;
+  boundaryCount?: number;
+  density?: 'comfortable' | 'compact';
+  ariaLabel?: string;
+  previousLabel?: string;
+  nextLabel?: string;
+  ellipsisLabel?: string;
+  showSummary?: boolean;
+  totalItems?: number;
+  pageSize?: number;
+  formatSummary?: (info: { page: number; totalPages: number; totalItems?: number; pageSize?: number }) => React.ReactNode;
+  getItemAriaLabel?: (type: 'page' | 'previous' | 'next', page: number, selected: boolean) => string;
+  getItemHref?: (page: number) => string | undefined;
+}
+
+export interface PaginationLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+  isActive?: boolean;
+  onClick?: React.MouseEventHandler<HTMLElement>;
+}
+
+export type PaginationContentProps = React.OlHTMLAttributes<HTMLOListElement>;
+export type PaginationItemProps = React.LiHTMLAttributes<HTMLLIElement>;
+export type PaginationPreviousProps = PaginationLinkProps;
+export type PaginationNextProps = PaginationLinkProps;
+export type PaginationEllipsisProps = React.HTMLAttributes<HTMLSpanElement>;
+```
 
 ---
 
@@ -433,6 +540,12 @@ Headline KPI numeral (`tabular-nums`) with stepped count-up (`useCountUp`), scre
 
 ```tsx
 export type MetricVariant = 'expressive' | 'quiet';
+
+export interface DeltaProps {
+  value: number;
+  kind?: 'pct' | 'pp'; // default: 'pct'
+  className?: string;
+}
 
 export interface MetricProps {
   label: string;
@@ -513,8 +626,8 @@ export interface ToneBarListProps {
 ```
 
 ### `ToneSpark` (`ui/tone-spark.tsx`) & `Balloon` (`ui/balloon.tsx`)
-- `ToneSpark`: compact daily screentone bar chart (`values: number[]`, `label: string`, `rangeKey?: string | number`, `motion?: MotionMode`, `height?: number`).
-- `Balloon`: standalone speech-balloon callout (`tailOffset?: number` from `-36` to `+36`, `showDot?: boolean`).
+- `ToneSpark` (`ToneSparkProps`): compact daily screentone bar chart (`values: number[]`, `label: string`, `ariaLabel?: string`, `rangeKey?: string | number`, `motion?: MotionMode`, `height?: number`, `className?: string`).
+- `Balloon` (`BalloonProps`): standalone speech-balloon callout (`tailOffset?: number` from `-36` to `+36`, `showDot?: boolean`, `className?: string`).
 
 ---
 
@@ -523,19 +636,19 @@ export interface ToneBarListProps {
 FRAME/12 wraps the five complex interactive primitives in accessible adapters that install into `components/frame12/*.tsx` (never colliding with stock `components/ui/*.tsx` shadcn primitives) while enforcing FRAME/12 ink rules, tokens, and WAI-ARIA semantics:
 
 1. **`Dialog` (`ui/dialog.tsx`):**
-   - Exports: `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogClose`.
+   - Exports: `Dialog` (`DialogProps`: `open`, `defaultOpen`, `onOpenChange`), `DialogTrigger` (`DialogTriggerProps`: `asChild`), `DialogContent` (`DialogContentProps`: `cut`), `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogClose` (`DialogCloseProps`: `asChild`).
    - Uses native `<dialog>` with `.showModal()`, `DialogTrigger asChild` support, conditional `aria-describedby` (omitted when `DialogDescription` is absent), single-fire `onOpenChange(false)`, `Escape` isolation with nested `Select`/`DropdownMenu` popups, pointer light-dismiss, `overscroll-behavior: contain`, screentone backdrop, and optional `cut="C-0X"` on `DialogContent`.
 2. **`Select` (`ui/select.tsx`):**
-   - Exports: `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectGroup`, `SelectLabel`, `SelectSeparator`, `type SelectDensity`.
+   - Exports: `Select` (`SelectProps`: `value`, `defaultValue`, `onValueChange`, `open`, `defaultOpen`, `onOpenChange`, `disabled`, `name`, `required`, `density`, `label`, `id`, `ariaLabel`, `placeholder`), `SelectTrigger` (`SelectTriggerProps`: `density`, `ariaLabel`), `SelectValue` (`SelectValueProps`), `SelectContent` (`SelectContentProps`), `SelectItem` (`SelectItemProps`), `SelectGroup` (`SelectGroupProps`), `SelectLabel` (`SelectLabelProps`), `SelectSeparator` (`SelectSeparatorProps`), `type SelectDensity`.
    - Built on `@radix-ui/react-select` with full WAI-ARIA listbox keyboard navigation (`ArrowUp`/`ArrowDown`/`Home`/`End`/`Enter`/`Space`/`Escape`, typeahead, focus restoration), portal theme inheritance (`.f12-dash` / `dialog[open]`), `density?: 'comfortable' | 'compact'`, and native `<form>` `FormData` participation via `name` and `required`. Pass `label="Channel"` and `id="channel-select"` directly to `<Select>` for an automatically linked `<label>`.
 3. **`Tooltip` (`ui/tooltip.tsx`):**
-   - Exports: `TooltipProvider`, `Tooltip`, `TooltipTrigger`, `TooltipContent`.
+   - Exports: `TooltipProvider` (`TooltipProviderProps`: `delayDuration`, `skipDelayDuration`), `Tooltip` (`TooltipProps`: `open`, `defaultOpen`, `onOpenChange`, `delayDuration`), `TooltipTrigger` (`TooltipTriggerProps`: `asChild`), `TooltipContent` (`TooltipContentProps`: `side`, `sideOffset`).
    - Opens on hover or keyboard focus, dismisses on `Escape`, links trigger to content via `aria-describedby`, and merges caller event handlers, `ref`, `className`, and `aria-describedby` when `asChild` is used.
 4. **`DropdownMenu` (`ui/dropdown-menu.tsx`):**
-   - Exports: `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuLabel`, `DropdownMenuSeparator`, `DropdownMenuItem`, `DropdownMenuGroup`.
+   - Exports: `DropdownMenu` (`DropdownMenuProps`), `DropdownMenuTrigger` (`DropdownMenuTriggerProps`: `asChild`), `DropdownMenuContent` (`DropdownMenuContentProps`), `DropdownMenuLabel` (`DropdownMenuLabelProps`), `DropdownMenuSeparator` (`DropdownMenuSeparatorProps`), `DropdownMenuItem` (`DropdownMenuItemProps`), `DropdownMenuGroup` (`DropdownMenuGroupProps`).
    - Built on `@radix-ui/react-dropdown-menu` with full WAI-ARIA menu keyboard navigation (`ArrowDown`/`ArrowUp`/`Home`/`End`/`Enter`/`Space`/`Escape`), focus restoration, and portal theme inheritance.
 5. **`Table` (`ui/table.tsx`):**
-   - Exports: `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`, `type TableDensity`.
+   - Exports: `Table` (`TableProps`: `density`, `wrapperClassName`, `wrapperProps`), `TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`, `type TableDensity`.
    - Monospace uppercase headers with `2.5px` bottom ink rule, `scope="col"` by default on `TableHead`, `density?: 'comfortable' | 'compact'` (`<Table density="compact">`), and `tabular-nums` alignment.
 
 ---
@@ -545,8 +658,79 @@ FRAME/12 wraps the five complex interactive primitives in accessible adapters th
 ### `DeveloperConsole` (`blocks/developer-console.tsx`)
 Flagship API & webhook control-plane Developer Console block (`npx shadcn@latest add https://frame12.dev/r/developer-console.json`). Demonstrates Expressive hero KPIs (`Metric`), 45° screentone throughput charts (`ToneAreaChart`), and ranked service insights (`ToneBarList`) alongside Quiet exposure-sheet views (`<Panel variant="quiet">`, `Table density="compact"`, `Field`, `Switch`, `Dialog`, `Pagination`, `ToastProvider`) across Overview, Services & Endpoints, Masked Fictional API Keys (`f12_sim_*`), and Request Logs, with reconciled deterministic fixtures and populated/loading/empty/error states.
 
+```tsx
+export interface DeveloperConsoleProps {
+  defaultSection?: ConsoleSection;
+  defaultDatasetState?: ConsoleDatasetState;
+  defaultTimeRange?: ConsoleTimeRange;
+  defaultEnvironment?: ConsoleEnvironment;
+  initialSection?: ConsoleSection;
+  initialDatasetState?: ConsoleDatasetState;
+  initialTimeRange?: ConsoleTimeRange;
+  initialEnvironment?: ConsoleEnvironment;
+  motion?: MotionMode;
+  theme?: 'light' | 'dark';
+  idPrefix?: string;
+  showSandboxControls?: boolean;
+  className?: string;
+  headerSlot?: React.ReactNode;
+  footerSlot?: React.ReactNode;
+}
+```
+
 ### `WorkspaceSettings` (`blocks/workspace-settings.tsx`)
 Operational Workspace Settings block (`npx shadcn@latest add https://frame12.dev/r/workspace-settings.json`). Emphasizes Quiet presentation (`<Panel variant="quiet">`, compact form density, 1px rules) paired with one focused Expressive posture header (`C-01`) across 7 canonical sections: Profile, Workspace Preferences, Notifications, Appearance, Motion Preferences, Team & Roles, and Danger Zone. Includes cross-tab unsaved-change detection, field-level and cross-section validation with focus transfer, save/discard/reset, navigation protection (`beforeunload` + workspace target switch guard modal `C-02`), RBAC member management (`C-03`), and destructive lifecycle confirmations (`C-04`).
 
+```tsx
+export interface WorkspaceSettingsProps {
+  defaultSection?: SettingsSection;
+  defaultDatasetState?: SettingsDatasetState;
+  defaultWorkspaceId?: WorkspaceTargetId;
+  initialSection?: SettingsSection;
+  initialDatasetState?: SettingsDatasetState;
+  initialWorkspaceId?: WorkspaceTargetId;
+  motion?: MotionMode;
+  theme?: 'light' | 'dark';
+  className?: string;
+  showSandboxControls?: boolean;
+  idPrefix?: string;
+  onDirtyChange?: (isDirty: boolean, dirtySections: SettingsSection[]) => void;
+  headerSlot?: React.ReactNode;
+  footerSlot?: React.ReactNode;
+}
+```
+
 ### `AnalyticsDashboard` & `RevenueRecoveryCoreScenes` (`blocks/analytics-dashboard.tsx`)
 Installable Revenue Recovery Analytics block (`npx shadcn@latest add https://frame12.dev/r/analytics-dashboard.json`). Shares a single authoritative deterministic `mulberry32(1207)` 180-day recovery fixture model (`Fernwood Supply Co.`) with the public homepage (`/`). Combines the Expressive Storyboard establishing shot (`C-01` `Metric` + `ToneAreaChart`, `C-02`/`C-03` `PanelPair` + `ToneSpark`, and `C-04` `ToneBarList`) with Quiet period-over-period comparison (`Current` vs `Prior` window), checkout segment breakdown (`Returning VIP & Loyalty`, `First-Time Mobile Checkout`, `High-AOV Desktop Carts`), filterable daily attribution evidence ledger (`Input`, `Select`, `Table`, `Pagination`), and `C-05` Daily Attribution modal `<Dialog>`, plus `populated` / `loading` / `empty` / `error` sandbox states.
+
+```tsx
+export interface RevenueRecoveryCoreScenesProps {
+  range: RangeDays;
+  focus: string | null;
+  onSelectFocus: (next: string | null) => void;
+  motion?: MotionMode;
+  idPrefix?: string;
+  chartHeight?: number;
+  datasetState?: AnalyticsDatasetState;
+  comparisonMode?: AnalyticsComparisonMode;
+  onRestorePopulated?: () => void;
+}
+
+export interface AnalyticsDashboardProps {
+  defaultRange?: RangeDays;
+  defaultFocusId?: string | null;
+  defaultComparisonMode?: AnalyticsComparisonMode;
+  defaultDatasetState?: AnalyticsDatasetState;
+  initialRange?: RangeDays;
+  initialFocusId?: string | null;
+  initialComparisonMode?: AnalyticsComparisonMode;
+  initialDatasetState?: AnalyticsDatasetState;
+  motion?: MotionMode;
+  theme?: 'light' | 'dark';
+  className?: string;
+  showSandboxControls?: boolean;
+  idPrefix?: string;
+  headerSlot?: React.ReactNode;
+  footerSlot?: React.ReactNode;
+}
+```

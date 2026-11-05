@@ -99,11 +99,71 @@ const BAR_ITEMS = [
   },
 ];
 
-const LEDGER_ROWS = [
-  { id: 'REC-101', target: 'US-East Primary Gateway', region: 'us-east-1', latency: '28ms', attainment: '99.98%', status: 'success' as const, statusLabel: 'Verified' },
-  { id: 'REC-102', target: 'EU-Central Webhook Relay', region: 'eu-central-1', latency: '41ms', attainment: '99.95%', status: 'info' as const, statusLabel: 'Active' },
-  { id: 'REC-103', target: 'AP-Northeast Fulfillment Sync', region: 'ap-northeast-1', latency: '64ms', attainment: '99.82%', status: 'warning' as const, statusLabel: 'Throttled' },
-  { id: 'REC-104', target: 'US-West Failover Edge', region: 'us-west-2', latency: '31ms', attainment: '99.99%', status: 'success' as const, statusLabel: 'Verified' },
+interface LedgerRow {
+  id: string;
+  target: string;
+  region: string;
+  latency: string;
+  attainment: string;
+  status: 'success' | 'info' | 'warning' | 'danger';
+  statusLabel: string;
+}
+
+const LEDGER_ROWS: LedgerRow[] = [
+  {
+    "id": "SKU-8801",
+    "target": "EWR-01 · Heavy Press Frame",
+    "region": "us-east-1",
+    "latency": "18ms",
+    "attainment": "99.4%",
+    "status": "success",
+    "statusLabel": "In Stock (420)"
+  },
+  {
+    "id": "SKU-8802",
+    "target": "FRA-02 · Registration Peg Bar",
+    "region": "eu-central-1",
+    "latency": "26ms",
+    "attainment": "98.9%",
+    "status": "info",
+    "statusLabel": "Allocated (185)"
+  },
+  {
+    "id": "SKU-8803",
+    "target": "NRT-01 · Screentone Sheet B4",
+    "region": "ap-northeast-1",
+    "latency": "49ms",
+    "attainment": "94.2%",
+    "status": "warning",
+    "statusLabel": "Low Stock (19)"
+  },
+  {
+    "id": "SKU-8804",
+    "target": "EWR-01 · Archival Ink Cartridge",
+    "region": "us-east-1",
+    "latency": "21ms",
+    "attainment": "99.8%",
+    "status": "success",
+    "statusLabel": "In Stock (910)"
+  },
+  {
+    "id": "SKU-8805",
+    "target": "FRA-02 · Exposure Light Table",
+    "region": "eu-central-1",
+    "latency": "33ms",
+    "attainment": "99.1%",
+    "status": "success",
+    "statusLabel": "In Stock (74)"
+  },
+  {
+    "id": "SKU-8806",
+    "target": "NRT-01 · Mitered Rule Cutter",
+    "region": "ap-northeast-1",
+    "latency": "42ms",
+    "attainment": "97.6%",
+    "status": "info",
+    "statusLabel": "Transferring (60)"
+  }
 ];
 
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
@@ -114,6 +174,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [strictMode, setStrictMode] = React.useState(true);
   const [cadence, setCadence] = React.useState('realtime');
   const [page, setPage] = React.useState(1);
+
   const changed = useChanged(`${range}-${selectedBar}`);
 
   const series = SERIES_BY_RANGE[range];
@@ -127,6 +188,11 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
     const matchesRegion = regionFilter === 'all' || r.region === regionFilter;
     return matchesSearch && matchesRegion;
   });
+
+  const pageSize = 2;
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <Sheet autoCut pegs motion="stepped" theme={theme}>
@@ -145,7 +211,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           </p>
           <h1 className="f12-title">Multi-Region Inventory & Fulfillment Ledger</h1>
           <p className="f12-muted-copy">
-            Storyboard-grade composition pairing Expressive establecer cuts with Quiet 1px operational ledgers.
+            Storyboard-grade composition pairing Expressive establishing cuts with Quiet 1px operational ledgers.
           </p>
         </div>
 
@@ -167,7 +233,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <Metric
-                label="Multi-Region Inventory & Fulfillment Ledger Volume"
+                label="Regional Units Fulfilled"
                 value={headlineValue}
                 format={(v) => `${Math.round(v).toLocaleString('en-US')} ops`}
                 delta={0.142}
@@ -181,7 +247,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
             </div>
             <ToneAreaChart
               data={[...series]}
-              seriesLabel="Primary throughput"
+              seriesLabel="Fulfilled SKU units"
               compareLabel="Prior window"
               labelColumnHeader="Window"
               height={220}
@@ -231,7 +297,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       <Scene gutter="scene" layout="equal">
         <Panel variant="expressive" label="Ranked regional breakdown">
           <ToneBarList
-            title="Throughput by execution tier"
+            title="Fulfillment center performance"
             subtitle={`${range}D window`}
             items={BAR_ITEMS}
             selectedId={selectedBar}
@@ -302,7 +368,10 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                   label="Search ledger"
                   density="compact"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
                   placeholder="Filter by ID or target..."
                 />
                 <Select
@@ -310,13 +379,16 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                   id="eval-region-04-data-heavy"
                   density="compact"
                   value={regionFilter}
-                  onValueChange={setRegionFilter}
+                  onValueChange={(next) => {
+                    setRegionFilter(next);
+                    setPage(1);
+                  }}
                 >
                   <SelectTrigger ariaLabel="Region scope">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All regions (4)</SelectItem>
+                    <SelectItem value="all">All regions (6)</SelectItem>
                     <SelectItem value="us-east-1">us-east-1</SelectItem>
                     <SelectItem value="eu-central-1">eu-central-1</SelectItem>
                     <SelectItem value="ap-northeast-1">ap-northeast-1</SelectItem>
@@ -357,6 +429,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                     onClick={() => {
                       setSearch('');
                       setRegionFilter('all');
+                      setPage(1);
                     }}
                   >
                     Reset Filters
@@ -364,8 +437,8 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                 }
               />
             ) : (
-              <Table density="compact">
-                <TableCaption>Reconciled operational ledger (Multi-Region Inventory & Fulfillment Ledger)</TableCaption>
+              <Table density="compact" id="eval-ledger-table-04-data-heavy">
+                <TableCaption>High-density SKU allocation table (Multi-Region Inventory & Fulfillment Ledger)</TableCaption>
                 <TableHeader>
                   <TableRow>
                     <TableHead scope="col">Record ID</TableHead>
@@ -377,7 +450,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.map((row) => (
+                  {pagedRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell><code className="f12-code-inline">{row.id}</code></TableCell>
                       <TableCell>{row.target}</TableCell>
@@ -394,8 +467,8 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
             )}
 
             <Pagination
-              page={page}
-              totalPages={3}
+              page={safePage}
+              totalPages={totalPages}
               onPageChange={setPage}
               density="compact"
               showSummary

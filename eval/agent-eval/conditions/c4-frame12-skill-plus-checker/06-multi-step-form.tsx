@@ -99,11 +99,71 @@ const BAR_ITEMS = [
   },
 ];
 
-const LEDGER_ROWS = [
-  { id: 'REC-101', target: 'US-East Primary Gateway', region: 'us-east-1', latency: '28ms', attainment: '99.98%', status: 'success' as const, statusLabel: 'Verified' },
-  { id: 'REC-102', target: 'EU-Central Webhook Relay', region: 'eu-central-1', latency: '41ms', attainment: '99.95%', status: 'info' as const, statusLabel: 'Active' },
-  { id: 'REC-103', target: 'AP-Northeast Fulfillment Sync', region: 'ap-northeast-1', latency: '64ms', attainment: '99.82%', status: 'warning' as const, statusLabel: 'Throttled' },
-  { id: 'REC-104', target: 'US-West Failover Edge', region: 'us-west-2', latency: '31ms', attainment: '99.99%', status: 'success' as const, statusLabel: 'Verified' },
+interface LedgerRow {
+  id: string;
+  target: string;
+  region: string;
+  latency: string;
+  attainment: string;
+  status: 'success' | 'info' | 'warning' | 'danger';
+  statusLabel: string;
+}
+
+const LEDGER_ROWS: LedgerRow[] = [
+  {
+    "id": "REL-601",
+    "target": "us-east-1 · Canary Ring 0",
+    "region": "us-east-1",
+    "latency": "22ms",
+    "attainment": "100.0%",
+    "status": "success",
+    "statusLabel": "Ready"
+  },
+  {
+    "id": "REL-602",
+    "target": "eu-central-1 · Canary Ring 1",
+    "region": "eu-central-1",
+    "latency": "34ms",
+    "attainment": "99.98%",
+    "status": "info",
+    "statusLabel": "Staged"
+  },
+  {
+    "id": "REL-603",
+    "target": "ap-northeast-1 · Canary Ring 2",
+    "region": "ap-northeast-1",
+    "latency": "48ms",
+    "attainment": "99.91%",
+    "status": "warning",
+    "statusLabel": "Awaiting Signoff"
+  },
+  {
+    "id": "REL-604",
+    "target": "us-east-1 · Production Fleet",
+    "region": "us-east-1",
+    "latency": "25ms",
+    "attainment": "99.99%",
+    "status": "success",
+    "statusLabel": "Ready"
+  },
+  {
+    "id": "REL-605",
+    "target": "eu-central-1 · Production Fleet",
+    "region": "eu-central-1",
+    "latency": "36ms",
+    "attainment": "99.97%",
+    "status": "success",
+    "statusLabel": "Ready"
+  },
+  {
+    "id": "REL-606",
+    "target": "ap-northeast-1 · Disaster Recovery",
+    "region": "ap-northeast-1",
+    "latency": "51ms",
+    "attainment": "99.95%",
+    "status": "info",
+    "statusLabel": "Standby"
+  }
 ];
 
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
@@ -114,6 +174,8 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [strictMode, setStrictMode] = React.useState(true);
   const [cadence, setCadence] = React.useState('realtime');
   const [page, setPage] = React.useState(1);
+  const [wizardStep, setWizardStep] = React.useState('step-1');
+  const [artifactDigest, setArtifactDigest] = React.useState('sha256:9f84c2a1b0e4');
   const changed = useChanged(`${range}-${selectedBar}`);
 
   const series = SERIES_BY_RANGE[range];
@@ -127,6 +189,11 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
     const matchesRegion = regionFilter === 'all' || r.region === regionFilter;
     return matchesSearch && matchesRegion;
   });
+
+  const pageSize = 2;
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <Sheet autoCut pegs motion="stepped" theme={theme}>
@@ -145,7 +212,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           </p>
           <h1 className="f12-title">Production Deployment & Rollout Wizard</h1>
           <p className="f12-muted-copy">
-            Storyboard-grade composition pairing Expressive establecer cuts with Quiet 1px operational ledgers.
+            Storyboard-grade composition pairing Expressive establishing cuts with Quiet 1px operational ledgers.
           </p>
         </div>
 
@@ -167,7 +234,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <Metric
-                label="Production Deployment & Rollout Wizard Volume"
+                label="Pre-Flight Verification Checks"
                 value={headlineValue}
                 format={(v) => `${Math.round(v).toLocaleString('en-US')} ops`}
                 delta={0.142}
@@ -181,7 +248,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
             </div>
             <ToneAreaChart
               data={[...series]}
-              seriesLabel="Primary throughput"
+              seriesLabel="Canary validation probes"
               compareLabel="Prior window"
               labelColumnHeader="Window"
               height={220}
@@ -231,7 +298,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       <Scene gutter="scene" layout="equal">
         <Panel variant="quiet" label="Ranked regional breakdown">
           <ToneBarList
-            title="Throughput by execution tier"
+            title="Canary readiness by region"
             subtitle={`${range}D window`}
             items={BAR_ITEMS}
             selectedId={selectedBar}
@@ -242,54 +309,97 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           />
         </Panel>
 
-        <Panel variant="quiet" label="Operational configuration and rollout policy">
-          <Tabs defaultValue="policy" density="compact" idPrefix="eval-tabs-06-multi-step-form">
-            <TabsList ariaLabel="Configuration sections">
-              <TabsTrigger value="policy">01 · Policy &amp; Routing</TabsTrigger>
-              <TabsTrigger value="notes">02 · Runbook &amp; Signoff</TabsTrigger>
-            </TabsList>
-            <TabsContent value="policy">
-              <div className="f12-stack-pair">
-                <Notice status="info" title="Deterministic guardrails active">
-                  All changes validate schema signatures before promotion.
-                </Notice>
-                <Field label="Rollout dispatch cadence" density="compact">
-                  <RadioGroup
-                    name="cadence-06-multi-step-form"
-                    value={cadence}
-                    onValueChange={setCadence}
+        <Panel variant="quiet" label="Three-step production deployment rollout wizard">
+          <div className="f12-stack-pair">
+            <Tabs value={wizardStep} onValueChange={setWizardStep} density="compact" idPrefix="eval-wizard-06-multi-step-form">
+              <TabsList ariaLabel="Three-step deployment rollout wizard">
+                <TabsTrigger value="step-1">Step 1 · Target Artifact</TabsTrigger>
+                <TabsTrigger value="step-2">Step 2 · Canary Traffic Policy</TabsTrigger>
+                <TabsTrigger value="step-3">Step 3 · Pre-Flight Signoff</TabsTrigger>
+              </TabsList>
+              <TabsContent value="step-1">
+                <div className="f12-stack-pair">
+                  <Notice status="info" title="Step 1 of 3: Verify signed build artifact">
+                    Confirm the OCI image digest and primary deployment cluster before configuring canary traffic weights.
+                  </Notice>
+                  <Input
+                    label="Signed artifact digest"
                     density="compact"
-                    orientation="horizontal"
-                    options={[
-                      { value: 'realtime', label: 'Real-time cut' },
-                      { value: 'staged', label: '10% Canary' },
-                      { value: 'manual', label: 'Manual hold' },
-                    ]}
+                    value={artifactDigest}
+                    onChange={(e) => setArtifactDigest(e.target.value)}
                   />
-                </Field>
-                <Switch
-                  label="Enforce cryptographic Ed25519 commit signature"
-                  density="compact"
-                  checked={strictMode}
-                  onCheckedChange={setStrictMode}
-                />
-                <Checkbox
-                  label="Require dual-operator signoff on production promotion"
-                  density="compact"
-                  defaultChecked
-                />
+                </div>
+              </TabsContent>
+              <TabsContent value="step-2">
+                <div className="f12-stack-pair">
+                  <Field label="Canary traffic progression policy" density="compact">
+                    <RadioGroup
+                      name="cadence-06-multi-step-form"
+                      value={cadence}
+                      onValueChange={setCadence}
+                      density="compact"
+                      orientation="horizontal"
+                      options={[
+                        { value: 'realtime', label: '10% Canary · 15m' },
+                        { value: 'staged', label: '25% Progressive' },
+                        { value: 'manual', label: 'Blue/Green Hold' },
+                      ]}
+                    />
+                  </Field>
+                  <Switch
+                    label="Auto-rollback canary if P95 latency exceeds 60ms"
+                    density="compact"
+                    checked={strictMode}
+                    onCheckedChange={setStrictMode}
+                  />
+                </div>
+              </TabsContent>
+              <TabsContent value="step-3">
+                <div className="f12-stack-pair">
+                  <Checkbox
+                    label="Require dual-operator signoff on production promotion"
+                    density="compact"
+                    defaultChecked
+                  />
+                  <Textarea
+                    label="Pre-flight release &amp; rollback runbook note"
+                    density="compact"
+                    defaultValue="Verified artifact sha256:9f84c2 across us-east-1 and eu-central-1."
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <div className="f12-row-between">
+              <span id="eval-wizard-step-indicator" className="f12-muted-copy">
+                Active wizard stage: {wizardStep.toUpperCase()}
+              </span>
+              <div className="f12-row-pair">
+                <Button
+                  id="eval-wizard-prev"
+                  variant="secondary"
+                  size="sm"
+                  disabled={wizardStep === 'step-1'}
+                  onClick={() =>
+                    setWizardStep((prev) => (prev === 'step-3' ? 'step-2' : 'step-1'))
+                  }
+                >
+                  Previous Step
+                </Button>
+                <Button
+                  id="eval-wizard-next"
+                  variant="primary"
+                  size="sm"
+                  disabled={wizardStep === 'step-3'}
+                  onClick={() =>
+                    setWizardStep((prev) => (prev === 'step-1' ? 'step-2' : 'step-3'))
+                  }
+                >
+                  Next Step
+                </Button>
               </div>
-            </TabsContent>
-            <TabsContent value="notes">
-              <div className="f12-stack-pair">
-                <Textarea
-                  label="Operator handoff note"
-                  density="compact"
-                  defaultValue="Verified across US-East and EU-Central edges."
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </Panel>
       </Scene>
 
@@ -302,7 +412,10 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                   label="Search ledger"
                   density="compact"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
                   placeholder="Filter by ID or target..."
                 />
                 <Select
@@ -310,13 +423,16 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                   id="eval-region-06-multi-step-form"
                   density="compact"
                   value={regionFilter}
-                  onValueChange={setRegionFilter}
+                  onValueChange={(next) => {
+                    setRegionFilter(next);
+                    setPage(1);
+                  }}
                 >
                   <SelectTrigger ariaLabel="Region scope">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All regions (4)</SelectItem>
+                    <SelectItem value="all">All regions (6)</SelectItem>
                     <SelectItem value="us-east-1">us-east-1</SelectItem>
                     <SelectItem value="eu-central-1">eu-central-1</SelectItem>
                     <SelectItem value="ap-northeast-1">ap-northeast-1</SelectItem>
@@ -357,6 +473,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                     onClick={() => {
                       setSearch('');
                       setRegionFilter('all');
+                      setPage(1);
                     }}
                   >
                     Reset Filters
@@ -364,8 +481,8 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                 }
               />
             ) : (
-              <Table density="compact">
-                <TableCaption>Reconciled operational ledger (Production Deployment & Rollout Wizard)</TableCaption>
+              <Table density="compact" id="eval-ledger-table-06-multi-step-form">
+                <TableCaption>Canary rollout gate verification ledger</TableCaption>
                 <TableHeader>
                   <TableRow>
                     <TableHead scope="col">Record ID</TableHead>
@@ -377,7 +494,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.map((row) => (
+                  {pagedRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell><code className="f12-code-inline">{row.id}</code></TableCell>
                       <TableCell>{row.target}</TableCell>
@@ -394,8 +511,8 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
             )}
 
             <Pagination
-              page={page}
-              totalPages={3}
+              page={safePage}
+              totalPages={totalPages}
               onPageChange={setPage}
               density="compact"
               showSummary

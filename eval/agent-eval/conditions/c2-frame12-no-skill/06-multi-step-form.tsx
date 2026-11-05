@@ -68,7 +68,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
         <Panel cut="C-01" label="Primary telemetry">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <Metric
-              label="Primary Operational Metric"
+              label="Pre-Flight Verification Checks"
               value={range === '7d' ? 1420 : range === '30d' ? 4890 : 12450}
               format={(v) => `${Math.round(v)} ops`}
               delta={0.12}
@@ -79,7 +79,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
             </span>
             <ToneAreaChart
               data={SERIES}
-              seriesLabel="Throughput"
+              seriesLabel="Canary validation probes"
               compareLabel="Baseline"
               showTable={false}
               height={220}
@@ -116,7 +116,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
 
       <Scene gutter="scene" layout="equal">
         <Panel cut="C-05" label="Service breakdown">
-          <ToneBarList title="Volume by service" items={BARS} />
+          <ToneBarList title="Canary readiness by region" items={BARS} />
         </Panel>
         <Panel cut="C-06" label="Operational filter and table">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -133,7 +133,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
               </span>
             </div>
             <Table density="compact">
-              <TableCaption>Operational records</TableCaption>
+              <TableCaption>Canary rollout gate verification ledger</TableCaption>
               <TableHeader>
                 <TableRow>
                   <TableHead scope="col">Service</TableHead>

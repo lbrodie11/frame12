@@ -3,14 +3,18 @@ import * as React from 'react';
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [windowDays, setWindowDays] = React.useState<'7d' | '30d' | '90d'>('30d');
   const [query, setQuery] = React.useState('');
-  const [channel, setChannel] = React.useState('all');
+  const [channel, setChannel] = React.useState<'all' | 'us' | 'eu'>('all');
   const [enforced, setEnforced] = React.useState(true);
 
   const rows = [
-    { id: 'ROW-01', name: 'Primary Edge Gateway', region: 'us-east-1', metric: '99.98%', status: 'Nominal' },
-    { id: 'ROW-02', name: 'Checkout Webhook Relay', region: 'eu-central-1', metric: '99.94%', status: 'Active' },
-    { id: 'ROW-03', name: 'Fulfillment Ledger Sync', region: 'ap-northeast-1', regionCode: 'AP', metric: '99.89%', status: 'Verified' },
-  ].filter((r) => !query || r.name.toLowerCase().includes(query.toLowerCase()));
+    { id: 'AUD-201', name: 'WebAuthn Passkey Policy', region: 'us-east-1', metric: '100.0%', status: 'Enforced' },
+    { id: 'AUD-202', name: 'EU VAT Invoice Routing', region: 'eu-central-1', metric: '99.99%', status: 'Active' },
+    { id: 'AUD-203', name: 'APAC Spend Cap Alerting', region: 'ap-northeast-1', metric: '99.95%', status: '85% Cap' },
+  ].filter(
+    (r) =>
+      (!query || r.name.toLowerCase().includes(query.toLowerCase())) &&
+      (channel === 'all' || r.region.startsWith(channel)),
+  );
 
   return (
     <main className={`b-shell f12-theme-${theme}`} aria-label="Organization Security & Billing Preferences">
@@ -38,12 +42,12 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
 
       <div className="b-grid-2">
         <section className="b-card" aria-label="Primary performance summary">
-          <p className="b-kpi-label">Primary KPI (02-settings)</p>
+          <p className="b-kpi-label">Enforced Security Controls (02-settings)</p>
           <p className="b-kpi-val">{windowDays === '7d' ? '14.2m' : windowDays === '30d' ? '11.8m' : '9.4m'}</p>
           <p className="b-sub">Compared against prior window baseline</p>
           <div className="b-table-wrap" style={{ marginTop: 16 }}>
             <table className="b-table">
-              <caption>Series trend points</caption>
+              <caption>Verified signing events trend points</caption>
               <thead>
                 <tr>
                   <th scope="col">Period</th>
@@ -75,7 +79,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       </div>
 
       <section className="b-card" aria-label="Operational configuration and ledger">
-        <h2 style={{ fontSize: 18, marginTop: 0, color: 'var(--b-text)' }}>Operational Controls &amp; Ledger</h2>
+        <h2 style={{ fontSize: 18, marginTop: 0, color: 'var(--b-text)' }}>Security & billing audit trail (Organization Security & Billing Preferences)</h2>
         <div className="b-grid-equal">
           <div className="b-field">
             <label className="b-label" htmlFor="c1-search-02-settings">Filter records</label>
@@ -93,7 +97,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
               id="c1-channel-02-settings"
               className="b-select"
               value={channel}
-              onChange={(e) => setChannel(e.target.value)}
+              onChange={(e) => setChannel(e.target.value as 'all' | 'us' | 'eu')}
             >
               <option value="all">All regions</option>
               <option value="us">US East</option>
@@ -114,14 +118,14 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           </label>
         </div>
         <div className="b-table-wrap">
-          <table className="b-table">
-            <caption>Active operational ledger for Organization Security & Billing Preferences</caption>
+          <table className="b-table" id="c1-ledger-table-02-settings">
+            <caption>Security & billing audit trail (Organization Security & Billing Preferences)</caption>
             <thead>
               <tr>
                 <th scope="col">ID</th>
                 <th scope="col">Resource</th>
                 <th scope="col">Region</th>
-                <th scope="col"> Attainment</th>
+                <th scope="col">Attainment</th>
                 <th scope="col">Status</th>
               </tr>
             </thead>

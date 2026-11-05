@@ -42,24 +42,72 @@ function getExpandedCatalogPropNames(propsArray) {
   return set;
 }
 
-function getPrimaryInterfaceProps(filePath, expectedInterfaceName) {
+function getExportedPropsContracts(filePath) {
   const src = fs.readFileSync(filePath, 'utf8');
   const sf = ts.createSourceFile(filePath, src, ts.ScriptTarget.Latest, true);
-  const props = [];
+  const contracts = [];
   sf.forEachChild((node) => {
-    if (
-      ts.isInterfaceDeclaration(node) &&
-      node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) &&
-      node.name.text === expectedInterfaceName
-    ) {
+    const isExported = node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
+    if (!isExported) return;
+
+    if (ts.isInterfaceDeclaration(node) && node.name.text.endsWith('Props')) {
+      const props = [];
       for (const m of node.members) {
         if (ts.isPropertySignature(m)) {
           props.push(m.name.getText(sf).replace(/['"]/g, ''));
         }
       }
+      contracts.push({ name: node.name.text, kind: 'interface', props });
+    } else if (ts.isTypeAliasDeclaration(node) && node.name.text.endsWith('Props')) {
+      const props = [];
+      if (ts.isTypeLiteralNode(node.type)) {
+        for (const m of node.type.members) {
+          if (ts.isPropertySignature(m)) {
+            props.push(m.name.getText(sf).replace(/['"]/g, ''));
+          }
+        }
+      }
+      contracts.push({ name: node.name.text, kind: 'type', props });
     }
   });
-  return props;
+  return contracts;
+}
+
+function getSkillSectionForSource(markdown, shortSource) {
+  const escaped = shortSource.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const lines = markdown.split('\n');
+  let startLine = -1;
+  let startLevel = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (new RegExp(`\\(\`${escaped}\`\\)`).test(lines[i])) {
+      startLine = i;
+      const headingMatch = lines[i].match(/^(#{2,4})\s+/);
+      startLevel = headingMatch ? headingMatch[1].length : 0;
+      break;
+    }
+  }
+  if (startLine === -1) return null;
+
+  const sectionLines = [lines[startLine]];
+  for (let i = startLine + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (startLevel > 0) {
+      const h = line.match(/^(#{2,4})\s+/);
+      if (h && h[1].length <= startLevel) break;
+    } else {
+      if (/^\d+\.\s+\*\*/.test(line) || /^#{2,4}\s+/.test(line) || /^---\s*$/.test(line)) {
+        break;
+      }
+    }
+    sectionLines.push(line);
+  }
+  return sectionLines.join('\n');
+}
+
+function sectionContainsIdentifier(sectionText, identifier) {
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-zA-Z0-9_])${escaped}([^a-zA-Z0-9_]|$)`).test(sectionText);
 }
 
 const { CATALOG, BLOCK_CATALOG } = loadCatalogModule();
@@ -146,44 +194,53 @@ for (const entry of CATALOG) {
     errors.push(`CATALOG[${entry.slug}] registry manifest missing: site/public/r/${entry.slug}.json`);
   }
 
-  // Verify skill reference mentions the component sourceFile or title
+  // Verify skill reference section and canonical TypeScript props across ALL exported *Props interfaces & type aliases
   const shortSource = entry.sourceFile.replace(/^registry\//, '');
-  if (!skillRef.includes(shortSource)) {
+  const skillSection = getSkillSectionForSource(skillRef, shortSource);
+  if (!skillSection) {
     errors.push(
-      `skills/frame12/references/components-and-adapters.md does not reference ${shortSource}`,
+      `skills/frame12/references/components-and-adapters.md does not have a section for ${shortSource}`,
     );
   }
 
-  // Verify canonical TypeScript props
-  const interfaceName =
-    entry.slug in PRIMARY_INTERFACE_OVERRIDES
-      ? PRIMARY_INTERFACE_OVERRIDES[entry.slug]
-      : `${entry.title.replace(/\s+/g, '')}Props`;
-
-  if (interfaceName) {
-    const tsProps = getPrimaryInterfaceProps(
-      path.join(process.cwd(), entry.sourceFile),
-      interfaceName,
-    );
+  if (entry.slug !== 'use-on-twos') {
+    const contracts = getExportedPropsContracts(path.join(process.cwd(), entry.sourceFile));
+    if (contracts.length === 0) {
+      errors.push(`No exported *Props contracts found in ${entry.sourceFile}`);
+    }
     const documentedProps = getExpandedCatalogPropNames(entry.props);
-    for (const propName of tsProps) {
-      if (propName === 'children' || propName === 'className') continue;
-      if (!documentedProps.has(propName)) {
-        errors.push(
-          `CATALOG[${entry.slug}] is missing TypeScript prop "${propName}" from ${interfaceName} (${entry.sourceFile})`,
-        );
+    for (const contract of contracts) {
+      if (contract.kind === 'type' && contract.props.length === 0) {
+        // Wrapper type alias (e.g., DropdownMenuContentProps): verify the contract alias is documented
+        if (!documentedProps.has(contract.name)) {
+          errors.push(
+            `CATALOG[${entry.slug}] is missing exported type alias "${contract.name}" (${entry.sourceFile})`,
+          );
+        }
+        if (skillSection && !sectionContainsIdentifier(skillSection, contract.name)) {
+          errors.push(
+            `skills/frame12/references/components-and-adapters.md (${shortSource}) is missing exported type alias "${contract.name}"`,
+          );
+        }
+      }
+      for (const propName of contract.props) {
+        if (propName === 'children' || propName === 'className') continue;
+        if (!documentedProps.has(propName)) {
+          errors.push(
+            `CATALOG[${entry.slug}] is missing TypeScript prop "${propName}" from ${contract.name} (${entry.sourceFile})`,
+          );
+        }
+        if (skillSection && !sectionContainsIdentifier(skillSection, propName)) {
+          errors.push(
+            `skills/frame12/references/components-and-adapters.md (${shortSource}) is missing TypeScript prop "${propName}" from ${contract.name}`,
+          );
+        }
       }
     }
   }
 }
 
 // 4. Verify all Section 15.2 fields and canonical TypeScript prop sync for BLOCK_CATALOG
-const BLOCK_INTERFACE_MAP = {
-  'developer-console': 'DeveloperConsoleProps',
-  'workspace-settings': 'WorkspaceSettingsProps',
-  'analytics-dashboard': 'AnalyticsDashboardProps',
-};
-
 const catalogSlugSet = new Set(CATALOG.map((c) => c.slug));
 
 for (const block of BLOCK_CATALOG) {
@@ -230,24 +287,31 @@ for (const block of BLOCK_CATALOG) {
   }
 
   const shortSource = block.sourceFile.replace(/^registry\//, '');
-  if (!skillRef.includes(shortSource)) {
+  const skillSection = getSkillSectionForSource(skillRef, shortSource);
+  if (!skillSection) {
     errors.push(
-      `skills/frame12/references/components-and-adapters.md does not reference ${shortSource}`,
+      `skills/frame12/references/components-and-adapters.md does not have a section for ${shortSource}`,
     );
   }
 
-  const interfaceName = BLOCK_INTERFACE_MAP[block.slug];
-  const tsProps = getPrimaryInterfaceProps(
-    path.join(process.cwd(), block.sourceFile),
-    interfaceName,
-  );
+  const contracts = getExportedPropsContracts(path.join(process.cwd(), block.sourceFile));
+  if (contracts.length === 0) {
+    errors.push(`No exported *Props contracts found in ${block.sourceFile}`);
+  }
   const documentedProps = getExpandedCatalogPropNames(block.props);
-  for (const propName of tsProps) {
-    if (propName === 'children') continue;
-    if (!documentedProps.has(propName)) {
-      errors.push(
-        `BLOCK_CATALOG[${block.slug}] is missing TypeScript prop "${propName}" from ${interfaceName} (${block.sourceFile})`,
-      );
+  for (const contract of contracts) {
+    for (const propName of contract.props) {
+      if (propName === 'children') continue;
+      if (!documentedProps.has(propName)) {
+        errors.push(
+          `BLOCK_CATALOG[${block.slug}] is missing TypeScript prop "${propName}" from ${contract.name} (${block.sourceFile})`,
+        );
+      }
+      if (skillSection && !sectionContainsIdentifier(skillSection, propName)) {
+        errors.push(
+          `skills/frame12/references/components-and-adapters.md (${shortSource}) is missing TypeScript prop "${propName}" from ${contract.name}`,
+        );
+      }
     }
   }
 }

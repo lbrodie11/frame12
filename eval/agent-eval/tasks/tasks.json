@@ -54,7 +54,7 @@
     {
       "id": "c1-shadcn-baseline",
       "label": "Condition 1: Conventional shadcn/Tailwind Baseline",
-      "description": "Conventional React + CSS utility card/table/form baseline without FRAME/12 components. Evaluated strictly on universal UI quality metrics (build, TypeScript, axe WCAG AA, contrast, keyboard reachability, 1280px/390px overflow) and marked N/A on FRAME/12-specific grammar rules.",
+      "description": "Conventional React + CSS utility card/table/form baseline without FRAME/12 components. Evaluated strictly on universal UI quality metrics (build, TypeScript, axe WCAG AA, contrast, keyboard reachability, 1280px/390px overflow, interactive workflow) and marked N/A on FRAME/12-specific grammar rules.",
       "evaluatesFrame12Grammar": false
     },
     {

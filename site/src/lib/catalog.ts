@@ -283,12 +283,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "string",
         "defaultValue": "undefined",
         "description": "Accessible aria-label overrides for the top and bottom <section> panels when passing two child elements directly."
-      },
-      {
-        "name": "topLabel / bottomLabel",
-        "type": "string",
-        "defaultValue": "undefined",
-        "description": "Accessible aria-label overrides for the top and bottom <section> panels when passing two child elements directly."
       }
     ],
     "stateBehavior": "Stateless composition wrapper that renders two <Panel> instances (either from top/bottom prop objects or from two React child nodes).",
@@ -471,12 +465,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "string",
         "defaultValue": "undefined",
         "description": "Additional class names applied to the outer .f12-field wrapper when Input renders standalone."
-      },
-      {
-        "name": "fieldClassName",
-        "type": "string",
-        "defaultValue": "undefined",
-        "description": "Additional class names applied to the outer .f12-field wrapper when Input renders standalone."
       }
     ],
     "stateBehavior": "Supports both controlled (value + onChange) and uncontrolled (defaultValue) usage, forwarding ref directly to the native <input> for FormData and react-hook-form register().",
@@ -549,12 +537,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "string",
         "defaultValue": "useId()",
         "description": "Explicit base ID or target control ID for programmatic <label htmlFor> association."
-      },
-      {
-        "name": "id / htmlFor",
-        "type": "string",
-        "defaultValue": "useId()",
-        "description": "Explicit base ID or target control ID for programmatic <label htmlFor> association."
       }
     ],
     "stateBehavior": "Provides FieldContext (id, labelId, hintId, errorId, describedBy, invalid, disabled, required, density) and dynamically switches between a single linked <label htmlFor>, a <fieldset>/<legend> delegation for <RadioGroup>, or a <div role=\"group\" aria-labelledby> for multi-option groups.",
@@ -619,12 +601,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "string",
         "defaultValue": "undefined",
         "description": "Additional class names applied to the outer .f12-field wrapper when Textarea renders standalone."
-      },
-      {
-        "name": "fieldClassName",
-        "type": "string",
-        "defaultValue": "undefined",
-        "description": "Additional class names applied to the outer .f12-field wrapper when Textarea renders standalone."
       }
     ],
     "stateBehavior": "Supports controlled (value + onChange) and uncontrolled (defaultValue) modes, forwarding ref to the native <textarea> element.",
@@ -683,18 +659,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "'comfortable' | 'compact'",
         "defaultValue": "'comfortable'",
         "description": "Reduces border weight to 1.5px while preserving a 24×24px WCAG 2.5.8 click target."
-      },
-      {
-        "name": "hint / error",
-        "type": "React.ReactNode",
-        "defaultValue": "undefined",
-        "description": "Optional helper text and role=\"alert\" validation message chained into aria-describedby."
-      },
-      {
-        "name": "fieldClassName",
-        "type": "string",
-        "defaultValue": "undefined",
-        "description": "Additional class names applied to the outer .f12-field wrapper."
       },
       {
         "name": "hint / error",
@@ -795,36 +759,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "boolean",
         "defaultValue": "false",
         "description": "Propagates required and disabled states to every radio option in the group."
-      },
-      {
-        "name": "name",
-        "type": "string",
-        "defaultValue": "useId()",
-        "description": "Shared form control name applied to child <input type=\"radio\"> inputs."
-      },
-      {
-        "name": "value / defaultValue",
-        "type": "string",
-        "defaultValue": "undefined",
-        "description": "Controlled or uncontrolled active radio option value."
-      },
-      {
-        "name": "onValueChange",
-        "type": "(value: string) => void",
-        "defaultValue": "undefined",
-        "description": "Callback invoked when the selected radio option changes."
-      },
-      {
-        "name": "hint / error",
-        "type": "React.ReactNode",
-        "defaultValue": "undefined",
-        "description": "Group-level helper text and role=\"alert\" validation message linked via aria-describedby on the <fieldset>."
-      },
-      {
-        "name": "required / disabled",
-        "type": "boolean",
-        "defaultValue": "false",
-        "description": "Propagates required and disabled states to every radio option in the group."
       }
     ],
     "stateBehavior": "Supports controlled (value + onValueChange) and uncontrolled (defaultValue) modes on native <fieldset> + <input type=\"radio\"> elements, preserving native FormData and form.reset().",
@@ -883,18 +817,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "'comfortable' | 'compact'",
         "defaultValue": "'comfortable'",
         "description": "Selects 54×28px (2.5px border) or 48×24px (1.5px border) exposure-sheet cell dimensions."
-      },
-      {
-        "name": "hint / error",
-        "type": "React.ReactNode",
-        "defaultValue": "undefined",
-        "description": "Optional helper text and role=\"alert\" validation message chained into aria-describedby."
-      },
-      {
-        "name": "fieldClassName",
-        "type": "string",
-        "defaultValue": "undefined",
-        "description": "Additional class names applied to the outer .f12-field wrapper."
       },
       {
         "name": "hint / error",
@@ -978,10 +900,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Deterministic prefix for generated tab (${idPrefix}-tab-${value}) and tabpanel (${idPrefix}-panel-${value}) IDs."
       },
       {
-        "name": "idPrefix",
-        "type": "string",
-        "defaultValue": "useId()",
-        "description": "Deterministic prefix for generated tab (${idPrefix}-tab-${value}) and tabpanel (${idPrefix}-panel-${value}) IDs."
+        "name": "ariaLabel / forceMount",
+        "type": "string / boolean",
+        "defaultValue": "undefined / false",
+        "description": "Subcomponent props on TabsListProps (accessible tablist label) and TabsContentProps (keep inactive panel mounted in DOM)."
       }
     ],
     "stateBehavior": "Supports controlled (value + onValueChange) and uncontrolled (defaultValue) state. Automatically provides a Quiet panel default context inside <TabsContent> so switching tabs never renumbers sheet-level C-01..C-0n cuts.",
@@ -1183,22 +1105,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Adjusts banner padding/border weight and customizes the aria-label on the optional dismiss button."
       },
       {
-        "name": "description / actions",
-        "type": "React.ReactNode",
-        "defaultValue": "undefined",
-        "description": "Optional description body and action control slot (or use <AlertDescription> and <AlertActions>)."
-      },
-      {
-        "name": "glyph / srLabel",
-        "type": "string | false",
-        "defaultValue": "undefined",
-        "description": "Overrides or suppresses (false) the automatic status glyph ([i]/[+]/[!]/[×]) and screen-reader status prefix."
-      },
-      {
-        "name": "density / dismissLabel",
-        "type": "'comfortable' | 'compact' / string",
-        "defaultValue": "'comfortable' / 'Dismiss notice'",
-        "description": "Adjusts banner padding/border weight and customizes the aria-label on the optional dismiss button."
+        "name": "NoticeProps / AlertTitleProps / AlertDescriptionProps / AlertActionsProps",
+        "type": "Subcomponent Prop Aliases",
+        "defaultValue": "HTMLDivElement attributes",
+        "description": "Exported prop type aliases for <Notice>, <AlertTitle>, <AlertDescription>, and <AlertActions>."
       }
     ],
     "stateBehavior": "Stateless banner component with optional onDismiss callback to render a 24×24px close button.",
@@ -1277,28 +1187,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Controls card padding/border weight, timer pause state, and timer reset counter on in-place toast updates."
       },
       {
-        "name": "title / description / action",
-        "type": "React.ReactNode",
-        "defaultValue": "undefined",
-        "description": "Headline, supporting body text, and optional interactive action button or ToastActionDescriptor."
-      },
-      {
-        "name": "glyph / srLabel",
-        "type": "string | false",
-        "defaultValue": "undefined",
-        "description": "Overrides or suppresses (false) the status glyph stamp and screen-reader live-region announcement prefix."
-      },
-      {
-        "name": "dismissible / dismissLabel / onDismiss",
-        "type": "boolean / string / () => void",
-        "defaultValue": "true / 'Dismiss notification'",
-        "description": "Controls whether the close button is rendered, its accessible label, and the callback fired on dismissal."
-      },
-      {
-        "name": "density / paused / resetKey",
-        "type": "'comfortable' | 'compact' / boolean / number",
-        "defaultValue": "'comfortable' / false / 0",
-        "description": "Controls card padding/border weight, timer pause state, and timer reset counter on in-place toast updates."
+        "name": "defaultDuration / label / renderViewport / hotkey / altText / ToastTitleProps / ToastDescriptionProps / ToastCloseProps",
+        "type": "number / string / boolean / string[] / string / Subcomponent Prop Aliases",
+        "defaultValue": "5000 / 'Notifications' / true / ['F8'] / undefined",
+        "description": "Subcomponent props on ToastProviderProps, ToastViewportProps, ToastActionProps, and exported ToastTitle/Description/Close prop aliases."
       }
     ],
     "stateBehavior": "Managed via <ToastProvider> and useToast() (or standalone <Toast>). Queues notifications beyond maxVisible (default 3) with a +N QUEUED badge, pauses timers on pointer hover, focus-within, or backgrounded document tabs, and portals into any active modal <dialog[open]> top layer.",
@@ -1364,16 +1256,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Matches comfortable or compact row and panel heights."
       },
       {
-        "name": "width / height",
-        "type": "number | string",
-        "defaultValue": "variant default",
-        "description": "Explicit pixel or CSS dimension overrides so loading placeholders match populated geometry with zero CLS."
-      },
-      {
-        "name": "density",
-        "type": "'comfortable' | 'compact'",
-        "defaultValue": "'comfortable'",
-        "description": "Matches comfortable or compact row and panel heights."
+        "name": "lines / lastLineWidth",
+        "type": "number / number | string",
+        "defaultValue": "3 / '68%'",
+        "description": "Subcomponent props on SkeletonTextProps controlling line count and trailing line width."
       }
     ],
     "stateBehavior": "Stateless placeholder; defaults to aria-hidden=\"true\" unless a descriptive label prop is provided on the primary loading container.",
@@ -1450,22 +1336,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Controls frame padding and semantic heading tag for document outline hierarchy."
       },
       {
-        "name": "icon",
-        "type": "React.ReactNode | false",
-        "defaultValue": "'[ ∅ ]'",
-        "description": "Custom registration glyph or false to hide the decorative stamp."
-      },
-      {
-        "name": "action / secondaryAction",
-        "type": "React.ReactNode",
-        "defaultValue": "undefined",
-        "description": "Primary and secondary recovery action slots (e.g., Reset filters or Restore live fixture)."
-      },
-      {
-        "name": "density / headingLevel",
-        "type": "'comfortable' | 'compact' / 'h2' | 'h3' | 'h4' | 'div'",
-        "defaultValue": "'comfortable' / 'h3'",
-        "description": "Controls frame padding and semantic heading tag for document outline hierarchy."
+        "name": "as / EmptyStateIconProps / EmptyStateDescriptionProps / EmptyStateActionsProps",
+        "type": "'h2' | 'h3' | 'h4' | 'div' / Subcomponent Prop Aliases",
+        "defaultValue": "'h3'",
+        "description": "Subcomponent prop on EmptyStateTitleProps (as) and exported EmptyState compound subcomponent prop aliases."
       }
     ],
     "stateBehavior": "Stateless presentation component supporting both shorthand props (title, description, code, action, secondaryAction) and compound subcomponents.",
@@ -1524,10 +1398,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Adjusts font scale and spacing while keeping 24×24px minimum interactive link targets."
       },
       {
-        "name": "density",
-        "type": "'comfortable' | 'compact'",
-        "defaultValue": "'comfortable'",
-        "description": "Adjusts font scale and spacing while keeping 24×24px minimum interactive link targets."
+        "name": "asChild / aria-current / BreadcrumbListProps / BreadcrumbItemProps / BreadcrumbSeparatorProps / BreadcrumbEllipsisProps",
+        "type": "boolean / React.AriaAttributes['aria-current'] / Subcomponent Prop Aliases",
+        "defaultValue": "false / 'page'",
+        "description": "Subcomponent props on BreadcrumbLinkProps (asChild), BreadcrumbPageProps (aria-current), and compound list/item/separator/ellipsis prop aliases."
       }
     ],
     "stateBehavior": "Stateless navigation landmark (<nav aria-label=\"Breadcrumb\">) supporting shorthand items array or compound BreadcrumbList / BreadcrumbItem / BreadcrumbLink / BreadcrumbPage children.",
@@ -1611,28 +1485,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Optional callbacks for custom aria-label strings and anchor href generation on page links."
       },
       {
-        "name": "defaultPage / siblingCount / boundaryCount",
-        "type": "number",
-        "defaultValue": "1 / 1 / 1",
-        "description": "Uncontrolled initial page and number of sibling/boundary page buttons shown around the active page before ellipsis collapse."
-      },
-      {
-        "name": "totalItems / pageSize / formatSummary",
-        "type": "number / number / (details: PaginationSummaryDetails) => React.ReactNode",
-        "defaultValue": "undefined",
-        "description": "Optional item count metadata and custom formatter for the exposure-sheet range summary."
-      },
-      {
-        "name": "ariaLabel / previousLabel / nextLabel / ellipsisLabel",
-        "type": "string / React.ReactNode",
-        "defaultValue": "'Pagination' / '← PREV' / 'NEXT →' / 'More pages'",
-        "description": "Accessible landmark label and customizable button/ellipsis labels."
-      },
-      {
-        "name": "getItemAriaLabel / getItemHref",
-        "type": "function",
-        "defaultValue": "undefined",
-        "description": "Optional callbacks for custom aria-label strings and anchor href generation on page links."
+        "name": "type / disabled / isActive / onClick / PaginationContentProps / PaginationItemProps / PaginationPreviousProps / PaginationNextProps / PaginationEllipsisProps",
+        "type": "'button' | 'submit' | 'reset' / boolean / boolean / React.MouseEventHandler<HTMLElement> / Subcomponent Prop Aliases",
+        "defaultValue": "'button' / false / false / undefined",
+        "description": "Subcomponent props on PaginationLinkProps and exported compound pagination prop aliases."
       }
     ],
     "stateBehavior": "Supports controlled (page + onPageChange) and uncontrolled (defaultPage) modes, computing deterministic page + ellipsis ranges via buildPaginationRange().",
@@ -1729,16 +1585,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Semantic element tag for the metric label and motion mode override for useCountUp."
       },
       {
-        "name": "comparisonLabel / range / note",
-        "type": "string / number | string / string",
-        "defaultValue": "undefined",
-        "description": "Contextual comparison label (e.g., \"vs prior 30d\"), day window badge, or secondary footnote."
-      },
-      {
-        "name": "headingLevel / motion",
-        "type": "'h2' | 'h3' | 'h4' | 'div' | 'p' / MotionMode",
-        "defaultValue": "'h2' / 'stepped' ('cut' in quiet variant)",
-        "description": "Semantic element tag for the metric label and motion mode override for useCountUp."
+        "name": "kind",
+        "type": "'pct' | 'pp'",
+        "defaultValue": "'pct'",
+        "description": "Subcomponent prop on DeltaProps selecting percentage (%) or percentage-point (pp) formatting."
       }
     ],
     "stateBehavior": "Interpolates numeric value changes at 12fps via useCountUp in expressive mode (and defaults to instant cut in quiet mode).",
@@ -1803,24 +1653,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "boolean",
         "defaultValue": "true",
         "description": "Renders the accessible <details className=\"tbl\"> semantic data table."
-      },
-      {
-        "name": "labelColumnHeader / tableSummary / ariaLabel",
-        "type": "string",
-        "defaultValue": "'Label' / 'Show data table' / auto",
-        "description": "First column header in the semantic data table, <summary> toggle text, and SVG aria-label override."
-      },
-      {
-        "name": "formatValue / formatShort",
-        "type": "(v: number) => string",
-        "defaultValue": "defaultFormatValue / defaultFormatShort",
-        "description": "Formatters for full crosshair/table values and compact Y-axis tick labels (pass fmtCurrency / fmtCurrencyShort for USD)."
-      },
-      {
-        "name": "annotation / motion",
-        "type": "{ index: number; text: string } | null / MotionMode",
-        "defaultValue": "undefined (auto-peak) / 'stepped'",
-        "description": "Custom speech-balloon annotation point (or null to hide) and 12fps chart reveal motion mode."
       },
       {
         "name": "labelColumnHeader / tableSummary / ariaLabel",
@@ -1918,18 +1750,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "MotionMode / string",
         "defaultValue": "'stepped' / undefined",
         "description": "Controls 12fps bar-width wipe cadence and deterministic button ID prefix (int-${idPrefix}-${item.id})."
-      },
-      {
-        "name": "title / subtitle",
-        "type": "string",
-        "defaultValue": "undefined",
-        "description": "Optional header title and right-aligned monospace subtitle above the ranked bar list."
-      },
-      {
-        "name": "motion / idPrefix",
-        "type": "MotionMode / string",
-        "defaultValue": "'stepped' / undefined",
-        "description": "Controls 12fps bar-width wipe cadence and deterministic button ID prefix (int-${idPrefix}-${item.id})."
       }
     ],
     "stateBehavior": "Controlled selection via selectedId and onSelect(id | null); clicking the currently selected bar toggles selection off (null).",
@@ -1981,12 +1801,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "string | number",
         "defaultValue": "undefined",
         "description": "Key that replays the stepped bar reveal when changed."
-      },
-      {
-        "name": "ariaLabel / motion / height",
-        "type": "string / MotionMode / number",
-        "defaultValue": "auto / 'stepped' / 36",
-        "description": "Accessible role=\"img\" label override, 12fps bar reveal mode, and SVG sparkline height in pixels."
       },
       {
         "name": "ariaLabel / motion / height",
@@ -2140,10 +1954,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Initial open state when Dialog is rendered as an uncontrolled modal."
       },
       {
-        "name": "defaultOpen",
+        "name": "asChild",
         "type": "boolean",
         "defaultValue": "false",
-        "description": "Initial open state when Dialog is rendered as an uncontrolled modal."
+        "description": "Subcomponent prop on DialogTriggerProps and DialogCloseProps to merge behavior onto a custom child button."
       }
     ],
     "stateBehavior": "Supports controlled (open + onOpenChange) and uncontrolled (defaultOpen) state synchronized with native HTML <dialog>.showModal(). Automatically coordinates with nested Select, DropdownMenu, and Toast portals.",
@@ -2210,10 +2024,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Explicit trigger button ID linked to the visible <label> or outer <Field>."
       },
       {
-        "name": "id",
-        "type": "string",
-        "defaultValue": "useId()",
-        "description": "Explicit trigger button ID linked to the visible <label> or outer <Field>."
+        "name": "ariaLabel / SelectValueProps / SelectContentProps / SelectItemProps / SelectGroupProps / SelectLabelProps / SelectSeparatorProps",
+        "type": "string / Radix Select Contracts",
+        "defaultValue": "undefined / Radix defaults",
+        "description": "Subcomponent prop on SelectTriggerProps (ariaLabel) and exported Radix Select compound prop aliases."
       }
     ],
     "stateBehavior": "Supports controlled (value + onValueChange) and uncontrolled (defaultValue) state, plus native <form> FormData participation when name or required is passed.",
@@ -2267,10 +2081,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Controlled or uncontrolled visibility state for the tooltip popup."
       },
       {
-        "name": "open / defaultOpen / onOpenChange",
-        "type": "boolean / boolean / (open: boolean) => void",
-        "defaultValue": "uncontrolled",
-        "description": "Controlled or uncontrolled visibility state for the tooltip popup."
+        "name": "asChild",
+        "type": "boolean",
+        "defaultValue": "false",
+        "description": "Subcomponent prop on TooltipTriggerProps to attach trigger handlers and aria-describedby directly to a child element."
       }
     ],
     "stateBehavior": "Supports controlled (open + onOpenChange) and uncontrolled (defaultOpen) visibility, opening on pointer enter or keyboard focus.",
@@ -2316,6 +2130,12 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "{ onSelect?: () => void }",
         "defaultValue": "optional",
         "description": "Focusable role=\"menuitem\" button that closes the menu on activation."
+      },
+      {
+        "name": "asChild / DropdownMenuProps / DropdownMenuContentProps / DropdownMenuLabelProps / DropdownMenuSeparatorProps / DropdownMenuItemProps / DropdownMenuGroupProps",
+        "type": "boolean / Radix Menu Contracts",
+        "defaultValue": "false / Radix defaults",
+        "description": "Subcomponent prop on DropdownMenuTriggerProps (asChild) and exported Radix menu subcomponent prop aliases."
       }
     ],
     "stateBehavior": "Manages menu open/close state via Radix DropdownMenu primitive and portals into any active modal <dialog[open]> when used inside a dialog.",
@@ -2366,12 +2186,6 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "React.HTMLAttributes<HTMLTableCaptionElement>",
         "defaultValue": "optional",
         "description": "Accessible table caption placed at the bottom edge in monospace type."
-      },
-      {
-        "name": "wrapperProps",
-        "type": "React.HTMLAttributes<HTMLDivElement>",
-        "defaultValue": "undefined",
-        "description": "HTML attributes (such as tabIndex, role, or aria-label) forwarded to the outer .f12-table-wrap scroll container."
       },
       {
         "name": "wrapperProps",
@@ -2690,6 +2504,12 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
         "type": "React.ReactNode / React.ReactNode / string",
         "defaultValue": "undefined",
         "description": "Optional header/footer slots and outer container className."
+      },
+      {
+        "name": "range / focus / onSelectFocus / chartHeight / datasetState / comparisonMode / onRestorePopulated",
+        "type": "RevenueRecoveryCoreScenesProps",
+        "defaultValue": "required / optional",
+        "description": "Props accepted by the exported <RevenueRecoveryCoreScenes> subcomponent shared between the homepage and the Analytics Dashboard block."
       }
     ],
     "customizationGuidance": [

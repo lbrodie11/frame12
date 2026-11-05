@@ -99,11 +99,71 @@ const BAR_ITEMS = [
   },
 ];
 
-const LEDGER_ROWS = [
-  { id: 'REC-101', target: 'US-East Primary Gateway', region: 'us-east-1', latency: '28ms', attainment: '99.98%', status: 'success' as const, statusLabel: 'Verified' },
-  { id: 'REC-102', target: 'EU-Central Webhook Relay', region: 'eu-central-1', latency: '41ms', attainment: '99.95%', status: 'info' as const, statusLabel: 'Active' },
-  { id: 'REC-103', target: 'AP-Northeast Fulfillment Sync', region: 'ap-northeast-1', latency: '64ms', attainment: '99.82%', status: 'warning' as const, statusLabel: 'Throttled' },
-  { id: 'REC-104', target: 'US-West Failover Edge', region: 'us-west-2', latency: '31ms', attainment: '99.99%', status: 'success' as const, statusLabel: 'Verified' },
+interface LedgerRow {
+  id: string;
+  target: string;
+  region: string;
+  latency: string;
+  attainment: string;
+  status: 'success' | 'info' | 'warning' | 'danger';
+  statusLabel: string;
+}
+
+const LEDGER_ROWS: LedgerRow[] = [
+  {
+    "id": "AUD-201",
+    "target": "WebAuthn Passkey Policy",
+    "region": "us-east-1",
+    "latency": "12ms",
+    "attainment": "100.0%",
+    "status": "success",
+    "statusLabel": "Enforced"
+  },
+  {
+    "id": "AUD-202",
+    "target": "EU VAT Invoice Routing",
+    "region": "eu-central-1",
+    "latency": "18ms",
+    "attainment": "99.99%",
+    "status": "info",
+    "statusLabel": "Active"
+  },
+  {
+    "id": "AUD-203",
+    "target": "APAC Spend Cap Alerting",
+    "region": "ap-northeast-1",
+    "latency": "24ms",
+    "attainment": "99.95%",
+    "status": "warning",
+    "statusLabel": "85% Cap"
+  },
+  {
+    "id": "AUD-204",
+    "target": "SAML 2.0 JIT Role Mapping",
+    "region": "us-east-1",
+    "latency": "15ms",
+    "attainment": "100.0%",
+    "status": "success",
+    "statusLabel": "Enforced"
+  },
+  {
+    "id": "AUD-205",
+    "target": "Immutable 90d Audit Vault",
+    "region": "eu-central-1",
+    "latency": "21ms",
+    "attainment": "99.99%",
+    "status": "success",
+    "statusLabel": "Verified"
+  },
+  {
+    "id": "AUD-206",
+    "target": "Break-Glass Key Rotation",
+    "region": "ap-northeast-1",
+    "latency": "19ms",
+    "attainment": "99.97%",
+    "status": "info",
+    "statusLabel": "Scheduled"
+  }
 ];
 
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
@@ -114,6 +174,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [strictMode, setStrictMode] = React.useState(true);
   const [cadence, setCadence] = React.useState('realtime');
   const [page, setPage] = React.useState(1);
+
   const changed = useChanged(`${range}-${selectedBar}`);
 
   const series = SERIES_BY_RANGE[range];
@@ -127,6 +188,11 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
     const matchesRegion = regionFilter === 'all' || r.region === regionFilter;
     return matchesSearch && matchesRegion;
   });
+
+  const pageSize = 2;
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <Sheet autoCut pegs motion="stepped" theme={theme}>
@@ -145,7 +211,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           </p>
           <h1 className="f12-title">Organization Security & Billing Preferences</h1>
           <p className="f12-muted-copy">
-            Storyboard-grade composition pairing Expressive establecer cuts with Quiet 1px operational ledgers.
+            Storyboard-grade composition pairing Expressive establishing cuts with Quiet 1px operational ledgers.
           </p>
         </div>
 
@@ -167,7 +233,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <Metric
-                label="Organization Security & Billing Preferences Volume"
+                label="Enforced Security Controls"
                 value={headlineValue}
                 format={(v) => `${Math.round(v).toLocaleString('en-US')} ops`}
                 delta={0.142}
@@ -181,7 +247,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
             </div>
             <ToneAreaChart
               data={[...series]}
-              seriesLabel="Primary throughput"
+              seriesLabel="Verified signing events"
               compareLabel="Prior window"
               labelColumnHeader="Window"
               height={220}
@@ -231,7 +297,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       <Scene gutter="scene" layout="equal">
         <Panel variant="quiet" label="Ranked regional breakdown">
           <ToneBarList
-            title="Throughput by execution tier"
+            title="Control compliance by domain"
             subtitle={`${range}D window`}
             items={BAR_ITEMS}
             selectedId={selectedBar}
@@ -242,18 +308,39 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           />
         </Panel>
 
-        <Panel variant="quiet" label="Operational configuration and rollout policy">
-          <Tabs defaultValue="policy" density="compact" idPrefix="eval-tabs-02-settings">
-            <TabsList ariaLabel="Configuration sections">
-              <TabsTrigger value="policy">01 · Policy &amp; Routing</TabsTrigger>
-              <TabsTrigger value="notes">02 · Runbook &amp; Signoff</TabsTrigger>
+        <Panel variant="quiet" label="Organization security and billing configuration">
+          <Tabs defaultValue="sso" density="compact" idPrefix="eval-tabs-02-settings">
+            <TabsList ariaLabel="Security and billing preference sections">
+              <TabsTrigger value="sso">01 · SSO &amp; Passkeys</TabsTrigger>
+              <TabsTrigger value="billing">02 · Invoice &amp; Spend Caps</TabsTrigger>
+              <TabsTrigger value="retention">03 · Audit Retention</TabsTrigger>
             </TabsList>
-            <TabsContent value="policy">
+            <TabsContent value="sso">
               <div className="f12-stack-pair">
-                <Notice status="info" title="Deterministic guardrails active">
-                  All changes validate schema signatures before promotion.
+                <Notice status="info" title="Hardware WebAuthn passkeys enforced">
+                  All privileged operators must authenticate with FIDO2 passkeys before modifying billing or retention rules.
                 </Notice>
-                <Field label="Rollout dispatch cadence" density="compact">
+                <Switch
+                  label="Enforce WebAuthn hardware passkeys for all organization admins"
+                  density="compact"
+                  checked={strictMode}
+                  onCheckedChange={setStrictMode}
+                />
+                <Checkbox
+                  label="Require SAML 2.0 JIT role assertion on every session renewal"
+                  density="compact"
+                  defaultChecked
+                />
+              </div>
+            </TabsContent>
+            <TabsContent value="billing">
+              <div className="f12-stack-pair">
+                <Input
+                  label="Invoice routing email"
+                  density="compact"
+                  defaultValue="billing-ops@atelier-koma.io"
+                />
+                <Field label="Monthly spend cap action" density="compact">
                   <RadioGroup
                     name="cadence-02-settings"
                     value={cadence}
@@ -261,31 +348,20 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                     density="compact"
                     orientation="horizontal"
                     options={[
-                      { value: 'realtime', label: 'Real-time cut' },
-                      { value: 'staged', label: '10% Canary' },
-                      { value: 'manual', label: 'Manual hold' },
+                      { value: 'realtime', label: '80% Alert webhook' },
+                      { value: 'staged', label: '95% Soft throttle' },
+                      { value: 'manual', label: '100% Hard cap' },
                     ]}
                   />
                 </Field>
-                <Switch
-                  label="Enforce cryptographic Ed25519 commit signature"
-                  density="compact"
-                  checked={strictMode}
-                  onCheckedChange={setStrictMode}
-                />
-                <Checkbox
-                  label="Require dual-operator signoff on production promotion"
-                  density="compact"
-                  defaultChecked
-                />
               </div>
             </TabsContent>
-            <TabsContent value="notes">
+            <TabsContent value="retention">
               <div className="f12-stack-pair">
                 <Textarea
-                  label="Operator handoff note"
+                  label="Compliance custodian handoff note"
                   density="compact"
-                  defaultValue="Verified across US-East and EU-Central edges."
+                  defaultValue="Immutable 90-day SOC2 audit log stream replicated to us-east-1 and eu-central-1."
                 />
               </div>
             </TabsContent>
@@ -302,7 +378,10 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                   label="Search ledger"
                   density="compact"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
                   placeholder="Filter by ID or target..."
                 />
                 <Select
@@ -310,13 +389,16 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                   id="eval-region-02-settings"
                   density="compact"
                   value={regionFilter}
-                  onValueChange={setRegionFilter}
+                  onValueChange={(next) => {
+                    setRegionFilter(next);
+                    setPage(1);
+                  }}
                 >
                   <SelectTrigger ariaLabel="Region scope">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All regions (4)</SelectItem>
+                    <SelectItem value="all">All regions (6)</SelectItem>
                     <SelectItem value="us-east-1">us-east-1</SelectItem>
                     <SelectItem value="eu-central-1">eu-central-1</SelectItem>
                     <SelectItem value="ap-northeast-1">ap-northeast-1</SelectItem>
@@ -357,6 +439,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                     onClick={() => {
                       setSearch('');
                       setRegionFilter('all');
+                      setPage(1);
                     }}
                   >
                     Reset Filters
@@ -364,8 +447,8 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                 }
               />
             ) : (
-              <Table density="compact">
-                <TableCaption>Reconciled operational ledger (Organization Security & Billing Preferences)</TableCaption>
+              <Table density="compact" id="eval-ledger-table-02-settings">
+                <TableCaption>Security & billing audit trail (Organization Security & Billing Preferences)</TableCaption>
                 <TableHeader>
                   <TableRow>
                     <TableHead scope="col">Record ID</TableHead>
@@ -377,7 +460,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.map((row) => (
+                  {pagedRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell><code className="f12-code-inline">{row.id}</code></TableCell>
                       <TableCell>{row.target}</TableCell>
@@ -394,8 +477,8 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
             )}
 
             <Pagination
-              page={page}
-              totalPages={3}
+              page={safePage}
+              totalPages={totalPages}
               onPageChange={setPage}
               density="compact"
               showSummary
