@@ -896,6 +896,19 @@ function AnalyticsDashboardInner({
     });
   };
 
+  const isDrilledIn = focusItem !== null || segmentFilter !== 'all';
+
+  const handleClearDrillDown = () => {
+    // The breadcrumb button that triggered this turns back into plain text, so hand focus to the
+    // dashboard heading (the level the reader just stepped up to) before it unmounts.
+    const targetId = `${resolvedIdPrefix}-title`;
+    document.getElementById(targetId)?.focus({ preventScroll: true });
+    pendingFocusTargetIdRef.current = targetId;
+    setFocus(null);
+    setSegmentFilter('all');
+    setLedgerPage(1);
+  };
+
   const handleResetView = () => {
     const targetId = `${resolvedIdPrefix}-rng-${DEFAULT_RANGE}`;
     pendingFocusTargetIdRef.current = null;
@@ -1207,21 +1220,13 @@ function AnalyticsDashboardInner({
             aria-label="Analytics hierarchy"
             density="compact"
             items={[
+              // Store root: context text — no store-level view exists inside this block.
+              { label: STORE },
               {
-                label: STORE,
-                href: `#${resolvedIdPrefix}-sheet`,
-                onClick: (e) => {
-                  e.preventDefault();
-                  handleResetView();
-                },
-              },
-              {
+                // Dashboard level: while drilled into an intervention or checkout segment, steps
+                // back out to the whole-dashboard scope (the date window is kept).
                 label: 'Revenue Recovery',
-                href: `#${resolvedIdPrefix}-rng-${range}`,
-                onClick: (e) => {
-                  e.preventDefault();
-                  document.getElementById(`${resolvedIdPrefix}-rng-${range}`)?.focus();
-                },
+                onSelect: isDrilledIn ? handleClearDrillDown : undefined,
               },
               {
                 label: activeScopeBreadcrumbLabel,
@@ -1236,7 +1241,9 @@ function AnalyticsDashboardInner({
             </Tag>
             <Badge burst={false}>{`Through ${END_LABEL}`}</Badge>
           </p>
-          <h1 className="f12-title">Revenue Recovery</h1>
+          <h1 className="f12-title" id={`${resolvedIdPrefix}-title`} tabIndex={-1}>
+            Revenue Recovery
+          </h1>
           <p className="f12-sub" id={`${resolvedIdPrefix}-subtitle`}>
             Expressive storyboard establishing shot (<code className="f12-code-inline">C-01</code>
             –<code className="f12-code-inline">C-04</code>) paired with Quiet period-comparison,

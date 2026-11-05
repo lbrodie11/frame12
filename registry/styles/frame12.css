@@ -224,6 +224,11 @@
   align-items: flex-end;
   justify-content: space-between;
 }
+/* Let the text column shrink below its longest unbreakable token so long titles/IDs wrap (or,
+   failing that, overflow inside the sheet) instead of widening the page on narrow screens. */
+.f12-hd > .f12-hd-text {
+  min-width: 0;
+}
 .f12-eyebrow {
   display: flex;
   flex-wrap: wrap;
@@ -235,6 +240,12 @@
   text-transform: uppercase;
   color: var(--f-ink-2);
 }
+/* Eyebrow chips (file paths, IDs) may be one unbreakable token: let them shrink and break
+   rather than push a narrow sheet wider than the viewport. */
+.f12-eyebrow > :is(.f12-tag, .f12-badge) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .f12-title {
   font-family: var(--font-f-display);
   font-weight: 400;
@@ -243,6 +254,11 @@
   margin-top: 10px;
   letter-spacing: 0.005em;
   text-wrap: balance;
+}
+/* Programmatic focus target only (e.g. after a breadcrumb steps up a level); not operable, so
+   no ring — the heading itself is the visible landmark. */
+.f12-title[tabindex='-1']:focus {
+  outline: none;
 }
 .f12-sub {
   font-family: var(--font-f-mono);
@@ -998,6 +1014,8 @@
   background: var(--f-panel);
   width: fit-content;
   max-width: 100%;
+  /* Breathing room when a block scrolls its section tabs into view (breadcrumb navigation). */
+  scroll-margin-block-start: var(--f-gutter-scene);
 }
 .f12-tabs-list.f12-tabs-list-compact {
   border-width: 1.5px;
@@ -1594,13 +1612,26 @@
   min-height: 24px;
   padding: 2px 4px;
   color: var(--f-ink-2);
-  text-decoration: none;
+  /* Non-colour cue: actionable crumbs and plain ancestor text share --f-ink-2 (WCAG 1.4.1). */
+  text-decoration: underline dotted 1px;
+  text-underline-offset: 3px;
   cursor: pointer;
 }
 .f12-breadcrumb-link:hover {
   color: var(--f-ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration-style: solid;
+}
+/* <BreadcrumbButton>: in-page action crumb rendered with link chrome. */
+button.f12-breadcrumb-link {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: inherit;
 }
 .f12-breadcrumb-link:focus-visible {
   outline: 3px solid var(--f-ink);
@@ -1642,6 +1673,17 @@
 }
 .f12-breadcrumb.f12-breadcrumb-compact .f12-breadcrumb-list {
   gap: 2px 6px;
+}
+/* Sheet header: give the path its own line above the eyebrow (the current-item rule otherwise
+   lands on the eyebrow tags) and pull the first crumb's padding back onto the text edge. */
+.f12-hd-text > .f12-breadcrumb:not(:last-child) {
+  margin-bottom: 14px;
+}
+.f12-hd-text > .f12-breadcrumb .f12-breadcrumb-item:first-child > .f12-breadcrumb-link {
+  margin-inline-start: -4px;
+}
+.f12-hd-text > .f12-breadcrumb .f12-breadcrumb-item:first-child > .f12-breadcrumb-page {
+  margin-inline-start: -6px;
 }
 
 .f12-pagination {
@@ -1782,10 +1824,18 @@
   letter-spacing: 0.01em;
   color: var(--f-ink);
 }
+/* Expressive hero: sized to its own column, not the sheet. --f12-m-chars (set by <Metric> from
+   the final formatted value) and ~0.8em per display-font glyph keep the longest value inside
+   its panel; 14cqi caps short values so they don't balloon in wide columns. */
+.f12-metric.big {
+  container-type: inline-size;
+  min-width: 0;
+}
 .f12-metric.big .f12-m-value {
-  font-size: clamp(36px, 6cqi, 56px);
+  font-size: clamp(28px, min(14cqi, 100cqi / (var(--f12-m-chars, 8) * 0.8)), 56px);
   line-height: 1.1;
   font-variant-numeric: proportional-nums;
+  overflow-wrap: anywhere;
 }
 .f12-metric.f12-metric-quiet .f12-m-value {
   font-family: var(--font-f-mono);
@@ -2617,6 +2667,14 @@ dialog.f12-dialog > .f12-cut {
   justify-content: space-between;
   gap: var(--f-gutter-pair) var(--f-gutter-scene);
   min-width: 0;
+}
+/* Sheet-header toolbar: sit the environment Select beside the range SegmentedControl at the
+   same 44px height and rule weight, packed left like the other blocks' header control rows. */
+.f12-console-hd-toolbar {
+  justify-content: flex-start;
+}
+.f12-console-hd-toolbar .f12-select-trigger {
+  min-height: 44px;
 }
 .f12-console-filters {
   display: grid;

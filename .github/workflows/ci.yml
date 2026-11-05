@@ -6,10 +6,22 @@ on:
   pull_request:
     branches: [main]
 
+# Both jobs run inside the official Playwright image: Chromium, Firefox, WebKit and every system
+# library they need are preinstalled. The previous `npx playwright install --with-deps` step
+# apt-installed WebKit/Firefox media dependencies (ffmpeg, gstreamer, flite, …) from the Ubuntu
+# mirror on every run and intermittently crawled at ~40 KB/s, stalling the job for 60+ minutes.
+# Keep the image tag equal to the locked `playwright` version; scripts/check-playwright-image.mjs
+# fails the run with instructions if they drift. `--user 1001` matches the runner's uid so
+# Firefox (which refuses to run as root under another user's $HOME) and the workspace mount work.
+
 jobs:
   verify:
     name: Build, Lint, Accessibility & Smoke Install
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --user 1001 --ipc=host
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,8 +35,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers (Chromium, Firefox, WebKit)
-        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Verify Playwright image matches the locked playwright version
+        run: node scripts/check-playwright-image.mjs
 
       - name: Verify workspace file synchronization
         run: npm run sync:check
@@ -41,6 +53,10 @@ jobs:
   real-install:
     name: Fresh Next.js + shadcn init -d + next build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --user 1001 --ipc=host
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -51,10 +67,11 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install repo dependencies & Chromium for real-install verification
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
+      - name: Install repo dependencies
+        run: npm ci
+
+      - name: Verify Playwright image matches the locked playwright version
+        run: node scripts/check-playwright-image.mjs
 
       - name: Install into fresh create-next-app (individual sheet+panel, base, & full kit) and verify autoCut + next build
         run: node scripts/real-install.mjs

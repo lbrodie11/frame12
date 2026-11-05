@@ -1397,40 +1397,30 @@ try {
     await page.waitForTimeout(80);
     const focusAfterRetry = await page.evaluate(() => document.activeElement?.id || '');
 
-    // Breadcrumb interactive navigation: clicking workspace link switches to 02 · Workspace and focuses #ws-settings-ws-name; clicking control-plane link switches to 01 · Profile
-    await page.click('#ws-settings-sheet a[href="#ws-settings-ws-name"]');
+    // Breadcrumb navigation: ancestors are never fake #hash links. Away from the landing section
+    // the workspace crumb is a <button> that returns to 01 · Profile, focuses its tab and leaves
+    // the URL alone; at the landing section every ancestor is plain context text.
+    const crumbShape = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('#ws-settings-sheet .f12-breadcrumb li > :first-child')]
+          .map((el) => `${el.tagName}:${el.textContent.trim()}`)
+          .join(' / '),
+      );
+    await page.click('#ws-settings-tabs-tab-team');
     await page.waitForTimeout(60);
+    const crumbsAwayFromLanding = await crumbShape();
+    await page.click('#ws-settings-sheet .f12-breadcrumb button');
+    await page.waitForTimeout(120);
     const afterWsBreadcrumb = await page.evaluate(() => ({
-      wsTabSelected:
-        document.querySelector('#ws-settings-tabs-tab-workspace')?.getAttribute('aria-selected') ===
-        'true',
-      activeElementId: document.activeElement?.id || '',
-    }));
-    // Click workspace breadcrumb AGAIN while already on 02 · Workspace, then type multiple characters into #ws-settings-ws-name without losing focus
-    await page.click('#ws-settings-sheet a[href="#ws-settings-ws-name"]');
-    await page.waitForTimeout(60);
-    await page.fill('#ws-settings-ws-name', '');
-    await page.focus('#ws-settings-ws-name');
-    await page.keyboard.type('Atelier XYZ');
-    await page.waitForTimeout(60);
-    const afterSameWsBreadcrumbTyping = await page.evaluate(() => ({
-      value: document.querySelector('#ws-settings-ws-name')?.value || '',
-      activeElementId: document.activeElement?.id || '',
-    }));
-    await page.click('#ws-settings-discard-btn');
-    await page.waitForTimeout(60);
-
-    await page.click('#ws-settings-sheet a[href="#ws-settings-sheet"]');
-    await page.waitForTimeout(60);
-    const afterRootBreadcrumb = await page.evaluate(() => ({
       profileTabSelected:
         document.querySelector('#ws-settings-tabs-tab-profile')?.getAttribute('aria-selected') ===
         'true',
       activeElementId: document.activeElement?.id || '',
+      hash: location.hash,
+      anchorsInPath: document.querySelectorAll('#ws-settings-sheet .f12-breadcrumb a').length,
     }));
-    // Click control-plane breadcrumb AGAIN while already on 01 · Profile, then type multiple characters into #ws-settings-profile-name without losing focus
-    await page.click('#ws-settings-sheet a[href="#ws-settings-sheet"]');
-    await page.waitForTimeout(60);
+    const crumbsAtLanding = await crumbShape();
+    // Typing right after breadcrumb navigation must keep focus in the field
     await page.fill('#ws-settings-profile-name', '');
     await page.focus('#ws-settings-profile-name');
     await page.keyboard.type('Sora XYZ');
@@ -1442,14 +1432,16 @@ try {
     await page.click('#ws-settings-discard-btn');
     await page.waitForTimeout(60);
 
-    // In LOAD state, clicking the workspace breadcrumb switches to 02 · Workspace and focuses #ws-settings-tabs-tab-workspace (since #ws-settings-ws-name is replaced by skeletons)
+    // In LOAD state the workspace crumb still returns to 01 · Profile and focuses its tab
     await page.click('#ws-settings-dataset-loading');
     await page.waitForTimeout(60);
-    await page.click('#ws-settings-sheet a[href="#ws-settings-ws-name"]');
+    await page.click('#ws-settings-tabs-tab-workspace');
     await page.waitForTimeout(60);
+    await page.click('#ws-settings-sheet .f12-breadcrumb button');
+    await page.waitForTimeout(120);
     const afterLoadingWsBreadcrumb = await page.evaluate(() => ({
-      wsTabSelected:
-        document.querySelector('#ws-settings-tabs-tab-workspace')?.getAttribute('aria-selected') ===
+      profileTabSelected:
+        document.querySelector('#ws-settings-tabs-tab-profile')?.getAttribute('aria-selected') ===
         'true',
       activeElementId: document.activeElement?.id || '',
     }));
@@ -1475,27 +1467,29 @@ try {
         (seatsAfterZeroInvite || '').includes('1 / 10 SEATS') &&
         (seatsAfterZeroInviteDiscard || '').includes('5 / 10 SEATS') &&
         focusAfterRetry === 'ws-settings-reset-btn' &&
-        afterWsBreadcrumb.wsTabSelected &&
-        afterWsBreadcrumb.activeElementId === 'ws-settings-ws-name' &&
-        afterSameWsBreadcrumbTyping.value === 'Atelier XYZ' &&
-        afterSameWsBreadcrumbTyping.activeElementId === 'ws-settings-ws-name' &&
-        afterRootBreadcrumb.profileTabSelected &&
-        afterRootBreadcrumb.activeElementId === 'ws-settings-tabs-tab-profile' &&
+        crumbsAwayFromLanding ===
+          'SPAN:FRAME/12 Control Plane / BUTTON:Atelier Koma Production / SPAN:06 · Team & Roles' &&
+        afterWsBreadcrumb.profileTabSelected &&
+        afterWsBreadcrumb.activeElementId === 'ws-settings-tabs-tab-profile' &&
+        afterWsBreadcrumb.hash === '' &&
+        afterWsBreadcrumb.anchorsInPath === 0 &&
+        crumbsAtLanding ===
+          'SPAN:FRAME/12 Control Plane / SPAN:Atelier Koma Production / SPAN:01 · Profile' &&
         afterSameProfileBreadcrumbTyping.value === 'Sora XYZ' &&
         afterSameProfileBreadcrumbTyping.activeElementId === 'ws-settings-profile-name' &&
-        afterLoadingWsBreadcrumb.wsTabSelected &&
-        afterLoadingWsBreadcrumb.activeElementId === 'ws-settings-tabs-tab-workspace' &&
+        afterLoadingWsBreadcrumb.profileTabSelected &&
+        afterLoadingWsBreadcrumb.activeElementId === 'ws-settings-tabs-tab-profile' &&
         overflow320 &&
         headerReducedMotionOk,
-      'site /blocks/workspace-settings (Empty/Error/Loading states, Breadcrumb navigation + same-section typing, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb links switch sections (and focus Workspace tab in LOAD state) without stealing focus during subsequent typing, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
+      'site /blocks/workspace-settings (Empty/Error/Loading states, Breadcrumb navigation + same-section typing, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb ancestors are buttons/text (never #hash links) that return to 01 · Profile and focus its tab (also in LOAD state) without touching the URL or stealing focus during subsequent typing, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
       JSON.stringify({
         emptyCheck,
         seatsAfterZeroInvite,
         seatsAfterZeroInviteDiscard,
         focusAfterRetry,
+        crumbsAwayFromLanding,
         afterWsBreadcrumb,
-        afterSameWsBreadcrumbTyping,
-        afterRootBreadcrumb,
+        crumbsAtLanding,
         afterSameProfileBreadcrumbTyping,
         afterLoadingWsBreadcrumb,
         overflow320,
@@ -1882,6 +1876,127 @@ try {
       }),
     );
 
+    await ctx.close();
+  }
+
+  // 5d. Breadcrumb contract across all three blocks + hero metric fit + header rhythm
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 1280, height: 800 },
+      colorScheme: 'dark',
+      reducedMotion: 'reduce',
+    });
+    const page = await ctx.newPage();
+    const crumbShape = (sheetId) =>
+      page.evaluate(
+        (id) =>
+          [...document.querySelectorAll(`#${id} .f12-breadcrumb li > :first-child`)]
+            .map((el) => `${el.tagName}:${el.textContent.trim()}`)
+            .join(' / '),
+        sheetId,
+      );
+    const headerRhythm = () =>
+      page.evaluate(() => {
+        const hd = document.querySelector('.f12-sheet header.f12-hd');
+        const bc = hd.querySelector('.f12-breadcrumb').getBoundingClientRect();
+        const eb = hd.querySelector('.f12-eyebrow').getBoundingClientRect();
+        return Math.round(eb.top - bc.bottom);
+      });
+
+    // Developer Console: env crumb returns to Overview from another section and reveals the tabs
+    await page.goto(`${baseUrl}/blocks/developer-console`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(600);
+    const consoleDefault = await crumbShape('dev-console-sheet');
+    const consoleHeroFits = await page.evaluate(() => {
+      const v = document.querySelector('.f12-metric.big .f12-m-value [aria-hidden="true"]');
+      const panel = v.closest('.f12-panel');
+      const pr = panel.getBoundingClientRect();
+      const cs = getComputedStyle(panel);
+      return (
+        v.getBoundingClientRect().right <=
+        pr.right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth) + 1
+      );
+    });
+    const consoleGap = await headerRhythm();
+    await page.click('#dev-console-tab-request-logs');
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const consoleAway = await crumbShape('dev-console-sheet');
+    await page.click('#dev-console-sheet .f12-breadcrumb button');
+    await page.waitForTimeout(150);
+    const consoleAfter = await page.evaluate(() => {
+      const tablist = document.querySelector('#dev-console-sheet [role="tablist"]');
+      const r = tablist.getBoundingClientRect();
+      return {
+        overviewSelected:
+          document.getElementById('dev-console-tab-overview')?.getAttribute('aria-selected') ===
+          'true',
+        activeElementId: document.activeElement?.id || '',
+        hash: location.hash,
+        tabsInView: r.top >= 0 && r.bottom <= window.innerHeight,
+      };
+    });
+
+    // Analytics: "Revenue Recovery" steps out of a segment drill-down, keeps the window, no reset
+    await page.goto(`${baseUrl}/blocks/analytics-dashboard`, { waitUntil: 'networkidle' });
+    const analyticsDefault = await crumbShape('analytics-sheet');
+    const analyticsGap = await headerRhythm();
+    await page.click('#analytics-rng-7');
+    await page.click('#analytics-seg-filter-returning-vip');
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const analyticsDrilled = await crumbShape('analytics-sheet');
+    await page.click('#analytics-sheet .f12-breadcrumb button');
+    await page.waitForTimeout(150);
+    const analyticsAfter = await page.evaluate(() => ({
+      crumbs: [...document.querySelectorAll('#analytics-sheet .f12-breadcrumb li > :first-child')]
+        .map((el) => `${el.tagName}:${el.textContent.trim()}`)
+        .join(' / '),
+      activeElementId: document.activeElement?.id || '',
+      allSegmentsPressed:
+        document.getElementById('analytics-seg-filter-all')?.getAttribute('aria-pressed') ===
+        'true',
+      toasts: document.querySelectorAll('.f12-toast').length,
+      hash: location.hash,
+      scrollY: Math.round(window.scrollY),
+    }));
+
+    // Workspace Settings header rhythm (behaviour is covered in 5b)
+    await page.goto(`${baseUrl}/blocks/workspace-settings`, { waitUntil: 'networkidle' });
+    const settingsGap = await headerRhythm();
+
+    check(
+      consoleDefault === 'SPAN:Fernwood Relay / SPAN:Production (us-east-1) / SPAN:Overview' &&
+        consoleAway ===
+          'SPAN:Fernwood Relay / BUTTON:Production (us-east-1) / SPAN:Request Logs' &&
+        consoleAfter.overviewSelected &&
+        consoleAfter.activeElementId === 'dev-console-tab-overview' &&
+        consoleAfter.hash === '' &&
+        consoleAfter.tabsInView &&
+        analyticsDefault.startsWith('SPAN:Fernwood Supply Co. / SPAN:Revenue Recovery / SPAN:30d') &&
+        analyticsDrilled.startsWith(
+          'SPAN:Fernwood Supply Co. / BUTTON:Revenue Recovery / SPAN:7d · ',
+        ) &&
+        analyticsAfter.crumbs.startsWith(
+          'SPAN:Fernwood Supply Co. / SPAN:Revenue Recovery / SPAN:7d Window',
+        ) &&
+        analyticsAfter.activeElementId === 'analytics-title' &&
+        analyticsAfter.allSegmentsPressed &&
+        analyticsAfter.toasts === 0 &&
+        analyticsAfter.hash === '' &&
+        analyticsAfter.scrollY === 0 &&
+        consoleHeroFits &&
+        [consoleGap, analyticsGap, settingsGap].every((gap) => gap >= 12),
+      'site blocks breadcrumb contract: ancestors are plain text at the landing view and <button>s (never #hash links) only when they change it — Console env crumb returns to Overview, focuses its tab and scrolls the tabs into view; Analytics crumb steps out of a segment drill-down keeping the 7d window, focuses the title, no reset toast; C-01 hero value fits its panel; breadcrumb sits >=12px above the eyebrow in all three headers',
+      JSON.stringify({
+        consoleDefault,
+        consoleAway,
+        consoleAfter,
+        analyticsDefault,
+        analyticsDrilled,
+        analyticsAfter,
+        consoleHeroFits,
+        gaps: [consoleGap, analyticsGap, settingsGap],
+      }),
+    );
     await ctx.close();
   }
 

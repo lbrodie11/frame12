@@ -6,9 +6,33 @@ export type BreadcrumbDensity = 'comfortable' | 'compact';
 
 export interface BreadcrumbEntry {
   label: React.ReactNode;
+  /**
+   * Real destination URL. The crumb renders as an `<a>`, so open-in-new-tab, copy-link and
+   * history all work. Only use it for an address that loads the right view on its own.
+   */
   href?: string;
   current?: boolean;
+  /**
+   * Runs on a plain primary click of an `href` crumb (e.g. client-side routing). Modified
+   * clicks (Ctrl/⌘/Shift/Alt) skip it so the browser can open the link natively.
+   */
   onClick?: React.MouseEventHandler<HTMLAnchorElement>;
+  /**
+   * In-page action for a crumb without a URL (switching a tab, clearing a drill-down filter).
+   * The crumb renders as a `<button type="button">` styled like a link. Ignored when `href`
+   * is set or the crumb is current.
+   */
+  onSelect?: React.MouseEventHandler<HTMLButtonElement>;
+}
+
+function isModifiedClick(event: React.MouseEvent<HTMLElement>): boolean {
+  return (
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    (typeof event.button === 'number' && event.button !== 0)
+  );
 }
 
 const BreadcrumbContext = React.createContext<{
@@ -124,14 +148,25 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(functio
                 return (
                   <React.Fragment key={idx}>
                     <BreadcrumbItem>
-                      {isCurrent || !item.href ? (
+                      {isCurrent || (!item.href && !item.onSelect) ? (
                         <BreadcrumbPage aria-current={isCurrent ? 'page' : false}>
                           {item.label}
                         </BreadcrumbPage>
-                      ) : (
-                        <BreadcrumbLink href={item.href} onClick={item.onClick}>
+                      ) : item.href ? (
+                        <BreadcrumbLink
+                          href={item.href}
+                          onClick={
+                            item.onClick
+                              ? (event) => {
+                                  if (!isModifiedClick(event)) item.onClick?.(event);
+                                }
+                              : undefined
+                          }
+                        >
                           {item.label}
                         </BreadcrumbLink>
+                      ) : (
+                        <BreadcrumbButton onClick={item.onSelect}>{item.label}</BreadcrumbButton>
                       )}
                     </BreadcrumbItem>
                     {!isLast && <BreadcrumbSeparator>{separator}</BreadcrumbSeparator>}
@@ -231,6 +266,28 @@ export const BreadcrumbLink = React.forwardRef<HTMLAnchorElement, BreadcrumbLink
       <a ref={forwardedRef} className={mergedClass} onClick={onClick} {...rest}>
         {children}
       </a>
+    );
+  },
+);
+
+export type BreadcrumbButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
+
+/**
+ * A crumb that performs an in-page action instead of navigating to a URL. Prefer this over an
+ * `<a href="#…">` whose click handler calls `preventDefault()`: a fake hash link offers
+ * open-in-new-tab and copy-link affordances that lead nowhere.
+ */
+export const BreadcrumbButton = React.forwardRef<HTMLButtonElement, BreadcrumbButtonProps>(
+  function BreadcrumbButton({ className = '', type = 'button', children, ...rest }, ref) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        className={`f12-breadcrumb-link f12-breadcrumb-button${className ? ` ${className}` : ''}`}
+        {...rest}
+      >
+        {children}
+      </button>
     );
   },
 );

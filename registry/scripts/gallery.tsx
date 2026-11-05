@@ -2023,6 +2023,7 @@ function Wp5UnitFixtures() {
   const [preventedCloseOpen, setPreventedCloseOpen] = React.useState(true);
   const [preventedCloseTracks, setPreventedCloseTracks] = React.useState(0);
   const [crumbClicks, setCrumbClicks] = React.useState<string[]>([]);
+  const [crumbActions, setCrumbActions] = React.useState<string[]>([]);
   const [crumbRefTag, setCrumbRefTag] = React.useState<string>('');
   const [showCleanupCrumb, setShowCleanupCrumb] = React.useState(true);
   const [crumbRefCleaned, setCrumbRefCleaned] = React.useState(false);
@@ -2255,6 +2256,26 @@ function Wp5UnitFixtures() {
                 { label: 'Next Cut', href: '#c05' },
               ]}
             />
+            <Breadcrumb
+              id="wp5-breadcrumb-actions"
+              items={[
+                {
+                  label: 'Atelier',
+                  href: '#atelier-route',
+                  onClick: (e) => {
+                    e.preventDefault();
+                    setCrumbActions((prev) => [...prev, 'link']);
+                  },
+                },
+                { label: 'Storyboards', onSelect: () => setCrumbActions((prev) => [...prev, 'select']) },
+                {
+                  label: 'Cut C-04',
+                  current: true,
+                  onSelect: () => setCrumbActions((prev) => [...prev, 'current-select']),
+                },
+              ]}
+            />
+            <output id="wp5-breadcrumb-actions-output" data-actions={crumbActions.join(',')} />
             <Breadcrumb id="wp5-breadcrumb-compound" separator="▸" density="compact">
               <BreadcrumbList>
                 {showCleanupCrumb && (

@@ -79,6 +79,8 @@ export interface ComponentPreviewProps {
   motion: MotionMode;
 }
 
+const BREADCRUMB_DEMO_PATH = ['Workspace', 'Storyboards', 'Cut C-04 Ledger'] as const;
+
 export function ComponentPreview({ slug, previewTheme, motion }: ComponentPreviewProps) {
   const [range, setRange] = React.useState<RangeDays>(7);
   const [selectedRow, setSelectedRow] = React.useState<string | null>('cart');
@@ -92,6 +94,7 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
   const [switchChecked, setSwitchChecked] = React.useState(true);
   const [tabValue, setTabValue] = React.useState('routing');
   const [pageNum, setPageNum] = React.useState(2);
+  const [crumbDepth, setCrumbDepth] = React.useState(3);
   const [actionNote, setActionNote] = React.useState('Ready');
   const changed = useChanged(range);
   const tweenProgress = useOnTwos(range, 600, motion);
@@ -498,14 +501,30 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
       case 'breadcrumb':
         return (
           <div className="f12-preview-sheet">
+            {/* In-page levels use onSelect (a real <button>), so the demo never rewrites the docs
+                page URL with a dead #hash. Real routes would pass href instead. */}
             <Breadcrumb
               ariaLabel={`Breadcrumb (${previewTheme})`}
-              items={[
-                { label: 'Workspace', href: '#workspace' },
-                { label: 'Storyboards', href: '#storyboards' },
-                { label: 'Cut C-04 Ledger', current: true },
-              ]}
+              items={BREADCRUMB_DEMO_PATH.slice(0, crumbDepth).map((label, idx, path) =>
+                idx === path.length - 1
+                  ? { label, current: true }
+                  : { label, onSelect: () => setCrumbDepth(idx + 1) },
+              )}
             />
+            <div className="f12-row-pair">
+              <span className="f12-mono-note" aria-live="polite">
+                {`Level ${crumbDepth} of ${BREADCRUMB_DEMO_PATH.length} · ${BREADCRUMB_DEMO_PATH[crumbDepth - 1]}`}
+              </span>
+              {crumbDepth < BREADCRUMB_DEMO_PATH.length ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCrumbDepth((d) => Math.min(d + 1, BREADCRUMB_DEMO_PATH.length))}
+                >
+                  {`Open ${BREADCRUMB_DEMO_PATH[crumbDepth]}`}
+                </Button>
+              ) : null}
+            </div>
           </div>
         );
 

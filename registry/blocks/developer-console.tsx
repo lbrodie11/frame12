@@ -823,6 +823,15 @@ function scopeToLabel(scope: ApiKeyScope): string {
   return 'READ_ONLY';
 }
 
+/** Scrolls a region into view only when it is off-screen, honouring reduced motion and `cut`. */
+function revealIfOffscreen(el: HTMLElement, motion: MotionMode) {
+  const rect = el.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  if (rect.top >= 0 && rect.bottom <= viewportHeight) return;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  el.scrollIntoView({ block: 'start', behavior: reduce || motion === 'cut' ? 'auto' : 'smooth' });
+}
+
 function fmtCompactNumber(n: number): string {
   return Math.round(n).toLocaleString('en-US');
 }
@@ -927,6 +936,9 @@ function DeveloperConsoleInner({
   const [inspectedLog, setInspectedLog] = React.useState<ConsoleRequestLogItem | null>(null);
   const lastInspectedLogIdRef = React.useRef<string | null>(null);
   const pendingFocusTargetIdRef = React.useRef<string | null>(null);
+  // Set alongside a pending focus target when the move should also bring the section tabs into
+  // view (breadcrumb navigation from the sheet header to the tab strip below the KPI scene).
+  const pendingRevealMotionRef = React.useRef<MotionMode | null>(null);
   const replaySeqRef = React.useRef(1);
 
   const snapshot = CONSOLE_RANGE_SNAPSHOTS[timeRange];
@@ -1248,6 +1260,8 @@ function DeveloperConsoleInner({
 
   React.useEffect(() => {
     const targetId = pendingFocusTargetIdRef.current;
+    const revealMotion = pendingRevealMotionRef.current;
+    pendingRevealMotionRef.current = null;
     if (!targetId || typeof document === 'undefined') return;
     pendingFocusTargetIdRef.current = null;
     const applyFocus = () => {
@@ -1257,7 +1271,13 @@ function DeveloperConsoleInner({
       el?.focus({ preventScroll: true });
     };
     applyFocus();
-    const raf = window.requestAnimationFrame(applyFocus);
+    const raf = window.requestAnimationFrame(() => {
+      applyFocus();
+      const el = document.getElementById(targetId);
+      if (revealMotion && el) {
+        revealIfOffscreen(el.closest<HTMLElement>('[role="tablist"]') ?? el, revealMotion);
+      }
+    });
     return () => window.cancelAnimationFrame(raf);
   }, [
     activeSection,
@@ -1287,33 +1307,24 @@ function DeveloperConsoleInner({
             aria-label="Console hierarchy"
             density="compact"
             items={[
+              // Org root: context text — no org-level view exists inside this block.
+              { label: 'Fernwood Relay' },
               {
-                label: 'Fernwood Relay',
-                href: `#${resolvedIdPrefix}-sheet`,
-                onClick: (e) => {
-                  e.preventDefault();
-                  const targetId = `${resolvedIdPrefix}-tab-overview`;
-                  if (activeSection !== 'overview') {
-                    pendingFocusTargetIdRef.current = targetId;
-                    setActiveSection('overview');
-                  } else {
-                    pendingFocusTargetIdRef.current = null;
-                    window.requestAnimationFrame(() => {
-                      document.getElementById(targetId)?.focus();
-                    });
-                  }
-                },
-              },
-              {
+                // Environment level → its landing section (Overview). Only actionable when it
+                // would change the view.
                 label: envLabel,
-                href: `#${resolvedIdPrefix}-env-select`,
-                onClick: (e) => {
-                  e.preventDefault();
-                  pendingFocusTargetIdRef.current = null;
-                  window.requestAnimationFrame(() => {
-                    document.getElementById(`${resolvedIdPrefix}-env-select`)?.focus();
-                  });
-                },
+                onSelect:
+                  activeSection !== 'overview'
+                    ? () => {
+                        const targetId = `${resolvedIdPrefix}-tab-overview`;
+                        // Move focus before this button unmounts (it turns back into text at the
+                        // landing section) so Firefox carries :focus-visible over for keyboard use.
+                        document.getElementById(targetId)?.focus({ preventScroll: true });
+                        pendingFocusTargetIdRef.current = targetId;
+                        pendingRevealMotionRef.current = motion;
+                        setActiveSection('overview');
+                      }
+                    : undefined,
               },
               {
                 label: sectionLabels[activeSection],
@@ -1336,11 +1347,14 @@ function DeveloperConsoleInner({
         </div>
 
         <div className="f12-stack-pair">
-          <div className="f12-console-toolbar" role="group" aria-label="Environment and time window">
+          <div
+            className="f12-console-toolbar f12-console-hd-toolbar"
+            role="group"
+            aria-label="Environment and time window"
+          >
             <Select
               id={`${resolvedIdPrefix}-env-select`}
               label="Environment"
-              density="compact"
               value={environment}
               onValueChange={(v) => setEnvironment(v as ConsoleEnvironment)}
             >

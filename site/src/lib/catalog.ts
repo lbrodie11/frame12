@@ -1096,7 +1096,8 @@ export function ZeroLedger({ onReset }: { onReset: () => void }) {
         name: 'items',
         type: 'BreadcrumbEntry[]',
         defaultValue: 'undefined',
-        description: 'Optional shorthand array of { label, href?, current?, onClick? } items.',
+        description:
+          'Optional shorthand array of { label, href?, onClick?, onSelect?, current? } items. href renders a real <a> (new-tab and copy-link work; onClick is skipped on Ctrl/⌘/Shift/Alt-clicks). onSelect renders a <button> for in-page levels such as a tab or filter scope. With neither, the item is plain context text.',
       },
       {
         name: 'separator',
@@ -1114,18 +1115,20 @@ export function ZeroLedger({ onReset }: { onReset: () => void }) {
     a11yNotes: [
       'Marks the active page with aria-current="page" and hides separators with role="presentation" aria-hidden="true".',
       'BreadcrumbEllipsis keeps its .f12-sr-only label outside the aria-hidden glyph so screen readers announce collapsed levels.',
+      'Never fake an in-page action with <a href="#…"> + preventDefault(): use onSelect / BreadcrumbButton so assistive tech hears a button and the browser offers no dead open-in-new-tab or copy-link.',
+      'Actionable crumbs carry a dotted underline so they stay distinguishable from plain ancestor text without relying on colour.',
     ],
     grammarNotes: [
       'Uses uppercase monospace path tokens with 24×24px minimum interactive link targets.',
     ],
     usageTemplate: `import { Breadcrumb } from '@/components/frame12';
 
-export function SheetPath() {
+export function SheetPath({ onOpenSheets }: { onOpenSheets: () => void }) {
   return (
     <Breadcrumb
       items={[
-        { label: 'Workspace', href: '#workspace' },
-        { label: 'Sheets', href: '#sheets' },
+        { label: 'Workspace', href: '/workspace' }, // real route → <a>
+        { label: 'Sheets', onSelect: onOpenSheets }, // in-page level → <button>
         { label: 'Cut C-04 Ledger', current: true },
       ]}
     />
