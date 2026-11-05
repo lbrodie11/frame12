@@ -2,7 +2,7 @@
 
 [![Release: v0.1.0](https://img.shields.io/badge/Release-v0.1.0_·_Experimental-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://github.com/lbrodie11/frame12/releases/tag/v0.1.0)
 [![React 18 & 19](https://img.shields.io/badge/React-18_%26_19_·_TypeScript-121212?style=flat-square&labelColor=121212&color=ffffff)](registry/)
-[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-31_Components_·_35_Payloads-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
+[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-31_Components_·_41_Registry_Items-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
 [![License: MIT](https://img.shields.io/badge/License-MIT-121212?style=flat-square&labelColor=121212&color=ffffff)](LICENSE)
 
 **A React design system that makes interfaces look like comic pages and move like hand-drawn animation.**
@@ -34,7 +34,7 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 - **React & Next.js:** Tested on React `18.x` and type-checked/verified for React `19.x` (`element.props.ref` compatible) in Next.js `14+` App Router projects.
 - **Project setup:** An initialized `shadcn` project (`components.json` with a `@/*` path alias; tested with Radix-based `shadcn` styles such as `new-york` as well as `shadcn init -d` / `base-nova`). Or start from a pre-configured repo in [`templates/next-starter/`](templates/next-starter/).
 - **Styling:** Works standalone via scoped `.f12-*` CSS custom properties (`styles/frame12.css`). Tailwind CSS is optional (`styles/frame12-tailwind.css` is included if you want Tailwind v4 utility classes).
-- **Status:** `v0.1.0` (experimental initial release covering 14 core layout/data/control components and 5 accessible primitive adapters).
+- **Status:** Pre-1.0 and experimental (package version `0.1.0`). The registry ships 31 components, 3 application blocks (Developer Console, Workspace Settings, Revenue Recovery Analytics), the `use-on-twos` motion hook, and 3 font packages. Changes since `0.1.0` are listed under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md).
 
 ### 1. Add the registry kit
 
@@ -214,3 +214,11 @@ npm test                          # runs sync checks, static linter, and Playwri
 All typefaces used in FRAME/12 (`Dela Gothic One`, `Zen Kaku Gothic New`, and `M PLUS 1 Code`), as well as `Geist` and `Geist Mono` (used in the Phase 1 comparison baseline only), are open-source under the [SIL Open Font License 1.1](https://openfontlicense.org/).
 
 MIT License — see [`LICENSE`](LICENSE). Copyright (c) 2026 Laqwan Brodie.
+
+### Official sources & the FRAME/12 name
+
+FRAME/12 is only published from this repository, **[frame12.dev](https://frame12.dev)**, and its registry at `https://frame12.dev/r/<name>.json`. The MIT License covers the code; the FRAME/12 name and logo are covered by the [trademark policy](TRADEMARKS.md). Forks are welcome. Give yours its own name, and feel free to describe it as "based on FRAME/12".
+
+### Security
+
+Please report vulnerabilities privately as described in [`SECURITY.md`](SECURITY.md), not in public issues.
