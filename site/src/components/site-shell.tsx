@@ -10,6 +10,7 @@ export type ThemeMode = 'light' | 'dark';
 
 export interface SiteSettingsContextValue {
   theme: ThemeMode;
+  themeOverride?: ThemeMode;
   setTheme: (theme: ThemeMode) => void;
   motion: MotionMode;
   setMotion: (motion: MotionMode) => void;
@@ -17,6 +18,7 @@ export interface SiteSettingsContextValue {
 
 const SiteSettingsContext = React.createContext<SiteSettingsContextValue>({
   theme: 'light',
+  themeOverride: undefined,
   setTheme: () => {},
   motion: 'stepped',
   setMotion: () => {},
@@ -49,24 +51,33 @@ const MOTION_OPTIONS: Array<{ value: MotionMode; label: string; unit: string }> 
   { value: 'cut', label: '0', unit: 'cut' },
 ];
 
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
 export function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '/';
   const [theme, setThemeState] = React.useState<ThemeMode>('light');
+  const [themeOverride, setThemeOverride] = React.useState<ThemeMode | undefined>(undefined);
   const [hydrated, setHydrated] = React.useState(false);
   const [motion, setMotion] = React.useState<MotionMode>('stepped');
 
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const mq =
       typeof window.matchMedia === 'function'
         ? window.matchMedia('(prefers-color-scheme: dark)')
         : null;
-    const resolveInitial = (): ThemeMode => {
+    const readStoredOverride = (): ThemeMode | undefined => {
       try {
         const stored = localStorage.getItem('color-scheme');
         if (stored === 'dark' || stored === 'light') return stored;
       } catch {
         // Ignore storage errors
       }
+      return undefined;
+    };
+    const resolveInitial = (): ThemeMode => {
+      const stored = readStoredOverride();
+      if (stored) return stored;
       return mq && mq.matches ? 'dark' : 'light';
     };
 
@@ -74,35 +85,31 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       document.documentElement.setAttribute('data-theme', next);
       const meta = document.querySelector('meta[name="color-scheme"]');
       if (meta) {
-        try {
-          const stored = localStorage.getItem('color-scheme');
-          meta.setAttribute('content', stored === 'light' || stored === 'dark' ? stored : 'light dark');
-        } catch {
-          meta.setAttribute('content', next);
-        }
+        const stored = readStoredOverride();
+        meta.setAttribute('content', stored ?? 'light dark');
       }
     };
 
+    const initialOverride = readStoredOverride();
     const initial = resolveInitial();
+    setThemeOverride(initialOverride);
     setThemeState(initial);
     setHydrated(true);
     applyThemeToDom(initial);
 
     const onSystemChange = (e: MediaQueryListEvent) => {
-      try {
-        const stored = localStorage.getItem('color-scheme');
-        if (stored === 'light' || stored === 'dark') return;
-      } catch {
-        // Ignore storage errors
-      }
+      if (readStoredOverride()) return;
       const next: ThemeMode = e.matches ? 'dark' : 'light';
+      setThemeOverride(undefined);
       setThemeState(next);
       applyThemeToDom(next);
     };
 
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'color-scheme') {
+        const nextOverride = readStoredOverride();
         const next = resolveInitial();
+        setThemeOverride(nextOverride);
         setThemeState(next);
         applyThemeToDom(next);
       }
@@ -127,19 +134,22 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
     try {
       if (next === sysTheme) {
         localStorage.removeItem('color-scheme');
+        setThemeOverride(undefined);
         if (meta) meta.setAttribute('content', 'light dark');
       } else {
         localStorage.setItem('color-scheme', next);
+        setThemeOverride(next);
         if (meta) meta.setAttribute('content', next);
       }
     } catch {
+      setThemeOverride(next === sysTheme ? undefined : next);
       if (meta) meta.setAttribute('content', next);
     }
   }, []);
 
   const ctxValue = React.useMemo(
-    () => ({ theme, setTheme, motion, setMotion }),
-    [theme, setTheme, motion],
+    () => ({ theme, themeOverride, setTheme, motion, setMotion }),
+    [theme, themeOverride, setTheme, motion],
   );
 
   React.useEffect(() => {

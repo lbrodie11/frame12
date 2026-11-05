@@ -9,12 +9,13 @@ import { CopyCommand } from '@/components/copy-command';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 
 export default function WorkspaceSettingsShowcasePage() {
-  const { motion } = useSiteSettings();
+  const { motion, themeOverride } = useSiteSettings();
 
   return (
     <WorkspaceSettings
       idPrefix="ws-settings"
       motion={motion}
+      theme={themeOverride}
       footerSlot={
         <div className="f12-stack-scene">
           <Panel variant="quiet" label="Install Workspace Settings registry block">

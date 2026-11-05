@@ -610,6 +610,9 @@ const DENSITY_OPTIONS: Array<{ value: DensityPreference; label: string; unit: st
 
 const MAX_WORKSPACE_SEATS = 10;
 
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
 function buildBaselineSnapshot(
   targetId: WorkspaceTargetId,
   externalMotion?: MotionMode,
@@ -645,8 +648,8 @@ function reconcileCachedSnapshot(
   if (externalMotion !== undefined && externalMotion !== cachedState.externalMotion) {
     next.motion.mode = externalMotion;
   }
-  if (externalTheme !== undefined && externalTheme !== cachedState.externalTheme) {
-    next.appearance.themeMode = externalTheme;
+  if (externalTheme !== cachedState.externalTheme) {
+    next.appearance.themeMode = externalTheme ?? 'system';
   }
   return next;
 }
@@ -753,9 +756,9 @@ function WorkspaceSettingsInner({
       : buildBaselineSnapshot(resolvedDefaultWorkspaceId, externalMotion, externalTheme),
   );
 
-  const [osTheme, setOsTheme] = React.useState<'light' | 'dark'>('light');
+  const [osTheme, setOsTheme] = React.useState<'light' | 'dark' | undefined>(undefined);
 
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     const update = () => setOsTheme(mql.matches ? 'dark' : 'light');
@@ -769,7 +772,7 @@ function WorkspaceSettingsInner({
   }, []);
 
   const prevExternalMotionRef = React.useRef<MotionMode | undefined>(externalMotion);
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (externalMotion && externalMotion !== prevExternalMotionRef.current) {
       prevExternalMotionRef.current = externalMotion;
       setSavedByWorkspace((prev) => ({
@@ -790,22 +793,23 @@ function WorkspaceSettingsInner({
   }, [externalMotion]);
 
   const prevExternalThemeRef = React.useRef<'light' | 'dark' | undefined>(externalTheme);
-  React.useEffect(() => {
-    if (externalTheme && externalTheme !== prevExternalThemeRef.current) {
+  useIsomorphicLayoutEffect(() => {
+    if (externalTheme !== prevExternalThemeRef.current) {
       prevExternalThemeRef.current = externalTheme;
+      const nextThemeMode: ThemePreference = externalTheme ?? 'system';
       setSavedByWorkspace((prev) => ({
         'prod-atelier': {
           ...prev['prod-atelier'],
-          appearance: { ...prev['prod-atelier'].appearance, themeMode: externalTheme },
+          appearance: { ...prev['prod-atelier'].appearance, themeMode: nextThemeMode },
         },
         'staging-atelier': {
           ...prev['staging-atelier'],
-          appearance: { ...prev['staging-atelier'].appearance, themeMode: externalTheme },
+          appearance: { ...prev['staging-atelier'].appearance, themeMode: nextThemeMode },
         },
       }));
       setDraft((prev) => ({
         ...prev,
-        appearance: { ...prev.appearance, themeMode: externalTheme },
+        appearance: { ...prev.appearance, themeMode: nextThemeMode },
       }));
     }
   }, [externalTheme]);
@@ -1354,10 +1358,18 @@ function WorkspaceSettingsInner({
     return list;
   }, [effectiveChannels]);
 
-  const effectiveSheetTheme: 'light' | 'dark' =
-    draft.appearance.themeMode === 'system' ? osTheme : draft.appearance.themeMode;
+  const effectiveThemeMode: ThemePreference =
+    externalTheme !== prevExternalThemeRef.current
+      ? (externalTheme ?? 'system')
+      : draft.appearance.themeMode;
+  const sheetTheme: 'light' | 'dark' | undefined =
+    effectiveThemeMode === 'system' ? osTheme : effectiveThemeMode;
+  const effectiveSheetTheme: 'light' | 'dark' = sheetTheme ?? 'light';
 
-  const effectiveSheetMotion: MotionMode = draft.motion.mode;
+  const effectiveSheetMotion: MotionMode =
+    externalMotion && externalMotion !== prevExternalMotionRef.current
+      ? externalMotion
+      : draft.motion.mode;
   const effectiveChartMotion: MotionMode = draft.motion.animateCharts
     ? effectiveSheetMotion
     : 'cut';
@@ -1376,7 +1388,7 @@ function WorkspaceSettingsInner({
     <Sheet
       id={`${resolvedIdPrefix}-sheet`}
       motion={effectiveSheetMotion}
-      theme={effectiveSheetTheme}
+      theme={sheetTheme}
       pegs={draft.appearance.showRegistrationMarks}
       data-high-contrast-rules={draft.appearance.highContrastRules ? 'true' : 'false'}
       data-animate-charts={draft.motion.animateCharts ? 'true' : 'false'}

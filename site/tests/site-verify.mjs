@@ -989,6 +989,26 @@ try {
     await page.goto(`${baseUrl}/blocks/workspace-settings`, { waitUntil: 'networkidle' });
     await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
 
+    // Verify SSR HTML for /blocks/workspace-settings does not bake f12-theme-light onto #ws-settings-sheet (preventing dark-mode white flash)
+    const wsSsrHtml = await fetch(`${baseUrl}/blocks/workspace-settings`).then((r) => r.text());
+    const wsSsrNoLightFlash = !wsSsrHtml.includes('f12-theme-light') && !wsSsrHtml.includes('data-theme="light"');
+
+    // Verify site header Dark toggle (#site-theme-dark) switches #ws-settings-sheet to dark even on a light OS without marking draft dirty
+    await page.click('#site-theme-dark');
+    await page.waitForTimeout(40);
+    const siteHeaderDarkSynced = await page.evaluate(() => {
+      const sheet = document.querySelector('#ws-settings-sheet');
+      const innerSheet = document.querySelector('#ws-settings-sheet .f12-sheet');
+      const bar = document.querySelector('#ws-settings-persistence-bar');
+      return {
+        sheetTheme: sheet?.getAttribute('data-theme'),
+        bg: innerSheet ? getComputedStyle(innerSheet).backgroundColor : '',
+        dirtyAttr: bar?.getAttribute('data-dirty'),
+      };
+    });
+    await page.click('#site-theme-light');
+    await page.waitForTimeout(40);
+
     // Initial synchronized posture + host motion toggle ('M') does not mark draft dirty
     await page.keyboard.press('m');
     await page.waitForTimeout(40);
@@ -1011,14 +1031,18 @@ try {
       };
     });
     check(
-      initialPosture.dirtyAttr === 'false' &&
+      wsSsrNoLightFlash &&
+        siteHeaderDarkSynced.sheetTheme === 'dark' &&
+        siteHeaderDarkSynced.bg === 'rgb(5, 5, 5)' &&
+        siteHeaderDarkSynced.dirtyAttr === 'false' &&
+        initialPosture.dirtyAttr === 'false' &&
         initialPosture.saveDisabled &&
         initialPosture.discardDisabled &&
         !initialPosture.motionTabHasDot &&
         initialPosture.seats.includes('5 / 10 SEATS') &&
         initialPosture.channels.includes('3 ACTIVE'),
-      'site /blocks/workspace-settings (Posture & External Motion Sync): initial REV-042 state and host motion toggle remain clean with 5/10 seats, 3 active channels, and Save/Discard disabled',
-      JSON.stringify(initialPosture),
+      'site /blocks/workspace-settings (No Dark-Mode SSR White Flash, Posture & Host Theme/Motion Sync): SSR HTML omits f12-theme-light, site header Dark toggle switches sheet to dark without dirtying draft, and initial REV-042 state stays clean',
+      JSON.stringify({ wsSsrNoLightFlash, siteHeaderDarkSynced, initialPosture }),
     );
 
     // Dirty state detection + beforeunload navigation guard + Workspace target switch & internal link click modal guard (C-02)

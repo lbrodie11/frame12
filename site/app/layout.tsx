@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     'An interface design language built from page composition and cel-animation production craft: ink-framed panels, 12/20/32px gutter grammar, 45° SVG screentone, and motion held on twos (12fps).',
 };
 
-const FOUC_SCRIPT = `try{var s=localStorage.getItem("color-scheme");var m=document.querySelector('meta[name="color-scheme"]');if(m)m.content=(s==="light"||s==="dark")?s:"light dark";if(s==="light"||s==="dark")document.documentElement.setAttribute("data-theme",s);}catch(e){}`;
+const FOUC_SCRIPT = `try{var s=localStorage.getItem("color-scheme");var d=(s==="light"||s==="dark")?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");var m=document.querySelector('meta[name="color-scheme"]');if(m)m.content=(s==="light"||s==="dark")?s:"light dark";document.documentElement.setAttribute("data-theme",d);}catch(e){}`;
 
 export default function RootLayout({
   children,
