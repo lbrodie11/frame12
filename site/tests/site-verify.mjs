@@ -1375,20 +1375,30 @@ try {
     const overflow320 = await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
     );
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const headerReducedMotionOk = await page.evaluate(() => {
+      const headerInds = [...document.querySelectorAll('.site-header .f12-rng-ind')];
+      return (
+        headerInds.length >= 2 &&
+        headerInds.every((el) => getComputedStyle(el).transitionDuration === '0s')
+      );
+    });
     check(
       emptyCheck.seats.includes('0 / 10 SEATS') &&
         emptyCheck.channels.includes('0 ACTIVE') &&
         (seatsAfterZeroInvite || '').includes('1 / 10 SEATS') &&
         (seatsAfterZeroInviteDiscard || '').includes('5 / 10 SEATS') &&
         focusAfterRetry === 'ws-settings-reset-btn' &&
-        overflow320,
-      'site /blocks/workspace-settings (Empty/Error states & 320px): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, and 320px has zero horizontal overflow',
+        overflow320 &&
+        headerReducedMotionOk,
+      'site /blocks/workspace-settings (Empty/Error states, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
       JSON.stringify({
         emptyCheck,
         seatsAfterZeroInvite,
         seatsAfterZeroInviteDiscard,
         focusAfterRetry,
         overflow320,
+        headerReducedMotionOk,
       }),
     );
 

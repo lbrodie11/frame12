@@ -3122,6 +3122,17 @@ dialog.f12-dialog > .f12-cut {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root,
+  .f12-m-smooth,
+  .f12-m-stepped,
+  .f12-m-cut {
+    --f-rng-ind-transition: none;
+    --f-switch-thumb-transition: none;
+    --f-skeleton-animation: none;
+    --f-enter-animation: none;
+    --f-pop-animation: none;
+    --f-burst-animation: none;
+  }
   .f12-dash *,
   .f12-dash *::before,
   .f12-dash *::after,
@@ -3130,6 +3141,11 @@ dialog.f12-dialog > .f12-cut {
   .f12-sheet *::after,
   .f12-toast-viewport *,
   .f12-toast,
+  .f12-rng-ind,
+  .f12-switch-thumb,
+  .f12-enter,
+  .f12-pop,
+  .f12-pop .f12-burst,
   .f12-skeleton-animated {
     animation: none !important;
     transition: none !important;
