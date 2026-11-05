@@ -2912,6 +2912,9 @@ dialog.f12-dialog > .f12-cut {
     border-inline-start: 0;
     border-top-width: 1.5px;
   }
+  .f12-analytics-seg-desc {
+    display: none;
+  }
 }
 
 @container (max-width: 640px) {
@@ -2930,6 +2933,9 @@ dialog.f12-dialog > .f12-cut {
   .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
     border-inline-start: 0;
     border-top-width: 1.5px;
+  }
+  .f12-analytics-seg-desc {
+    display: none;
   }
 }
 

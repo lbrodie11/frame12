@@ -1072,7 +1072,10 @@ function WorkspaceSettingsInner({
     setInviteEmail('');
     setInviteName('');
     setInviteError(undefined);
-    pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-reset-btn`;
+    pendingFocusTargetIdRef.current = null;
+    window.requestAnimationFrame(() => {
+      document.getElementById(`${resolvedIdPrefix}-reset-btn`)?.focus();
+    });
     toast({
       status: 'warning',
       title: 'Reset to factory defaults',
@@ -1374,11 +1377,16 @@ function WorkspaceSettingsInner({
                 href: `#${resolvedIdPrefix}-sheet`,
                 onClick: (e) => {
                   e.preventDefault();
-                  pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-tabs-tab-profile`;
-                  setActiveSection('profile');
-                  window.requestAnimationFrame(() => {
-                    document.getElementById(`${resolvedIdPrefix}-tabs-tab-profile`)?.focus();
-                  });
+                  const targetId = `${resolvedIdPrefix}-tabs-tab-profile`;
+                  if (activeSection !== 'profile') {
+                    pendingFocusTargetIdRef.current = targetId;
+                    setActiveSection('profile');
+                  } else {
+                    pendingFocusTargetIdRef.current = null;
+                    window.requestAnimationFrame(() => {
+                      document.getElementById(targetId)?.focus();
+                    });
+                  }
                 },
               },
               {
@@ -1386,11 +1394,16 @@ function WorkspaceSettingsInner({
                 href: `#${resolvedIdPrefix}-ws-name`,
                 onClick: (e) => {
                   e.preventDefault();
-                  pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-ws-name`;
-                  setActiveSection('workspace');
-                  window.requestAnimationFrame(() => {
-                    document.getElementById(`${resolvedIdPrefix}-ws-name`)?.focus();
-                  });
+                  const targetId = `${resolvedIdPrefix}-ws-name`;
+                  if (activeSection !== 'workspace') {
+                    pendingFocusTargetIdRef.current = targetId;
+                    setActiveSection('workspace');
+                  } else {
+                    pendingFocusTargetIdRef.current = null;
+                    window.requestAnimationFrame(() => {
+                      document.getElementById(targetId)?.focus();
+                    });
+                  }
                 },
               },
               {

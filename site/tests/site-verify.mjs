@@ -1382,6 +1382,20 @@ try {
         'true',
       activeElementId: document.activeElement?.id || '',
     }));
+    // Click workspace breadcrumb AGAIN while already on 02 · Workspace, then type multiple characters into #ws-settings-ws-name without losing focus
+    await page.click('#ws-settings-sheet a[href="#ws-settings-ws-name"]');
+    await page.waitForTimeout(60);
+    await page.fill('#ws-settings-ws-name', '');
+    await page.focus('#ws-settings-ws-name');
+    await page.keyboard.type('Atelier XYZ');
+    await page.waitForTimeout(60);
+    const afterSameWsBreadcrumbTyping = await page.evaluate(() => ({
+      value: document.querySelector('#ws-settings-ws-name')?.value || '',
+      activeElementId: document.activeElement?.id || '',
+    }));
+    await page.click('#ws-settings-discard-btn');
+    await page.waitForTimeout(60);
+
     await page.click('#ws-settings-sheet a[href="#ws-settings-sheet"]');
     await page.waitForTimeout(60);
     const afterRootBreadcrumb = await page.evaluate(() => ({
@@ -1390,6 +1404,19 @@ try {
         'true',
       activeElementId: document.activeElement?.id || '',
     }));
+    // Click control-plane breadcrumb AGAIN while already on 01 · Profile, then type multiple characters into #ws-settings-profile-name without losing focus
+    await page.click('#ws-settings-sheet a[href="#ws-settings-sheet"]');
+    await page.waitForTimeout(60);
+    await page.fill('#ws-settings-profile-name', '');
+    await page.focus('#ws-settings-profile-name');
+    await page.keyboard.type('Sora XYZ');
+    await page.waitForTimeout(60);
+    const afterSameProfileBreadcrumbTyping = await page.evaluate(() => ({
+      value: document.querySelector('#ws-settings-profile-name')?.value || '',
+      activeElementId: document.activeElement?.id || '',
+    }));
+    await page.click('#ws-settings-discard-btn');
+    await page.waitForTimeout(60);
 
     await page.setViewportSize({ width: 320, height: 800 });
     await page.waitForTimeout(80);
@@ -1412,18 +1439,24 @@ try {
         focusAfterRetry === 'ws-settings-reset-btn' &&
         afterWsBreadcrumb.wsTabSelected &&
         afterWsBreadcrumb.activeElementId === 'ws-settings-ws-name' &&
+        afterSameWsBreadcrumbTyping.value === 'Atelier XYZ' &&
+        afterSameWsBreadcrumbTyping.activeElementId === 'ws-settings-ws-name' &&
         afterRootBreadcrumb.profileTabSelected &&
         afterRootBreadcrumb.activeElementId === 'ws-settings-tabs-tab-profile' &&
+        afterSameProfileBreadcrumbTyping.value === 'Sora XYZ' &&
+        afterSameProfileBreadcrumbTyping.activeElementId === 'ws-settings-profile-name' &&
         overflow320 &&
         headerReducedMotionOk,
-      'site /blocks/workspace-settings (Empty/Error states, Breadcrumb navigation, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb links switch sections with focus transfer, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
+      'site /blocks/workspace-settings (Empty/Error states, Breadcrumb navigation + same-section typing, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb links switch sections without stealing focus during subsequent typing, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
       JSON.stringify({
         emptyCheck,
         seatsAfterZeroInvite,
         seatsAfterZeroInviteDiscard,
         focusAfterRetry,
         afterWsBreadcrumb,
+        afterSameWsBreadcrumbTyping,
         afterRootBreadcrumb,
+        afterSameProfileBreadcrumbTyping,
         overflow320,
         headerReducedMotionOk,
       }),
@@ -1589,12 +1622,65 @@ try {
         ledgerProf,
       };
     });
+    // Click Returning VIP segment filter (unfocused intervention) -> Oct 31 top intervention ranks within Returning VIP ('Abandoned-cart email')
     await page.click('#analytics-clear-ledger-filters');
     await page.waitForTimeout(60);
+    await page.click('#analytics-seg-filter-returning-vip');
+    await page.waitForTimeout(60);
+    const vipScopedLeaderOk = await page.evaluate(() => {
+      const firstRowCells = [
+        ...document.querySelectorAll('#analytics-ledger-table tbody tr:first-child td'),
+      ].map((td) => td.textContent || '');
+      const liftRowDelta =
+        document
+          .querySelectorAll('#analytics-period-table tbody tr')[3]
+          ?.querySelectorAll('td')[3]?.textContent || '';
+      return {
+        topInterventionCell: firstRowCells[1] || '',
+        segmentCell: firstRowCells[2] || '',
+        liftRowDelta: liftRowDelta.trim(),
+        ok:
+          (firstRowCells[1] || '').includes('Abandoned-cart email') &&
+          (firstRowCells[2] || '').includes('Returning VIP') &&
+          liftRowDelta.includes('+0.01 pp'),
+      };
+    });
+    await page.click('#analytics-clear-ledger-filters');
+    await page.waitForTimeout(60);
+
+    // Click Reset view when already at default view, then type multiple characters into #analytics-ledger-search without losing focus
+    await page.click('#analytics-reset-btn');
+    await page.waitForTimeout(60);
+    const focusAfterDefaultReset = await page.evaluate(() => document.activeElement?.id || '');
+    await page.focus('#analytics-ledger-search');
+    await page.keyboard.type('Oct 31');
+    await page.waitForTimeout(60);
+    const afterDefaultResetTyping = await page.evaluate(() => ({
+      value: document.querySelector('#analytics-ledger-search')?.value || '',
+      activeElementId: document.activeElement?.id || '',
+      rowCount: document.querySelectorAll('#analytics-ledger-table tbody tr').length,
+    }));
+    await page.click('#analytics-clear-ledger-filters');
+    await page.waitForTimeout(60);
+
     check(
-      prevOverlayActive && exitScopeReconciled.ok && segmentFilterReconciled.ok,
-      'site /blocks/analytics-dashboard (Period Overlay, Intervention Focus & Segment Scope): PREV overlays prior 30d window, C-04 click scopes Period/Segment/Ledger tables to exact intervention totals, and segment filter reconciles ledger totals with segment row',
-      JSON.stringify({ prevOverlayActive, exitScopeReconciled, segmentFilterReconciled }),
+      prevOverlayActive &&
+        exitScopeReconciled.ok &&
+        segmentFilterReconciled.ok &&
+        vipScopedLeaderOk.ok &&
+        focusAfterDefaultReset === 'analytics-rng-30' &&
+        afterDefaultResetTyping.value === 'Oct 31' &&
+        afterDefaultResetTyping.activeElementId === 'analytics-ledger-search' &&
+        afterDefaultResetTyping.rowCount === 1,
+      'site /blocks/analytics-dashboard (Period Overlay, Intervention Focus, Scoped Leader Ranking & Default Reset Typing): PREV overlays prior 30d window, C-04 click scopes Period/Segment/Ledger tables, segment filter ranks leaders within active scope, rounded lift delta shows +0.01 pp, and Reset on default view focuses 30d without stealing focus during subsequent typing',
+      JSON.stringify({
+        prevOverlayActive,
+        exitScopeReconciled,
+        segmentFilterReconciled,
+        vipScopedLeaderOk,
+        focusAfterDefaultReset,
+        afterDefaultResetTyping,
+      }),
     );
 
     // 3) Daily ledger search, empty filter recovery, pagination, and C-05 Daily Attribution Dialog + focus restoration

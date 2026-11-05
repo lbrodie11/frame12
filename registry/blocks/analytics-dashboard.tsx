@@ -872,7 +872,8 @@ function AnalyticsDashboardInner({
   };
 
   const handleResetView = () => {
-    pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-rng-${DEFAULT_RANGE}`;
+    const targetId = `${resolvedIdPrefix}-rng-${DEFAULT_RANGE}`;
+    pendingFocusTargetIdRef.current = null;
     setRange(DEFAULT_RANGE);
     setFocus(null);
     setComparisonMode('intervention');
@@ -882,6 +883,9 @@ function AnalyticsDashboardInner({
     setLedgerSort('date-desc');
     setLedgerPage(1);
     setInspectedDayKey(null);
+    window.requestAnimationFrame(() => {
+      document.getElementById(targetId)?.focus();
+    });
     toast({
       status: 'info',
       title: 'Reset analytics view',
@@ -1004,14 +1008,41 @@ function AnalyticsDashboardInner({
         rowProfit = d.profit;
       }
 
-      const activeInterventionMeta =
-        focusItem ??
-        INTERVENTIONS.find((it) => it.id === d.topInterventionId) ??
-        INTERVENTIONS[0];
-      const activeSegmentMeta =
+      let activeInterventionMeta = focusItem;
+      if (!activeInterventionMeta) {
+        let bestIntervention = INTERVENTIONS[0];
+        let bestInterventionRev = -1;
+        for (const it of INTERVENTIONS) {
+          const candidateRev =
+            segmentFilter !== 'all'
+              ? d.byIdAndSegment[it.id][segmentFilter]
+              : d.byId[it.id];
+          if (candidateRev > bestInterventionRev) {
+            bestInterventionRev = candidateRev;
+            bestIntervention = it;
+          }
+        }
+        activeInterventionMeta = bestIntervention;
+      }
+
+      let activeSegmentMeta =
         segmentFilter !== 'all'
-          ? CHECKOUT_SEGMENTS.find((seg) => seg.id === segmentFilter)!
-          : CHECKOUT_SEGMENTS.find((seg) => seg.id === d.topSegmentId) ?? CHECKOUT_SEGMENTS[0];
+          ? CHECKOUT_SEGMENTS.find((seg) => seg.id === segmentFilter) ?? null
+          : null;
+      if (!activeSegmentMeta) {
+        let bestSegment = CHECKOUT_SEGMENTS[0];
+        let bestSegmentRev = -1;
+        for (const seg of CHECKOUT_SEGMENTS) {
+          const candidateRev = focusItem
+            ? d.byIdAndSegment[focusItem.id][seg.id]
+            : d.bySegment[seg.id];
+          if (candidateRev > bestSegmentRev) {
+            bestSegmentRev = candidateRev;
+            bestSegment = seg;
+          }
+        }
+        activeSegmentMeta = bestSegment;
+      }
 
       const marginPct = rowRevenue > 0 ? (rowProfit / rowRevenue) * 100 : 0;
 
@@ -1354,9 +1385,13 @@ function AnalyticsDashboardInner({
                     <TableCell>{`${(isEmpty ? 0 : scopedPeriod.netMarginPct).toFixed(1)}%`}</TableCell>
                     <TableCell>{`${(isEmpty ? 0 : scopedPeriod.prevNetMarginPct).toFixed(1)}%`}</TableCell>
                     <TableCell>
-                      {isEmpty
-                        ? '+0.00 pp'
-                        : fmtPP(scopedPeriod.netMarginPct - scopedPeriod.prevNetMarginPct)}
+                      {(() => {
+                        if (isEmpty) return '0.0 pp';
+                        const curMargin = Number(scopedPeriod.netMarginPct.toFixed(1));
+                        const prevMargin = Number(scopedPeriod.prevNetMarginPct.toFixed(1));
+                        const marginDelta = Number((curMargin - prevMargin).toFixed(1));
+                        return `${marginDelta > 0 ? '+' : ''}${marginDelta.toFixed(1)} pp`;
+                      })()}
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -1364,19 +1399,26 @@ function AnalyticsDashboardInner({
                     <TableCell>{isEmpty ? '+0.00 pp' : fmtPP(s.lift)}</TableCell>
                     <TableCell>{isEmpty ? '+0.00 pp' : fmtPP(s.prevLift)}</TableCell>
                     <TableCell>
-                      <Tag
-                        status={
-                          isEmpty || Math.abs(s.liftDelta) < 0.005
-                            ? 'neutral'
-                            : s.liftDelta > 0
-                              ? 'success'
-                              : 'warning'
-                        }
-                      >
-                        {isEmpty || Math.abs(s.liftDelta) < 0.005
-                          ? '0.00 pp'
-                          : fmtPP(s.liftDelta)}
-                      </Tag>
+                      {(() => {
+                        const displayedLiftDelta = isEmpty
+                          ? 0
+                          : Number((Number(s.lift.toFixed(2)) - Number(s.prevLift.toFixed(2))).toFixed(2));
+                        return (
+                          <Tag
+                            status={
+                              isEmpty || Math.abs(displayedLiftDelta) < 0.005
+                                ? 'neutral'
+                                : displayedLiftDelta > 0
+                                  ? 'success'
+                                  : 'warning'
+                            }
+                          >
+                            {isEmpty || Math.abs(displayedLiftDelta) < 0.005
+                              ? '0.00 pp'
+                              : fmtPP(displayedLiftDelta)}
+                          </Tag>
+                        );
+                      })()}
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -1481,8 +1523,8 @@ function AnalyticsDashboardInner({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Segment</TableHead>
-                    <TableHead>Recovered Revenue</TableHead>
-                    <TableHead>Incremental Profit</TableHead>
+                    <TableHead>Recovered</TableHead>
+                    <TableHead>Profit</TableHead>
                     <TableHead>Share</TableHead>
                     <TableHead>vs. Prior</TableHead>
                   </TableRow>
@@ -1492,7 +1534,7 @@ function AnalyticsDashboardInner({
                     <TableRow key={seg.id}>
                       <TableCell>
                         <strong>{seg.name}</strong>
-                        <div className="f12-mono-note">{seg.description}</div>
+                        <div className="f12-mono-note f12-analytics-seg-desc">{seg.description}</div>
                       </TableCell>
                       <TableCell>{fmtMoney(seg.revenue)}</TableCell>
                       <TableCell>{fmtMoney(seg.profit)}</TableCell>
