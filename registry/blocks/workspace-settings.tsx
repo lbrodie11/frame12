@@ -592,9 +592,9 @@ const WORKSPACE_TARGET_OPTIONS: Array<{ value: WorkspaceTargetId; label: string;
 
 const DATASET_STATE_OPTIONS: Array<{ value: SettingsDatasetState; label: string; unit: string }> = [
   { value: 'populated', label: 'LIVE', unit: 'fixture' },
-  { value: 'loading', label: 'LOAD', unit: 'skeleton' },
+  { value: 'loading', label: 'LOAD', unit: 'skel' },
   { value: 'empty', label: 'ZERO', unit: 'empty' },
-  { value: 'error', label: 'ERR', unit: 'fault' },
+  { value: 'error', label: 'ERR', unit: '503' },
 ];
 
 const RETENTION_OPTIONS: Array<{ value: RetentionWindow; label: string; unit: string }> = [
@@ -609,6 +609,9 @@ const DENSITY_OPTIONS: Array<{ value: DensityPreference; label: string; unit: st
 ];
 
 const MAX_WORKSPACE_SEATS = 10;
+
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
 
 function buildBaselineSnapshot(
   targetId: WorkspaceTargetId,
@@ -645,23 +648,31 @@ function reconcileCachedSnapshot(
   if (externalMotion !== undefined && externalMotion !== cachedState.externalMotion) {
     next.motion.mode = externalMotion;
   }
-  if (externalTheme !== undefined && externalTheme !== cachedState.externalTheme) {
-    next.appearance.themeMode = externalTheme;
+  if (externalTheme !== cachedState.externalTheme) {
+    next.appearance.themeMode = externalTheme ?? 'system';
   }
   return next;
 }
 
 export interface WorkspaceSettingsProps {
-  /** Initial active settings tab (`'profile'` by default). */
+  /** Default active settings tab (`'profile'` by default). */
+  defaultSection?: SettingsSection;
+  /** Default dataset state (`'populated'` by default) for testing loading/empty/error states. */
+  defaultDatasetState?: SettingsDatasetState;
+  /** Default workspace target (`'prod-atelier'` by default). */
+  defaultWorkspaceId?: WorkspaceTargetId;
+  /** Alias for `defaultSection`. */
   initialSection?: SettingsSection;
-  /** Initial dataset state (`'populated'` by default) for testing loading/empty/error states. */
+  /** Alias for `defaultDatasetState`. */
   initialDatasetState?: SettingsDatasetState;
-  /** Initial workspace target (`'prod-atelier'` by default). */
+  /** Alias for `defaultWorkspaceId`. */
   initialWorkspaceId?: WorkspaceTargetId;
   /** Motion grammar override (`'stepped'` 12fps by default; changing Motion Preferences updates the sheet live). */
   motion?: MotionMode;
   /** Theme override (`'light'` or `'dark'`; changing Appearance updates the sheet live). */
   theme?: 'light' | 'dark';
+  /** Additional CSS class names for the root `<Sheet>`. */
+  className?: string;
   /** Show interactive sandbox state switcher bar for exploring loading/empty/error states. */
   showSandboxControls?: boolean;
   /** Prefix for deterministic DOM IDs. When omitted, a collision-free React.useId() prefix is generated. */
@@ -675,11 +686,15 @@ export interface WorkspaceSettingsProps {
 }
 
 function WorkspaceSettingsInner({
-  initialSection = 'profile',
-  initialDatasetState = 'populated',
-  initialWorkspaceId = 'prod-atelier',
+  defaultSection,
+  defaultDatasetState,
+  defaultWorkspaceId,
+  initialSection,
+  initialDatasetState,
+  initialWorkspaceId,
   motion: externalMotion,
   theme: externalTheme,
+  className,
   showSandboxControls = true,
   idPrefix,
   onDirtyChange,
@@ -690,14 +705,21 @@ function WorkspaceSettingsInner({
   const resolvedIdPrefix = idPrefix ?? `f12-settings-${autoId}`;
   const { toast } = useToast();
 
+  const resolvedDefaultWorkspaceId =
+    defaultWorkspaceId ?? initialWorkspaceId ?? 'prod-atelier';
+  const resolvedDefaultSection = defaultSection ?? initialSection ?? 'profile';
+  const resolvedDefaultDatasetState =
+    defaultDatasetState ?? initialDatasetState ?? 'populated';
+
   const cachedRouteState = idPrefix ? CLIENT_ROUTE_DRAFT_CACHE.get(idPrefix) : undefined;
 
   const [workspaceId, setWorkspaceId] = React.useState<WorkspaceTargetId>(
-    () => cachedRouteState?.workspaceId ?? initialWorkspaceId,
+    () => cachedRouteState?.workspaceId ?? resolvedDefaultWorkspaceId,
   );
-  const [activeSection, setActiveSection] = React.useState<SettingsSection>(initialSection);
+  const [activeSection, setActiveSection] =
+    React.useState<SettingsSection>(resolvedDefaultSection);
   const [datasetState, setDatasetState] =
-    React.useState<SettingsDatasetState>(initialDatasetState);
+    React.useState<SettingsDatasetState>(resolvedDefaultDatasetState);
 
   const [savedByWorkspace, setSavedByWorkspace] = React.useState<
     Record<WorkspaceTargetId, WorkspaceConfigSnapshot>
@@ -731,12 +753,12 @@ function WorkspaceSettingsInner({
           externalMotion,
           externalTheme,
         )
-      : buildBaselineSnapshot(initialWorkspaceId, externalMotion, externalTheme),
+      : buildBaselineSnapshot(resolvedDefaultWorkspaceId, externalMotion, externalTheme),
   );
 
-  const [osTheme, setOsTheme] = React.useState<'light' | 'dark'>('light');
+  const [osTheme, setOsTheme] = React.useState<'light' | 'dark' | undefined>(undefined);
 
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     const update = () => setOsTheme(mql.matches ? 'dark' : 'light');
@@ -750,7 +772,7 @@ function WorkspaceSettingsInner({
   }, []);
 
   const prevExternalMotionRef = React.useRef<MotionMode | undefined>(externalMotion);
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (externalMotion && externalMotion !== prevExternalMotionRef.current) {
       prevExternalMotionRef.current = externalMotion;
       setSavedByWorkspace((prev) => ({
@@ -771,22 +793,23 @@ function WorkspaceSettingsInner({
   }, [externalMotion]);
 
   const prevExternalThemeRef = React.useRef<'light' | 'dark' | undefined>(externalTheme);
-  React.useEffect(() => {
-    if (externalTheme && externalTheme !== prevExternalThemeRef.current) {
+  useIsomorphicLayoutEffect(() => {
+    if (externalTheme !== prevExternalThemeRef.current) {
       prevExternalThemeRef.current = externalTheme;
+      const nextThemeMode: ThemePreference = externalTheme ?? 'system';
       setSavedByWorkspace((prev) => ({
         'prod-atelier': {
           ...prev['prod-atelier'],
-          appearance: { ...prev['prod-atelier'].appearance, themeMode: externalTheme },
+          appearance: { ...prev['prod-atelier'].appearance, themeMode: nextThemeMode },
         },
         'staging-atelier': {
           ...prev['staging-atelier'],
-          appearance: { ...prev['staging-atelier'].appearance, themeMode: externalTheme },
+          appearance: { ...prev['staging-atelier'].appearance, themeMode: nextThemeMode },
         },
       }));
       setDraft((prev) => ({
         ...prev,
-        appearance: { ...prev.appearance, themeMode: externalTheme },
+        appearance: { ...prev.appearance, themeMode: nextThemeMode },
       }));
     }
   }, [externalTheme]);
@@ -1072,7 +1095,10 @@ function WorkspaceSettingsInner({
     setInviteEmail('');
     setInviteName('');
     setInviteError(undefined);
-    pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-reset-btn`;
+    pendingFocusTargetIdRef.current = null;
+    window.requestAnimationFrame(() => {
+      document.getElementById(`${resolvedIdPrefix}-reset-btn`)?.focus();
+    });
     toast({
       status: 'warning',
       title: 'Reset to factory defaults',
@@ -1332,10 +1358,18 @@ function WorkspaceSettingsInner({
     return list;
   }, [effectiveChannels]);
 
-  const effectiveSheetTheme: 'light' | 'dark' =
-    draft.appearance.themeMode === 'system' ? osTheme : draft.appearance.themeMode;
+  const effectiveThemeMode: ThemePreference =
+    externalTheme !== prevExternalThemeRef.current
+      ? (externalTheme ?? 'system')
+      : draft.appearance.themeMode;
+  const sheetTheme: 'light' | 'dark' | undefined =
+    effectiveThemeMode === 'system' ? osTheme : effectiveThemeMode;
+  const effectiveSheetTheme: 'light' | 'dark' = sheetTheme ?? 'light';
 
-  const effectiveSheetMotion: MotionMode = draft.motion.mode;
+  const effectiveSheetMotion: MotionMode =
+    externalMotion && externalMotion !== prevExternalMotionRef.current
+      ? externalMotion
+      : draft.motion.mode;
   const effectiveChartMotion: MotionMode = draft.motion.animateCharts
     ? effectiveSheetMotion
     : 'cut';
@@ -1354,11 +1388,11 @@ function WorkspaceSettingsInner({
     <Sheet
       id={`${resolvedIdPrefix}-sheet`}
       motion={effectiveSheetMotion}
-      theme={effectiveSheetTheme}
+      theme={sheetTheme}
       pegs={draft.appearance.showRegistrationMarks}
       data-high-contrast-rules={draft.appearance.highContrastRules ? 'true' : 'false'}
       data-animate-charts={draft.motion.animateCharts ? 'true' : 'false'}
-      className="f12-console f12-settings"
+      className={['f12-console', 'f12-settings', className].filter(Boolean).join(' ')}
     >
       {headerSlot}
 
@@ -1369,9 +1403,46 @@ function WorkspaceSettingsInner({
             aria-label="Workspace settings hierarchy"
             density="compact"
             items={[
-              { label: 'FRAME/12 Control Plane', href: '#control-plane' },
-              { label: draft.workspace.workspaceName, href: `#${draft.workspace.slug}` },
-              { label: 'Workspace Settings', current: true },
+              {
+                label: 'FRAME/12 Control Plane',
+                href: `#${resolvedIdPrefix}-sheet`,
+                onClick: (e) => {
+                  e.preventDefault();
+                  const targetId = `${resolvedIdPrefix}-tabs-tab-profile`;
+                  if (activeSection !== 'profile') {
+                    pendingFocusTargetIdRef.current = targetId;
+                    setActiveSection('profile');
+                  } else {
+                    pendingFocusTargetIdRef.current = null;
+                    window.requestAnimationFrame(() => {
+                      document.getElementById(targetId)?.focus();
+                    });
+                  }
+                },
+              },
+              {
+                label: draft.workspace.workspaceName,
+                href: `#${resolvedIdPrefix}-ws-name`,
+                onClick: (e) => {
+                  e.preventDefault();
+                  const targetId = isLoadingDataset
+                    ? `${resolvedIdPrefix}-tabs-tab-workspace`
+                    : `${resolvedIdPrefix}-ws-name`;
+                  if (activeSection !== 'workspace') {
+                    pendingFocusTargetIdRef.current = targetId;
+                    setActiveSection('workspace');
+                  } else {
+                    pendingFocusTargetIdRef.current = null;
+                    window.requestAnimationFrame(() => {
+                      document.getElementById(targetId)?.focus();
+                    });
+                  }
+                },
+              },
+              {
+                label: SECTION_LABELS[activeSection],
+                current: true,
+              },
             ]}
           />
           <p className="f12-eyebrow">
@@ -1436,7 +1507,7 @@ function WorkspaceSettingsInner({
                 });
               }}
             >
-              Retry synchronization
+              Retry configuration sync
             </Button>
           }
         >
@@ -1467,7 +1538,7 @@ function WorkspaceSettingsInner({
                 });
               }}
             >
-              Populate default fixture
+              Load sample data
             </Button>
           }
         />

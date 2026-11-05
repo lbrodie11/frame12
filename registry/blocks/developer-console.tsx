@@ -832,7 +832,16 @@ export interface DeveloperConsoleProps {
   defaultDatasetState?: ConsoleDatasetState;
   defaultTimeRange?: ConsoleTimeRange;
   defaultEnvironment?: ConsoleEnvironment;
+  /** Alias for `defaultSection`. */
+  initialSection?: ConsoleSection;
+  /** Alias for `defaultDatasetState`. */
+  initialDatasetState?: ConsoleDatasetState;
+  /** Alias for `defaultTimeRange`. */
+  initialTimeRange?: ConsoleTimeRange;
+  /** Alias for `defaultEnvironment`. */
+  initialEnvironment?: ConsoleEnvironment;
   motion?: MotionMode;
+  theme?: 'light' | 'dark';
   idPrefix?: string;
   showSandboxControls?: boolean;
   className?: string;
@@ -843,11 +852,16 @@ export interface DeveloperConsoleProps {
 const SLO_TARGET_MAX_ERROR_BPS = 50;
 
 function DeveloperConsoleInner({
-  defaultSection = 'overview',
-  defaultDatasetState = 'populated',
-  defaultTimeRange = '24h',
-  defaultEnvironment = 'prod-us-east-1',
+  defaultSection,
+  defaultDatasetState,
+  defaultTimeRange,
+  defaultEnvironment,
+  initialSection,
+  initialDatasetState,
+  initialTimeRange,
+  initialEnvironment,
   motion = 'stepped',
+  theme,
   idPrefix,
   showSandboxControls = true,
   className = '',
@@ -856,13 +870,21 @@ function DeveloperConsoleInner({
 }: DeveloperConsoleProps) {
   const { toast } = useToast();
   const reactId = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
-  const resolvedIdPrefix = idPrefix ?? `dev-console-${reactId || 'instance'}`;
+  const resolvedIdPrefix = idPrefix ?? `f12-console-${reactId || 'instance'}`;
 
   // Top-level navigation, environment, time window, and dataset simulation state
-  const [activeSection, setActiveSection] = React.useState<ConsoleSection>(defaultSection);
-  const [datasetState, setDatasetState] = React.useState<ConsoleDatasetState>(defaultDatasetState);
-  const [timeRange, setTimeRange] = React.useState<ConsoleTimeRange>(defaultTimeRange);
-  const [environment, setEnvironment] = React.useState<ConsoleEnvironment>(defaultEnvironment);
+  const [activeSection, setActiveSection] = React.useState<ConsoleSection>(
+    defaultSection ?? initialSection ?? 'overview',
+  );
+  const [datasetState, setDatasetState] = React.useState<ConsoleDatasetState>(
+    defaultDatasetState ?? initialDatasetState ?? 'populated',
+  );
+  const [timeRange, setTimeRange] = React.useState<ConsoleTimeRange>(
+    defaultTimeRange ?? initialTimeRange ?? '24h',
+  );
+  const [environment, setEnvironment] = React.useState<ConsoleEnvironment>(
+    defaultEnvironment ?? initialEnvironment ?? 'prod-us-east-1',
+  );
 
   // Overview state: selected service for comparison overlay
   const [selectedServiceId, setSelectedServiceId] = React.useState<string>('svc-webhook-dispatch');
@@ -1032,6 +1054,7 @@ function DeveloperConsoleInner({
     environment === 'prod-us-east-1' ? 'Production (us-east-1)' : 'Staging (eu-central-1)';
 
   const handleResetSandbox = () => {
+    pendingFocusTargetIdRef.current = null;
     setDatasetState('populated');
     setTimeRange('24h');
     setEnvironment('prod-us-east-1');
@@ -1060,6 +1083,9 @@ function DeveloperConsoleInner({
     setLogServiceFilter('all');
     setLogPage(1);
     setInspectedLog(null);
+    window.requestAnimationFrame(() => {
+      document.getElementById(`${resolvedIdPrefix}-reset-sandbox`)?.focus();
+    });
     toast({
       status: 'info',
       title: 'Sandbox fixtures reset',
@@ -1251,20 +1277,31 @@ function DeveloperConsoleInner({
       autoCut
       pegs
       motion={motion}
+      theme={theme}
       className={['f12-console', className].filter(Boolean).join(' ')}
     >
       {/* Top Header & Breadcrumb */}
       <header className="f12-hd">
-        <div className="f12-stack-pair">
+        <div className="f12-hd-text">
           <Breadcrumb
             aria-label="Console hierarchy"
+            density="compact"
             items={[
               {
                 label: 'Fernwood Relay',
                 href: `#${resolvedIdPrefix}-sheet`,
                 onClick: (e) => {
                   e.preventDefault();
-                  setActiveSection('overview');
+                  const targetId = `${resolvedIdPrefix}-tab-overview`;
+                  if (activeSection !== 'overview') {
+                    pendingFocusTargetIdRef.current = targetId;
+                    setActiveSection('overview');
+                  } else {
+                    pendingFocusTargetIdRef.current = null;
+                    window.requestAnimationFrame(() => {
+                      document.getElementById(targetId)?.focus();
+                    });
+                  }
                 },
               },
               {
@@ -1272,7 +1309,10 @@ function DeveloperConsoleInner({
                 href: `#${resolvedIdPrefix}-env-select`,
                 onClick: (e) => {
                   e.preventDefault();
-                  document.getElementById(`${resolvedIdPrefix}-env-select`)?.focus();
+                  pendingFocusTargetIdRef.current = null;
+                  window.requestAnimationFrame(() => {
+                    document.getElementById(`${resolvedIdPrefix}-env-select`)?.focus();
+                  });
                 },
               },
               {
@@ -1282,7 +1322,7 @@ function DeveloperConsoleInner({
             ]}
           />
           <p className="f12-eyebrow">
-            FERNWOOD RELAY · API &amp; WEBHOOK CONTROL PLANE
+            <span>FERNWOOD RELAY · API &amp; WEBHOOK CONTROL PLANE</span>
             <Tag>v2.4 · ON TWOS</Tag>
             <Badge status="info" burst={false}>
               SIMULATED SANDBOX · LOCAL FIXTURES
@@ -1295,66 +1335,53 @@ function DeveloperConsoleInner({
           </p>
         </div>
 
-        <div className="f12-console-toolbar" role="group" aria-label="Environment and time window">
-          <Select
-            id={`${resolvedIdPrefix}-env-select`}
-            label="Environment"
-            density="compact"
-            value={environment}
-            onValueChange={(v) => setEnvironment(v as ConsoleEnvironment)}
-          >
-            <SelectTrigger aria-label="Target environment">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="prod-us-east-1">Production · us-east-1</SelectItem>
-              <SelectItem value="staging-eu-central-1">Staging · eu-central-1</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="f12-stack-pair">
+          <div className="f12-console-toolbar" role="group" aria-label="Environment and time window">
+            <Select
+              id={`${resolvedIdPrefix}-env-select`}
+              label="Environment"
+              density="compact"
+              value={environment}
+              onValueChange={(v) => setEnvironment(v as ConsoleEnvironment)}
+            >
+              <SelectTrigger aria-label="Target environment">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="prod-us-east-1">Production · us-east-1</SelectItem>
+                <SelectItem value="staging-eu-central-1">Staging · eu-central-1</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <SegmentedControl
-            idPrefix={`${resolvedIdPrefix}-range`}
-            ariaLabel="Telemetry time window"
-            value={timeRange}
-            onChange={setTimeRange}
-            options={[
-              { value: '24h', label: '24', unit: 'hrs' },
-              { value: '7d', label: '7', unit: 'days' },
-              { value: '30d', label: '30', unit: 'days' },
-            ]}
-          />
-        </div>
-      </header>
+            <SegmentedControl
+              idPrefix={`${resolvedIdPrefix}-range`}
+              ariaLabel="Telemetry time window"
+              value={timeRange}
+              onChange={setTimeRange}
+              options={[
+                { value: '24h', label: '24', unit: 'hrs' },
+                { value: '7d', label: '7', unit: 'days' },
+                { value: '30d', label: '30', unit: 'days' },
+              ]}
+            />
+          </div>
 
-      {/* Quiet Operational Sandbox State Switcher */}
-      {headerSlot}
-      {showSandboxControls && (
-        <Panel variant="quiet" label="Sandbox dataset state and simulation controls">
-          <div className="f12-row-between">
-            <div className="f12-stack-pair">
-              <div className="f12-row-pair">
-                <span className="f12-console-quiet-title">SANDBOX DATASET STATE</span>
-                <Tag status="neutral">4 SERVICES · 8 ENDPOINTS</Tag>
-                <Tag status="success">{`${activeKeyCount} ACTIVE KEYS`}</Tag>
-                <Tag status="info">{`${effectiveRequestLogs.length} LOG EVENTS`}</Tag>
-              </div>
-              <p className="f12-console-quiet-sub">
-                Preview populated telemetry, geometry-preserving skeleton loading, empty-workspace
-                onboarding, or upstream gateway outage recovery.
-              </p>
-            </div>
-
-            <div className="f12-row-pair">
+          {showSandboxControls ? (
+            <div
+              className="f12-row-pair"
+              role="group"
+              aria-label="Sandbox dataset state and simulation controls"
+            >
               <SegmentedControl
                 idPrefix={`${resolvedIdPrefix}-dataset-state`}
                 ariaLabel="Dataset simulation state"
                 value={datasetState}
                 onChange={setDatasetState}
                 options={[
-                  { value: 'populated', label: 'DATA', unit: 'live' },
+                  { value: 'populated', label: 'LIVE', unit: 'fixture' },
                   { value: 'loading', label: 'LOAD', unit: 'skel' },
                   { value: 'empty', label: 'ZERO', unit: 'empty' },
-                  { value: 'error', label: '503', unit: 'err' },
+                  { value: 'error', label: 'ERR', unit: '503' },
                 ]}
               />
               <Button
@@ -1366,9 +1393,11 @@ function DeveloperConsoleInner({
                 Reset sandbox
               </Button>
             </div>
-          </div>
-        </Panel>
-      )}
+          ) : null}
+        </div>
+      </header>
+
+      {headerSlot}
 
       {/* Scene 1: Expressive Establishing Shot KPI Panels (C-01, C-02, C-03) */}
       <Scene gutter="scene" layout="three" aria-busy={datasetState === 'loading'}>
@@ -1539,7 +1568,7 @@ function DeveloperConsoleInner({
                 });
               }}
             >
-              Load sample telemetry
+              Load sample data
             </Button>
           }
           secondaryAction={

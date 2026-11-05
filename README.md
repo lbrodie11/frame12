@@ -9,7 +9,7 @@
 
 Build expressive dashboards, developer tools, and editorial interfaces with ink-framed panels, screentone charts, deliberate `12fps` motion ("on twos"), and a visual grammar that both humans and AI coding agents can follow consistently.
 
-**[Live Demo → frame12.dev](https://frame12.dev)** · **[Developer Console Block](https://frame12.dev/blocks/developer-console)** · **[Workspace Settings Block](https://frame12.dev/blocks/workspace-settings)** · **[Motion on Twos Studio](https://frame12.dev/motion)** · **[Components (31)](https://frame12.dev/components)** · **[AI Agent Skill & Linter](https://frame12.dev/agents)** · **[Get Started Guide](https://frame12.dev/get-started)**
+**[Live Demo → frame12.dev](https://frame12.dev)** · **[Developer Console Block](https://frame12.dev/blocks/developer-console)** · **[Workspace Settings Block](https://frame12.dev/blocks/workspace-settings)** · **[Analytics Block](https://frame12.dev/blocks/analytics-dashboard)** · **[Motion on Twos Studio](https://frame12.dev/motion)** · **[Components (31)](https://frame12.dev/components)** · **[AI Agent Skill & Linter](https://frame12.dev/agents)** · **[Get Started Guide](https://frame12.dev/get-started)**
 
 ![FRAME/12 — Designing Interfaces on Twos](docs/images/social-hero.png)
 
@@ -42,9 +42,10 @@ Run the `shadcn` CLI from your project root to copy the components (`components/
 
 ```bash
 npx shadcn@latest add https://frame12.dev/r/frame12.json
-# Or install the Developer Console or Workspace Settings application blocks + kit in one command:
+# Or install the Developer Console, Workspace Settings, or Revenue Recovery Analytics application blocks + kit in one command:
 npx shadcn@latest add https://frame12.dev/r/developer-console.json
 npx shadcn@latest add https://frame12.dev/r/workspace-settings.json
+npx shadcn@latest add https://frame12.dev/r/analytics-dashboard.json
 ```
 
 <details>
@@ -66,7 +67,7 @@ npx shadcn@latest add https://frame12.dev/r/select.json
 
 > **Upgrading & Customizing Tokens:** Do not edit `styles/frame12.css` directly—put custom `--f-*` token overrides in your own stylesheet (such as `app/globals.css`). When upgrading or adding components after a FRAME/12 update (or in non-interactive CI/agent shells where `shadcn add -y` will skip installing if `styles/frame12.css` differs and still exit `0`), pass `--overwrite` and verify that `components/frame12/<name>.tsx` exists on disk.
 
-Browse all 31 components and 40 registry items at **[frame12.dev/components](https://frame12.dev/components)**, or explore the **[Developer Console Block](https://frame12.dev/blocks/developer-console)** and **[Workspace Settings Block](https://frame12.dev/blocks/workspace-settings)**.
+Browse all 31 components and 41 registry items at **[frame12.dev/components](https://frame12.dev/components)**, or explore the **[Developer Console Block](https://frame12.dev/blocks/developer-console)**, **[Workspace Settings Block](https://frame12.dev/blocks/workspace-settings)**, and **[Analytics Block](https://frame12.dev/blocks/analytics-dashboard)**.
 </details>
 
 ### 2. Import the stylesheet and fonts (`app/layout.tsx`)

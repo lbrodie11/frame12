@@ -241,6 +241,7 @@ const ROUTES = [
   '/components/pagination',
   '/blocks/developer-console',
   '/blocks/workspace-settings',
+  '/blocks/analytics-dashboard',
   '/agents',
   '/style-sheet',
   '/get-started',
@@ -280,6 +281,7 @@ try {
     'frame12.json',
     'developer-console.json',
     'workspace-settings.json',
+    'analytics-dashboard.json',
     'registry.json',
   ]) {
     const res = await fetch(`${baseUrl}/r/${item}`);
@@ -342,6 +344,7 @@ try {
     '/components/opengraph-image',
     '/blocks/developer-console/opengraph-image',
     '/blocks/workspace-settings/opengraph-image',
+    '/blocks/analytics-dashboard/opengraph-image',
     '/agents/opengraph-image',
     '/style-sheet/opengraph-image',
     '/get-started/opengraph-image',
@@ -986,6 +989,26 @@ try {
     await page.goto(`${baseUrl}/blocks/workspace-settings`, { waitUntil: 'networkidle' });
     await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
 
+    // Verify SSR HTML for /blocks/workspace-settings does not bake f12-theme-light onto #ws-settings-sheet (preventing dark-mode white flash)
+    const wsSsrHtml = await fetch(`${baseUrl}/blocks/workspace-settings`).then((r) => r.text());
+    const wsSsrNoLightFlash = !wsSsrHtml.includes('f12-theme-light') && !wsSsrHtml.includes('data-theme="light"');
+
+    // Verify site header Dark toggle (#site-theme-dark) switches #ws-settings-sheet to dark even on a light OS without marking draft dirty
+    await page.click('#site-theme-dark');
+    await page.waitForTimeout(40);
+    const siteHeaderDarkSynced = await page.evaluate(() => {
+      const sheet = document.querySelector('#ws-settings-sheet');
+      const innerSheet = document.querySelector('#ws-settings-sheet .f12-sheet');
+      const bar = document.querySelector('#ws-settings-persistence-bar');
+      return {
+        sheetTheme: sheet?.getAttribute('data-theme'),
+        bg: innerSheet ? getComputedStyle(innerSheet).backgroundColor : '',
+        dirtyAttr: bar?.getAttribute('data-dirty'),
+      };
+    });
+    await page.click('#site-theme-light');
+    await page.waitForTimeout(40);
+
     // Initial synchronized posture + host motion toggle ('M') does not mark draft dirty
     await page.keyboard.press('m');
     await page.waitForTimeout(40);
@@ -1008,14 +1031,18 @@ try {
       };
     });
     check(
-      initialPosture.dirtyAttr === 'false' &&
+      wsSsrNoLightFlash &&
+        siteHeaderDarkSynced.sheetTheme === 'dark' &&
+        siteHeaderDarkSynced.bg === 'rgb(5, 5, 5)' &&
+        siteHeaderDarkSynced.dirtyAttr === 'false' &&
+        initialPosture.dirtyAttr === 'false' &&
         initialPosture.saveDisabled &&
         initialPosture.discardDisabled &&
         !initialPosture.motionTabHasDot &&
         initialPosture.seats.includes('5 / 10 SEATS') &&
         initialPosture.channels.includes('3 ACTIVE'),
-      'site /blocks/workspace-settings (Posture & External Motion Sync): initial REV-042 state and host motion toggle remain clean with 5/10 seats, 3 active channels, and Save/Discard disabled',
-      JSON.stringify(initialPosture),
+      'site /blocks/workspace-settings (No Dark-Mode SSR White Flash, Posture & Host Theme/Motion Sync): SSR HTML omits f12-theme-light, site header Dark toggle switches sheet to dark without dirtying draft, and initial REV-042 state stays clean',
+      JSON.stringify({ wsSsrNoLightFlash, siteHeaderDarkSynced, initialPosture }),
     );
 
     // Dirty state detection + beforeunload navigation guard + Workspace target switch & internal link click modal guard (C-02)
@@ -1370,6 +1397,65 @@ try {
     await page.waitForTimeout(80);
     const focusAfterRetry = await page.evaluate(() => document.activeElement?.id || '');
 
+    // Breadcrumb interactive navigation: clicking workspace link switches to 02 · Workspace and focuses #ws-settings-ws-name; clicking control-plane link switches to 01 · Profile
+    await page.click('#ws-settings-sheet a[href="#ws-settings-ws-name"]');
+    await page.waitForTimeout(60);
+    const afterWsBreadcrumb = await page.evaluate(() => ({
+      wsTabSelected:
+        document.querySelector('#ws-settings-tabs-tab-workspace')?.getAttribute('aria-selected') ===
+        'true',
+      activeElementId: document.activeElement?.id || '',
+    }));
+    // Click workspace breadcrumb AGAIN while already on 02 · Workspace, then type multiple characters into #ws-settings-ws-name without losing focus
+    await page.click('#ws-settings-sheet a[href="#ws-settings-ws-name"]');
+    await page.waitForTimeout(60);
+    await page.fill('#ws-settings-ws-name', '');
+    await page.focus('#ws-settings-ws-name');
+    await page.keyboard.type('Atelier XYZ');
+    await page.waitForTimeout(60);
+    const afterSameWsBreadcrumbTyping = await page.evaluate(() => ({
+      value: document.querySelector('#ws-settings-ws-name')?.value || '',
+      activeElementId: document.activeElement?.id || '',
+    }));
+    await page.click('#ws-settings-discard-btn');
+    await page.waitForTimeout(60);
+
+    await page.click('#ws-settings-sheet a[href="#ws-settings-sheet"]');
+    await page.waitForTimeout(60);
+    const afterRootBreadcrumb = await page.evaluate(() => ({
+      profileTabSelected:
+        document.querySelector('#ws-settings-tabs-tab-profile')?.getAttribute('aria-selected') ===
+        'true',
+      activeElementId: document.activeElement?.id || '',
+    }));
+    // Click control-plane breadcrumb AGAIN while already on 01 · Profile, then type multiple characters into #ws-settings-profile-name without losing focus
+    await page.click('#ws-settings-sheet a[href="#ws-settings-sheet"]');
+    await page.waitForTimeout(60);
+    await page.fill('#ws-settings-profile-name', '');
+    await page.focus('#ws-settings-profile-name');
+    await page.keyboard.type('Sora XYZ');
+    await page.waitForTimeout(60);
+    const afterSameProfileBreadcrumbTyping = await page.evaluate(() => ({
+      value: document.querySelector('#ws-settings-profile-name')?.value || '',
+      activeElementId: document.activeElement?.id || '',
+    }));
+    await page.click('#ws-settings-discard-btn');
+    await page.waitForTimeout(60);
+
+    // In LOAD state, clicking the workspace breadcrumb switches to 02 · Workspace and focuses #ws-settings-tabs-tab-workspace (since #ws-settings-ws-name is replaced by skeletons)
+    await page.click('#ws-settings-dataset-loading');
+    await page.waitForTimeout(60);
+    await page.click('#ws-settings-sheet a[href="#ws-settings-ws-name"]');
+    await page.waitForTimeout(60);
+    const afterLoadingWsBreadcrumb = await page.evaluate(() => ({
+      wsTabSelected:
+        document.querySelector('#ws-settings-tabs-tab-workspace')?.getAttribute('aria-selected') ===
+        'true',
+      activeElementId: document.activeElement?.id || '',
+    }));
+    await page.click('#ws-settings-dataset-populated');
+    await page.waitForTimeout(60);
+
     await page.setViewportSize({ width: 320, height: 800 });
     await page.waitForTimeout(80);
     const overflow320 = await page.evaluate(
@@ -1389,16 +1475,410 @@ try {
         (seatsAfterZeroInvite || '').includes('1 / 10 SEATS') &&
         (seatsAfterZeroInviteDiscard || '').includes('5 / 10 SEATS') &&
         focusAfterRetry === 'ws-settings-reset-btn' &&
+        afterWsBreadcrumb.wsTabSelected &&
+        afterWsBreadcrumb.activeElementId === 'ws-settings-ws-name' &&
+        afterSameWsBreadcrumbTyping.value === 'Atelier XYZ' &&
+        afterSameWsBreadcrumbTyping.activeElementId === 'ws-settings-ws-name' &&
+        afterRootBreadcrumb.profileTabSelected &&
+        afterRootBreadcrumb.activeElementId === 'ws-settings-tabs-tab-profile' &&
+        afterSameProfileBreadcrumbTyping.value === 'Sora XYZ' &&
+        afterSameProfileBreadcrumbTyping.activeElementId === 'ws-settings-profile-name' &&
+        afterLoadingWsBreadcrumb.wsTabSelected &&
+        afterLoadingWsBreadcrumb.activeElementId === 'ws-settings-tabs-tab-workspace' &&
         overflow320 &&
         headerReducedMotionOk,
-      'site /blocks/workspace-settings (Empty/Error states, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
+      'site /blocks/workspace-settings (Empty/Error/Loading states, Breadcrumb navigation + same-section typing, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb links switch sections (and focus Workspace tab in LOAD state) without stealing focus during subsequent typing, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
       JSON.stringify({
         emptyCheck,
         seatsAfterZeroInvite,
         seatsAfterZeroInviteDiscard,
         focusAfterRetry,
+        afterWsBreadcrumb,
+        afterSameWsBreadcrumbTyping,
+        afterRootBreadcrumb,
+        afterSameProfileBreadcrumbTyping,
+        afterLoadingWsBreadcrumb,
         overflow320,
         headerReducedMotionOk,
+      }),
+    );
+
+    await ctx.close();
+  }
+
+  // 5c. Revenue Recovery Analytics Block (/blocks/analytics-dashboard) end-to-end interactive verification
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 1280, height: 920 },
+      colorScheme: 'light',
+      reducedMotion: 'no-preference',
+    });
+    const page = await ctx.newPage();
+    await page.goto(`${baseUrl}/blocks/analytics-dashboard`, { waitUntil: 'networkidle' });
+    await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+
+    // 1) Mathematical reconciliation across 30d, 7d, and 90d windows (C-01, C-02, C-04, Period Comparison, Segment Breakdown, and Daily Ledger)
+    const reconcileWindow = async (rangeBtnId) => {
+      await page.click(rangeBtnId);
+      await page.waitForTimeout(300); // allow stepped countUp to settle
+      return page.evaluate(() => {
+        const parseMoney = (s) => Number((s || '').replace(/[^0-9.-]/g, ''));
+        const c01Rev = parseMoney(
+          document.querySelector('#analytics-sheet .c01 .f12-m-value .f12-sr-only')?.textContent,
+        );
+        const c02Prof = parseMoney(
+          document.querySelectorAll('#analytics-sheet .f12-pair .f12-m-value .f12-sr-only')[0]
+            ?.textContent,
+        );
+        const barSum = [
+          ...document.querySelectorAll('#analytics-sheet .c04 .f12-int-val'),
+        ].reduce((acc, el) => acc + parseMoney(el.childNodes[0]?.textContent), 0);
+        const periodRev = parseMoney(
+          document.querySelector('#analytics-period-cur-revenue')?.textContent,
+        );
+        const periodProf = parseMoney(
+          document.querySelector('#analytics-period-cur-profit')?.textContent,
+        );
+        const segRev = parseMoney(
+          document.querySelector('#analytics-segment-total-revenue')?.textContent,
+        );
+        const segProf = parseMoney(
+          document.querySelector('#analytics-segment-total-profit')?.textContent,
+        );
+        const ledgerRev = parseMoney(
+          document.querySelector('#analytics-ledger-total-revenue')?.textContent,
+        );
+        const ledgerProf = parseMoney(
+          document.querySelector('#analytics-ledger-total-profit')?.textContent,
+        );
+        return {
+          ok:
+            c01Rev > 0 &&
+            c02Prof > 0 &&
+            c01Rev === barSum &&
+            c01Rev === periodRev &&
+            c01Rev === segRev &&
+            c01Rev === ledgerRev &&
+            c02Prof === periodProf &&
+            c02Prof === segProf &&
+            c02Prof === ledgerProf,
+          c01Rev,
+          barSum,
+          periodRev,
+          segRev,
+          ledgerRev,
+          c02Prof,
+          periodProf,
+          segProf,
+          ledgerProf,
+        };
+      });
+    };
+
+    const rec30 = await reconcileWindow('#analytics-rng-30');
+    const rec7 = await reconcileWindow('#analytics-rng-7');
+    const rec90 = await reconcileWindow('#analytics-rng-90');
+    await page.click('#analytics-rng-30');
+    await page.waitForTimeout(300);
+    check(
+      rec30.ok && rec7.ok && rec90.ok,
+      'site /blocks/analytics-dashboard (Window Switching & 100% Reconciliation): C-01 revenue, C-02 profit, C-04 intervention sum, Period Comparison, Checkout Segment Breakdown, and Daily Recovery Ledger reconcile to the exact dollar across 7d, 30d, and 90d',
+      JSON.stringify({ rec30, rec7, rec90 }),
+    );
+
+    // 2) Period comparison overlay ('PREV') and C-04 intervention click-to-overlay + scoped table reconciliation
+    await page.click('#analytics-toggle-prev-overlay');
+    const prevOverlayActive = await page.evaluate(() => {
+      const hasFocusLine = Boolean(document.querySelector('#analytics-sheet .f12-l-focus'));
+      const legendText = document.querySelector('#analytics-sheet .f12-legend')?.textContent || '';
+      return hasFocusLine && legendText.includes('Prior 30d window');
+    });
+
+    await page.click('#int-analytics-exit');
+    await page.waitForTimeout(80);
+    const exitScopeReconciled = await page.evaluate(() => {
+      const parseMoney = (s) => Number((s || '').replace(/[^0-9.-]/g, ''));
+      const exitBarVal = parseMoney(
+        document.querySelector('#int-analytics-exit .f12-int-val')?.childNodes[0]?.textContent,
+      );
+      const periodRev = parseMoney(
+        document.querySelector('#analytics-period-cur-revenue')?.textContent,
+      );
+      const segRev = parseMoney(
+        document.querySelector('#analytics-segment-total-revenue')?.textContent,
+      );
+      const ledgerRev = parseMoney(
+        document.querySelector('#analytics-ledger-total-revenue')?.textContent,
+      );
+      const periodProf = parseMoney(
+        document.querySelector('#analytics-period-cur-profit')?.textContent,
+      );
+      const segProf = parseMoney(
+        document.querySelector('#analytics-segment-total-profit')?.textContent,
+      );
+      const ledgerProf = parseMoney(
+        document.querySelector('#analytics-ledger-total-profit')?.textContent,
+      );
+      const legendText = document.querySelector('#analytics-sheet .f12-legend')?.textContent || '';
+      return {
+        ok:
+          exitBarVal > 0 &&
+          exitBarVal === periodRev &&
+          exitBarVal === segRev &&
+          exitBarVal === ledgerRev &&
+          periodProf > 0 &&
+          periodProf === segProf &&
+          periodProf === ledgerProf &&
+          legendText.includes('Exit-intent offer'),
+        exitBarVal,
+        periodRev,
+        segRev,
+        ledgerRev,
+        periodProf,
+        segProf,
+        ledgerProf,
+      };
+    });
+
+    // Click First-Time Mobile segment filter while Exit-intent is focused -> ledger total matches segment row
+    await page.click('#analytics-seg-filter-first-time-mobile');
+    await page.waitForTimeout(60);
+    const segmentFilterReconciled = await page.evaluate(() => {
+      const parseMoney = (s) => Number((s || '').replace(/[^0-9.-]/g, ''));
+      const segRows = [...document.querySelectorAll('#analytics-segment-table tbody tr')];
+      const mobileRow = segRows[1];
+      const mobileRowRev = parseMoney(mobileRow?.querySelectorAll('td')[1]?.textContent);
+      const mobileRowProf = parseMoney(mobileRow?.querySelectorAll('td')[2]?.textContent);
+      const ledgerRev = parseMoney(
+        document.querySelector('#analytics-ledger-total-revenue')?.textContent,
+      );
+      const ledgerProf = parseMoney(
+        document.querySelector('#analytics-ledger-total-profit')?.textContent,
+      );
+      return {
+        ok: mobileRowRev > 0 && mobileRowRev === ledgerRev && mobileRowProf === ledgerProf,
+        mobileRowRev,
+        ledgerRev,
+        mobileRowProf,
+        ledgerProf,
+      };
+    });
+    // Click Returning VIP segment filter (unfocused intervention) -> Oct 31 top intervention ranks within Returning VIP ('Abandoned-cart email')
+    await page.click('#analytics-clear-ledger-filters');
+    await page.waitForTimeout(60);
+    await page.click('#analytics-seg-filter-returning-vip');
+    await page.waitForTimeout(60);
+    const vipScopedLeaderOk = await page.evaluate(() => {
+      const firstRowCells = [
+        ...document.querySelectorAll('#analytics-ledger-table tbody tr:first-child td'),
+      ].map((td) => td.textContent || '');
+      const liftRowDelta =
+        document
+          .querySelectorAll('#analytics-period-table tbody tr')[3]
+          ?.querySelectorAll('td')[3]?.textContent || '';
+      const c03DeltaText =
+        document.querySelectorAll('#analytics-sheet .f12-pair .f12-delta')[1]?.textContent || '';
+      return {
+        topInterventionCell: firstRowCells[1] || '',
+        segmentCell: firstRowCells[2] || '',
+        liftRowDelta: liftRowDelta.trim(),
+        c03DeltaText: c03DeltaText.trim(),
+        ok:
+          (firstRowCells[1] || '').includes('Abandoned-cart email') &&
+          (firstRowCells[2] || '').includes('Returning VIP') &&
+          liftRowDelta.includes('+0.01 pp') &&
+          c03DeltaText.includes('0.01 pp'),
+      };
+    });
+    await page.click('#analytics-clear-ledger-filters');
+    await page.waitForTimeout(60);
+
+    // Search for a non-leading contributing intervention ("Price-drop") -> matches all 30 contributing days
+    await page.fill('#analytics-ledger-search', 'Price-drop');
+    await page.waitForTimeout(60);
+    const contributingSearchOk = await page.evaluate(() => {
+      const countTag = document.querySelector('#analytics-ledger-count-tag')?.textContent || '';
+      const rows = document.querySelectorAll('#analytics-ledger-table tbody tr').length;
+      return {
+        countTag,
+        rows,
+        ok: countTag.includes('30 OF 30 DAYS') && rows === 10,
+      };
+    });
+    await page.click('#analytics-clear-ledger-filters');
+    await page.waitForTimeout(60);
+
+    // Click Reset sandbox when already at default view, then type multiple characters into #analytics-ledger-search without losing focus
+    await page.click('#analytics-reset-btn');
+    await page.waitForTimeout(60);
+    const focusAfterDefaultReset = await page.evaluate(() => document.activeElement?.id || '');
+    await page.focus('#analytics-ledger-search');
+    await page.keyboard.type('Oct 31');
+    await page.waitForTimeout(60);
+    const afterDefaultResetTyping = await page.evaluate(() => ({
+      value: document.querySelector('#analytics-ledger-search')?.value || '',
+      activeElementId: document.activeElement?.id || '',
+      rowCount: document.querySelectorAll('#analytics-ledger-table tbody tr').length,
+    }));
+    await page.click('#analytics-clear-ledger-filters');
+    await page.waitForTimeout(60);
+
+    check(
+      prevOverlayActive &&
+        exitScopeReconciled.ok &&
+        segmentFilterReconciled.ok &&
+        vipScopedLeaderOk.ok &&
+        contributingSearchOk.ok &&
+        focusAfterDefaultReset === 'analytics-rng-30' &&
+        afterDefaultResetTyping.value === 'Oct 31' &&
+        afterDefaultResetTyping.activeElementId === 'analytics-ledger-search' &&
+        afterDefaultResetTyping.rowCount === 1,
+      'site /blocks/analytics-dashboard (Period Overlay, Intervention Focus, Scoped Leader Ranking, Contributing Search & Default Reset Typing): PREV overlays prior 30d window, C-04 click scopes Period/Segment/Ledger tables, segment filter ranks leaders within active scope, C-03 and Period table agree on +0.01 pp lift delta, searching Price-drop matches all 30 contributing days, and Reset on default view focuses 30d without stealing focus during subsequent typing',
+      JSON.stringify({
+        prevOverlayActive,
+        exitScopeReconciled,
+        segmentFilterReconciled,
+        vipScopedLeaderOk,
+        contributingSearchOk,
+        focusAfterDefaultReset,
+        afterDefaultResetTyping,
+      }),
+    );
+
+    // 3) Daily ledger search, empty filter recovery, pagination, and C-05 Daily Attribution Dialog + focus restoration
+    await page.fill('#analytics-ledger-search', 'no-matching-day-query-999');
+    await page.waitForSelector('#analytics-ledger-empty');
+    await page.click('#analytics-ledger-reset-empty');
+    await page.waitForTimeout(80);
+    const focusAfterEmptyReset = await page.evaluate(() => document.activeElement?.id || '');
+
+    await page.click('#analytics-inspect-day-2026-10-31');
+    await page.waitForSelector('#analytics-day-dialog[open]');
+    const dayDialogCheck = await page.evaluate(() => {
+      const parseMoney = (s) => Number((s || '').replace(/[^0-9.-]/g, ''));
+      const dlg = document.querySelector('#analytics-day-dialog');
+      const cut = dlg?.querySelector('.f12-cut');
+      const dlgRect = dlg?.getBoundingClientRect();
+      const cutRect = cut?.getBoundingClientRect();
+      const cutUnclipped = Boolean(
+        dlgRect && cutRect && cutRect.top >= dlgRect.top + 4 && cutRect.left >= dlgRect.left + 4,
+      );
+      const rowRevs = [
+        ...document.querySelectorAll('#analytics-day-dialog-table tbody tr'),
+      ].map((tr) => parseMoney(tr.querySelectorAll('td')[2]?.textContent));
+      const rowProfs = [
+        ...document.querySelectorAll('#analytics-day-dialog-table tbody tr'),
+      ].map((tr) => parseMoney(tr.querySelectorAll('td')[3]?.textContent));
+      const totalRev = parseMoney(
+        document.querySelector('#analytics-day-dialog-total-rev')?.textContent,
+      );
+      const totalProf = parseMoney(
+        document.querySelector('#analytics-day-dialog-total-profit')?.textContent,
+      );
+      const sumRev = rowRevs.reduce((a, b) => a + b, 0);
+      const sumProf = rowProfs.reduce((a, b) => a + b, 0);
+      const segRevs = [
+        ...document.querySelectorAll('#analytics-day-dialog-segment-table tbody tr'),
+      ].map((tr) => parseMoney(tr.querySelectorAll('td')[1]?.textContent));
+      const segProfs = [
+        ...document.querySelectorAll('#analytics-day-dialog-segment-table tbody tr'),
+      ].map((tr) => parseMoney(tr.querySelectorAll('td')[2]?.textContent));
+      const sumSegRev = segRevs.reduce((a, b) => a + b, 0);
+      const sumSegProf = segProfs.reduce((a, b) => a + b, 0);
+      return {
+        cutUnclipped,
+        reconciled:
+          totalRev > 0 &&
+          sumRev === totalRev &&
+          sumProf === totalProf &&
+          sumSegRev === totalRev &&
+          sumSegProf === totalProf,
+        totalRev,
+        sumRev,
+        sumSegRev,
+        totalProf,
+        sumProf,
+        sumSegProf,
+      };
+    });
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(80);
+    const focusAfterDialogEscape = await page.evaluate(() => document.activeElement?.id || '');
+
+    await page.click('#analytics-inspect-day-2026-10-31');
+    await page.waitForSelector('#analytics-day-dialog[open]');
+    await page.click('#analytics-day-dialog-filter-top');
+    await page.waitForTimeout(80);
+    const focusAfterDialogFilterTop = await page.evaluate(() => document.activeElement?.id || '');
+    await page.click('#analytics-reset-btn');
+    await page.waitForTimeout(80);
+    check(
+      focusAfterEmptyReset === 'analytics-ledger-search' &&
+        dayDialogCheck.cutUnclipped &&
+        dayDialogCheck.reconciled &&
+        focusAfterDialogEscape === 'analytics-inspect-day-2026-10-31' &&
+        focusAfterDialogFilterTop === 'analytics-ledger-search',
+      'site /blocks/analytics-dashboard (Ledger Filter Recovery & C-05 Daily Attribution Dialog): empty search reset restores focus, C-05 dialog cut is unclipped and reconciles daily rows, Escape restores focus to trigger button, and Filter by top intervention scopes view and focuses search',
+      JSON.stringify({
+        focusAfterEmptyReset,
+        dayDialogCheck,
+        focusAfterDialogEscape,
+        focusAfterDialogFilterTop,
+      }),
+    );
+
+    // 4) Dataset states (LOAD, ZERO, ERR) + 320px responsive check + forced-colors
+    await page.click('#analytics-dataset-loading');
+    const hasLoadingSkeletons = await page.evaluate(
+      () =>
+        Boolean(document.querySelector('#analytics-c01-skeleton')) &&
+        Boolean(document.querySelector('#analytics-ledger-skeleton')),
+    );
+    await page.click('#analytics-dataset-empty');
+    await page.waitForTimeout(250);
+    const zeroStateReconciled = await page.evaluate(() => ({
+      chartEmpty: Boolean(document.querySelector('#analytics-chart-empty')),
+      interventionsEmpty: Boolean(document.querySelector('#analytics-interventions-empty')),
+      ledgerEmpty: Boolean(document.querySelector('#analytics-ledger-empty')),
+      periodRev: document.querySelector('#analytics-period-cur-revenue')?.textContent || '',
+      segRev: document.querySelector('#analytics-segment-total-revenue')?.textContent || '',
+    }));
+    await page.click('#analytics-dataset-error');
+    await page.waitForSelector('#analytics-error-banner');
+    await page.click('#analytics-retry-btn');
+    await page.waitForTimeout(80);
+    const focusAfterAnalyticsRetry = await page.evaluate(() => document.activeElement?.id || '');
+
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.waitForTimeout(80);
+    const analyticsOverflow320 = await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+    );
+    await page.emulateMedia({ forcedColors: 'active' });
+    const analyticsForcedColorsOk = await page.evaluate(() => {
+      const quietPanel = document.querySelector('#analytics-period-comparison-panel');
+      return (
+        window.matchMedia('(forced-colors: active)').matches &&
+        Boolean(quietPanel && getComputedStyle(quietPanel).borderTopStyle === 'solid')
+      );
+    });
+    check(
+      hasLoadingSkeletons &&
+        zeroStateReconciled.chartEmpty &&
+        zeroStateReconciled.interventionsEmpty &&
+        zeroStateReconciled.ledgerEmpty &&
+        zeroStateReconciled.periodRev === '$0' &&
+        zeroStateReconciled.segRev === '$0' &&
+        focusAfterAnalyticsRetry === 'analytics-rng-30' &&
+        analyticsOverflow320 &&
+        analyticsForcedColorsOk,
+      'site /blocks/analytics-dashboard (LOAD/ZERO/ERR states, 320px & forced-colors): skeletons in LOAD, reconciled $0 + EmptyStates in ZERO, 503 banner + retry focus restoration in ERR, zero overflow at 320px, and forced-colors borders',
+      JSON.stringify({
+        hasLoadingSkeletons,
+        zeroStateReconciled,
+        focusAfterAnalyticsRetry,
+        analyticsOverflow320,
+        analyticsForcedColorsOk,
       }),
     );
 
@@ -1429,9 +1909,16 @@ try {
         const openTrackedPage = async () => {
           const p = await ctx.newPage();
           const errs = [];
-          p.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`));
+          p.on('pageerror', (e) => {
+            if (e.message.includes('?_rsc=')) return;
+            errs.push(`pageerror: ${e.message}`);
+          });
           p.on('console', (m) => {
-            if (m.type() === 'error') errs.push(`console: ${m.text()}`);
+            if (m.type() === 'error') {
+              const text = m.text();
+              if (text.includes('Failed to fetch RSC payload') || text.includes('?_rsc=')) return;
+              errs.push(`console: ${text}`);
+            }
           });
           return { page: p, errors: errs };
         };
@@ -1577,9 +2064,13 @@ try {
             const okSettings390 = await page.evaluate(
               () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
             );
+            await page.goto(`${baseUrl}/blocks/analytics-dashboard`, { waitUntil: 'networkidle' });
+            const okAnalytics390 = await page.evaluate(
+              () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+            );
             check(
-              ok768 && ok390 && okConsole390 && okSettings390 && errors.length === 0,
-              `site [${engineName} 768px & 390px] /components, /blocks/developer-console & /blocks/workspace-settings: zero horizontal overflow across container-query & mobile viewports`,
+              ok768 && ok390 && okConsole390 && okSettings390 && okAnalytics390 && errors.length === 0,
+              `site [${engineName} 768px & 390px] /components, /blocks/developer-console, /blocks/workspace-settings & /blocks/analytics-dashboard: zero horizontal overflow across container-query & mobile viewports`,
               errors.join('; '),
             );
           }

@@ -563,11 +563,11 @@ console.log('R19_RUNTIME_OK:' + html.length);
   });
   check(
     validateRes.status === 0,
-    'npx shadcn registry validate passes across root registry.json and registry/registry.json (39 items)',
+    'npx shadcn registry validate passes across root registry.json and registry/registry.json (40 items)',
     validateRes.status !== 0 ? `${validateRes.stdout}\n${validateRes.stderr}` : '',
   );
 
-  // 6b. Flagship Block consumer installation (/r/developer-console.json)
+  // 6b. Flagship Block consumer installation (/r/developer-console.json, /r/workspace-settings.json, /r/analytics-dashboard.json)
   const blockDir = mkdtempSync(join(tmpdir(), 'frame12-block-'));
   try {
     mkdirSync(join(blockDir, 'src/app'), { recursive: true });
@@ -595,9 +595,10 @@ console.log('R19_RUNTIME_OK:' + html.length);
 
     const blockUrl = `http://127.0.0.1:${port}/r/developer-console.json`;
     const settingsBlockUrl = `http://127.0.0.1:${port}/r/workspace-settings.json`;
+    const analyticsBlockUrl = `http://127.0.0.1:${port}/r/analytics-dashboard.json`;
     const blockAdd = await runAsync(
       'npx',
-      ['--yes', 'shadcn', 'add', blockUrl, settingsBlockUrl, '--yes', '--overwrite'],
+      ['--yes', 'shadcn', 'add', blockUrl, settingsBlockUrl, analyticsBlockUrl, '--yes', '--overwrite'],
       {
         cwd: blockDir,
         env: {
@@ -613,6 +614,7 @@ console.log('R19_RUNTIME_OK:' + html.length);
     const hasBlockFiles =
       existsSync(join(blockDir, 'src/components/frame12/blocks/developer-console.tsx')) &&
       existsSync(join(blockDir, 'src/components/frame12/blocks/workspace-settings.tsx')) &&
+      existsSync(join(blockDir, 'src/components/frame12/blocks/analytics-dashboard.tsx')) &&
       existsSync(join(blockDir, 'src/components/frame12/index.ts')) &&
       existsSync(join(blockDir, 'src/hooks/use-on-twos.ts')) &&
       /dialog\.f12-dialog\s*\{[^}]*margin:\s*auto\s*;/s.test(installedBlockCss);
@@ -624,13 +626,19 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import '@/styles/frame12.css';
 import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';
 import { WorkspaceSettings } from '@/components/frame12/blocks/workspace-settings';
+import { AnalyticsDashboard, RevenueRecoveryCoreScenes } from '@/components/frame12/blocks/analytics-dashboard';
 
 export function BlockConsumerCheck() {
   return (
     <div>
-      <DeveloperConsole defaultSection="overview" />
-      <WorkspaceSettings initialSection="profile" />
-      <WorkspaceSettings initialSection="notifications" initialWorkspaceId="staging-atelier" />
+      <DeveloperConsole defaultSection="overview" theme="light" className="custom-console" />
+      <DeveloperConsole defaultSection="services" defaultEnvironment="staging-eu-central-1" />
+      <WorkspaceSettings defaultSection="profile" theme="light" className="custom-settings" />
+      <WorkspaceSettings defaultSection="notifications" defaultWorkspaceId="staging-atelier" />
+      <AnalyticsDashboard defaultRange={30} theme="light" className="custom-analytics" />
+      <AnalyticsDashboard defaultRange={7} defaultComparisonMode="prior-period" />
+      <RevenueRecoveryCoreScenes range={30} focus={null} onSelectFocus={() => {}} />
+      <RevenueRecoveryCoreScenes range={7} focus={null} onSelectFocus={() => {}} />
     </div>
   );
 }
@@ -675,8 +683,10 @@ export function renderBlockHtml() {
         ssrHtml.includes('Developer Console') &&
         ssrHtml.includes('1,482,900') &&
         ssrHtml.includes('Workspace &amp; Operator Settings') &&
+        ssrHtml.includes('Fernwood Supply Co.') &&
+        ssrHtml.includes('DAILY RECOVERY &amp; ATTRIBUTION EVIDENCE LEDGER') &&
         duplicateIds.length === 0,
-      'Block installs (/r/developer-console.json & /r/workspace-settings.json) install block files + full kit, pass tsc --noEmit, and render deterministic SSR markup with zero duplicate IDs across multi-instance renders',
+      'Block installs (/r/developer-console.json, /r/workspace-settings.json, /r/analytics-dashboard.json) install block files + full kit, pass tsc --noEmit, and render deterministic SSR markup with zero duplicate IDs across multi-instance renders',
       blockTsc.status !== 0
         ? `${blockTsc.stdout}\n${blockTsc.stderr}`
         : blockSsr.status !== 0
