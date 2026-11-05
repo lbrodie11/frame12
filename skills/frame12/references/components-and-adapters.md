@@ -421,6 +421,9 @@ export interface EmptyStateProps extends Omit<React.HTMLAttributes<HTMLDivElemen
 ### `Breadcrumb` (`ui/breadcrumb.tsx`)
 Accessible hierarchical path navigation (`<nav aria-label="Breadcrumb">` + `<ol>`) supporting shorthand `items` or compound `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink` (React 18/19-safe `asChild`), `BreadcrumbPage` (`aria-current="page"`), `BreadcrumbSeparator` (`role="presentation" aria-hidden="true"`), and `BreadcrumbEllipsis` (`.f12-sr-only` outside `aria-hidden="true"`).
 
+- Items: `href` for a real route (renders `<a>`; `onClick` is skipped on Ctrl/⌘/Shift/Alt-clicks so new-tab works), `onSelect` for an in-page level such as a tab or filter scope (renders `BreadcrumbButton`, a `<button type="button">`), neither for plain context text, `current: true` for the active level.
+- Never write `{ href: '#section', onClick: (e) => e.preventDefault() }` for in-page state: it advertises a URL that doesn't restore that view. Make an ancestor actionable only when activating it changes the view, and move focus to what it reveals before the button unmounts.
+
 ### `Pagination` (`ui/pagination.tsx`)
 Deterministic page navigation (`<nav aria-label="Pagination">`) supporting data-driven `page`, `totalPages`, `onPageChange`, `siblingCount`, `boundaryCount`, `showSummary` (`PAGE X OF Y`), and `density?: 'comfortable' | 'compact'`, or compound `PaginationContent`, `PaginationItem`, `PaginationLink` (`aria-current="page"` ink inversion), `PaginationPrevious`, `PaginationNext`, `PaginationEllipsis`, and `buildPaginationRange`.
 

@@ -20,6 +20,22 @@ import { useSiteSettings } from '@/components/site-shell';
 import { ComponentPreview } from '@/components/component-preview';
 import { CopyCommand } from '@/components/copy-command';
 
+/**
+ * Component names like `SegmentedControl` are a single unbreakable word that outgrows a 320px
+ * sheet at the display face's minimum size; offer a <wbr> at each camelCase boundary so the
+ * title wraps as "Segmented / Control" without altering its text for copy or screen readers.
+ */
+function withCamelCaseBreaks(title: string): React.ReactNode {
+  const parts = title.split(/(?<=[a-z])(?=[A-Z])/);
+  if (parts.length < 2) return title;
+  return parts.map((part, idx) => (
+    <React.Fragment key={idx}>
+      {idx > 0 ? <wbr /> : null}
+      {part}
+    </React.Fragment>
+  ));
+}
+
 export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
   const { motion } = useSiteSettings();
   const installCmd = `npx shadcn@latest add ${entry.registryUrl}`;
@@ -33,7 +49,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
             <Tag>{entry.sourceFile}</Tag>
             <span>/r/{entry.slug}.json</span>
           </p>
-          <h1 className="f12-title">{entry.title}</h1>
+          <h1 className="f12-title">{withCamelCaseBreaks(entry.title)}</h1>
           <p className="f12-muted-copy">{entry.summary}</p>
         </div>
         <div className="f12-row-pair">

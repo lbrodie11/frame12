@@ -575,6 +575,15 @@ function computeDirtySections(
   return dirty;
 }
 
+/** Scrolls a region into view only when it is off-screen, honouring reduced motion and `cut`. */
+function revealIfOffscreen(el: HTMLElement, motion: MotionMode) {
+  const rect = el.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  if (rect.top >= 0 && rect.bottom <= viewportHeight) return;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  el.scrollIntoView({ block: 'start', behavior: reduce || motion === 'cut' ? 'auto' : 'smooth' });
+}
+
 const SECTION_LABELS: Record<SettingsSection, string> = {
   profile: '01 · Profile',
   workspace: '02 · Workspace',
@@ -885,15 +894,25 @@ function WorkspaceSettingsInner({
   const [archiveSlugError, setArchiveSlugError] = React.useState<string | undefined>(undefined);
 
   const pendingFocusTargetIdRef = React.useRef<string | null>(null);
+  // Set alongside a pending focus target when the move should also bring its section tabs into
+  // view (breadcrumb navigation from the sheet header to the tab strip below the fold).
+  const pendingRevealMotionRef = React.useRef<MotionMode | null>(null);
 
   React.useEffect(() => {
     const targetId = pendingFocusTargetIdRef.current;
+    const revealMotion = pendingRevealMotionRef.current;
+    pendingRevealMotionRef.current = null;
     if (!targetId) return;
     pendingFocusTargetIdRef.current = null;
     const raf = window.requestAnimationFrame(() => {
       const el = document.getElementById(targetId);
       if (el && typeof el.focus === 'function') {
-        el.focus();
+        if (revealMotion) {
+          el.focus({ preventScroll: true });
+          revealIfOffscreen(el.closest<HTMLElement>('[role="tablist"]') ?? el, revealMotion);
+        } else {
+          el.focus();
+        }
       }
     });
     return () => window.cancelAnimationFrame(raf);
@@ -1403,41 +1422,25 @@ function WorkspaceSettingsInner({
             aria-label="Workspace settings hierarchy"
             density="compact"
             items={[
+              // Org root: no view above the workspace exists inside this block, so it is
+              // context text, not a fake link.
+              { label: 'FRAME/12 Control Plane' },
               {
-                label: 'FRAME/12 Control Plane',
-                href: `#${resolvedIdPrefix}-sheet`,
-                onClick: (e) => {
-                  e.preventDefault();
-                  const targetId = `${resolvedIdPrefix}-tabs-tab-profile`;
-                  if (activeSection !== 'profile') {
-                    pendingFocusTargetIdRef.current = targetId;
-                    setActiveSection('profile');
-                  } else {
-                    pendingFocusTargetIdRef.current = null;
-                    window.requestAnimationFrame(() => {
-                      document.getElementById(targetId)?.focus();
-                    });
-                  }
-                },
-              },
-              {
-                label: draft.workspace.workspaceName,
-                href: `#${resolvedIdPrefix}-ws-name`,
-                onClick: (e) => {
-                  e.preventDefault();
-                  const targetId = isLoadingDataset
-                    ? `${resolvedIdPrefix}-tabs-tab-workspace`
-                    : `${resolvedIdPrefix}-ws-name`;
-                  if (activeSection !== 'workspace') {
-                    pendingFocusTargetIdRef.current = targetId;
-                    setActiveSection('workspace');
-                  } else {
-                    pendingFocusTargetIdRef.current = null;
-                    window.requestAnimationFrame(() => {
-                      document.getElementById(targetId)?.focus();
-                    });
-                  }
-                },
+                // Workspace level → its landing section. Only actionable when it would change
+                // the view; shows the saved name so unsaved typing doesn't rewrite the path.
+                label: savedSnapshot.workspace.workspaceName.trim() || 'Untitled workspace',
+                onSelect:
+                  activeSection !== 'profile'
+                    ? () => {
+                        const targetId = `${resolvedIdPrefix}-tabs-tab-profile`;
+                        // Move focus before this button unmounts (it turns back into text at the
+                        // landing section) so Firefox carries :focus-visible over for keyboard use.
+                        document.getElementById(targetId)?.focus({ preventScroll: true });
+                        pendingFocusTargetIdRef.current = targetId;
+                        pendingRevealMotionRef.current = effectiveSheetMotion;
+                        setActiveSection('profile');
+                      }
+                    : undefined,
               },
               {
                 label: SECTION_LABELS[activeSection],

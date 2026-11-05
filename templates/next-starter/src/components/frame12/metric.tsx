@@ -79,16 +79,27 @@ export function Metric({
   const effectiveMotion: MotionMode = motion ?? (variant === 'quiet' ? 'cut' : 'stepped');
   const shown = useCountUp(value, effectiveMotion);
   const variantClass = variant === 'quiet' ? ' f12-metric-quiet' : '';
+  const finalText = format(value);
+  const shownText = format(shown);
+  // Hero values size themselves to their column from the glyph count. Counting up, the settled
+  // value is the longest string, so the size holds still; counting down (e.g. to 0) the frame in
+  // flight can be longer, so it wins until the animation settles and the value never overflows.
+  const heroStyle = big
+    ? ({
+        '--f12-m-chars': Math.max(finalText.length, shownText.length, 4),
+      } as React.CSSProperties)
+    : undefined;
 
   return (
     <div
       className={`f12-metric${big ? ' big' : ''}${variantClass}${className ? ` ${className}` : ''}`}
       data-variant={variant === 'quiet' ? 'quiet' : undefined}
+      style={heroStyle}
     >
       <HeadingTag className="f12-m-label">{label}</HeadingTag>
       <p className="f12-m-value" aria-live="polite">
-        <span className="f12-sr-only">{format(value)}</span>
-        <span aria-hidden="true">{format(shown)}</span>
+        <span className="f12-sr-only">{finalText}</span>
+        <span aria-hidden="true">{shownText}</span>
       </p>
       {delta != null && (
         <Delta value={delta} kind={deltaKind} comparisonLabel={comparisonLabel} range={range} />
