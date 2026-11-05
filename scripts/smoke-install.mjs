@@ -626,16 +626,19 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import '@/styles/frame12.css';
 import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';
 import { WorkspaceSettings } from '@/components/frame12/blocks/workspace-settings';
-import { AnalyticsDashboard } from '@/components/frame12/blocks/analytics-dashboard';
+import { AnalyticsDashboard, RevenueRecoveryCoreScenes } from '@/components/frame12/blocks/analytics-dashboard';
 
 export function BlockConsumerCheck() {
   return (
     <div>
-      <DeveloperConsole defaultSection="overview" />
-      <WorkspaceSettings initialSection="profile" />
-      <WorkspaceSettings initialSection="notifications" initialWorkspaceId="staging-atelier" />
-      <AnalyticsDashboard initialRange={30} />
-      <AnalyticsDashboard initialRange={7} initialComparisonMode="prior-period" />
+      <DeveloperConsole defaultSection="overview" theme="light" className="custom-console" />
+      <DeveloperConsole defaultSection="services" defaultEnvironment="staging-eu-central-1" />
+      <WorkspaceSettings defaultSection="profile" theme="light" className="custom-settings" />
+      <WorkspaceSettings defaultSection="notifications" defaultWorkspaceId="staging-atelier" />
+      <AnalyticsDashboard defaultRange={30} theme="light" className="custom-analytics" />
+      <AnalyticsDashboard defaultRange={7} defaultComparisonMode="prior-period" />
+      <RevenueRecoveryCoreScenes range={30} focus={null} onSelectFocus={() => {}} />
+      <RevenueRecoveryCoreScenes range={7} focus={null} onSelectFocus={() => {}} />
     </div>
   );
 }

@@ -592,9 +592,9 @@ const WORKSPACE_TARGET_OPTIONS: Array<{ value: WorkspaceTargetId; label: string;
 
 const DATASET_STATE_OPTIONS: Array<{ value: SettingsDatasetState; label: string; unit: string }> = [
   { value: 'populated', label: 'LIVE', unit: 'fixture' },
-  { value: 'loading', label: 'LOAD', unit: 'skeleton' },
+  { value: 'loading', label: 'LOAD', unit: 'skel' },
   { value: 'empty', label: 'ZERO', unit: 'empty' },
-  { value: 'error', label: 'ERR', unit: 'fault' },
+  { value: 'error', label: 'ERR', unit: '503' },
 ];
 
 const RETENTION_OPTIONS: Array<{ value: RetentionWindow; label: string; unit: string }> = [
@@ -652,16 +652,24 @@ function reconcileCachedSnapshot(
 }
 
 export interface WorkspaceSettingsProps {
-  /** Initial active settings tab (`'profile'` by default). */
+  /** Default active settings tab (`'profile'` by default). */
+  defaultSection?: SettingsSection;
+  /** Default dataset state (`'populated'` by default) for testing loading/empty/error states. */
+  defaultDatasetState?: SettingsDatasetState;
+  /** Default workspace target (`'prod-atelier'` by default). */
+  defaultWorkspaceId?: WorkspaceTargetId;
+  /** Alias for `defaultSection`. */
   initialSection?: SettingsSection;
-  /** Initial dataset state (`'populated'` by default) for testing loading/empty/error states. */
+  /** Alias for `defaultDatasetState`. */
   initialDatasetState?: SettingsDatasetState;
-  /** Initial workspace target (`'prod-atelier'` by default). */
+  /** Alias for `defaultWorkspaceId`. */
   initialWorkspaceId?: WorkspaceTargetId;
   /** Motion grammar override (`'stepped'` 12fps by default; changing Motion Preferences updates the sheet live). */
   motion?: MotionMode;
   /** Theme override (`'light'` or `'dark'`; changing Appearance updates the sheet live). */
   theme?: 'light' | 'dark';
+  /** Additional CSS class names for the root `<Sheet>`. */
+  className?: string;
   /** Show interactive sandbox state switcher bar for exploring loading/empty/error states. */
   showSandboxControls?: boolean;
   /** Prefix for deterministic DOM IDs. When omitted, a collision-free React.useId() prefix is generated. */
@@ -675,11 +683,15 @@ export interface WorkspaceSettingsProps {
 }
 
 function WorkspaceSettingsInner({
-  initialSection = 'profile',
-  initialDatasetState = 'populated',
-  initialWorkspaceId = 'prod-atelier',
+  defaultSection,
+  defaultDatasetState,
+  defaultWorkspaceId,
+  initialSection,
+  initialDatasetState,
+  initialWorkspaceId,
   motion: externalMotion,
   theme: externalTheme,
+  className,
   showSandboxControls = true,
   idPrefix,
   onDirtyChange,
@@ -690,14 +702,21 @@ function WorkspaceSettingsInner({
   const resolvedIdPrefix = idPrefix ?? `f12-settings-${autoId}`;
   const { toast } = useToast();
 
+  const resolvedDefaultWorkspaceId =
+    defaultWorkspaceId ?? initialWorkspaceId ?? 'prod-atelier';
+  const resolvedDefaultSection = defaultSection ?? initialSection ?? 'profile';
+  const resolvedDefaultDatasetState =
+    defaultDatasetState ?? initialDatasetState ?? 'populated';
+
   const cachedRouteState = idPrefix ? CLIENT_ROUTE_DRAFT_CACHE.get(idPrefix) : undefined;
 
   const [workspaceId, setWorkspaceId] = React.useState<WorkspaceTargetId>(
-    () => cachedRouteState?.workspaceId ?? initialWorkspaceId,
+    () => cachedRouteState?.workspaceId ?? resolvedDefaultWorkspaceId,
   );
-  const [activeSection, setActiveSection] = React.useState<SettingsSection>(initialSection);
+  const [activeSection, setActiveSection] =
+    React.useState<SettingsSection>(resolvedDefaultSection);
   const [datasetState, setDatasetState] =
-    React.useState<SettingsDatasetState>(initialDatasetState);
+    React.useState<SettingsDatasetState>(resolvedDefaultDatasetState);
 
   const [savedByWorkspace, setSavedByWorkspace] = React.useState<
     Record<WorkspaceTargetId, WorkspaceConfigSnapshot>
@@ -731,7 +750,7 @@ function WorkspaceSettingsInner({
           externalMotion,
           externalTheme,
         )
-      : buildBaselineSnapshot(initialWorkspaceId, externalMotion, externalTheme),
+      : buildBaselineSnapshot(resolvedDefaultWorkspaceId, externalMotion, externalTheme),
   );
 
   const [osTheme, setOsTheme] = React.useState<'light' | 'dark'>('light');
@@ -1361,7 +1380,7 @@ function WorkspaceSettingsInner({
       pegs={draft.appearance.showRegistrationMarks}
       data-high-contrast-rules={draft.appearance.highContrastRules ? 'true' : 'false'}
       data-animate-charts={draft.motion.animateCharts ? 'true' : 'false'}
-      className="f12-console f12-settings"
+      className={['f12-console', 'f12-settings', className].filter(Boolean).join(' ')}
     >
       {headerSlot}
 
@@ -1474,7 +1493,7 @@ function WorkspaceSettingsInner({
                 });
               }}
             >
-              Retry synchronization
+              Retry configuration sync
             </Button>
           }
         >
@@ -1505,7 +1524,7 @@ function WorkspaceSettingsInner({
                 });
               }}
             >
-              Populate default fixture
+              Load sample data
             </Button>
           }
         />

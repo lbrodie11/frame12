@@ -454,7 +454,7 @@ export function summarize(range: RangeDays): RangeSummary {
     prevNetMarginPct: prevRevenue > 0 ? (prevProfit / prevRevenue) * 100 : 0,
     lift,
     prevLift,
-    liftDelta: lift - prevLift,
+    liftDelta: Number((Number(lift.toFixed(2)) - Number(prevLift.toFixed(2))).toFixed(2)),
     rows,
     segments,
     leader: rows[0].id,
@@ -520,12 +520,14 @@ export function RevenueRecoveryCoreScenes({
   focus,
   onSelectFocus,
   motion = 'stepped',
-  idPrefix = 'home',
+  idPrefix,
   chartHeight = 320,
   datasetState = 'populated',
   comparisonMode = 'intervention',
   onRestorePopulated,
 }: RevenueRecoveryCoreScenesProps) {
+  const autoId = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const resolvedIdPrefix = idPrefix ?? `f12-recovery-scenes-${autoId}`;
   const changed = useChanged(range);
   const s = SUMMARIES[range];
   const focusItem = focus ? INTERVENTIONS.find((i) => i.id === focus) ?? null : null;
@@ -582,7 +584,7 @@ export function RevenueRecoveryCoreScenes({
       <Scene gutter="scene" layout="split" aria-busy={isLoading || undefined}>
         <Panel className="c01" label="Recovered revenue over time">
           {isLoading ? (
-            <div className="f12-stack-pair" id={`${idPrefix}-c01-skeleton`}>
+            <div className="f12-stack-pair" id={`${resolvedIdPrefix}-c01-skeleton`}>
               <Skeleton variant="line" width="42%" label="Loading recovered revenue metric" />
               <Skeleton variant="metric" width="64%" />
               <Skeleton variant="block" height={chartHeight} />
@@ -619,19 +621,19 @@ export function RevenueRecoveryCoreScenes({
               </div>
               {isEmpty ? (
                 <EmptyState
-                  id={`${idPrefix}-chart-empty`}
+                  id={`${resolvedIdPrefix}-chart-empty`}
                   code="ZERO RECOVERY EVENTS"
                   title="No recovered checkout revenue in this sandbox state"
                   description="The active simulation state is set to ZERO (empty). Switch back to LIVE fixture data to inspect the 180-day Fernwood Supply Co. recovery series."
                   action={
                     onRestorePopulated ? (
                       <Button
-                        id={`${idPrefix}-restore-from-empty-chart`}
+                        id={`${resolvedIdPrefix}-restore-from-empty-chart`}
                         variant="primary"
                         size="sm"
                         onClick={onRestorePopulated}
                       >
-                        Load sample recovery dataset
+                        Load sample data
                       </Button>
                     ) : undefined
                   }
@@ -656,7 +658,7 @@ export function RevenueRecoveryCoreScenes({
           top={{
             label: 'Incremental profit',
             children: isLoading ? (
-              <div className="f12-stack-pair" id={`${idPrefix}-c02-skeleton`}>
+              <div className="f12-stack-pair" id={`${resolvedIdPrefix}-c02-skeleton`}>
                 <Skeleton variant="line" width="48%" label="Loading incremental profit metric" />
                 <Skeleton variant="metric" width="70%" />
                 <Skeleton variant="block" height={74} />
@@ -685,7 +687,7 @@ export function RevenueRecoveryCoreScenes({
           bottom={{
             label: 'Conversion lift',
             children: isLoading ? (
-              <div className="f12-stack-pair" id={`${idPrefix}-c03-skeleton`}>
+              <div className="f12-stack-pair" id={`${resolvedIdPrefix}-c03-skeleton`}>
                 <Skeleton variant="line" width="45%" label="Loading conversion lift metric" />
                 <Skeleton variant="metric" width="68%" />
                 <Skeleton variant="block" height={74} />
@@ -717,14 +719,14 @@ export function RevenueRecoveryCoreScenes({
       <Scene gutter="scene" layout="stack" aria-busy={isLoading || undefined}>
         <Panel className="c04" label="Revenue by intervention">
           {isLoading ? (
-            <div className="f12-stack-pair" id={`${idPrefix}-c04-skeleton`}>
+            <div className="f12-stack-pair" id={`${resolvedIdPrefix}-c04-skeleton`}>
               <Skeleton variant="line" width="38%" label="Loading ranked interventions" />
               <Skeleton variant="block" height={180} />
               <SkeletonText lines={2} />
             </div>
           ) : isEmpty ? (
             <EmptyState
-              id={`${idPrefix}-interventions-empty`}
+              id={`${resolvedIdPrefix}-interventions-empty`}
               code="NO ATTRIBUTION ROWS"
               title="Zero intervention triggers recorded"
               description="No abandoned-cart, exit-intent, back-in-stock, price-drop, or post-purchase upsell events exist in the empty simulation state."
@@ -738,7 +740,7 @@ export function RevenueRecoveryCoreScenes({
               onSelect={onSelectFocus}
               motion={motion}
               changed={changed}
-              idPrefix={idPrefix}
+              idPrefix={resolvedIdPrefix}
             />
           )}
         </Panel>
@@ -773,21 +775,31 @@ const COMPARISON_MODE_OPTIONS: Array<{
 const LEDGER_PAGE_SIZE = 10;
 
 export interface AnalyticsDashboardProps {
-  /** Initial observation window in days (`30` by default). */
+  /** Default observation window in days (`30` by default). */
+  defaultRange?: RangeDays;
+  /** Default focused intervention ID (`null` by default). */
+  defaultFocusId?: string | null;
+  /** Default chart comparison mode (`'intervention'` by default). */
+  defaultComparisonMode?: AnalyticsComparisonMode;
+  /** Default dataset simulation state (`'populated'` by default). */
+  defaultDatasetState?: AnalyticsDatasetState;
+  /** Alias for `defaultRange`. */
   initialRange?: RangeDays;
-  /** Initial focused intervention ID (`null` by default). */
+  /** Alias for `defaultFocusId`. */
   initialFocusId?: string | null;
-  /** Initial chart comparison mode (`'intervention'` by default). */
+  /** Alias for `defaultComparisonMode`. */
   initialComparisonMode?: AnalyticsComparisonMode;
-  /** Initial dataset simulation state (`'populated'` by default). */
+  /** Alias for `defaultDatasetState`. */
   initialDatasetState?: AnalyticsDatasetState;
   /** Motion grammar override (`'stepped'` 12fps by default). */
   motion?: MotionMode;
   /** Theme override (`'light'` or `'dark'`). */
   theme?: 'light' | 'dark';
+  /** Additional CSS class names for the root `<Sheet>`. */
+  className?: string;
   /** Show interactive sandbox state switcher (`true` by default). */
   showSandboxControls?: boolean;
-  /** Deterministic DOM ID prefix (`'analytics'` by default when passed by showcase). */
+  /** Deterministic DOM ID prefix (`'f12-analytics-<id>'` by default). */
   idPrefix?: string;
   /** Optional slot rendered below the sheet header. */
   headerSlot?: React.ReactNode;
@@ -796,12 +808,17 @@ export interface AnalyticsDashboardProps {
 }
 
 function AnalyticsDashboardInner({
-  initialRange = DEFAULT_RANGE,
-  initialFocusId = null,
-  initialComparisonMode = 'intervention',
-  initialDatasetState = 'populated',
+  defaultRange,
+  defaultFocusId,
+  defaultComparisonMode,
+  defaultDatasetState,
+  initialRange,
+  initialFocusId,
+  initialComparisonMode,
+  initialDatasetState,
   motion = 'stepped',
   theme,
+  className,
   showSandboxControls = true,
   idPrefix,
   headerSlot,
@@ -811,12 +828,20 @@ function AnalyticsDashboardInner({
   const resolvedIdPrefix = idPrefix ?? `f12-analytics-${autoId}`;
   const { toast } = useToast();
 
-  const [range, setRange] = React.useState<RangeDays>(initialRange);
-  const [focus, setFocus] = React.useState<string | null>(initialFocusId);
+  const [range, setRange] = React.useState<RangeDays>(
+    defaultRange ?? initialRange ?? DEFAULT_RANGE,
+  );
+  const [focus, setFocus] = React.useState<string | null>(
+    defaultFocusId !== undefined ? defaultFocusId : (initialFocusId ?? null),
+  );
   const [comparisonMode, setComparisonMode] =
-    React.useState<AnalyticsComparisonMode>(initialComparisonMode);
+    React.useState<AnalyticsComparisonMode>(
+      defaultComparisonMode ?? initialComparisonMode ?? 'intervention',
+    );
   const [datasetState, setDatasetState] =
-    React.useState<AnalyticsDatasetState>(initialDatasetState);
+    React.useState<AnalyticsDatasetState>(
+      defaultDatasetState ?? initialDatasetState ?? 'populated',
+    );
 
   const [segmentFilter, setSegmentFilter] = React.useState<CheckoutSegmentId | 'all'>('all');
   const [ledgerSearch, setLedgerSearch] = React.useState<string>('');
@@ -1046,6 +1071,25 @@ function AnalyticsDashboardInner({
 
       const marginPct = rowRevenue > 0 ? (rowProfit / rowRevenue) * 100 : 0;
 
+      const candidateInterventions = focusItem ? [focusItem] : INTERVENTIONS;
+      const contributingInterventions = candidateInterventions.filter((it) => {
+        const rev =
+          segmentFilter !== 'all'
+            ? d.byIdAndSegment[it.id][segmentFilter]
+            : d.byId[it.id];
+        return rev > 0;
+      });
+      const candidateSegments =
+        segmentFilter !== 'all'
+          ? CHECKOUT_SEGMENTS.filter((seg) => seg.id === segmentFilter)
+          : CHECKOUT_SEGMENTS;
+      const contributingSegments = candidateSegments.filter((seg) => {
+        const rev = focusItem
+          ? d.byIdAndSegment[focusItem.id][seg.id]
+          : d.bySegment[seg.id];
+        return rev > 0;
+      });
+
       return {
         day: d,
         dayKey: d.dayKey,
@@ -1059,6 +1103,8 @@ function AnalyticsDashboardInner({
         channel: activeInterventionMeta.channel,
         segmentName: activeSegmentMeta.shortName,
         evidenceNote: d.evidenceNote,
+        contributingInterventions,
+        contributingSegments,
       };
     });
 
@@ -1071,7 +1117,17 @@ function AnalyticsDashboardInner({
             r.interventionName.toLowerCase().includes(q) ||
             r.channel.toLowerCase().includes(q) ||
             r.segmentName.toLowerCase().includes(q) ||
-            r.evidenceNote.toLowerCase().includes(q),
+            r.evidenceNote.toLowerCase().includes(q) ||
+            r.contributingInterventions.some(
+              (it) =>
+                it.name.toLowerCase().includes(q) ||
+                it.channel.toLowerCase().includes(q),
+            ) ||
+            r.contributingSegments.some(
+              (seg) =>
+                seg.name.toLowerCase().includes(q) ||
+                seg.shortName.toLowerCase().includes(q),
+            ),
         )
       : mapped;
 
@@ -1142,7 +1198,7 @@ function AnalyticsDashboardInner({
       pegs
       motion={motion}
       theme={theme}
-      className="f12-console f12-analytics"
+      className={['f12-console', 'f12-analytics', className].filter(Boolean).join(' ')}
     >
       {/* ===================================================================== SHEET HEADER */}
       <header className="f12-hd">
@@ -1180,8 +1236,8 @@ function AnalyticsDashboardInner({
             </Tag>
             <Badge burst={false}>{`Through ${END_LABEL}`}</Badge>
           </p>
-          <h1 className="f12-title">Revenue recovery</h1>
-          <p className="f12-muted-copy" id={`${resolvedIdPrefix}-subtitle`}>
+          <h1 className="f12-title">Revenue Recovery</h1>
+          <p className="f12-sub" id={`${resolvedIdPrefix}-subtitle`}>
             Expressive storyboard establishing shot (<code className="f12-code-inline">C-01</code>
             –<code className="f12-code-inline">C-04</code>) paired with Quiet period-comparison,
             checkout-segment, and daily attribution ledgers reconciled from a single{' '}
@@ -1230,7 +1286,7 @@ function AnalyticsDashboardInner({
                 size="sm"
                 onClick={handleResetView}
               >
-                Reset view
+                Reset sandbox
               </Button>
             </div>
           ) : null}
@@ -1732,7 +1788,7 @@ function AnalyticsDashboardInner({
                         size="sm"
                         onClick={handleRestorePopulated}
                       >
-                        Load sample recovery dataset
+                        Load sample data
                       </Button>
                     ) : (
                       <Button

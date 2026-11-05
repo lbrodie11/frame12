@@ -1635,20 +1635,39 @@ try {
         document
           .querySelectorAll('#analytics-period-table tbody tr')[3]
           ?.querySelectorAll('td')[3]?.textContent || '';
+      const c03DeltaText =
+        document.querySelectorAll('#analytics-sheet .f12-pair .f12-delta')[1]?.textContent || '';
       return {
         topInterventionCell: firstRowCells[1] || '',
         segmentCell: firstRowCells[2] || '',
         liftRowDelta: liftRowDelta.trim(),
+        c03DeltaText: c03DeltaText.trim(),
         ok:
           (firstRowCells[1] || '').includes('Abandoned-cart email') &&
           (firstRowCells[2] || '').includes('Returning VIP') &&
-          liftRowDelta.includes('+0.01 pp'),
+          liftRowDelta.includes('+0.01 pp') &&
+          c03DeltaText.includes('0.01 pp'),
       };
     });
     await page.click('#analytics-clear-ledger-filters');
     await page.waitForTimeout(60);
 
-    // Click Reset view when already at default view, then type multiple characters into #analytics-ledger-search without losing focus
+    // Search for a non-leading contributing intervention ("Price-drop") -> matches all 30 contributing days
+    await page.fill('#analytics-ledger-search', 'Price-drop');
+    await page.waitForTimeout(60);
+    const contributingSearchOk = await page.evaluate(() => {
+      const countTag = document.querySelector('#analytics-ledger-count-tag')?.textContent || '';
+      const rows = document.querySelectorAll('#analytics-ledger-table tbody tr').length;
+      return {
+        countTag,
+        rows,
+        ok: countTag.includes('30 OF 30 DAYS') && rows === 10,
+      };
+    });
+    await page.click('#analytics-clear-ledger-filters');
+    await page.waitForTimeout(60);
+
+    // Click Reset sandbox when already at default view, then type multiple characters into #analytics-ledger-search without losing focus
     await page.click('#analytics-reset-btn');
     await page.waitForTimeout(60);
     const focusAfterDefaultReset = await page.evaluate(() => document.activeElement?.id || '');
@@ -1668,16 +1687,18 @@ try {
         exitScopeReconciled.ok &&
         segmentFilterReconciled.ok &&
         vipScopedLeaderOk.ok &&
+        contributingSearchOk.ok &&
         focusAfterDefaultReset === 'analytics-rng-30' &&
         afterDefaultResetTyping.value === 'Oct 31' &&
         afterDefaultResetTyping.activeElementId === 'analytics-ledger-search' &&
         afterDefaultResetTyping.rowCount === 1,
-      'site /blocks/analytics-dashboard (Period Overlay, Intervention Focus, Scoped Leader Ranking & Default Reset Typing): PREV overlays prior 30d window, C-04 click scopes Period/Segment/Ledger tables, segment filter ranks leaders within active scope, rounded lift delta shows +0.01 pp, and Reset on default view focuses 30d without stealing focus during subsequent typing',
+      'site /blocks/analytics-dashboard (Period Overlay, Intervention Focus, Scoped Leader Ranking, Contributing Search & Default Reset Typing): PREV overlays prior 30d window, C-04 click scopes Period/Segment/Ledger tables, segment filter ranks leaders within active scope, C-03 and Period table agree on +0.01 pp lift delta, searching Price-drop matches all 30 contributing days, and Reset on default view focuses 30d without stealing focus during subsequent typing',
       JSON.stringify({
         prevOverlayActive,
         exitScopeReconciled,
         segmentFilterReconciled,
         vipScopedLeaderOk,
+        contributingSearchOk,
         focusAfterDefaultReset,
         afterDefaultResetTyping,
       }),
