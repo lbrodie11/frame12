@@ -63,6 +63,15 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ### Changed
 
+- **Breadcrumb Navigation Contract (`registry/ui/breadcrumb.tsx`, all three blocks):**
+  - Added `onSelect` to `BreadcrumbEntry` and a `BreadcrumbButton` export: in-page levels (a tab, a filter scope) now render as a real `<button type="button">` with link chrome instead of an `<a href="#…">` whose click handler calls `preventDefault()`. Fake hash links offered open-in-new-tab and copy-link affordances that led to dead `#…` URLs and hijacked Ctrl/⌘-click.
+  - `href` + `onClick` items now skip `onClick` on modified clicks (Ctrl/⌘/Shift/Alt), so the browser opens the link natively (matching `Pagination`).
+  - Actionable crumbs carry a dotted underline so they stay distinguishable from plain ancestor text without relying on colour (WCAG 1.4.1).
+  - `DeveloperConsole`, `WorkspaceSettings`, and `AnalyticsDashboard` follow one rule: the org/store root is context text; the middle crumb is a button only when it would change the view (Console → `01 · Overview`, Settings → `01 · Profile`, Analytics → steps out of an intervention/segment drill-down while keeping the date window); the current level is plain text. Activating a crumb moves focus before the button unmounts (keeps `:focus-visible` in Firefox) and scrolls the section tabs into view only when they are off-screen (instant under `prefers-reduced-motion` or `motion="cut"`). The Analytics store crumb no longer silently resets every filter with a toast, and the Settings crumb no longer jumps the page ~500px to the workspace-name field.
+- **Sheet Header Rhythm & Hero Metric Fit (`registry/styles/frame12.css`, `registry/ui/metric.tsx`):**
+  - The header breadcrumb now sits 14px above the eyebrow (it was flush, so the current-item rule touched the eyebrow tags) and its first crumb aligns with the eyebrow text edge.
+  - `<Metric big>` sizes its value to its own column (container query + `--f12-m-chars` from the formatted value) instead of the sheet width, so values like `1,482,900` in a three-up scene no longer spill past the panel border (previously 21px over at 1280px and 93px at 1024px).
+  - The Developer Console environment `Select` now matches the range `SegmentedControl`'s 44px height and packs left like the other blocks' header control rows; eyebrow tags/badges break long tokens (e.g. `registry/ui/segmented-control.tsx` at 320px) instead of widening the page.
 - **`SegmentedControl` Keyboard Navigation & Focus Contrast (`registry/ui/segmented-control.tsx`, `registry/styles/frame12.css`):**
   - Implemented roving `tabIndex` (`tabIndex={0}` on the active segment, `tabIndex={-1}` on inactive segments) so each `SegmentedControl` is a single Tab stop.
   - Added `ArrowRight`/`ArrowDown`, `ArrowLeft`/`ArrowUp`, `Home`, and `End` keyboard navigation that moves focus between segment buttons (ignoring modified keystrokes with `Alt`, `Ctrl`, `Meta`, or `Shift`), while `Space` or `Enter` activates the focused segment (`aria-pressed="true"`).

@@ -469,7 +469,10 @@ export type EmptyStateActionsProps = React.HTMLAttributes<HTMLDivElement>;
 ```
 
 ### `Breadcrumb` (`ui/breadcrumb.tsx`)
-Accessible hierarchical path navigation (`<nav aria-label="Breadcrumb">` + `<ol>`) supporting shorthand `items` or compound `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink` (React 18/19-safe `asChild`), `BreadcrumbPage` (`aria-current="page"`), `BreadcrumbSeparator` (`role="presentation" aria-hidden="true"`), and `BreadcrumbEllipsis` (`.f12-sr-only` outside `aria-hidden="true"`).
+Accessible hierarchical path navigation (`<nav aria-label="Breadcrumb">` + `<ol>`) supporting shorthand `items` or compound `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink` (React 18/19-safe `asChild`), `BreadcrumbButton`, `BreadcrumbPage` (`aria-current="page"`), `BreadcrumbSeparator` (`role="presentation" aria-hidden="true"`), and `BreadcrumbEllipsis` (`.f12-sr-only` outside `aria-hidden="true"`).
+
+- Items: `href` for a real route (renders `<a>`; `onClick` is skipped on Ctrl/⌘/Shift/Alt-clicks so new-tab works), `onSelect` for an in-page level such as a tab or filter scope (renders `BreadcrumbButton`, a `<button type="button">`), neither for plain context text, `current: true` for the active level.
+- Never write `{ href: '#section', onClick: (e) => e.preventDefault() }` for in-page state: it advertises a URL that doesn't restore that view. Make an ancestor actionable only when activating it changes the view, and move focus to what it reveals before the button unmounts.
 
 ```tsx
 export interface BreadcrumbProps extends React.HTMLAttributes<HTMLElement> {
@@ -487,6 +490,7 @@ export interface BreadcrumbPageProps extends React.HTMLAttributes<HTMLSpanElemen
   'aria-current'?: React.AriaAttributes['aria-current']; // default: 'page'
 }
 
+export type BreadcrumbButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 export type BreadcrumbListProps = React.OlHTMLAttributes<HTMLOListElement>;
 export type BreadcrumbItemProps = React.LiHTMLAttributes<HTMLLIElement>;
 export type BreadcrumbSeparatorProps = React.LiHTMLAttributes<HTMLLIElement>;

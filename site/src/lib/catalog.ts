@@ -1377,7 +1377,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "items",
         "type": "BreadcrumbEntry[]",
         "defaultValue": "undefined",
-        "description": "Optional shorthand array of { label, href?, current?, onClick? } items."
+        "description": "Optional shorthand array of { label, href?, onClick?, onSelect?, current? } items. href renders a real <a> (new-tab and copy-link work; onClick is skipped on Ctrl/⌘/Shift/Alt-clicks). onSelect renders a <button> for in-page levels such as a tab or filter scope. With neither, the item is plain context text."
       },
       {
         "name": "separator",
@@ -1398,19 +1398,21 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Adjusts font scale and spacing while keeping 24×24px minimum interactive link targets."
       },
       {
-        "name": "asChild / aria-current / BreadcrumbListProps / BreadcrumbItemProps / BreadcrumbSeparatorProps / BreadcrumbEllipsisProps",
+        "name": "asChild / aria-current / BreadcrumbButtonProps / BreadcrumbListProps / BreadcrumbItemProps / BreadcrumbSeparatorProps / BreadcrumbEllipsisProps",
         "type": "boolean / React.AriaAttributes['aria-current'] / Subcomponent Prop Aliases",
         "defaultValue": "false / 'page'",
-        "description": "Subcomponent props on BreadcrumbLinkProps (asChild), BreadcrumbPageProps (aria-current), and compound list/item/separator/ellipsis prop aliases."
+        "description": "Subcomponent props on BreadcrumbLinkProps (asChild), BreadcrumbPageProps (aria-current), and compound button/list/item/separator/ellipsis prop aliases."
       }
     ],
-    "stateBehavior": "Stateless navigation landmark (<nav aria-label=\"Breadcrumb\">) supporting shorthand items array or compound BreadcrumbList / BreadcrumbItem / BreadcrumbLink / BreadcrumbPage children.",
+    "stateBehavior": "Stateless navigation landmark (<nav aria-label=\"Breadcrumb\">) supporting shorthand items array or compound BreadcrumbList / BreadcrumbItem / BreadcrumbLink / BreadcrumbButton / BreadcrumbPage children.",
     "a11yNotes": [
       "Marks the active page with aria-current=\"page\" and hides separators with role=\"presentation\" aria-hidden=\"true\".",
-      "BreadcrumbEllipsis keeps its .f12-sr-only label outside the aria-hidden glyph so screen readers announce collapsed levels."
+      "BreadcrumbEllipsis keeps its .f12-sr-only label outside the aria-hidden glyph so screen readers announce collapsed levels.",
+      "Never fake an in-page action with <a href=\"#…\"> + preventDefault(): use onSelect / BreadcrumbButton so assistive tech hears a button and the browser offers no dead open-in-new-tab or copy-link.",
+      "Actionable crumbs carry a dotted underline so they stay distinguishable from plain ancestor text without relying on colour."
     ],
     "keyboardNotes": [
-      "All ancestor BreadcrumbLink items are standard keyboard-focusable links (or buttons when onClick is used without href); the active BreadcrumbPage carries aria-current=\"page\"."
+      "All ancestor BreadcrumbLink items are standard keyboard-focusable links (or BreadcrumbButton buttons when onSelect is used without href); the active BreadcrumbPage carries aria-current=\"page\"."
     ],
     "themeBehavior": "Renders ancestor links in --f-ink-2 with --f-ink hover/current states and --f-marker focus rings.",
     "responsiveBehavior": "Wraps path items across multiple lines on narrow 390px viewports while keeping >= 24×24px interactive hit targets.",
@@ -1420,7 +1422,7 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Making the current page breadcrumb item a self-referential link instead of marking it current: true (<BreadcrumbPage>)."
     ],
-    "usageTemplate": "import { Breadcrumb } from '@/components/frame12';\n\nexport function SheetPath() {\n  return (\n    <Breadcrumb\n      items={[\n        { label: 'Workspace', href: '#workspace' },\n        { label: 'Sheets', href: '#sheets' },\n        { label: 'Cut C-04 Ledger', current: true },\n      ]}\n    />\n  );\n}"
+    "usageTemplate": "import { Breadcrumb } from '@/components/frame12';\n\nexport function SheetPath({ onOpenSheets }: { onOpenSheets: () => void }) {\n  return (\n    <Breadcrumb\n      items={[\n        { label: 'Workspace', href: '/workspace' }, // real route → <a>\n        { label: 'Sheets', onSelect: onOpenSheets }, // in-page level → <button>\n        { label: 'Cut C-04 Ledger', current: true },\n      ]}\n    />\n  );\n}"
   },
   {
     "slug": "pagination",

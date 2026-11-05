@@ -2014,6 +2014,16 @@ await page.waitForSelector('#unit-test-fixtures');
         await page.click('#wp5-breadcrumb-unmount-btn');
         await page.click('#wp5-pagination-controlled .f12-pagination-next');
 
+        // Breadcrumb items: href+onClick skips onClick on modified clicks (native new-tab wins);
+        // onSelect renders a real <button> for in-page levels; current items ignore onSelect.
+        await page.click('#wp5-breadcrumb-actions a[href="#atelier-route"]', {
+          modifiers: ['Shift'],
+        });
+        await page.click('#wp5-breadcrumb-actions a[href="#atelier-route"]');
+        await page.click('#wp5-breadcrumb-actions button.f12-breadcrumb-button');
+        await page.click('#wp5-breadcrumb-actions [aria-current="page"]');
+        for (const extra of page.context().pages()) if (extra !== page) await extra.close();
+
         // Modified link clicks (Control+click and Meta+click) on PaginationLink and PaginationNext must NOT mutate page state
         await page.click('#wp5-pagination-links a[href="#link-page-2"]', {
           modifiers: ['Control'],
@@ -2083,7 +2093,19 @@ await page.waitForSelector('#unit-test-fixtures');
           const bcEllipsisSr = document.querySelector(
             '#wp5-breadcrumb-ellipsis .f12-sr-only',
           )?.textContent;
+          const bcActions = document.getElementById('wp5-breadcrumb-actions');
+          const bcActionBtn = bcActions?.querySelector('button');
+          const bcActionLink = bcActions?.querySelector('a');
           const breadcrumbOk =
+            document.getElementById('wp5-breadcrumb-actions-output')?.getAttribute('data-actions') ===
+              'link,select' &&
+            bcActions?.querySelectorAll('button').length === 1 &&
+            bcActionBtn?.getAttribute('type') === 'button' &&
+            bcActionBtn?.classList.contains('f12-breadcrumb-link') &&
+            bcActionBtn?.textContent === 'Storyboards' &&
+            getComputedStyle(bcActionBtn).textDecorationStyle === 'dotted' &&
+            getComputedStyle(bcActionLink).textDecorationStyle === 'dotted' &&
+            bcActions?.querySelector('[aria-current="page"]')?.tagName === 'SPAN' &&
             bcItems?.tagName === 'NAV' &&
             bcItems?.getAttribute('aria-label') === 'Breadcrumb' &&
             bcCurrent?.getAttribute('aria-current') === 'page' &&
