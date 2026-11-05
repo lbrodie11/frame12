@@ -986,17 +986,23 @@ try {
     await page.goto(`${baseUrl}/blocks/workspace-settings`, { waitUntil: 'networkidle' });
     await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
 
-    // Initial synchronized posture
+    // Initial synchronized posture + host motion toggle ('M') does not mark draft dirty
+    await page.keyboard.press('m');
+    await page.waitForTimeout(40);
+    await page.keyboard.press('m');
+    await page.waitForTimeout(40);
     const initialPosture = await page.evaluate(() => {
       const bar = document.querySelector('#ws-settings-persistence-bar');
       const saveBtn = document.querySelector('#ws-settings-save-btn');
       const discardBtn = document.querySelector('#ws-settings-discard-btn');
       const seats = document.querySelector('#ws-settings-kpi-seats')?.textContent || '';
       const channels = document.querySelector('#ws-settings-kpi-channels')?.textContent || '';
+      const motionTabText = document.querySelector('#ws-settings-tabs-tab-motion')?.textContent || '';
       return {
         dirtyAttr: bar?.getAttribute('data-dirty'),
         saveDisabled: Boolean(saveBtn?.disabled),
         discardDisabled: Boolean(discardBtn?.disabled),
+        motionTabHasDot: motionTabText.includes('•'),
         seats,
         channels,
       };
@@ -1005,13 +1011,14 @@ try {
       initialPosture.dirtyAttr === 'false' &&
         initialPosture.saveDisabled &&
         initialPosture.discardDisabled &&
+        !initialPosture.motionTabHasDot &&
         initialPosture.seats.includes('5 / 10 SEATS') &&
         initialPosture.channels.includes('3 ACTIVE'),
-      'site /blocks/workspace-settings (Posture): initial REV-042 state is clean with 5/10 seats, 3 active channels, and Save/Discard disabled',
+      'site /blocks/workspace-settings (Posture & External Motion Sync): initial REV-042 state and host motion toggle remain clean with 5/10 seats, 3 active channels, and Save/Discard disabled',
       JSON.stringify(initialPosture),
     );
 
-    // Dirty state detection + beforeunload navigation guard + Workspace target switch modal guard (C-02)
+    // Dirty state detection + beforeunload navigation guard + Workspace target switch & internal link click modal guard (C-02)
     await page.fill('#ws-settings-profile-name', 'Sora Takahashi-Vance');
     const dirtyState = await page.evaluate(() => {
       const bar = document.querySelector('#ws-settings-persistence-bar');
@@ -1030,15 +1037,21 @@ try {
     await page.waitForSelector('#ws-settings-nav-guard-dialog[open]');
     await page.click('#ws-settings-nav-guard-stay');
     await page.waitForTimeout(60);
+    // Internal showcase link click while dirty must also open C-02 instead of silently dropping draft
+    await page.click('a[href="/"]');
+    await page.waitForSelector('#ws-settings-nav-guard-dialog[open]');
+    await page.click('#ws-settings-nav-guard-stay');
+    await page.waitForTimeout(60);
     const stayedValue = await page.inputValue('#ws-settings-profile-name');
     check(
       dirtyState.dirtyAttr === 'true' &&
         !dirtyState.saveDisabled &&
         dirtyState.profileTabHasDot &&
         dirtyState.beforeUnloadPrevented &&
-        stayedValue === 'Sora Takahashi-Vance',
-      'site /blocks/workspace-settings (Unsaved & Navigation Guard): editing field marks section dirty, arms beforeunload, and intercepts workspace target switch with modal C-02',
-      JSON.stringify({ dirtyState, stayedValue }),
+        stayedValue === 'Sora Takahashi-Vance' &&
+        page.url().endsWith('/blocks/workspace-settings'),
+      'site /blocks/workspace-settings (Unsaved & Navigation Guard): editing field marks section dirty, arms beforeunload, and intercepts both workspace target switches and internal route links with modal C-02',
+      JSON.stringify({ dirtyState, stayedValue, url: page.url() }),
     );
 
     // Cross-tab validation + automatic tab switch + focus transfer to invalid control
@@ -1081,7 +1094,13 @@ try {
       JSON.stringify(afterDiscard),
     );
 
-    // Valid edit + Save increments revision to REV-043
+    // Valid edit + conditional webhook URL validation + Save increments revision to REV-043
+    await page.click('#ws-settings-tabs-tab-notifications');
+    await page.fill('#ws-settings-notif-webhook-url', '');
+    await page.click('#ws-settings-notif-ch-webhook'); // uncheck webhook channel -> empty URL must not block save
+    const webhookDisabledWhenUnchecked = await page.evaluate(() =>
+      Boolean(document.querySelector('#ws-settings-notif-webhook-url')?.disabled),
+    );
     await page.click('#ws-settings-tabs-tab-workspace');
     await page.fill('#ws-settings-ws-name', 'Atelier Koma Global Prod');
     await page.click('#ws-settings-save-btn');
@@ -1091,42 +1110,81 @@ try {
       metricText: document.querySelector('#ws-settings-posture-metric')?.textContent || '',
     }));
     check(
-      afterSave.dirtyAttr === 'false' && afterSave.metricText.includes('REV-043'),
-      'site /blocks/workspace-settings (Save): saving valid edits commits snapshot, clears dirty state, and increments revision to REV-043',
-      JSON.stringify(afterSave),
+      webhookDisabledWhenUnchecked &&
+        afterSave.dirtyAttr === 'false' &&
+        afterSave.metricText.includes('REV-043'),
+      'site /blocks/workspace-settings (Save & Conditional Webhook Validation): disabling webhook channel disables URL input and allows saving without webhook URL error, incrementing revision to REV-043',
+      JSON.stringify({ webhookDisabledWhenUnchecked, afterSave }),
     );
 
-    // Appearance & Motion tabs live sheet application
+    // Appearance & Motion tabs live sheet application (theme, System Default OS resolution, pegs, highContrastRules, animateCharts, read-only reduced motion)
     await page.click('#ws-settings-tabs-tab-appearance');
     await page.click('input[type="radio"][value="dark"]');
     await page.click('#ws-settings-appearance-density-comfortable');
-    const appearanceApplied = await page.evaluate(() => ({
-      sheetTheme: document.querySelector('#ws-settings-sheet')?.getAttribute('data-theme'),
-      specimenText:
-        document.querySelector('#ws-settings-appearance-specimen')?.textContent || '',
-    }));
+    await page.click('#ws-settings-appearance-reg-marks'); // uncheck registration marks -> hides .f12-pegs
+    await page.click('#ws-settings-appearance-hc-rules'); // check high-contrast rules -> 2px border on quiet panels
+    const appearanceApplied = await page.evaluate(() => {
+      const sheet = document.querySelector('#ws-settings-sheet');
+      const specimen = document.querySelector('#ws-settings-appearance-specimen');
+      return {
+        sheetTheme: sheet?.getAttribute('data-theme'),
+        hasPegsWhenOff: Boolean(sheet?.querySelector('.f12-pegs')),
+        highContrastAttr: sheet?.getAttribute('data-high-contrast-rules'),
+        specimenBorderWidth: specimen ? getComputedStyle(specimen).borderTopWidth : '',
+        specimenText: specimen?.textContent || '',
+      };
+    });
+    // Switch back to System Default while forcing host documentElement data-theme="dark": sheet must resolve OS light preference ('light')
     await page.click('input[type="radio"][value="system"]');
+    await page.click('#ws-settings-appearance-reg-marks'); // restore pegs
+    await page.click('#ws-settings-appearance-hc-rules'); // restore normal quiet rules
     await page.click('#ws-settings-appearance-density-compact');
+    const systemOsThemeResolved = await page.evaluate(() => {
+      const prev = document.documentElement.getAttribute('data-theme');
+      document.documentElement.setAttribute('data-theme', 'dark');
+      const sheetTheme = document.querySelector('#ws-settings-sheet')?.getAttribute('data-theme');
+      const hasPegsRestored = Boolean(
+        document.querySelector('#ws-settings-sheet')?.querySelector('.f12-pegs'),
+      );
+      if (prev) document.documentElement.setAttribute('data-theme', prev);
+      else document.documentElement.removeAttribute('data-theme');
+      return { sheetTheme, hasPegsRestored };
+    });
 
     await page.click('#ws-settings-tabs-tab-motion');
     await page.click('input[type="radio"][value="cut"]');
     await page.click('#ws-settings-trigger-pose-btn');
+    await page.click('#ws-settings-motion-charts'); // uncheck chart animation
     const motionApplied = await page.evaluate(() => ({
       hasCutClass: Boolean(
         document.querySelector('#ws-settings-sheet')?.classList.contains('f12-m-cut'),
       ),
+      chartMotionAttr: document
+        .querySelector('#ws-settings-motion-specimen')
+        ?.getAttribute('data-motion-chart'),
+      reducedEnforcementText:
+        document.querySelector('#ws-settings-motion-reduced')?.textContent || '',
       poseText: document.querySelector('#ws-settings-motion-specimen')?.textContent || '',
     }));
+    await page.click('#ws-settings-discard-btn');
+    await page.waitForTimeout(60);
     check(
       appearanceApplied.sheetTheme === 'dark' &&
+        !appearanceApplied.hasPegsWhenOff &&
+        appearanceApplied.highContrastAttr === 'true' &&
+        appearanceApplied.specimenBorderWidth === '2px' &&
         appearanceApplied.specimenText.includes('COMFORTABLE') &&
+        systemOsThemeResolved.sheetTheme === 'light' &&
+        systemOsThemeResolved.hasPegsRestored &&
         motionApplied.hasCutClass &&
+        motionApplied.chartMotionAttr === 'cut' &&
+        motionApplied.reducedEnforcementText.includes('ALWAYS ENFORCED') &&
         motionApplied.poseText.includes('POSE #02'),
-      'site /blocks/workspace-settings (Appearance & Motion): changing theme polarity, density, and motion grammar updates Sheet props live',
-      JSON.stringify({ appearanceApplied, motionApplied }),
+      'site /blocks/workspace-settings (Appearance & Motion): live Sheet theme, OS System Default resolution, registration marks (pegs), high-contrast 2px rules, chart motion toggle, and read-only reduced-motion indicator work end-to-end',
+      JSON.stringify({ appearanceApplied, systemOsThemeResolved, motionApplied }),
     );
 
-    // Team & Roles tab: invite validation, invite addition, filter empty recovery, and member removal confirmation (C-03)
+    // Team & Roles tab: invite validation, 10-seat capacity cap, filter empty recovery, and member removal confirmation (C-03)
     await page.click('#ws-settings-tabs-tab-team');
     await page.fill('#ws-settings-invite-email', 'sora@atelier-koma.io');
     await page.click('#ws-settings-invite-submit');
@@ -1140,6 +1198,20 @@ try {
     await page.click('#ws-settings-invite-submit');
     await page.waitForTimeout(60);
     const seatsAfterInvite = await page.textContent('#ws-settings-kpi-seats');
+
+    // Fill remaining 4 seats (7, 8, 9, 10) and verify 11th invite is rejected by 10-seat cap
+    for (let i = 7; i <= 10; i++) {
+      await page.fill('#ws-settings-invite-email', `operator${i}@atelier-koma.io`);
+      await page.click('#ws-settings-invite-submit');
+    }
+    const seatsAtCap = await page.textContent('#ws-settings-kpi-seats');
+    await page.fill('#ws-settings-invite-email', 'overflow11@atelier-koma.io');
+    await page.click('#ws-settings-invite-submit');
+    const eleventhInviteRejected = await page.evaluate(() => {
+      const inp = document.querySelector('#ws-settings-invite-email');
+      const seats = document.querySelector('#ws-settings-kpi-seats')?.textContent || '';
+      return inp?.getAttribute('aria-invalid') === 'true' && seats.includes('10 / 10 SEATS');
+    });
 
     await page.fill('#ws-settings-member-search', 'nonexistent-member-xyz');
     await page.waitForSelector('#ws-settings-member-empty');
@@ -1158,14 +1230,25 @@ try {
     check(
       dupInviteInvalid &&
         (seatsAfterInvite || '').includes('6 / 10 SEATS') &&
+        (seatsAtCap || '').includes('10 / 10 SEATS') &&
+        eleventhInviteRejected &&
         focusAfterFilterReset === 'ws-settings-member-search' &&
-        afterRemoval.seats.includes('5 / 10 SEATS') &&
+        afterRemoval.seats.includes('9 / 10 SEATS') &&
         afterRemoval.activeElementId === 'ws-settings-member-search',
-      'site /blocks/workspace-settings (Team & Roles): duplicate invite validation, new member invite (6/10 seats), empty filter recovery, and confirmed member removal (C-03) with focus restoration work end-to-end',
-      JSON.stringify({ dupInviteInvalid, seatsAfterInvite, focusAfterFilterReset, afterRemoval }),
+      'site /blocks/workspace-settings (Team & Roles): duplicate invite validation, new member invite, 10-seat capacity limit enforcement, empty filter recovery, and confirmed member removal (C-03) with focus restoration work end-to-end',
+      JSON.stringify({
+        dupInviteInvalid,
+        seatsAfterInvite,
+        seatsAtCap,
+        eleventhInviteRejected,
+        focusAfterFilterReset,
+        afterRemoval,
+      }),
     );
 
-    // Danger Zone tab: rotate secret, purge cache, and slug-verified archive (C-04)
+    // Danger Zone tab: rotate secret, purge cache (focus transfers to enabled rotate button), and slug-verified archive against saved slug even when draft slug is cleared (C-04)
+    await page.click('#ws-settings-tabs-tab-workspace');
+    await page.fill('#ws-settings-ws-slug', ''); // clear draft slug to attempt blank-slug archive bypass
     await page.click('#ws-settings-tabs-tab-danger-zone');
     await page.click('#ws-settings-danger-rotate-btn');
     await page.waitForSelector('#ws-settings-danger-dialog[open]');
@@ -1173,8 +1256,26 @@ try {
     await page.waitForTimeout(80);
     const rotatedSecret = await page.textContent('#ws-settings-signing-secret-val');
 
+    await page.click('#ws-settings-danger-purge-btn');
+    await page.waitForSelector('#ws-settings-danger-dialog[open]');
+    await page.click('#ws-settings-danger-dialog-confirm');
+    await page.waitForTimeout(80);
+    const afterPurgeFocusAndDisabled = await page.evaluate(() => ({
+      purgeDisabled: Boolean(document.querySelector('#ws-settings-danger-purge-btn')?.disabled),
+      activeElementId: document.activeElement?.id || '',
+    }));
+
     await page.click('#ws-settings-danger-archive-btn');
     await page.waitForSelector('#ws-settings-danger-dialog[open]');
+    // Attempt blank submission when draft slug was cleared -> must be rejected!
+    await page.fill('#ws-settings-archive-confirm-input', '');
+    await page.click('#ws-settings-danger-dialog-confirm');
+    const blankSlugRejected = await page.evaluate(
+      () =>
+        document
+          .querySelector('#ws-settings-archive-confirm-input')
+          ?.getAttribute('aria-invalid') === 'true',
+    );
     await page.fill('#ws-settings-archive-confirm-input', 'wrong-slug');
     await page.click('#ws-settings-danger-dialog-confirm');
     const wrongSlugInvalid = await page.evaluate(
@@ -1189,18 +1290,32 @@ try {
     const afterArchiveFocus = await page.evaluate(() => document.activeElement?.id || '');
     check(
       (rotatedSecret || '').includes('77e4') &&
+        afterPurgeFocusAndDisabled.purgeDisabled &&
+        afterPurgeFocusAndDisabled.activeElementId === 'ws-settings-danger-rotate-btn' &&
+        blankSlugRejected &&
         wrongSlugInvalid &&
         afterArchiveFocus === 'ws-settings-danger-archive-btn',
-      'site /blocks/workspace-settings (Danger Zone): secret rotation, slug mismatch validation, and confirmed archive & reset (C-04) work with focus restoration',
-      JSON.stringify({ rotatedSecret, wrongSlugInvalid, afterArchiveFocus }),
+      'site /blocks/workspace-settings (Danger Zone): secret rotation, cache purge focus transfer to enabled rotate button, blank-slug archive bypass prevention, and confirmed archive & reset (C-04) work end-to-end',
+      JSON.stringify({
+        rotatedSecret,
+        afterPurgeFocusAndDisabled,
+        blankSlugRejected,
+        wrongSlugInvalid,
+        afterArchiveFocus,
+      }),
     );
 
-    // Dataset states (ZERO / ERR) & 320px responsive check
+    // Dataset states (ZERO / ERR): inviting in ZERO state goes 0 -> 1 seat (does not resurrect hidden fixture members), ERR retry restores focus, & 320px responsive check
     await page.click('#ws-settings-dataset-empty');
     const emptyCheck = await page.evaluate(() => ({
       seats: document.querySelector('#ws-settings-kpi-seats')?.textContent || '',
       channels: document.querySelector('#ws-settings-kpi-channels')?.textContent || '',
     }));
+    await page.click('#ws-settings-tabs-tab-team');
+    await page.fill('#ws-settings-invite-email', 'sora@atelier-koma.io');
+    await page.click('#ws-settings-invite-submit');
+    await page.waitForTimeout(60);
+    const seatsAfterZeroInvite = await page.textContent('#ws-settings-kpi-seats');
     await page.click('#ws-settings-dataset-error');
     await page.waitForSelector('#ws-settings-error-banner');
     await page.click('#ws-settings-retry-sync');
@@ -1215,10 +1330,11 @@ try {
     check(
       emptyCheck.seats.includes('0 / 10 SEATS') &&
         emptyCheck.channels.includes('0 ACTIVE') &&
+        (seatsAfterZeroInvite || '').includes('1 / 10 SEATS') &&
         focusAfterRetry === 'ws-settings-reset-btn' &&
         overflow320,
-      'site /blocks/workspace-settings (Empty/Error states & 320px): ZERO state reconciles seats/channels to 0, ERR retry restores focus, and 320px has zero horizontal overflow',
-      JSON.stringify({ emptyCheck, focusAfterRetry, overflow320 }),
+      'site /blocks/workspace-settings (Empty/Error states & 320px): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, ERR retry restores focus, and 320px has zero horizontal overflow',
+      JSON.stringify({ emptyCheck, seatsAfterZeroInvite, focusAfterRetry, overflow320 }),
     );
 
     await ctx.close();

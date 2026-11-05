@@ -200,7 +200,7 @@ const INITIAL_WORKSPACE_SNAPSHOTS: Record<WorkspaceTargetId, WorkspaceConfigSnap
       themeMode: 'system',
       density: 'compact',
       showRegistrationMarks: true,
-      highContrastRules: true,
+      highContrastRules: false,
     },
     motion: {
       mode: 'stepped',
@@ -468,15 +468,18 @@ function validateSnapshot(draft: WorkspaceConfigSnapshot): FieldValidationError[
     });
   }
 
-  const webhookTrim = draft.notifications.webhookUrl.trim();
-  if (!/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/[^\s]*)?$/i.test(webhookTrim)) {
-    errors.push({
-      section: 'notifications',
-      sectionLabel: '03 · Notifications',
-      fieldIdSuffix: 'notif-webhook-url',
-      fieldLabel: 'Webhook dispatch endpoint URL',
-      message: 'Webhook endpoint must be a valid https:// URL.',
-    });
+  if (draft.notifications.channels.webhook) {
+    const webhookTrim = draft.notifications.webhookUrl.trim();
+    if (!/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/[^\s]*)?$/i.test(webhookTrim)) {
+      errors.push({
+        section: 'notifications',
+        sectionLabel: '03 · Notifications',
+        fieldIdSuffix: 'notif-webhook-url',
+        fieldLabel: 'Webhook dispatch endpoint URL',
+        message:
+          'Webhook endpoint must be a valid https:// URL when Signed HTTPS Webhook delivery is enabled.',
+      });
+    }
   }
 
   const thresholdNum = Number(draft.notifications.failureThresholdPct.trim());
@@ -598,6 +601,31 @@ const DENSITY_OPTIONS: Array<{ value: DensityPreference; label: string; unit: st
   { value: 'comfortable', label: 'COMFORT', unit: '2px' },
 ];
 
+const MAX_WORKSPACE_SEATS = 10;
+
+function buildBaselineSnapshot(
+  targetId: WorkspaceTargetId,
+  externalMotion?: MotionMode,
+  externalTheme?: 'light' | 'dark',
+): WorkspaceConfigSnapshot {
+  const snap = cloneSnapshot(INITIAL_WORKSPACE_SNAPSHOTS[targetId]);
+  if (externalMotion) {
+    snap.motion.mode = externalMotion;
+  }
+  if (externalTheme) {
+    snap.appearance.themeMode = externalTheme;
+  }
+  return snap;
+}
+
+interface CachedRouteDraft {
+  workspaceId: WorkspaceTargetId;
+  savedByWorkspace: Record<WorkspaceTargetId, WorkspaceConfigSnapshot>;
+  draft: WorkspaceConfigSnapshot;
+}
+
+const CLIENT_ROUTE_DRAFT_CACHE = new Map<string, CachedRouteDraft>();
+
 export interface WorkspaceSettingsProps {
   /** Initial active settings tab (`'profile'` by default). */
   initialSection?: SettingsSection;
@@ -613,6 +641,8 @@ export interface WorkspaceSettingsProps {
   showSandboxControls?: boolean;
   /** Prefix for deterministic DOM IDs. When omitted, a collision-free React.useId() prefix is generated. */
   idPrefix?: string;
+  /** Callback fired whenever unsaved draft state or modified sections change. */
+  onDirtyChange?: (isDirty: boolean, dirtySections: SettingsSection[]) => void;
   /** Optional slot rendered at the top of the sheet (used by the docs showcase for install commands). */
   headerSlot?: React.ReactNode;
   /** Optional slot rendered at the bottom of the sheet. */
@@ -627,6 +657,7 @@ function WorkspaceSettingsInner({
   theme: externalTheme,
   showSandboxControls = true,
   idPrefix,
+  onDirtyChange,
   headerSlot,
   footerSlot,
 }: WorkspaceSettingsProps) {
@@ -634,24 +665,64 @@ function WorkspaceSettingsInner({
   const resolvedIdPrefix = idPrefix ?? `f12-settings-${autoId}`;
   const { toast } = useToast();
 
-  const [workspaceId, setWorkspaceId] = React.useState<WorkspaceTargetId>(initialWorkspaceId);
+  const cachedRouteState = idPrefix ? CLIENT_ROUTE_DRAFT_CACHE.get(idPrefix) : undefined;
+
+  const [workspaceId, setWorkspaceId] = React.useState<WorkspaceTargetId>(
+    () => cachedRouteState?.workspaceId ?? initialWorkspaceId,
+  );
   const [activeSection, setActiveSection] = React.useState<SettingsSection>(initialSection);
   const [datasetState, setDatasetState] =
     React.useState<SettingsDatasetState>(initialDatasetState);
 
   const [savedByWorkspace, setSavedByWorkspace] = React.useState<
     Record<WorkspaceTargetId, WorkspaceConfigSnapshot>
-  >(() => ({
-    'prod-atelier': cloneSnapshot(INITIAL_WORKSPACE_SNAPSHOTS['prod-atelier']),
-    'staging-atelier': cloneSnapshot(INITIAL_WORKSPACE_SNAPSHOTS['staging-atelier']),
-  }));
-
-  const [draft, setDraft] = React.useState<WorkspaceConfigSnapshot>(() =>
-    cloneSnapshot(INITIAL_WORKSPACE_SNAPSHOTS[initialWorkspaceId]),
+  >(() =>
+    cachedRouteState
+      ? {
+          'prod-atelier': cloneSnapshot(cachedRouteState.savedByWorkspace['prod-atelier']),
+          'staging-atelier': cloneSnapshot(cachedRouteState.savedByWorkspace['staging-atelier']),
+        }
+      : {
+          'prod-atelier': buildBaselineSnapshot('prod-atelier', externalMotion, externalTheme),
+          'staging-atelier': buildBaselineSnapshot('staging-atelier', externalMotion, externalTheme),
+        },
   );
 
+  const [draft, setDraft] = React.useState<WorkspaceConfigSnapshot>(() =>
+    cachedRouteState
+      ? cloneSnapshot(cachedRouteState.draft)
+      : buildBaselineSnapshot(initialWorkspaceId, externalMotion, externalTheme),
+  );
+
+  const [osTheme, setOsTheme] = React.useState<'light' | 'dark'>('light');
+
   React.useEffect(() => {
-    if (externalMotion) {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const update = () => setOsTheme(mql.matches ? 'dark' : 'light');
+    update();
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', update);
+      return () => mql.removeEventListener('change', update);
+    }
+    mql.addListener?.(update);
+    return () => mql.removeListener?.(update);
+  }, []);
+
+  const prevExternalMotionRef = React.useRef<MotionMode | undefined>(externalMotion);
+  React.useEffect(() => {
+    if (externalMotion && externalMotion !== prevExternalMotionRef.current) {
+      prevExternalMotionRef.current = externalMotion;
+      setSavedByWorkspace((prev) => ({
+        'prod-atelier': {
+          ...prev['prod-atelier'],
+          motion: { ...prev['prod-atelier'].motion, mode: externalMotion },
+        },
+        'staging-atelier': {
+          ...prev['staging-atelier'],
+          motion: { ...prev['staging-atelier'].motion, mode: externalMotion },
+        },
+      }));
       setDraft((prev) => ({
         ...prev,
         motion: { ...prev.motion, mode: externalMotion },
@@ -659,8 +730,20 @@ function WorkspaceSettingsInner({
     }
   }, [externalMotion]);
 
+  const prevExternalThemeRef = React.useRef<'light' | 'dark' | undefined>(externalTheme);
   React.useEffect(() => {
-    if (externalTheme) {
+    if (externalTheme && externalTheme !== prevExternalThemeRef.current) {
+      prevExternalThemeRef.current = externalTheme;
+      setSavedByWorkspace((prev) => ({
+        'prod-atelier': {
+          ...prev['prod-atelier'],
+          appearance: { ...prev['prod-atelier'].appearance, themeMode: externalTheme },
+        },
+        'staging-atelier': {
+          ...prev['staging-atelier'],
+          appearance: { ...prev['staging-atelier'].appearance, themeMode: externalTheme },
+        },
+      }));
       setDraft((prev) => ({
         ...prev,
         appearance: { ...prev.appearance, themeMode: externalTheme },
@@ -679,6 +762,26 @@ function WorkspaceSettingsInner({
     [dirtySections],
   );
 
+  React.useEffect(() => {
+    onDirtyChange?.(isDirty, Array.from(dirtySections));
+  }, [isDirty, dirtySections, onDirtyChange]);
+
+  React.useEffect(() => {
+    if (!idPrefix) return;
+    if (isDirty) {
+      CLIENT_ROUTE_DRAFT_CACHE.set(idPrefix, {
+        workspaceId,
+        savedByWorkspace: {
+          'prod-atelier': cloneSnapshot(savedByWorkspace['prod-atelier']),
+          'staging-atelier': cloneSnapshot(savedByWorkspace['staging-atelier']),
+        },
+        draft: cloneSnapshot(draft),
+      });
+    } else {
+      CLIENT_ROUTE_DRAFT_CACHE.delete(idPrefix);
+    }
+  }, [idPrefix, isDirty, workspaceId, savedByWorkspace, draft]);
+
   const validationErrors = React.useMemo(() => validateSnapshot(draft), [draft]);
   const [showValidationSummary, setShowValidationSummary] = React.useState<boolean>(false);
 
@@ -695,6 +798,9 @@ function WorkspaceSettingsInner({
 
   const [pendingWorkspaceTarget, setPendingWorkspaceTarget] =
     React.useState<WorkspaceTargetId | null>(null);
+  const [pendingNavigationHref, setPendingNavigationHref] = React.useState<string | null>(null);
+  const pendingNavigationAnchorRef = React.useRef<HTMLAnchorElement | null>(null);
+  const bypassRouteGuardRef = React.useRef<boolean>(false);
   const [memberPendingRemoval, setMemberPendingRemoval] =
     React.useState<WorkspaceMember | null>(null);
   const [dangerDialogMode, setDangerDialogMode] = React.useState<
@@ -727,6 +833,10 @@ function WorkspaceSettingsInner({
     draft.lifecycle.signingSecretRevision,
     draft.lifecycle.bufferedTelemetryEvents,
     draft.lifecycle.archivedAt,
+    dangerDialogMode,
+    memberPendingRemoval,
+    pendingWorkspaceTarget,
+    pendingNavigationHref,
   ]);
 
   React.useEffect(() => {
@@ -739,6 +849,56 @@ function WorkspaceSettingsInner({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
 
+  React.useEffect(() => {
+    if (!isDirty) return;
+    const handleDocumentClickCapture = (event: MouseEvent) => {
+      if (
+        bypassRouteGuardRef.current ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      const target = event.target as Element | null;
+      const anchor = target?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      if (anchor.target && anchor.target !== '_self') return;
+      if (anchor.hasAttribute('download')) return;
+      const rawHref = anchor.getAttribute('href');
+      if (
+        !rawHref ||
+        rawHref.startsWith('#') ||
+        rawHref.startsWith('mailto:') ||
+        rawHref.startsWith('tel:') ||
+        rawHref.startsWith('javascript:')
+      ) {
+        return;
+      }
+      try {
+        const dest = new URL(anchor.href, window.location.href);
+        if (
+          dest.origin === window.location.origin &&
+          dest.pathname === window.location.pathname &&
+          dest.search === window.location.search
+        ) {
+          return;
+        }
+      } catch {
+        // Guard navigation on parse fallback
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      pendingNavigationAnchorRef.current = anchor;
+      setPendingNavigationHref(rawHref);
+    };
+    document.addEventListener('click', handleDocumentClickCapture, true);
+    return () => document.removeEventListener('click', handleDocumentClickCapture, true);
+  }, [isDirty]);
+
   const getFieldError = React.useCallback(
     (fieldIdSuffix: string): string | undefined => {
       const found = validationErrors.find((err) => err.fieldIdSuffix === fieldIdSuffix);
@@ -749,6 +909,9 @@ function WorkspaceSettingsInner({
 
   const applyWorkspaceSwitch = (nextTarget: WorkspaceTargetId, discardedDraft: boolean) => {
     const nextSaved = savedByWorkspace[nextTarget];
+    if (idPrefix) {
+      CLIENT_ROUTE_DRAFT_CACHE.delete(idPrefix);
+    }
     pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-ws-target-${nextTarget}`;
     setWorkspaceId(nextTarget);
     setDraft(cloneSnapshot(nextSaved));
@@ -809,6 +972,9 @@ function WorkspaceSettingsInner({
       lastSavedAt: 'Just now (local sandbox)',
     };
 
+    if (idPrefix) {
+      CLIENT_ROUTE_DRAFT_CACHE.delete(idPrefix);
+    }
     setSavedByWorkspace((prev) => ({
       ...prev,
       [workspaceId]: committed,
@@ -824,6 +990,9 @@ function WorkspaceSettingsInner({
   };
 
   const handleDiscardChanges = () => {
+    if (idPrefix) {
+      CLIENT_ROUTE_DRAFT_CACHE.delete(idPrefix);
+    }
     setDraft(cloneSnapshot(savedSnapshot));
     setShowValidationSummary(false);
     setInviteError(undefined);
@@ -836,7 +1005,10 @@ function WorkspaceSettingsInner({
   };
 
   const handleResetDefaults = () => {
-    const factory = cloneSnapshot(INITIAL_WORKSPACE_SNAPSHOTS[workspaceId]);
+    if (idPrefix) {
+      CLIENT_ROUTE_DRAFT_CACHE.delete(idPrefix);
+    }
+    const factory = buildBaselineSnapshot(workspaceId, externalMotion, externalTheme);
     setSavedByWorkspace((prev) => ({
       ...prev,
       [workspaceId]: factory,
@@ -856,6 +1028,15 @@ function WorkspaceSettingsInner({
     });
   };
 
+  const isEmptyDataset = datasetState === 'empty';
+  const isLoadingDataset = datasetState === 'loading';
+  const isErrorDataset = datasetState === 'error';
+
+  const effectiveMembers = React.useMemo(
+    () => (isEmptyDataset ? [] : draft.members),
+    [isEmptyDataset, draft.members],
+  );
+
   const handleInviteMember = (event: React.FormEvent) => {
     event.preventDefault();
     const cleanEmail = inviteEmail.trim().toLowerCase();
@@ -868,7 +1049,16 @@ function WorkspaceSettingsInner({
       return;
     }
 
-    if (draft.members.some((m) => m.email.toLowerCase() === cleanEmail)) {
+    if (effectiveMembers.length >= MAX_WORKSPACE_SEATS) {
+      setInviteError(
+        `Workspace seat capacity reached (${MAX_WORKSPACE_SEATS} / ${MAX_WORKSPACE_SEATS} seats). Remove an existing member before sending new invitations.`,
+      );
+      const emailEl = document.getElementById(`${resolvedIdPrefix}-invite-email`);
+      if (emailEl) emailEl.focus();
+      return;
+    }
+
+    if (effectiveMembers.some((m) => m.email.toLowerCase() === cleanEmail)) {
       setInviteError('That email address is already a member or has a pending invitation.');
       const emailEl = document.getElementById(`${resolvedIdPrefix}-invite-email`);
       if (emailEl) emailEl.focus();
@@ -896,14 +1086,25 @@ function WorkspaceSettingsInner({
       lastSeen: 'Invited just now',
     };
 
-    if (datasetState === 'empty') {
+    if (isEmptyDataset) {
       setDatasetState('populated');
+      setSavedByWorkspace((prev) => ({
+        ...prev,
+        [workspaceId]: {
+          ...prev[workspaceId],
+          members: [],
+        },
+      }));
+      setDraft((prev) => ({
+        ...prev,
+        members: [newMember],
+      }));
+    } else {
+      setDraft((prev) => ({
+        ...prev,
+        members: [...prev.members, newMember],
+      }));
     }
-
-    setDraft((prev) => ({
-      ...prev,
-      members: [...prev.members, newMember],
-    }));
     setInviteEmail('');
     setInviteName('');
     setInviteError(undefined);
@@ -939,6 +1140,10 @@ function WorkspaceSettingsInner({
       description: `${removed.email} was removed from the workspace draft roster.`,
     });
   };
+
+  const targetArchiveSlug =
+    savedSnapshot.workspace.slug.trim() ||
+    INITIAL_WORKSPACE_SNAPSHOTS[workspaceId].workspace.slug.trim();
 
   const handleConfirmDangerAction = (event?: React.FormEvent) => {
     if (event) event.preventDefault();
@@ -997,7 +1202,7 @@ function WorkspaceSettingsInner({
         },
       }));
       setDangerDialogMode(null);
-      pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-danger-purge-btn`;
+      pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-danger-rotate-btn`;
       toast({
         status: 'info',
         title: 'Purged buffered telemetry cache',
@@ -1007,16 +1212,20 @@ function WorkspaceSettingsInner({
     }
 
     if (dangerDialogMode === 'archive-workspace') {
-      if (archiveConfirmSlug.trim() !== draft.workspace.slug) {
+      const enteredSlug = archiveConfirmSlug.trim();
+      if (!enteredSlug || enteredSlug !== targetArchiveSlug) {
         setArchiveSlugError(
-          `Type the exact workspace slug "${draft.workspace.slug}" to confirm archival.`,
+          `Type the exact saved workspace slug "${targetArchiveSlug}" to confirm archival.`,
         );
         const slugInput = document.getElementById(`${resolvedIdPrefix}-archive-confirm-input`);
         if (slugInput) slugInput.focus();
         return;
       }
 
-      const factory = cloneSnapshot(INITIAL_WORKSPACE_SNAPSHOTS[workspaceId]);
+      if (idPrefix) {
+        CLIENT_ROUTE_DRAFT_CACHE.delete(idPrefix);
+      }
+      const factory = buildBaselineSnapshot(workspaceId, externalMotion, externalTheme);
       const archivedState: WorkspaceConfigSnapshot = {
         ...factory,
         lifecycle: {
@@ -1035,22 +1244,13 @@ function WorkspaceSettingsInner({
       setDangerDialogMode(null);
       pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-danger-archive-btn`;
       toast({
-        status: 'danger',
+        status: 'warning',
         title: `Archived & reset ${factory.workspace.workspaceName}`,
         description:
           'Simulated workspace archive completed. Configuration reset to baseline read-ready posture.',
       });
     }
   };
-
-  const isEmptyDataset = datasetState === 'empty';
-  const isLoadingDataset = datasetState === 'loading';
-  const isErrorDataset = datasetState === 'error';
-
-  const effectiveMembers = React.useMemo(
-    () => (isEmptyDataset ? [] : draft.members),
-    [isEmptyDataset, draft.members],
-  );
 
   const filteredMembers = React.useMemo(() => {
     const q = memberSearch.trim().toLowerCase();
@@ -1087,10 +1287,13 @@ function WorkspaceSettingsInner({
     return list;
   }, [effectiveChannels]);
 
-  const effectiveSheetTheme: 'light' | 'dark' | undefined =
-    draft.appearance.themeMode === 'system' ? externalTheme : draft.appearance.themeMode;
+  const effectiveSheetTheme: 'light' | 'dark' =
+    draft.appearance.themeMode === 'system' ? osTheme : draft.appearance.themeMode;
 
   const effectiveSheetMotion: MotionMode = draft.motion.mode;
+  const effectiveChartMotion: MotionMode = draft.motion.animateCharts
+    ? effectiveSheetMotion
+    : 'cut';
 
   const postureStatusTag: { status: TagStatus; label: string } = isErrorDataset
     ? { status: 'danger', label: 'SYNC FAULT' }
@@ -1107,6 +1310,9 @@ function WorkspaceSettingsInner({
       id={`${resolvedIdPrefix}-sheet`}
       motion={effectiveSheetMotion}
       theme={effectiveSheetTheme}
+      pegs={draft.appearance.showRegistrationMarks}
+      data-high-contrast-rules={draft.appearance.highContrastRules ? 'true' : 'false'}
+      data-animate-charts={draft.motion.animateCharts ? 'true' : 'false'}
       className="f12-console f12-settings"
     >
       {headerSlot}
@@ -1225,6 +1431,7 @@ function WorkspaceSettingsInner({
       {/* ===================================================================== C-01: FOCUSED EXPRESSIVE POSTURE HEADER */}
       <Panel
         cut="C-01"
+        className="f12-settings-posture-panel"
         label="Workspace configuration posture and operational summary"
         aria-busy={isLoadingDataset}
       >
@@ -1243,7 +1450,7 @@ function WorkspaceSettingsInner({
                   label="Configuration Posture & Revision"
                   value={savedSnapshot.revision}
                   format={(n) => (isDirty ? `REV-0${Math.round(n)}*` : `REV-0${Math.round(n)}`)}
-                  motion={effectiveSheetMotion}
+                  motion={effectiveChartMotion}
                   note={
                     validationErrors.length > 0
                       ? `${validationErrors.length} VALIDATION ERROR(S)`
@@ -1255,7 +1462,7 @@ function WorkspaceSettingsInner({
                 <ToneSpark
                   values={draft.stabilitySpark}
                   label="Configuration stability history"
-                  motion={effectiveSheetMotion}
+                  motion={effectiveChartMotion}
                 />
               </div>
 
@@ -1263,7 +1470,7 @@ function WorkspaceSettingsInner({
                 <div className="f12-console-kv-item">
                   <span className="f12-console-kv-label">Active Seats</span>
                   <span className="f12-console-kv-value" id={`${resolvedIdPrefix}-kpi-seats`}>
-                    {`${effectiveMembers.length} / 10 SEATS`}
+                    {`${effectiveMembers.length} / ${MAX_WORKSPACE_SEATS} SEATS`}
                   </span>
                   <span className="f12-mono-note">
                     {isEmptyDataset
@@ -1290,7 +1497,7 @@ function WorkspaceSettingsInner({
                     {`${draft.motion.mode.toUpperCase()} · ${draft.appearance.density.toUpperCase()}`}
                   </span>
                   <span className="f12-mono-note">
-                    {`Theme: ${draft.appearance.themeMode} · Region: ${draft.workspace.region}`}
+                    {`Theme: ${draft.appearance.themeMode} (${effectiveSheetTheme}) · Region: ${draft.workspace.region}`}
                   </span>
                 </div>
               </div>
@@ -1587,7 +1794,7 @@ function WorkspaceSettingsInner({
                     variant="primary"
                     size="sm"
                   >
-                    Save profile settings
+                    Save all changes
                   </Button>
                 </div>
               </form>
@@ -1781,7 +1988,7 @@ function WorkspaceSettingsInner({
                     variant="primary"
                     size="sm"
                   >
-                    Save workspace preferences
+                    Save all changes
                   </Button>
                 </div>
               </form>
@@ -1934,7 +2141,8 @@ function WorkspaceSettingsInner({
                     id={`${resolvedIdPrefix}-notif-webhook-url`}
                     density={draft.appearance.density}
                     label="Webhook dispatch endpoint URL"
-                    required
+                    required={effectiveChannels.webhook}
+                    disabled={!effectiveChannels.webhook}
                     value={draft.notifications.webhookUrl}
                     onChange={(e) =>
                       setDraft((prev) => ({
@@ -1942,8 +2150,14 @@ function WorkspaceSettingsInner({
                         notifications: { ...prev.notifications, webhookUrl: e.target.value },
                       }))
                     }
-                    error={getFieldError('notif-webhook-url')}
-                    hint="Must use TLS 1.3 https:// endpoint"
+                    error={
+                      effectiveChannels.webhook ? getFieldError('notif-webhook-url') : undefined
+                    }
+                    hint={
+                      effectiveChannels.webhook
+                        ? 'Must use TLS 1.3 https:// endpoint'
+                        : 'Optional while Signed HTTPS Webhook delivery is disabled'
+                    }
                   />
 
                   <Input
@@ -2020,7 +2234,7 @@ function WorkspaceSettingsInner({
                     variant="primary"
                     size="sm"
                   >
-                    Save notification rules
+                    Save all changes
                   </Button>
                 </div>
               </form>
@@ -2131,8 +2345,8 @@ function WorkspaceSettingsInner({
                   <Switch
                     id={`${resolvedIdPrefix}-appearance-hc-rules`}
                     density={draft.appearance.density}
-                    label="Reinforce semantic status borders with non-color geometry"
-                    hint="Pairs [✓] / [!] / [×] status glyphs with distinct solid, dashed, and double border rules"
+                    label="Reinforce quiet panel hairlines and status borders with 2px ink rules"
+                    hint="Pairs [i] / [+] / [!] / [×] status glyphs with 2px solid, dashed, and double border rules across the sheet"
                     checked={draft.appearance.highContrastRules}
                     onCheckedChange={(checked) =>
                       setDraft((prev) => ({
@@ -2160,9 +2374,36 @@ function WorkspaceSettingsInner({
                     </div>
                   </div>
                   <p className="f12-mono-note">
-                    Status glyphs, border patterns (solid / dashed / double), and tabular numerals
-                    remain distinguishable without relying on color alone.
+                    {`Status glyphs, border patterns (solid / dashed / double), registration pegs (${draft.appearance.showRegistrationMarks ? 'ON' : 'OFF'}), and rule weight (${draft.appearance.highContrastRules ? '2PX REINFORCED' : '1PX QUIET'}) update live on this sheet.`}
                   </p>
+                </div>
+
+                <div className="f12-row-between">
+                  <span className="f12-mono-note">
+                    {`Active theme polarity: ${effectiveSheetTheme.toUpperCase()} (${draft.appearance.themeMode === 'system' ? 'OS prefers-color-scheme' : 'explicit override'})`}
+                  </span>
+                  <div className="f12-row-pair">
+                    <Button
+                      id={`${resolvedIdPrefix}-appearance-discard-btn`}
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={!isDirty}
+                      onClick={handleDiscardChanges}
+                    >
+                      Discard changes
+                    </Button>
+                    <Button
+                      id={`${resolvedIdPrefix}-appearance-save-btn`}
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      disabled={!isDirty && validationErrors.length === 0}
+                      onClick={() => handleSaveChanges()}
+                    >
+                      Save all changes
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -2233,24 +2474,10 @@ function WorkspaceSettingsInner({
 
                 <div className="f12-stack-pair">
                   <Switch
-                    id={`${resolvedIdPrefix}-motion-reduced`}
-                    density={draft.appearance.density}
-                    label="Respect OS prefers-reduced-motion preference"
-                    hint="Automatically collapses all stepped and smooth animations to 0ms hard cuts when requested by the OS"
-                    checked={draft.motion.respectReducedMotion}
-                    onCheckedChange={(checked) =>
-                      setDraft((prev) => ({
-                        ...prev,
-                        motion: { ...prev.motion, respectReducedMotion: checked },
-                      }))
-                    }
-                  />
-
-                  <Switch
                     id={`${resolvedIdPrefix}-motion-charts`}
                     density={draft.appearance.density}
                     label="Enable stepped entry choreography on charts and sparklines"
-                    hint="Animates halftone area series and bar fills when switching time windows"
+                    hint="Animates posture metrics and stability sparklines when switching workspaces or saving revisions"
                     checked={draft.motion.animateCharts}
                     onCheckedChange={(checked) =>
                       setDraft((prev) => ({
@@ -2273,11 +2500,25 @@ function WorkspaceSettingsInner({
                       }))
                     }
                   />
+
+                  <div
+                    id={`${resolvedIdPrefix}-motion-reduced`}
+                    className="f12-row-between"
+                    role="note"
+                    aria-label="OS prefers-reduced-motion accessibility guarantee"
+                  >
+                    <span className="f12-mono-note">
+                      OS <code className="f12-code-inline">prefers-reduced-motion: reduce</code> is
+                      always enforced by FRAME/12 and collapses all transitions to 0ms cuts.
+                    </span>
+                    <Tag status="success">ALWAYS ENFORCED</Tag>
+                  </div>
                 </div>
 
                 <div
                   className="f12-settings-specimen"
                   id={`${resolvedIdPrefix}-motion-specimen`}
+                  data-motion-chart={effectiveChartMotion}
                   aria-label="Interactive motion calibration strip"
                 >
                   <div className="f12-row-between">
@@ -2302,6 +2543,15 @@ function WorkspaceSettingsInner({
                       Trigger test pose
                     </Button>
                   </div>
+                  <ToneSpark
+                    values={draft.stabilitySpark.map((v, idx) =>
+                      idx === draft.stabilitySpark.length - 1
+                        ? Number(Math.min(100, v + (motionPoseCount % 3) * 0.4).toFixed(1))
+                        : v,
+                    )}
+                    label="Motion calibration sparkline"
+                    motion={effectiveChartMotion}
+                  />
                   <p className="f12-mono-note">
                     {draft.motion.mode === 'stepped'
                       ? 'Active grammar: 12fps On Twos (83.33ms per drawing). State updates snap immediately; decorative motion holds discrete poses.'
@@ -2309,6 +2559,34 @@ function WorkspaceSettingsInner({
                         ? 'Active grammar: 60fps continuous cubic-bezier interpolation.'
                         : 'Active grammar: 0ms hard cut. Zero decorative animation.'}
                   </p>
+                </div>
+
+                <div className="f12-row-between">
+                  <span className="f12-mono-note">
+                    {`Chart choreography: ${effectiveChartMotion.toUpperCase()} · Impact bursts: ${draft.motion.enableImpactBursts ? 'ENABLED' : 'OFF'}`}
+                  </span>
+                  <div className="f12-row-pair">
+                    <Button
+                      id={`${resolvedIdPrefix}-motion-discard-btn`}
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={!isDirty}
+                      onClick={handleDiscardChanges}
+                    >
+                      Discard changes
+                    </Button>
+                    <Button
+                      id={`${resolvedIdPrefix}-motion-save-btn`}
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      disabled={!isDirty && validationErrors.length === 0}
+                      onClick={() => handleSaveChanges()}
+                    >
+                      Save all changes
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -2579,7 +2857,7 @@ function WorkspaceSettingsInner({
                         <TableRow>
                           <TableCell colSpan={4}>Total Workspace Seats Allocated</TableCell>
                           <TableCell colSpan={2}>
-                            {`${effectiveMembers.length} of 10 seats (${10 - effectiveMembers.length} available)`}
+                            {`${effectiveMembers.length} of ${MAX_WORKSPACE_SEATS} seats (${Math.max(0, MAX_WORKSPACE_SEATS - effectiveMembers.length)} available)`}
                           </TableCell>
                         </TableRow>
                       </TableFooter>
@@ -2690,8 +2968,8 @@ function WorkspaceSettingsInner({
                         ) : null}
                       </div>
                       <p className="f12-console-quiet-sub">
-                        Requires typing the workspace slug (
-                        <code className="f12-code-inline">{draft.workspace.slug}</code>) to confirm.
+                        Requires typing the saved workspace slug (
+                        <code className="f12-code-inline">{targetArchiveSlug}</code>) to confirm.
                         Clears custom edits, evicts buffered events, and resets the workspace to
                         factory baseline posture.
                       </p>
@@ -2719,9 +2997,13 @@ function WorkspaceSettingsInner({
 
       {/* ===================================================================== C-02: NAVIGATION GUARD DIALOG */}
       <Dialog
-        open={pendingWorkspaceTarget !== null}
+        open={pendingWorkspaceTarget !== null || pendingNavigationHref !== null}
         onOpenChange={(open) => {
-          if (!open) setPendingWorkspaceTarget(null);
+          if (!open) {
+            setPendingWorkspaceTarget(null);
+            setPendingNavigationHref(null);
+            pendingNavigationAnchorRef.current = null;
+          }
         }}
       >
         <DialogContent
@@ -2732,12 +3014,14 @@ function WorkspaceSettingsInner({
           <DialogHeader>
             <DialogTitle>Unsaved Configuration Changes</DialogTitle>
             <DialogDescription>
-              {`You have unsaved edits in ${dirtySectionLabels.join(', ')}. Switching workspace targets will discard your current draft for ${draft.workspace.workspaceName}.`}
+              {pendingNavigationHref
+                ? `You have unsaved edits in ${dirtySectionLabels.join(', ')}. Leaving ${draft.workspace.workspaceName} for "${pendingNavigationHref}" will discard your current draft.`
+                : `You have unsaved edits in ${dirtySectionLabels.join(', ')}. Switching workspace targets will discard your current draft for ${draft.workspace.workspaceName}.`}
             </DialogDescription>
           </DialogHeader>
           <Notice status="warning" title="Navigation guard active">
             Save your changes first if you want to keep them in this workspace&apos;s snapshot, or
-            discard the draft to switch immediately.
+            discard the draft to proceed immediately.
           </Notice>
           <DialogFooter>
             <DialogClose
@@ -2756,10 +3040,34 @@ function WorkspaceSettingsInner({
               onClick={() => {
                 if (pendingWorkspaceTarget) {
                   applyWorkspaceSwitch(pendingWorkspaceTarget, true);
+                  return;
+                }
+                if (pendingNavigationHref) {
+                  const targetHref = pendingNavigationHref;
+                  const anchor = pendingNavigationAnchorRef.current;
+                  if (idPrefix) {
+                    CLIENT_ROUTE_DRAFT_CACHE.delete(idPrefix);
+                  }
+                  setDraft(cloneSnapshot(savedSnapshot));
+                  setShowValidationSummary(false);
+                  setInviteError(undefined);
+                  setPendingNavigationHref(null);
+                  pendingNavigationAnchorRef.current = null;
+                  bypassRouteGuardRef.current = true;
+                  window.requestAnimationFrame(() => {
+                    if (anchor && anchor.isConnected) {
+                      anchor.click();
+                    } else if (typeof window !== 'undefined') {
+                      window.location.assign(targetHref);
+                    }
+                    window.setTimeout(() => {
+                      bypassRouteGuardRef.current = false;
+                    }, 100);
+                  });
                 }
               }}
             >
-              Discard draft &amp; switch
+              {pendingNavigationHref ? 'Discard draft & leave' : 'Discard draft & switch'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2843,8 +3151,8 @@ function WorkspaceSettingsInner({
               {dangerDialogMode === 'rotate-secret'
                 ? `Issue signing secret v${draft.lifecycle.signingSecretRevision + 1} for ${draft.workspace.workspaceName}.`
                 : dangerDialogMode === 'purge-cache'
-                  ? `Evict ${draft.lifecycle.bufferedTelemetryEvents.toLocaleString()} buffered replay events from ${draft.workspace.workspaceName}.`
-                  : `Type "${draft.workspace.slug}" below to confirm archiving and resetting ${draft.workspace.workspaceName} in this sandbox session.`}
+                  ? `Evict ${effectiveBufferedEvents.toLocaleString()} buffered replay events from ${draft.workspace.workspaceName}.`
+                  : `Type "${targetArchiveSlug}" below to confirm archiving and resetting ${draft.workspace.workspaceName} in this sandbox session.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -2864,7 +3172,7 @@ function WorkspaceSettingsInner({
               <Input
                 id={`${resolvedIdPrefix}-archive-confirm-input`}
                 density="compact"
-                label={`Type "${draft.workspace.slug}" to confirm`}
+                label={`Type "${targetArchiveSlug}" to confirm`}
                 required
                 value={archiveConfirmSlug}
                 onChange={(e) => {
@@ -2872,7 +3180,7 @@ function WorkspaceSettingsInner({
                   if (archiveSlugError) setArchiveSlugError(undefined);
                 }}
                 error={archiveSlugError}
-                placeholder={draft.workspace.slug}
+                placeholder={targetArchiveSlug}
               />
             ) : null}
 

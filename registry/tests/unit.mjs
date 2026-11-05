@@ -1235,16 +1235,21 @@ await page.waitForSelector('#unit-test-fixtures');
           notifCheckbox?.labels?.length === 1 &&
           notifCheckbox?.labels?.[0]?.textContent?.trim() === 'Email me weekly';
 
-        // (b) <Field label="Channels"><Checkbox label="Email channel" /><Checkbox label="SMS channel" /></Field>
+        // (b) <Field label="Channels" required><Checkbox label="Email channel" /><Checkbox label="SMS channel" /></Field>
         const channelsField = document.querySelector('#wp4-channels-field');
+        const channelsGroupLabel = document.getElementById('wp4-channels-field-label');
         const channelChecks = [...(channelsField?.querySelectorAll('input[type="checkbox"]') || [])];
         const channelsGroupOk =
           channelsField?.getAttribute('role') === 'group' &&
           channelsField?.getAttribute('aria-labelledby') === 'wp4-channels-field-label' &&
+          Boolean(channelsGroupLabel?.querySelector('.f12-field-req')) &&
           channelChecks.length === 2 &&
           Boolean(channelChecks[0].id) &&
           Boolean(channelChecks[1].id) &&
           channelChecks[0].id !== channelChecks[1].id &&
+          channelChecks.every(
+            (c) => !c.required && !c.labels?.[0]?.querySelector('.f12-field-req'),
+          ) &&
           channelChecks[0].labels?.[0]?.textContent?.trim() === 'Email channel' &&
           channelChecks[1].labels?.[0]?.textContent?.trim() === 'SMS channel';
 

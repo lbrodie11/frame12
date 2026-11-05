@@ -12,7 +12,7 @@
 
   --f-shadow-sheet: 0 1px 0 rgba(0, 0, 0, 0.05), 0 18px 40px -26px rgba(0, 0, 0, 0.5);
   --f-shadow-peg: inset 0 1px 2px rgba(0, 0, 0, 0.25);
-  --f-backdrop: rgba(18, 18, 18, 0.55);
+  --f-backdrop: rgba(12, 12, 12, 0.78);
   --f-diff: #ffffff;
 }
 
@@ -2240,8 +2240,12 @@ dialog.f12-dialog::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;
   background-color: var(--f-backdrop);
-  background-image: radial-gradient(circle, var(--f-ink) 1px, transparent 1.5px);
-  background-size: 6px 6px;
+  background-image: radial-gradient(circle, rgba(18, 18, 18, 0.35) 0.85px, transparent 1.35px);
+  background-size: 8px 8px;
+}
+dialog.f12-dialog > .f12-cut {
+  background: var(--f-panel);
+  border: 1.5px solid var(--f-rule);
 }
 .f12-dialog-header {
   display: flex;
@@ -2714,6 +2718,30 @@ dialog.f12-dialog::backdrop {
   color: var(--f-ink-2);
 }
 
+.f12-settings .f12-settings-posture-panel > .f12-panel-body {
+  padding: 16px 18px 14px;
+}
+.f12-settings .f12-settings-posture-panel .f12-m-value {
+  font-size: clamp(22px, 2.8vw, 30px);
+}
+.f12-settings .f12-settings-posture-panel .f12-console-kv-list {
+  flex: 1 1 520px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.f12-settings td code.f12-code-inline {
+  white-space: nowrap;
+}
+.f12-settings[data-high-contrast-rules="true"] .f12-panel.f12-panel-quiet,
+.f12-settings[data-high-contrast-rules="true"] .f12-console-kv-item,
+.f12-settings[data-high-contrast-rules="true"] .f12-settings-bar,
+.f12-settings[data-high-contrast-rules="true"] .f12-settings-specimen {
+  border-width: 2px;
+  border-color: var(--f-rule);
+}
+.f12-settings[data-high-contrast-rules="true"] .f12-settings-danger-row {
+  border-bottom-width: 2px;
+  border-bottom-color: var(--f-rule);
+}
 .f12-settings-bar {
   display: flex;
   flex-wrap: wrap;
@@ -2764,9 +2792,12 @@ dialog.f12-dialog::backdrop {
     flex-direction: column;
     width: 100%;
   }
-  .f12-settings .f12-tabs-trigger {
+  .f12-settings .f12-tabs-trigger,
+  .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger {
     width: 100%;
     justify-content: flex-start;
+    min-height: 34px;
+    padding: 6px 10px;
   }
   .f12-settings .f12-tabs-trigger + .f12-tabs-trigger,
   .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
@@ -2780,9 +2811,12 @@ dialog.f12-dialog::backdrop {
     flex-direction: column;
     width: 100%;
   }
-  .f12-settings .f12-tabs-trigger {
+  .f12-settings .f12-tabs-trigger,
+  .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger {
     width: 100%;
     justify-content: flex-start;
+    min-height: 34px;
+    padding: 6px 10px;
   }
   .f12-settings .f12-tabs-trigger + .f12-tabs-trigger,
   .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
@@ -2812,7 +2846,8 @@ dialog.f12-dialog::backdrop {
   .f12-scene.f12-scene-three,
   .f12-console-filters,
   .f12-console-grid-2,
-  .f12-console-kv-list {
+  .f12-console-kv-list,
+  .f12-settings .f12-settings-posture-panel .f12-console-kv-list {
     grid-template-columns: minmax(0, 1fr);
   }
   .f12-rng-btn {

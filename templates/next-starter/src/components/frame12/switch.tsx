@@ -64,7 +64,8 @@ export const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(function S
     undefined;
   const effectiveInvalid = error || fieldCtx?.invalid ? true : userAriaInvalid;
   const effectiveDisabled = disabled ?? fieldCtx?.disabled;
-  const effectiveRequired = required ?? fieldCtx?.required;
+  const isGroupOption = Boolean(fieldCtx?.isControlGroup || (hasOwnLabel && fieldCtx?.label));
+  const effectiveRequired = required ?? (isGroupOption ? undefined : fieldCtx?.required);
 
   const registerControlGroup = fieldCtx?.registerControlGroup;
   const registerControlId = fieldCtx?.registerControlId;

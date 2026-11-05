@@ -270,7 +270,7 @@ export const Field = React.forwardRef<HTMLDivElement, FieldProps>(function Field
       describedBy,
       invalid: Boolean(error),
       disabled,
-      required,
+      required: isControlGroup ? undefined : required,
       density,
       isRadioGroup,
       isControlGroup,

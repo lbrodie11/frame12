@@ -1547,7 +1547,7 @@ function Wp4UnitFixtures() {
             <Field id="wp4-notif-field" label="Notifications">
               <Checkbox id="wp4-notif-checkbox" label="Email me weekly" />
             </Field>
-            <Field id="wp4-channels-field" label="Channels">
+            <Field id="wp4-channels-field" label="Channels" required>
               <Checkbox label="Email channel" />
               <Checkbox label="SMS channel" />
             </Field>
