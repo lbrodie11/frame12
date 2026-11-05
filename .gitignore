@@ -3,6 +3,7 @@ dist/
 lab/dist/
 registry/dist/
 eval/dist/
+eval/agent-eval/dist/
 test-results/
 lab/test-results/
 registry/test-results/

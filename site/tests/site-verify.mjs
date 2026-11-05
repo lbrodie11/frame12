@@ -2045,6 +2045,19 @@ try {
           );
 
           if (scheme === 'light') {
+            const blocksInCatalogIndex = await page.evaluate(() => ({
+              consoleLink: Boolean(document.querySelector('#block-link-developer-console')),
+              settingsLink: Boolean(document.querySelector('#block-link-workspace-settings')),
+              analyticsLink: Boolean(document.querySelector('#block-link-analytics-dashboard')),
+            }));
+            check(
+              blocksInCatalogIndex.consoleLink &&
+                blocksInCatalogIndex.settingsLink &&
+                blocksInCatalogIndex.analyticsLink,
+              `site [${engineName}] /components: Application Blocks table links to all 3 registry:block showcases`,
+              JSON.stringify(blocksInCatalogIndex),
+            );
+
             // Test 768px container-query transition & 390px mobile on /components and /blocks/developer-console
             await page.setViewportSize({ width: 768, height: 900 });
             await page.waitForTimeout(100);
@@ -2058,19 +2071,43 @@ try {
             );
             await page.goto(`${baseUrl}/blocks/developer-console`, { waitUntil: 'networkidle' });
             const okConsole390 = await page.evaluate(
-              () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+              () =>
+                document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+                Boolean(document.querySelector('#block-doc-developer-console')),
             );
             await page.goto(`${baseUrl}/blocks/workspace-settings`, { waitUntil: 'networkidle' });
             const okSettings390 = await page.evaluate(
-              () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+              () =>
+                document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+                Boolean(document.querySelector('#block-doc-workspace-settings')),
             );
             await page.goto(`${baseUrl}/blocks/analytics-dashboard`, { waitUntil: 'networkidle' });
             const okAnalytics390 = await page.evaluate(
-              () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+              () =>
+                document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+                Boolean(document.querySelector('#block-doc-analytics-dashboard')),
+            );
+            await page.goto(`${baseUrl}/get-started`, { waitUntil: 'networkidle' });
+            const okGetStarted = await page.evaluate(() =>
+              Boolean(document.querySelector('#onboarding-one-minute-summary')),
+            );
+            await page.goto(`${baseUrl}/agents`, { waitUntil: 'networkidle' });
+            const okAgentsEval = await page.evaluate(() =>
+              Boolean(
+                document.querySelector('#agents-four-condition-eval') &&
+                  document.querySelector('#agents-copy-eval-runner'),
+              ),
             );
             check(
-              ok768 && ok390 && okConsole390 && okSettings390 && okAnalytics390 && errors.length === 0,
-              `site [${engineName} 768px & 390px] /components, /blocks/developer-console, /blocks/workspace-settings & /blocks/analytics-dashboard: zero horizontal overflow across container-query & mobile viewports`,
+              ok768 &&
+                ok390 &&
+                okConsole390 &&
+                okSettings390 &&
+                okAnalytics390 &&
+                okGetStarted &&
+                okAgentsEval &&
+                errors.length === 0,
+              `site [${engineName} 768px & 390px] /components, /blocks/*, /get-started & /agents: WP9 documentation sections and zero horizontal overflow verified`,
               errors.join('; '),
             );
           }

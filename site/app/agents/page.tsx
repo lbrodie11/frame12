@@ -390,6 +390,111 @@ export default function AgentsPage() {
           </div>
         </Panel>
       </Scene>
+
+      <Scene gutter="scene" layout="stack">
+        <Panel variant="quiet" label="4-condition reproducible agent evaluation (WP9)">
+          <div className="f12-stack-pair" id="agents-four-condition-eval">
+            <div className="f12-row-pair">
+              <Tag status="info">eval/agent-eval/REPORT.md</Tag>
+              <span className="f12-mono-note">
+                4 conditions × 6 unseen tasks (24 screens) · Universal Quality vs. FRAME/12 Grammar
+              </span>
+            </div>
+            <h2 className="f12-section-title">
+              4-condition × 6-task reproducible agent evaluation
+            </h2>
+            <p className="f12-body-copy">
+              Evaluates 6 unseen application tasks (
+              <code className="f12-code-inline">01-dashboard</code>,{' '}
+              <code className="f12-code-inline">02-settings</code>,{' '}
+              <code className="f12-code-inline">03-developer-console</code>,{' '}
+              <code className="f12-code-inline">04-data-heavy</code>,{' '}
+              <code className="f12-code-inline">05-landing-page</code>,{' '}
+              <code className="f12-code-inline">06-multi-step-form</code>) across 4 conditions.
+              Universal UI quality metrics (compile, axe WCAG AA, light/dark contrast, keyboard
+              reachability, 1280px/390px overflow) are measured separately from FRAME/12 grammar
+              compliance so the conventional shadcn/Tailwind baseline (Condition 1) is never
+              penalized for FRAME/12-specific rules.
+            </p>
+            <CopyCommand
+              id="agents-copy-eval-runner"
+              label="Reproduce 24-screen evaluation harness"
+              command="node eval/agent-eval/run-eval.mjs"
+            />
+            <Table density="compact">
+              <TableCaption>
+                Reproducible results from eval/agent-eval/results/summary.json (N = 6 unseen tasks per condition)
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Condition</TableHead>
+                  <TableHead scope="col">Universal UI Quality</TableHead>
+                  <TableHead scope="col">Axe WCAG AA Violations</TableHead>
+                  <TableHead scope="col">Contrast Failures (L+D)</TableHead>
+                  <TableHead scope="col">FRAME/12 Grammar Pass</TableHead>
+                  <TableHead scope="col">Static Checker Violations</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>
+                    <strong>C1 · Conventional shadcn/Tailwind Baseline</strong>
+                  </TableCell>
+                  <TableCell>
+                    <Tag status="success">6 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>N/A (Baseline)</TableCell>
+                  <TableCell>N/A (Baseline)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>
+                    <strong>C2 · FRAME/12 Without SKILL.md</strong>
+                  </TableCell>
+                  <TableCell>
+                    <Tag status="danger">0 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>12</TableCell>
+                  <TableCell>24 (--f-marker text misuse)</TableCell>
+                  <TableCell>
+                    <Tag status="danger">0 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>78 (hex, 16px/24px gaps, cut-order)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>
+                    <strong>C3 · FRAME/12 With SKILL.md (Single-Pass)</strong>
+                  </TableCell>
+                  <TableCell>
+                    <Tag status="success">6 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>
+                    <Tag status="info">5 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>1 (single-pass 16px inline gap)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>
+                    <strong>C4 · FRAME/12 With SKILL.md + check-frame12.mjs</strong>
+                  </TableCell>
+                  <TableCell>
+                    <Tag status="success">6 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>
+                    <Tag status="success">6 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>0</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </Panel>
+      </Scene>
     </Sheet>
   );
 }

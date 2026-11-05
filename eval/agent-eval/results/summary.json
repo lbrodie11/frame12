@@ -1,0 +1,841 @@
+{
+  "version": "0.2.0",
+  "harness": "eval/agent-eval/run-eval.mjs",
+  "taskCount": 6,
+  "conditionCount": 4,
+  "totalScreensEvaluated": 24,
+  "conditionSummaries": [
+    {
+      "conditionId": "c1-shadcn-baseline",
+      "label": "Condition 1: Conventional shadcn/Tailwind Baseline",
+      "evaluatesFrame12Grammar": false,
+      "taskCount": 6,
+      "universalPassCount": 6,
+      "totalAxeViolations": 0,
+      "totalContrastFailures": 0,
+      "overflowTasks": 0,
+      "grammarPassCount": null,
+      "totalStaticViolations": null
+    },
+    {
+      "conditionId": "c2-frame12-no-skill",
+      "label": "Condition 2: FRAME/12 Components Without SKILL.md",
+      "evaluatesFrame12Grammar": true,
+      "taskCount": 6,
+      "universalPassCount": 0,
+      "totalAxeViolations": 12,
+      "totalContrastFailures": 24,
+      "overflowTasks": 0,
+      "grammarPassCount": 0,
+      "totalStaticViolations": 78
+    },
+    {
+      "conditionId": "c3-frame12-with-skill",
+      "label": "Condition 3: FRAME/12 Components With SKILL.md (Single-Pass)",
+      "evaluatesFrame12Grammar": true,
+      "taskCount": 6,
+      "universalPassCount": 6,
+      "totalAxeViolations": 0,
+      "totalContrastFailures": 0,
+      "overflowTasks": 0,
+      "grammarPassCount": 5,
+      "totalStaticViolations": 1
+    },
+    {
+      "conditionId": "c4-frame12-skill-plus-checker",
+      "label": "Condition 4: FRAME/12 Components With SKILL.md + check-frame12.mjs",
+      "evaluatesFrame12Grammar": true,
+      "taskCount": 6,
+      "universalPassCount": 6,
+      "totalAxeViolations": 0,
+      "totalContrastFailures": 0,
+      "overflowTasks": 0,
+      "grammarPassCount": 6,
+      "totalStaticViolations": 0
+    }
+  ],
+  "results": [
+    {
+      "conditionId": "c1-shadcn-baseline",
+      "taskId": "01-dashboard",
+      "taskTitle": "Operational Incident & SLO Dashboard",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": null
+    },
+    {
+      "conditionId": "c1-shadcn-baseline",
+      "taskId": "02-settings",
+      "taskTitle": "Organization Security & Billing Preferences",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": null
+    },
+    {
+      "conditionId": "c1-shadcn-baseline",
+      "taskId": "03-developer-console",
+      "taskTitle": "Webhook Delivery & Event Stream Console",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": null
+    },
+    {
+      "conditionId": "c1-shadcn-baseline",
+      "taskId": "04-data-heavy",
+      "taskTitle": "Multi-Region Inventory & Fulfillment Ledger",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": null
+    },
+    {
+      "conditionId": "c1-shadcn-baseline",
+      "taskId": "05-landing-page",
+      "taskTitle": "Developer Platform Product Launch & Pricing Page",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": null
+    },
+    {
+      "conditionId": "c1-shadcn-baseline",
+      "taskId": "06-multi-step-form",
+      "taskTitle": "Production Deployment & Rollout Wizard",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": null
+    },
+    {
+      "conditionId": "c2-frame12-no-skill",
+      "taskId": "01-dashboard",
+      "taskTitle": "Operational Incident & SLO Dashboard",
+      "universal": {
+        "pass": false,
+        "buildOk": true,
+        "axeViolationsLight": 1,
+        "axeViolationsDark": 1,
+        "contrastFailuresLight": 2,
+        "contrastFailuresDark": 2,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": false,
+        "staticViolationCount": 13,
+        "staticViolationRules": [
+          "color-literal",
+          "illegal-gutter",
+          "marker-misuse",
+          "explicit-cut-in-autocut"
+        ],
+        "renderedCuts": [
+          "C-01",
+          "C-03",
+          "C-04",
+          "C-05",
+          "C-06"
+        ],
+        "cutOrderSequential": false,
+        "illegalSceneGaps": [
+          "16px"
+        ],
+        "chartTablePresent": false,
+        "expressivePanels": 5,
+        "quietPanels": 0,
+        "hierarchyBalanced": false
+      }
+    },
+    {
+      "conditionId": "c2-frame12-no-skill",
+      "taskId": "02-settings",
+      "taskTitle": "Organization Security & Billing Preferences",
+      "universal": {
+        "pass": false,
+        "buildOk": true,
+        "axeViolationsLight": 1,
+        "axeViolationsDark": 1,
+        "contrastFailuresLight": 2,
+        "contrastFailuresDark": 2,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": false,
+        "staticViolationCount": 13,
+        "staticViolationRules": [
+          "color-literal",
+          "illegal-gutter",
+          "marker-misuse",
+          "explicit-cut-in-autocut"
+        ],
+        "renderedCuts": [
+          "C-01",
+          "C-03",
+          "C-04",
+          "C-05",
+          "C-06"
+        ],
+        "cutOrderSequential": false,
+        "illegalSceneGaps": [
+          "16px"
+        ],
+        "chartTablePresent": false,
+        "expressivePanels": 5,
+        "quietPanels": 0,
+        "hierarchyBalanced": false
+      }
+    },
+    {
+      "conditionId": "c2-frame12-no-skill",
+      "taskId": "03-developer-console",
+      "taskTitle": "Webhook Delivery & Event Stream Console",
+      "universal": {
+        "pass": false,
+        "buildOk": true,
+        "axeViolationsLight": 1,
+        "axeViolationsDark": 1,
+        "contrastFailuresLight": 2,
+        "contrastFailuresDark": 2,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": false,
+        "staticViolationCount": 13,
+        "staticViolationRules": [
+          "color-literal",
+          "illegal-gutter",
+          "marker-misuse",
+          "explicit-cut-in-autocut"
+        ],
+        "renderedCuts": [
+          "C-01",
+          "C-03",
+          "C-04",
+          "C-05",
+          "C-06"
+        ],
+        "cutOrderSequential": false,
+        "illegalSceneGaps": [
+          "16px"
+        ],
+        "chartTablePresent": false,
+        "expressivePanels": 5,
+        "quietPanels": 0,
+        "hierarchyBalanced": false
+      }
+    },
+    {
+      "conditionId": "c2-frame12-no-skill",
+      "taskId": "04-data-heavy",
+      "taskTitle": "Multi-Region Inventory & Fulfillment Ledger",
+      "universal": {
+        "pass": false,
+        "buildOk": true,
+        "axeViolationsLight": 1,
+        "axeViolationsDark": 1,
+        "contrastFailuresLight": 2,
+        "contrastFailuresDark": 2,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": false,
+        "staticViolationCount": 13,
+        "staticViolationRules": [
+          "color-literal",
+          "illegal-gutter",
+          "marker-misuse",
+          "explicit-cut-in-autocut"
+        ],
+        "renderedCuts": [
+          "C-01",
+          "C-03",
+          "C-04",
+          "C-05",
+          "C-06"
+        ],
+        "cutOrderSequential": false,
+        "illegalSceneGaps": [
+          "16px"
+        ],
+        "chartTablePresent": false,
+        "expressivePanels": 5,
+        "quietPanels": 0,
+        "hierarchyBalanced": false
+      }
+    },
+    {
+      "conditionId": "c2-frame12-no-skill",
+      "taskId": "05-landing-page",
+      "taskTitle": "Developer Platform Product Launch & Pricing Page",
+      "universal": {
+        "pass": false,
+        "buildOk": true,
+        "axeViolationsLight": 1,
+        "axeViolationsDark": 1,
+        "contrastFailuresLight": 2,
+        "contrastFailuresDark": 2,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": false,
+        "staticViolationCount": 13,
+        "staticViolationRules": [
+          "color-literal",
+          "illegal-gutter",
+          "marker-misuse",
+          "explicit-cut-in-autocut"
+        ],
+        "renderedCuts": [
+          "C-01",
+          "C-03",
+          "C-04",
+          "C-05",
+          "C-06"
+        ],
+        "cutOrderSequential": false,
+        "illegalSceneGaps": [
+          "16px"
+        ],
+        "chartTablePresent": false,
+        "expressivePanels": 5,
+        "quietPanels": 0,
+        "hierarchyBalanced": false
+      }
+    },
+    {
+      "conditionId": "c2-frame12-no-skill",
+      "taskId": "06-multi-step-form",
+      "taskTitle": "Production Deployment & Rollout Wizard",
+      "universal": {
+        "pass": false,
+        "buildOk": true,
+        "axeViolationsLight": 1,
+        "axeViolationsDark": 1,
+        "contrastFailuresLight": 2,
+        "contrastFailuresDark": 2,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": false,
+        "staticViolationCount": 13,
+        "staticViolationRules": [
+          "color-literal",
+          "illegal-gutter",
+          "marker-misuse",
+          "explicit-cut-in-autocut"
+        ],
+        "renderedCuts": [
+          "C-01",
+          "C-03",
+          "C-04",
+          "C-05",
+          "C-06"
+        ],
+        "cutOrderSequential": false,
+        "illegalSceneGaps": [
+          "16px"
+        ],
+        "chartTablePresent": false,
+        "expressivePanels": 5,
+        "quietPanels": 0,
+        "hierarchyBalanced": false
+      }
+    },
+    {
+      "conditionId": "c3-frame12-with-skill",
+      "taskId": "01-dashboard",
+      "taskTitle": "Operational Incident & SLO Dashboard",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01",
+          "C-02",
+          "C-03",
+          "C-04"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 4,
+        "quietPanels": 2,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c3-frame12-with-skill",
+      "taskId": "02-settings",
+      "taskTitle": "Organization Security & Billing Preferences",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 1,
+        "quietPanels": 5,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c3-frame12-with-skill",
+      "taskId": "03-developer-console",
+      "taskTitle": "Webhook Delivery & Event Stream Console",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01",
+          "C-02",
+          "C-03",
+          "C-04"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 4,
+        "quietPanels": 2,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c3-frame12-with-skill",
+      "taskId": "04-data-heavy",
+      "taskTitle": "Multi-Region Inventory & Fulfillment Ledger",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": false,
+        "staticViolationCount": 1,
+        "staticViolationRules": [
+          "illegal-gutter"
+        ],
+        "renderedCuts": [
+          "C-01",
+          "C-02",
+          "C-03",
+          "C-04"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 4,
+        "quietPanels": 2,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c3-frame12-with-skill",
+      "taskId": "05-landing-page",
+      "taskTitle": "Developer Platform Product Launch & Pricing Page",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01",
+          "C-02",
+          "C-03",
+          "C-04"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 4,
+        "quietPanels": 2,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c3-frame12-with-skill",
+      "taskId": "06-multi-step-form",
+      "taskTitle": "Production Deployment & Rollout Wizard",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 1,
+        "quietPanels": 5,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c4-frame12-skill-plus-checker",
+      "taskId": "01-dashboard",
+      "taskTitle": "Operational Incident & SLO Dashboard",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01",
+          "C-02",
+          "C-03",
+          "C-04"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 4,
+        "quietPanels": 2,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c4-frame12-skill-plus-checker",
+      "taskId": "02-settings",
+      "taskTitle": "Organization Security & Billing Preferences",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 1,
+        "quietPanels": 5,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c4-frame12-skill-plus-checker",
+      "taskId": "03-developer-console",
+      "taskTitle": "Webhook Delivery & Event Stream Console",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01",
+          "C-02",
+          "C-03",
+          "C-04"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 4,
+        "quietPanels": 2,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c4-frame12-skill-plus-checker",
+      "taskId": "04-data-heavy",
+      "taskTitle": "Multi-Region Inventory & Fulfillment Ledger",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01",
+          "C-02",
+          "C-03",
+          "C-04"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 4,
+        "quietPanels": 2,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c4-frame12-skill-plus-checker",
+      "taskId": "05-landing-page",
+      "taskTitle": "Developer Platform Product Launch & Pricing Page",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01",
+          "C-02",
+          "C-03",
+          "C-04"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 4,
+        "quietPanels": 2,
+        "hierarchyBalanced": true
+      }
+    },
+    {
+      "conditionId": "c4-frame12-skill-plus-checker",
+      "taskId": "06-multi-step-form",
+      "taskTitle": "Production Deployment & Rollout Wizard",
+      "universal": {
+        "pass": true,
+        "buildOk": true,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 0,
+        "contrastFailuresDark": 0,
+        "unnamedControls": 0,
+        "duplicateIds": 0,
+        "focusVisibleOk": true,
+        "overflow1280": false,
+        "overflow390": false
+      },
+      "frame12Grammar": {
+        "pass": true,
+        "staticViolationCount": 0,
+        "staticViolationRules": [],
+        "renderedCuts": [
+          "C-01"
+        ],
+        "cutOrderSequential": true,
+        "illegalSceneGaps": [],
+        "chartTablePresent": true,
+        "expressivePanels": 1,
+        "quietPanels": 5,
+        "hierarchyBalanced": true
+      }
+    }
+  ]
+}

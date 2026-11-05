@@ -6,6 +6,7 @@ import { Panel, Badge, Tag } from '@/components/frame12';
 import { WorkspaceSettings } from '@/components/frame12/blocks/workspace-settings';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
+import { BlockDocumentationSection } from '@/components/block-doc-footer';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 
 export default function WorkspaceSettingsShowcasePage() {
@@ -34,6 +35,13 @@ export default function WorkspaceSettingsShowcasePage() {
                     id="block-settings-goto-console"
                   >
                     Developer Console Block →
+                  </Link>
+                  <Link
+                    href="/blocks/analytics-dashboard"
+                    className="f12-link-btn"
+                    id="block-settings-goto-analytics"
+                  >
+                    Analytics Block →
                   </Link>
                   <Link
                     href="/components"
@@ -98,6 +106,8 @@ export default function WorkspaceSettingsShowcasePage() {
               </div>
             </div>
           </Panel>
+
+          <BlockDocumentationSection slug="workspace-settings" />
         </div>
       }
     />

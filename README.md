@@ -2,7 +2,7 @@
 
 [![Release: v0.1.0](https://img.shields.io/badge/Release-v0.1.0_·_Experimental-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://github.com/lbrodie11/frame12/releases/tag/v0.1.0)
 [![React 18 & 19](https://img.shields.io/badge/React-18_%26_19_·_TypeScript-121212?style=flat-square&labelColor=121212&color=ffffff)](registry/)
-[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-31_Components_·_35_Payloads-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
+[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-31_Components_·_3_Blocks_·_41_Payloads-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
 [![License: MIT](https://img.shields.io/badge/License-MIT-121212?style=flat-square&labelColor=121212&color=ffffff)](LICENSE)
 
 **A React design system that makes interfaces look like comic pages and move like hand-drawn animation.**
@@ -34,7 +34,7 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 - **React & Next.js:** Tested on React `18.x` and type-checked/verified for React `19.x` (`element.props.ref` compatible) in Next.js `14+` App Router projects.
 - **Project setup:** An initialized `shadcn` project (`components.json` with a `@/*` path alias; tested with Radix-based `shadcn` styles such as `new-york` as well as `shadcn init -d` / `base-nova`). Or start from a pre-configured repo in [`templates/next-starter/`](templates/next-starter/).
 - **Styling:** Works standalone via scoped `.f12-*` CSS custom properties (`styles/frame12.css`). Tailwind CSS is optional (`styles/frame12-tailwind.css` is included if you want Tailwind v4 utility classes).
-- **Status:** `v0.1.0` (experimental initial release covering 14 core layout/data/control components and 5 accessible primitive adapters).
+- **Status:** Covers 26 core layout/data/control components, 5 accessible primitive adapters, 3 full-screen application blocks (`developer-console`, `workspace-settings`, `analytics-dashboard`), `useOnTwos` motion hooks, and 41 total `shadcn`-compatible registry payloads.
 
 ### 1. Add the registry kit
 
@@ -190,21 +190,23 @@ FRAME/12 replaces subjective styling feedback with eight explicit rules—**five
 npm install
 npx playwright install --with-deps chromium firefox webkit # first time only, for automated cross-browser verification
 npm run build                     # builds lab, registry, eval, site, and templates/next-starter
+npm run doc:check                 # verifies canonical TypeScript API <-> documentation & skill sync
 npm run lint:frame12              # runs static design-grammar checker across all workspaces
-npm test                          # runs sync checks, static linter, and Playwright a11y/functional suites
+npm test                          # runs sync checks, doc checks, static linter, and Playwright a11y/functional suites
 ```
 
 - Run the documentation site locally: `npm --workspace=@frame12/site run dev`
 - Run the standalone Next.js starter template: `npm --prefix templates/next-starter run dev`
 - Verify registry JSON placement and React 18/19 type-checking: `node scripts/smoke-install.mjs`
+- Run the 4-condition × 6-task (`24`-screen) reproducible AI-agent evaluation: `node eval/agent-eval/run-eval.mjs`
 
 | Workspace / Directory | Contents |
 | --- | --- |
-| [`registry/`](registry/) | Source for the 22 `shadcn`-compatible registry payloads (`registry/ui/`, `registry/hooks/use-on-twos.ts`, `registry/styles/frame12.css`), built into `site/public/r/*.json`. |
+| [`registry/`](registry/) | Source for the 41 `shadcn`-compatible registry payloads (`registry/ui/`, `registry/blocks/`, `registry/hooks/use-on-twos.ts`, `registry/styles/frame12.css`), built into `site/public/r/*.json`. |
 | [`skills/frame12/`](skills/frame12/) | Portable AI Agent Skill (`SKILL.md`, `references/components-and-adapters.md`, `references/examples-and-mistakes.md`) and ESLint flat config (`eslint.frame12.mjs`). |
 | [`site/`](site/) | Next.js App Router documentation and interactive showcase deployed at **[frame12.dev](https://frame12.dev)**. |
 | [`templates/next-starter/`](templates/next-starter/) | Standalone Next.js App Router + TypeScript starter template pre-configured with local WOFF2 fonts (`next/font/local`), `.claude/skills/frame12/SKILL.md`, and `scripts/check-frame12.mjs`. |
-| [`eval/`](eval/) | AI reproduction benchmark across 3 product archetypes (`01-settings`, `02-landing-hero`, `03-data-table`), static linter tests (`check-linter.mjs`), and Playwright WCAG AA + mobile verification ([`eval/RESULTS.md`](eval/RESULTS.md)). |
+| [`eval/`](eval/) | AI reproduction benchmark across 3 product archetypes (`01-settings`, `02-landing-hero`, `03-data-table`), 4-condition × 6-task agent evaluation harness ([`eval/agent-eval/`](eval/agent-eval/)), static linter tests (`check-linter.mjs`), and Playwright WCAG AA + mobile verification ([`eval/RESULTS.md`](eval/RESULTS.md)). |
 | [`lab/`](lab/) | Phase 1 recovery dashboard prototype (`prototype.html`), interactive A/B comparison harness (`study.html`), and interactive style sheet (`style-sheet.html`). |
 
 ---

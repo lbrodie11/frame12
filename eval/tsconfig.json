@@ -26,11 +26,12 @@
     "screens/**/*.tsx",
     "next-app/**/*.ts",
     "next-app/**/*.tsx",
+    "agent-eval/conditions/**/*.tsx",
     "../registry/index.ts",
     "../registry/ui/index.ts",
     "../registry/hooks/**/*.ts",
     "../registry/ui/**/*.tsx",
     "../registry/blocks/**/*.tsx"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "agent-eval/dist"]
 }

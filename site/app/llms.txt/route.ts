@@ -1,4 +1,4 @@
-import { CATALOG, COMPONENT_CATEGORIES } from '@/lib/catalog';
+import { CATALOG, BLOCK_CATALOG, COMPONENT_CATEGORIES } from '@/lib/catalog';
 import { SITE_URL, REGISTRY_BASE_URL } from '@/lib/config';
 
 export const dynamic = 'force-static';
@@ -44,7 +44,7 @@ export async function GET() {
     `- [Style Sheet & Tokens](${SITE_URL}/style-sheet): Token tables, typography hierarchy, screentone specimens, and gutter rules.`,
     `- [Get Started Guide](${SITE_URL}/get-started): Step-by-step Next.js App Router, font binding, and theme setup.`,
     `- [Full LLM Context (${SITE_URL}/llms-full.txt)](${SITE_URL}/llms-full.txt): Complete single-file reference combining \`SKILL.md\`, progressive-disclosure references, registry manifest index, and all component prop tables and code templates.`,
-    `- [shadcn Registry Index (${REGISTRY_BASE_URL}/registry.json)](${REGISTRY_BASE_URL}/registry.json): Machine-readable shadcn registry catalog (26 items).`,
+    `- [shadcn Registry Index (${REGISTRY_BASE_URL}/registry.json)](${REGISTRY_BASE_URL}/registry.json): Machine-readable shadcn registry catalog (41 items).`,
     '',
     '## Core Design Grammar Rules',
     '',
@@ -69,6 +69,14 @@ export async function GET() {
     }
     lines.push('');
   }
+
+  lines.push('### Application Blocks (`registry:block`)', '');
+  for (const block of BLOCK_CATALOG) {
+    lines.push(
+      `- [${block.title}](${SITE_URL}${block.route}) ([JSON](${block.registryUrl})): ${block.summary}`,
+    );
+  }
+  lines.push('');
 
   return new Response(lines.join('\n').trimEnd() + '\n', {
     headers: {

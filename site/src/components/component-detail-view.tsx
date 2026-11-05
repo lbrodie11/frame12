@@ -71,6 +71,69 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
         </Panel>
       </Scene>
 
+      <Scene gutter="scene" layout="equal">
+        <Panel variant="quiet" label={`${entry.title} when to use and when not to use`}>
+          <div className="f12-stack-scene">
+            <div className="f12-stack-pair">
+              <div className="f12-row-pair">
+                <Tag status="success">When to use</Tag>
+                <span className="f12-mono-note">Recommended storyboard & ledger contexts</span>
+              </div>
+              <h2 className="f12-section-title">When to use {entry.title}</h2>
+              <ul className="f12-stack-pair" role="list">
+                {entry.whenToUse.map((item, i) => (
+                  <li key={i} className="f12-body-copy">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="f12-stack-pair">
+              <div className="f12-row-pair">
+                <Tag status="warning">When not to use</Tag>
+                <span className="f12-mono-note">Anti-patterns & better alternatives</span>
+              </div>
+              <h2 className="f12-section-title">When not to use {entry.title}</h2>
+              <ul className="f12-stack-pair" role="list">
+                {entry.whenNotToUse.map((item, i) => (
+                  <li key={i} className="f12-body-copy">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel variant="quiet" label={`${entry.title} state, theme, and responsive behavior`}>
+          <div className="f12-stack-scene">
+            <div className="f12-stack-pair">
+              <div className="f12-row-pair">
+                <Tag status="info">State model</Tag>
+                <span className="f12-mono-note">Controlled & uncontrolled behavior</span>
+              </div>
+              <h2 className="f12-section-title">Controlled & uncontrolled state</h2>
+              <p className="f12-body-copy">{entry.stateBehavior}</p>
+            </div>
+
+            <div className="f12-stack-pair">
+              <div className="f12-row-pair">
+                <Tag>Light & Dark</Tag>
+                <span className="f12-mono-note">Theme & viewport adaptation</span>
+              </div>
+              <h2 className="f12-section-title">Theme & responsive behavior</h2>
+              <p className="f12-body-copy">
+                <strong>Light / Dark theme:</strong> {entry.themeBehavior}
+              </p>
+              <p className="f12-body-copy">
+                <strong>Responsive (1280px → 320px):</strong> {entry.responsiveBehavior}
+              </p>
+            </div>
+          </div>
+        </Panel>
+      </Scene>
+
       <Scene gutter="scene" layout="split">
         <Panel label={`${entry.title} installation and usage`}>
           <div className="f12-stack-scene">
@@ -104,13 +167,18 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
             <div className="f12-stack-pair">
               <div className="f12-row-pair">
                 <Tag>WCAG AA</Tag>
-                <span className="f12-mono-note">Accessibility guarantees</span>
+                <span className="f12-mono-note">Accessibility & keyboard guarantees</span>
               </div>
-              <h2 className="f12-section-title">Accessibility notes</h2>
+              <h2 className="f12-section-title">Accessibility & keyboard interactions</h2>
               <ul className="f12-stack-pair" role="list">
                 {entry.a11yNotes.map((note, i) => (
-                  <li key={i} className="f12-body-copy">
+                  <li key={`a11y-${i}`} className="f12-body-copy">
                     {note}
+                  </li>
+                ))}
+                {entry.keyboardNotes.map((note, i) => (
+                  <li key={`kbd-${i}`} className="f12-body-copy">
+                    <strong>Keyboard:</strong> {note}
                   </li>
                 ))}
               </ul>
@@ -119,13 +187,18 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
             <div className="f12-stack-pair">
               <div className="f12-row-pair">
                 <Tag>Grammar</Tag>
-                <span className="f12-mono-note">FRAME/12 rules</span>
+                <span className="f12-mono-note">FRAME/12 rules & common pitfalls</span>
               </div>
-              <h2 className="f12-section-title">Design grammar</h2>
+              <h2 className="f12-section-title">Design grammar & common errors</h2>
               <ul className="f12-stack-pair" role="list">
                 {entry.grammarNotes.map((note, i) => (
-                  <li key={i} className="f12-body-copy">
+                  <li key={`gram-${i}`} className="f12-body-copy">
                     {note}
+                  </li>
+                ))}
+                {entry.commonErrors.map((err, i) => (
+                  <li key={`err-${i}`} className="f12-body-copy">
+                    <strong>Common error:</strong> {err}
                   </li>
                 ))}
               </ul>

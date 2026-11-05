@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { CATALOG, COMPONENT_CATEGORIES } from '@/lib/catalog';
+import { CATALOG, BLOCK_CATALOG, COMPONENT_CATEGORIES } from '@/lib/catalog';
 import { SITE_URL, REGISTRY_BASE_URL } from '@/lib/config';
 
 export const dynamic = 'force-static';
@@ -105,6 +105,15 @@ export async function GET() {
         `- **Docs URL:** ${SITE_URL}/components/${entry.slug}`,
         `- **Registry URL:** \`${entry.registryUrl}\``,
         `- **Source File:** \`${entry.sourceFile}\``,
+        `- **State Behavior:** ${entry.stateBehavior}`,
+        `- **Theme Behavior:** ${entry.themeBehavior}`,
+        `- **Responsive Behavior:** ${entry.responsiveBehavior}`,
+        '',
+        '**When to Use:**',
+        ...entry.whenToUse.map((n) => `- ${n}`),
+        '',
+        '**When Not to Use:**',
+        ...entry.whenNotToUse.map((n) => `- ${n}`),
         '',
         '| Prop | Type | Default | Description |',
         '| --- | --- | --- | --- |',
@@ -115,8 +124,14 @@ export async function GET() {
         '**Accessibility Notes:**',
         ...entry.a11yNotes.map((n) => `- ${n}`),
         '',
+        '**Keyboard Interactions:**',
+        ...entry.keyboardNotes.map((n) => `- ${n}`),
+        '',
         '**Grammar Notes:**',
         ...entry.grammarNotes.map((n) => `- ${n}`),
+        '',
+        '**Common Errors & Fixes:**',
+        ...entry.commonErrors.map((n) => `- ${n}`),
         '',
         '**Usage Template:**',
         '```tsx',
@@ -125,6 +140,52 @@ export async function GET() {
         '',
       );
     }
+  }
+
+  sections.push(
+    '---',
+    '',
+    '## Part 6: Application Blocks (`registry:block`)',
+    '',
+  );
+
+  for (const block of BLOCK_CATALOG) {
+    sections.push(
+      `### ${block.title} (\`${block.slug}\`)`,
+      '',
+      `- **Summary:** ${block.summary}`,
+      `- **Showcase Route:** ${SITE_URL}${block.route}`,
+      `- **Registry URL:** \`${block.registryUrl}\``,
+      `- **Source File:** \`${block.sourceFile}\``,
+      `- **Component Dependencies (${block.componentDependencies.length}):** ${block.componentDependencies.map((d) => `\`${d}\``).join(', ')}`,
+      '',
+      '**Architecture Notes:**',
+      ...block.architectureNotes.map((n) => `- ${n}`),
+      '',
+      '**Fixture & Reconciliation Model:**',
+      ...block.fixtureNotes.map((n) => `- ${n}`),
+      '',
+      '| Prop | Type | Default | Description |',
+      '| --- | --- | --- | --- |',
+      ...block.props.map(
+        (p) => `| \`${p.name}\` | \`${p.type.replace(/\|/g, '\\|')}\` | \`${p.defaultValue}\` | ${p.description} |`,
+      ),
+      '',
+      '**Customization Guidance:**',
+      ...block.customizationGuidance.map((n) => `- ${n}`),
+      '',
+      '**Accessibility Notes:**',
+      ...block.a11yNotes.map((n) => `- ${n}`),
+      '',
+      '**Known Limitations:**',
+      ...block.knownLimitations.map((n) => `- ${n}`),
+      '',
+      '**Usage Template:**',
+      '```tsx',
+      block.usageTemplate,
+      '```',
+      '',
+    );
   }
 
   return new Response(sections.join('\n').trimEnd() + '\n', {
