@@ -1547,10 +1547,24 @@ function Wp4UnitFixtures() {
             <Field id="wp4-notif-field" label="Notifications">
               <Checkbox id="wp4-notif-checkbox" label="Email me weekly" />
             </Field>
+            <Field id="wp4-legal-consent-field" label="Legal" required>
+              <Checkbox id="wp4-legal-consent-checkbox" label="I accept the terms" />
+            </Field>
             <Field id="wp4-channels-field" label="Channels" required>
               <Checkbox label="Email channel" />
               <Checkbox label="SMS channel" />
             </Field>
+            <Field id="wp4-rp-channels-field" label="Render-prop channels" required>
+              {(ctx) => (
+                <div>
+                  <Checkbox id="wp4-rp-ch-1" label="Webhook" required={ctx.required} />
+                  <Checkbox id="wp4-rp-ch-2" label="Email" required={ctx.required} />
+                </div>
+              )}
+            </Field>
+            <Sheet id="wp4-nested-cut-sheet" motion="cut" pegs={false}>
+              <Switch id="wp4-nested-cut-switch" label="Nested cut switch" />
+            </Sheet>
             <Field id="wp4-wrapper-id-field" label="Explicit child ID">
               <Input id="wp4-child-explicit-id" defaultValue="linked" />
             </Field>

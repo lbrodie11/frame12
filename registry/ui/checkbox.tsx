@@ -63,8 +63,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(functi
     undefined;
   const effectiveInvalid = error || fieldCtx?.invalid ? true : userAriaInvalid;
   const effectiveDisabled = disabled ?? fieldCtx?.disabled;
-  const isGroupOption = Boolean(fieldCtx?.isControlGroup || (hasOwnLabel && fieldCtx?.label));
-  const effectiveRequired = required ?? (isGroupOption ? undefined : fieldCtx?.required);
+  const effectiveRequired = required ?? fieldCtx?.required;
 
   const isControlledChecked = rest.checked !== undefined;
   const [internalIndeterminate, setInternalIndeterminate] = React.useState<boolean>(() =>

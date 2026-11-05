@@ -470,7 +470,14 @@ function validateSnapshot(draft: WorkspaceConfigSnapshot): FieldValidationError[
 
   if (draft.notifications.channels.webhook) {
     const webhookTrim = draft.notifications.webhookUrl.trim();
-    if (!/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/[^\s]*)?$/i.test(webhookTrim)) {
+    let isValidWebhookUrl = false;
+    try {
+      const parsed = new URL(webhookTrim);
+      isValidWebhookUrl = parsed.protocol === 'https:' && Boolean(parsed.hostname);
+    } catch {
+      isValidWebhookUrl = false;
+    }
+    if (!isValidWebhookUrl) {
       errors.push({
         section: 'notifications',
         sectionLabel: '03 · Notifications',
@@ -622,9 +629,27 @@ interface CachedRouteDraft {
   workspaceId: WorkspaceTargetId;
   savedByWorkspace: Record<WorkspaceTargetId, WorkspaceConfigSnapshot>;
   draft: WorkspaceConfigSnapshot;
+  externalMotion?: MotionMode;
+  externalTheme?: 'light' | 'dark';
 }
 
 const CLIENT_ROUTE_DRAFT_CACHE = new Map<string, CachedRouteDraft>();
+
+function reconcileCachedSnapshot(
+  snap: WorkspaceConfigSnapshot,
+  cachedState: CachedRouteDraft,
+  externalMotion?: MotionMode,
+  externalTheme?: 'light' | 'dark',
+): WorkspaceConfigSnapshot {
+  const next = cloneSnapshot(snap);
+  if (externalMotion !== undefined && externalMotion !== cachedState.externalMotion) {
+    next.motion.mode = externalMotion;
+  }
+  if (externalTheme !== undefined && externalTheme !== cachedState.externalTheme) {
+    next.appearance.themeMode = externalTheme;
+  }
+  return next;
+}
 
 export interface WorkspaceSettingsProps {
   /** Initial active settings tab (`'profile'` by default). */
@@ -679,8 +704,18 @@ function WorkspaceSettingsInner({
   >(() =>
     cachedRouteState
       ? {
-          'prod-atelier': cloneSnapshot(cachedRouteState.savedByWorkspace['prod-atelier']),
-          'staging-atelier': cloneSnapshot(cachedRouteState.savedByWorkspace['staging-atelier']),
+          'prod-atelier': reconcileCachedSnapshot(
+            cachedRouteState.savedByWorkspace['prod-atelier'],
+            cachedRouteState,
+            externalMotion,
+            externalTheme,
+          ),
+          'staging-atelier': reconcileCachedSnapshot(
+            cachedRouteState.savedByWorkspace['staging-atelier'],
+            cachedRouteState,
+            externalMotion,
+            externalTheme,
+          ),
         }
       : {
           'prod-atelier': buildBaselineSnapshot('prod-atelier', externalMotion, externalTheme),
@@ -690,7 +725,12 @@ function WorkspaceSettingsInner({
 
   const [draft, setDraft] = React.useState<WorkspaceConfigSnapshot>(() =>
     cachedRouteState
-      ? cloneSnapshot(cachedRouteState.draft)
+      ? reconcileCachedSnapshot(
+          cachedRouteState.draft,
+          cachedRouteState,
+          externalMotion,
+          externalTheme,
+        )
       : buildBaselineSnapshot(initialWorkspaceId, externalMotion, externalTheme),
   );
 
@@ -757,14 +797,24 @@ function WorkspaceSettingsInner({
     [draft, savedSnapshot],
   );
   const isDirty = dirtySections.size > 0;
+  const dirtySectionsKey = React.useMemo(
+    () => Array.from(dirtySections).join(','),
+    [dirtySections],
+  );
   const dirtySectionLabels = React.useMemo(
     () => Array.from(dirtySections).map((sec) => SECTION_LABELS[sec]),
     [dirtySections],
   );
 
+  const onDirtyChangeRef = React.useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
+
   React.useEffect(() => {
-    onDirtyChange?.(isDirty, Array.from(dirtySections));
-  }, [isDirty, dirtySections, onDirtyChange]);
+    const sections = dirtySectionsKey
+      ? (dirtySectionsKey.split(',') as SettingsSection[])
+      : [];
+    onDirtyChangeRef.current?.(isDirty, sections);
+  }, [isDirty, dirtySectionsKey]);
 
   React.useEffect(() => {
     if (!idPrefix) return;
@@ -776,11 +826,13 @@ function WorkspaceSettingsInner({
           'staging-atelier': cloneSnapshot(savedByWorkspace['staging-atelier']),
         },
         draft: cloneSnapshot(draft),
+        externalMotion,
+        externalTheme,
       });
     } else {
       CLIENT_ROUTE_DRAFT_CACHE.delete(idPrefix);
     }
-  }, [idPrefix, isDirty, workspaceId, savedByWorkspace, draft]);
+  }, [idPrefix, isDirty, workspaceId, savedByWorkspace, draft, externalMotion, externalTheme]);
 
   const validationErrors = React.useMemo(() => validateSnapshot(draft), [draft]);
   const [showValidationSummary, setShowValidationSummary] = React.useState<boolean>(false);
@@ -1088,13 +1140,6 @@ function WorkspaceSettingsInner({
 
     if (isEmptyDataset) {
       setDatasetState('populated');
-      setSavedByWorkspace((prev) => ({
-        ...prev,
-        [workspaceId]: {
-          ...prev[workspaceId],
-          members: [],
-        },
-      }));
       setDraft((prev) => ({
         ...prev,
         members: [newMember],
@@ -3180,7 +3225,7 @@ function WorkspaceSettingsInner({
                   if (archiveSlugError) setArchiveSlugError(undefined);
                 }}
                 error={archiveSlugError}
-                placeholder={targetArchiveSlug}
+                hint={`Enter exact workspace slug (${targetArchiveSlug}) to unlock confirmation`}
               />
             ) : null}
 

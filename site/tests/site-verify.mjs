@@ -1094,8 +1094,28 @@ try {
       JSON.stringify(afterDiscard),
     );
 
-    // Valid edit + conditional webhook URL validation + Save increments revision to REV-043
+    // Valid edit + conditional & new URL() webhook validation + Save increments revision to REV-043
     await page.click('#ws-settings-tabs-tab-notifications');
+    // Port :65536 must be rejected by new URL()
+    await page.fill('#ws-settings-notif-webhook-url', 'https://hooks.atelier-koma.io:65536/v2/ops');
+    await page.click('#ws-settings-save-btn');
+    const invalidPortRejected = await page.evaluate(
+      () =>
+        document
+          .querySelector('#ws-settings-notif-webhook-url')
+          ?.getAttribute('aria-invalid') === 'true',
+    );
+    // Query string ?token=abc must be accepted by new URL()
+    await page.fill(
+      '#ws-settings-notif-webhook-url',
+      'https://hooks.atelier-koma.io/v2/ops?token=abc',
+    );
+    const queryUrlValid = await page.evaluate(
+      () =>
+        !document
+          .querySelector('#ws-settings-notif-webhook-url')
+          ?.hasAttribute('aria-invalid'),
+    );
     await page.fill('#ws-settings-notif-webhook-url', '');
     await page.click('#ws-settings-notif-ch-webhook'); // uncheck webhook channel -> empty URL must not block save
     const webhookDisabledWhenUnchecked = await page.evaluate(() =>
@@ -1110,11 +1130,13 @@ try {
       metricText: document.querySelector('#ws-settings-posture-metric')?.textContent || '',
     }));
     check(
-      webhookDisabledWhenUnchecked &&
+      invalidPortRejected &&
+        queryUrlValid &&
+        webhookDisabledWhenUnchecked &&
         afterSave.dirtyAttr === 'false' &&
         afterSave.metricText.includes('REV-043'),
-      'site /blocks/workspace-settings (Save & Conditional Webhook Validation): disabling webhook channel disables URL input and allows saving without webhook URL error, incrementing revision to REV-043',
-      JSON.stringify({ webhookDisabledWhenUnchecked, afterSave }),
+      'site /blocks/workspace-settings (Save, new URL() & Conditional Webhook Validation): invalid port :65536 rejected, query string ?token=abc accepted, disabling webhook channel disables URL input and allows saving, incrementing revision to REV-043',
+      JSON.stringify({ invalidPortRejected, queryUrlValid, webhookDisabledWhenUnchecked, afterSave }),
     );
 
     // Appearance & Motion tabs live sheet application (theme, System Default OS resolution, pegs, highContrastRules, animateCharts, read-only reduced motion)
@@ -1155,17 +1177,23 @@ try {
     await page.click('input[type="radio"][value="cut"]');
     await page.click('#ws-settings-trigger-pose-btn');
     await page.click('#ws-settings-motion-charts'); // uncheck chart animation
-    const motionApplied = await page.evaluate(() => ({
-      hasCutClass: Boolean(
-        document.querySelector('#ws-settings-sheet')?.classList.contains('f12-m-cut'),
-      ),
-      chartMotionAttr: document
-        .querySelector('#ws-settings-motion-specimen')
-        ?.getAttribute('data-motion-chart'),
-      reducedEnforcementText:
-        document.querySelector('#ws-settings-motion-reduced')?.textContent || '',
-      poseText: document.querySelector('#ws-settings-motion-specimen')?.textContent || '',
-    }));
+    const motionApplied = await page.evaluate(() => {
+      const switchThumb = document.querySelector('#ws-settings-sheet .f12-switch-thumb');
+      return {
+        hasCutClass: Boolean(
+          document.querySelector('#ws-settings-sheet')?.classList.contains('f12-m-cut'),
+        ),
+        switchThumbTransitionDuration: switchThumb
+          ? getComputedStyle(switchThumb).transitionDuration
+          : '',
+        chartMotionAttr: document
+          .querySelector('#ws-settings-motion-specimen')
+          ?.getAttribute('data-motion-chart'),
+        reducedEnforcementText:
+          document.querySelector('#ws-settings-motion-reduced')?.textContent || '',
+        poseText: document.querySelector('#ws-settings-motion-specimen')?.textContent || '',
+      };
+    });
     await page.click('#ws-settings-discard-btn');
     await page.waitForTimeout(60);
     check(
@@ -1177,6 +1205,7 @@ try {
         systemOsThemeResolved.sheetTheme === 'light' &&
         systemOsThemeResolved.hasPegsRestored &&
         motionApplied.hasCutClass &&
+        motionApplied.switchThumbTransitionDuration === '0s' &&
         motionApplied.chartMotionAttr === 'cut' &&
         motionApplied.reducedEnforcementText.includes('ALWAYS ENFORCED') &&
         motionApplied.poseText.includes('POSE #02'),
@@ -1267,6 +1296,19 @@ try {
 
     await page.click('#ws-settings-danger-archive-btn');
     await page.waitForSelector('#ws-settings-danger-dialog[open]');
+    const archiveDialogVisuals = await page.evaluate(() => {
+      const dlg = document.querySelector('#ws-settings-danger-dialog');
+      const cut = dlg?.querySelector('.f12-cut');
+      const inp = document.querySelector('#ws-settings-archive-confirm-input');
+      const dlgRect = dlg?.getBoundingClientRect();
+      const cutRect = cut?.getBoundingClientRect();
+      return {
+        cutUnclipped: Boolean(
+          dlgRect && cutRect && cutRect.top >= dlgRect.top + 4 && cutRect.left >= dlgRect.left + 4,
+        ),
+        noSlugPlaceholder: !inp?.getAttribute('placeholder'),
+      };
+    });
     // Attempt blank submission when draft slug was cleared -> must be rejected!
     await page.fill('#ws-settings-archive-confirm-input', '');
     await page.click('#ws-settings-danger-dialog-confirm');
@@ -1292,20 +1334,23 @@ try {
       (rotatedSecret || '').includes('77e4') &&
         afterPurgeFocusAndDisabled.purgeDisabled &&
         afterPurgeFocusAndDisabled.activeElementId === 'ws-settings-danger-rotate-btn' &&
+        archiveDialogVisuals.cutUnclipped &&
+        archiveDialogVisuals.noSlugPlaceholder &&
         blankSlugRejected &&
         wrongSlugInvalid &&
         afterArchiveFocus === 'ws-settings-danger-archive-btn',
-      'site /blocks/workspace-settings (Danger Zone): secret rotation, cache purge focus transfer to enabled rotate button, blank-slug archive bypass prevention, and confirmed archive & reset (C-04) work end-to-end',
+      'site /blocks/workspace-settings (Danger Zone): secret rotation, cache purge focus transfer to enabled rotate button, unclipped C-04 badge & empty archive input placeholder, blank-slug archive bypass prevention, and confirmed archive & reset work end-to-end',
       JSON.stringify({
         rotatedSecret,
         afterPurgeFocusAndDisabled,
+        archiveDialogVisuals,
         blankSlugRejected,
         wrongSlugInvalid,
         afterArchiveFocus,
       }),
     );
 
-    // Dataset states (ZERO / ERR): inviting in ZERO state goes 0 -> 1 seat (does not resurrect hidden fixture members), ERR retry restores focus, & 320px responsive check
+    // Dataset states (ZERO / ERR): inviting in ZERO state goes 0 -> 1 seat and Discard restores saved 5-member roster, ERR retry restores focus, & 320px responsive check
     await page.click('#ws-settings-dataset-empty');
     const emptyCheck = await page.evaluate(() => ({
       seats: document.querySelector('#ws-settings-kpi-seats')?.textContent || '',
@@ -1316,6 +1361,9 @@ try {
     await page.click('#ws-settings-invite-submit');
     await page.waitForTimeout(60);
     const seatsAfterZeroInvite = await page.textContent('#ws-settings-kpi-seats');
+    await page.click('#ws-settings-discard-btn');
+    await page.waitForTimeout(60);
+    const seatsAfterZeroInviteDiscard = await page.textContent('#ws-settings-kpi-seats');
     await page.click('#ws-settings-dataset-error');
     await page.waitForSelector('#ws-settings-error-banner');
     await page.click('#ws-settings-retry-sync');
@@ -1331,10 +1379,17 @@ try {
       emptyCheck.seats.includes('0 / 10 SEATS') &&
         emptyCheck.channels.includes('0 ACTIVE') &&
         (seatsAfterZeroInvite || '').includes('1 / 10 SEATS') &&
+        (seatsAfterZeroInviteDiscard || '').includes('5 / 10 SEATS') &&
         focusAfterRetry === 'ws-settings-reset-btn' &&
         overflow320,
-      'site /blocks/workspace-settings (Empty/Error states & 320px): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, ERR retry restores focus, and 320px has zero horizontal overflow',
-      JSON.stringify({ emptyCheck, seatsAfterZeroInvite, focusAfterRetry, overflow320 }),
+      'site /blocks/workspace-settings (Empty/Error states & 320px): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, and 320px has zero horizontal overflow',
+      JSON.stringify({
+        emptyCheck,
+        seatsAfterZeroInvite,
+        seatsAfterZeroInviteDiscard,
+        focusAfterRetry,
+        overflow320,
+      }),
     );
 
     await ctx.close();
