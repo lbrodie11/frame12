@@ -1418,6 +1418,20 @@ try {
     await page.click('#ws-settings-discard-btn');
     await page.waitForTimeout(60);
 
+    // In LOAD state, clicking the workspace breadcrumb switches to 02 · Workspace and focuses #ws-settings-tabs-tab-workspace (since #ws-settings-ws-name is replaced by skeletons)
+    await page.click('#ws-settings-dataset-loading');
+    await page.waitForTimeout(60);
+    await page.click('#ws-settings-sheet a[href="#ws-settings-ws-name"]');
+    await page.waitForTimeout(60);
+    const afterLoadingWsBreadcrumb = await page.evaluate(() => ({
+      wsTabSelected:
+        document.querySelector('#ws-settings-tabs-tab-workspace')?.getAttribute('aria-selected') ===
+        'true',
+      activeElementId: document.activeElement?.id || '',
+    }));
+    await page.click('#ws-settings-dataset-populated');
+    await page.waitForTimeout(60);
+
     await page.setViewportSize({ width: 320, height: 800 });
     await page.waitForTimeout(80);
     const overflow320 = await page.evaluate(
@@ -1445,9 +1459,11 @@ try {
         afterRootBreadcrumb.activeElementId === 'ws-settings-tabs-tab-profile' &&
         afterSameProfileBreadcrumbTyping.value === 'Sora XYZ' &&
         afterSameProfileBreadcrumbTyping.activeElementId === 'ws-settings-profile-name' &&
+        afterLoadingWsBreadcrumb.wsTabSelected &&
+        afterLoadingWsBreadcrumb.activeElementId === 'ws-settings-tabs-tab-workspace' &&
         overflow320 &&
         headerReducedMotionOk,
-      'site /blocks/workspace-settings (Empty/Error states, Breadcrumb navigation + same-section typing, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb links switch sections without stealing focus during subsequent typing, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
+      'site /blocks/workspace-settings (Empty/Error/Loading states, Breadcrumb navigation + same-section typing, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb links switch sections (and focus Workspace tab in LOAD state) without stealing focus during subsequent typing, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
       JSON.stringify({
         emptyCheck,
         seatsAfterZeroInvite,
@@ -1457,6 +1473,7 @@ try {
         afterSameWsBreadcrumbTyping,
         afterRootBreadcrumb,
         afterSameProfileBreadcrumbTyping,
+        afterLoadingWsBreadcrumb,
         overflow320,
         headerReducedMotionOk,
       }),

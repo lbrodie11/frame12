@@ -1413,7 +1413,9 @@ function WorkspaceSettingsInner({
                 href: `#${resolvedIdPrefix}-ws-name`,
                 onClick: (e) => {
                   e.preventDefault();
-                  const targetId = `${resolvedIdPrefix}-ws-name`;
+                  const targetId = isLoadingDataset
+                    ? `${resolvedIdPrefix}-tabs-tab-workspace`
+                    : `${resolvedIdPrefix}-ws-name`;
                   if (activeSection !== 'workspace') {
                     pendingFocusTargetIdRef.current = targetId;
                     setActiveSection('workspace');
