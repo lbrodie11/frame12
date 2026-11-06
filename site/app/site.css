@@ -648,7 +648,7 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   .site-nav-link {
     white-space: nowrap;
   }
-  /* Tighter theme + motion switches so both share one row at 390px (they still wrap at 320px). */
+  /* Tighter theme + motion switches so both share one row at 390px. */
   .site-controls .f12-rng-btn {
     min-width: 0;
     padding: 5px 10px 4px;
@@ -661,5 +661,14 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   }
   .f12-preview-sheet {
     padding: 12px;
+  }
+}
+
+/* Below 360px (e.g. 320px viewports), stack theme and motion control groups deterministically so
+   they never transition from 1 row to 2 rows during a delayed webfont swap. */
+@media (max-width: 360px) {
+  .site-controls {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

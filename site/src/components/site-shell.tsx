@@ -63,15 +63,32 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   const navListRef = React.useRef<HTMLUListElement | null>(null);
 
   // On narrow screens the nav is a single horizontally scrolling row: keep the current page's link
-  // visible. Only the list's own scrollLeft changes, so the page never jumps.
+  // visible on route change and when the viewport resizes into the horizontal-scroll layout. Only
+  // the list's own scrollLeft changes, so the page never jumps, and manual horizontal scrolling
+  // (which does not change clientWidth) is never overridden.
   useIsomorphicLayoutEffect(() => {
     const list = navListRef.current;
-    if (!list || list.scrollWidth <= list.clientWidth) return;
-    const active = list.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!active) return;
-    const offset = active.getBoundingClientRect().left - list.getBoundingClientRect().left;
-    const target = list.scrollLeft + offset - (list.clientWidth - active.offsetWidth) / 2;
-    list.scrollLeft = Math.max(0, Math.min(target, list.scrollWidth - list.clientWidth));
+    if (!list) return;
+    const centerActive = () => {
+      if (list.scrollWidth <= list.clientWidth) return;
+      const active = list.querySelector<HTMLElement>('[aria-current="page"]');
+      if (!active) return;
+      const offset = active.getBoundingClientRect().left - list.getBoundingClientRect().left;
+      const target = list.scrollLeft + offset - (list.clientWidth - active.offsetWidth) / 2;
+      list.scrollLeft = Math.max(0, Math.min(target, list.scrollWidth - list.clientWidth));
+    };
+    centerActive();
+    let prevWidth = list.clientWidth;
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(() => {
+        if (list.clientWidth !== prevWidth) {
+          prevWidth = list.clientWidth;
+          centerActive();
+        }
+      });
+      ro.observe(list);
+      return () => ro.disconnect();
+    }
   }, [pathname]);
 
   useIsomorphicLayoutEffect(() => {

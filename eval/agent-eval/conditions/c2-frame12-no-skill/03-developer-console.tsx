@@ -56,7 +56,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
             Guardrail fixture exercising marker border/foreground misuse, 18px/24px illegal gutters, explicit cuts in autoCut, and showTable=false.
           </p>
         </div>
-        <div style={{ display: 'flex', columnGap: '24px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: '24px' }}>
           <SegmentedControl
             idPrefix="c2-env-03-developer-console"
             ariaLabel="Target environment"

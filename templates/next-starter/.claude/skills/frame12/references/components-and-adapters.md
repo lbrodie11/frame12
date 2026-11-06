@@ -620,7 +620,7 @@ export interface MetricProps {
   comparisonLabel?: string;
   range?: number | string;
   note?: string;
-  big?: boolean;                      // column-aware clamp(28px, min(14cqi, 100cqi / (var(--f12-m-chars, 8) * 0.8)), 56px) for C-01 hero metrics
+  big?: boolean;                      // column-aware clamp(20px, min(14cqi, 100cqi / (var(--f12-m-chars, 8) * 0.8)), 56px) for C-01 hero metrics
   variant?: MetricVariant;            // default: 'expressive'
   headingLevel?: MetricHeadingLevel;  // default: 'h2'
   motion?: MotionMode;

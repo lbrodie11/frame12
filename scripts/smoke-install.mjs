@@ -1209,12 +1209,8 @@ export default {
           () => document.getElementById('r18-switch')?.getAttribute('aria-checked') === 'true' ||
             (document.getElementById('r18-switch')).checked === true,
         );
-        await page.focus('#r18-tabs-trigger-one').catch(() => {});
-        const tabTrigger = await page.$('[role="tab"][aria-selected="true"]');
-        if (tabTrigger) {
-          await tabTrigger.focus();
-          await page.keyboard.press('ArrowRight');
-        }
+        await page.focus('#r18-tabs-tab-one');
+        await page.keyboard.press('ArrowRight');
         const secondTabSelected = await page.evaluate(() => {
           const tabs = [...document.querySelectorAll('[role="tablist"][aria-label="React 18 tabs"] [role="tab"]')];
           return tabs[1]?.getAttribute('aria-selected') === 'true';

@@ -58,8 +58,12 @@ Route (app)                              Route JS   First Load JS (gzipped)
 
 ### 2.3 Cold-Network Font-Swap CLS Verification (WP10 / TF-2)
 
-- **Root Cause & Fix (WP10 TF-2):** Under `--font-delay-ms=1500` (delaying all `.woff2` responses by 1.5s), `M PLUS 1 Code` (`0.50em` advance width, `ascent: 1.0`, `descent: -0.235`, `lineGap: 0`) previously fell back to `ui-monospace` (`~0.60em` advance width), and `.f12-body-copy` / `.f12-muted-copy` width caps used `ch` units (`68ch` / `66ch`, which shrank by ~48px when `Zen Kaku Gothic New`'s narrower `'0'` glyph swapped in for `Arial`). WP10 added metric-matched `@font-face` rules (`f12MonoFallbackConsolas` at `size-adjust: 90.91%` and `f12MonoFallback` at `size-adjust: 83.19%`) in `registry/styles/frame12.css` and replaced font-dependent `ch` width caps with font-swap-invariant `em` units (`34.25em` / `33.25em`).
-- **10-Route Verification Results (`node scripts/measure-perf-baseline.mjs` & `--font-delay-ms=1500` on Next.js `15.5.29` / React `19.2.5`):**
+- **Root Cause & Fix (WP10 TF-2):** Under `--font-delay-ms=1500` (delaying all `.woff2` responses by 1.5s):
+  1. `M PLUS 1 Code` (`0.50em` advance width, `ascent: 1.0`, `descent: -0.235`, `lineGap: 0`) previously fell back to `ui-monospace` (`~0.60em` advance width).
+  2. On Linux environments (where `local("Arial")` is absent), `next/font/local`'s auto-generated `Fallback` faces (`src: local("Arial")`) failed to match any installed font, falling back to unadjusted `DejaVu Sans` / `Liberation Sans` for `Dela Gothic One` (`131.74%` width ratio) and `Zen Kaku Gothic New` (`100.39%` width ratio).
+  3. `.f12-body-copy` / `.f12-muted-copy` width caps used `ch` units (`68ch` / `66ch`, which shrank by ~48px when `Zen Kaku Gothic New`'s narrower `'0'` glyph swapped in), and at `320px` `.site-controls` wrapped from 1 row in fallback font to 2 rows in `Dela Gothic One`.
+  4. **Resolution:** Added cross-platform metric-matched `@font-face` rules directly in `registry/styles/frame12.css` covering macOS, Windows, Linux, and Android (`f12DisplayFallback` & `f12DisplayFallbackDejaVu` for `Dela Gothic One`; `f12BodyFallback` & `f12BodyFallbackDejaVu` for `Zen Kaku Gothic New`; `f12MonoFallbackConsolas` & `f12MonoFallback` for `M PLUS 1 Code`), replaced font-dependent `ch` width caps with font-swap-invariant `em` units (`34.25em` / `33.25em`), and made `.site-controls` stack deterministically at `<= 360px` while staying single-row at `>= 361px` (`390px`).
+- **10-Route Verification Results (`node scripts/measure-perf-baseline.mjs` & `--font-delay-ms=1500` on Next.js `15.5.29` / React `19.3.1`):**
 
 | Route | LCP Median 1× / 4× (ms) | CLS Median (Local Fonts) | CLS Median (`.woff2` +1.5s Cold Swap) | Lab Interaction Proxy Median 1× / 4× (ms) | Pre-Hydration Dark & SSR Markup |
 | --- | ---: | ---: | ---: | ---: | --- |

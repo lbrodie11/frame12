@@ -7,6 +7,8 @@ const delaGothicOne = localFont({
   weight: '400',
   variable: '--font-dela-gothic-one',
   display: 'swap',
+  adjustFontFallback: false,
+  fallback: ['f12DisplayFallback', 'f12DisplayFallbackDejaVu', 'sans-serif'],
 });
 
 const zenKakuGothicNew = localFont({
@@ -17,6 +19,8 @@ const zenKakuGothicNew = localFont({
   ],
   variable: '--font-zen-kaku-gothic-new',
   display: 'swap',
+  adjustFontFallback: false,
+  fallback: ['f12BodyFallback', 'f12BodyFallbackDejaVu', 'sans-serif'],
 });
 
 const mPlus1Code = localFont({

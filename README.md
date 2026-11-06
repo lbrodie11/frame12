@@ -34,7 +34,7 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 - **React & Next.js:** Verified on React `18.3` (isolated Vite consumer: `tsc` against `@types/react` 18, SSR, hydration and interaction checks; plus the React 18 UMD component gallery in Chromium, Firefox and WebKit, and the eval and lab harnesses) and React `19` (documentation site, Next.js `15.5` starter, `create-next-app@latest` install, and `element.props.ref` runtime checks). The registry components have no Next.js dependency.
 - **Project setup:** An initialized `shadcn` project (`components.json` with a `@/*` path alias; tested with Radix-based `shadcn` styles such as `new-york` as well as `shadcn init -d` / `base-nova`). Or start from a pre-configured repo in [`templates/next-starter/`](templates/next-starter/).
 - **Styling:** Works standalone via scoped `.f12-*` CSS custom properties (`styles/frame12.css`). Tailwind CSS is optional (`styles/frame12-tailwind.css` is included if you want Tailwind v4 utility classes).
-- **Status:** Pre-1.0 and experimental (package version `0.1.0`). The registry ships 31 components, 3 application blocks (Developer Console, Workspace Settings, Revenue Recovery Analytics), the `use-on-twos` motion hook, and 3 font packages. Changes since `0.1.0` are listed under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md).
+- **Status:** Pre-1.0 and experimental (package version `0.1.0`). The registry ships 31 components, 3 application blocks (Developer Console, Workspace Settings, Revenue Recovery Analytics), the `use-on-twos` motion hook, and 3 font packages. Changes since `0.1.0` are listed under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md), the `v0.2.0` release-readiness audit is in [`docs/roadmap/v0.2-release-readiness.md`](docs/roadmap/v0.2-release-readiness.md), and planned `v0.3` / `v0.4` work is in [`docs/roadmap/v0.3-v0.4-roadmap.md`](docs/roadmap/v0.3-v0.4-roadmap.md).
 
 ### 1. Add the registry kit
 
@@ -78,8 +78,20 @@ Import `@/styles/frame12.css` and bind `--font-dela-gothic-one`, `--font-zen-kak
 import { Dela_Gothic_One, Zen_Kaku_Gothic_New, M_PLUS_1_Code } from 'next/font/google';
 import '@/styles/frame12.css';
 
-const display = Dela_Gothic_One({ weight: '400', subsets: ['latin'], variable: '--font-dela-gothic-one' });
-const body = Zen_Kaku_Gothic_New({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-zen-kaku-gothic-new' });
+const display = Dela_Gothic_One({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-dela-gothic-one',
+  adjustFontFallback: false,
+  fallback: ['f12DisplayFallback', 'f12DisplayFallbackDejaVu', 'sans-serif'],
+});
+const body = Zen_Kaku_Gothic_New({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  variable: '--font-zen-kaku-gothic-new',
+  adjustFontFallback: false,
+  fallback: ['f12BodyFallback', 'f12BodyFallbackDejaVu', 'sans-serif'],
+});
 const mono = M_PLUS_1_Code({
   weight: ['400', '500', '700'],
   subsets: ['latin'],
