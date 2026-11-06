@@ -243,6 +243,7 @@ const ROUTES = [
   '/blocks/developer-console',
   '/blocks/workspace-settings',
   '/blocks/analytics-dashboard',
+  '/experiments/agent-approval',
   '/agents',
   '/style-sheet',
   '/get-started',
@@ -2123,6 +2124,332 @@ try {
         gaps: [consoleGap, analyticsGap, settingsGap],
       }),
     );
+    await ctx.close();
+  }
+
+  // 5e. Experimental Agent Approval Inbox (/experiments/agent-approval) end-to-end verification
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 1280, height: 920 },
+      colorScheme: 'light',
+      reducedMotion: 'no-preference',
+    });
+    const page = await ctx.newPage();
+    await page.goto(`${baseUrl}/agents`, { waitUntil: 'networkidle' });
+    await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+
+    // 0) Verify /agents entry point to /experiments/agent-approval (heading, description, experimental label, keyboard focus, and navigation)
+    const agentsEntry = await page.evaluate(() => {
+      const entry = document.getElementById('agents-experiment-approval-entry');
+      const heading = document.getElementById('agents-experiment-approval-heading')?.textContent?.trim() || '';
+      const desc = document.getElementById('agents-experiment-approval-desc')?.textContent?.trim() || '';
+      const link = document.getElementById('agents-experiment-approval-link');
+      const entryText = entry?.textContent || '';
+      return {
+        hasEntry: Boolean(entry),
+        heading,
+        desc,
+        linkText: link?.textContent?.trim() || '',
+        linkHref: link?.getAttribute('href') || '',
+        hasExperimentalLabel:
+          entryText.includes('EXPERIMENTAL PROTOTYPE') &&
+          entryText.includes('SIMULATED LOCAL DATA') &&
+          entryText.includes('Not a production approval system'),
+      };
+    });
+    await page.focus('#agents-experiment-approval-link');
+    const linkFocusOk = await page.evaluate(
+      () => document.activeElement?.id === 'agents-experiment-approval-link',
+    );
+    await Promise.all([
+      page.waitForURL('**/experiments/agent-approval'),
+      page.click('#agents-experiment-approval-link'),
+    ]);
+    await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+    check(
+      agentsEntry.hasEntry &&
+        agentsEntry.heading === 'Agent Approval Inbox — Interactive Experiment' &&
+        agentsEntry.desc ===
+          "Explore how FRAME/12 helps reviewers compare an AI agent's explanation against its actual proposed actions and independent evidence." &&
+        agentsEntry.linkText === 'Explore Interactive Demo' &&
+        agentsEntry.linkHref === '/experiments/agent-approval' &&
+        agentsEntry.hasExperimentalLabel &&
+        linkFocusOk &&
+        page.url().endsWith('/experiments/agent-approval'),
+      'site /agents -> /experiments/agent-approval: clearly labeled "Agent Approval Inbox — Interactive Experiment" entry point with description, experimental/simulated-data label, keyboard-focusable "Explore Interactive Demo" link, and navigation',
+      JSON.stringify({ agentsEntry, linkFocusOk, url: page.url() }),
+    );
+
+    // 1) Verify header experimental badge, DOM & visual reading order (Tool Args -> Trusted Context -> Unverified Agent Description), and Scenario B pinned mismatches
+    const initialInspection = await page.evaluate(() => {
+      const expBadge = document.getElementById('exp-approval-experimental-badge')?.textContent || '';
+      const pin = document.getElementById('exp-approval-mismatch-banner');
+      const s1 = document.getElementById('exp-approval-step-1-tool-args');
+      const s2 = document.getElementById('exp-approval-step-2-trusted-context');
+      const s3 = document.getElementById('exp-approval-step-3-agent-description');
+      const s4 = document.getElementById('exp-approval-step-4-decision-gate');
+      if (!pin || !s1 || !s2 || !s3 || !s4) return { ok: false };
+
+      const domOrderOk =
+        Boolean(pin.compareDocumentPosition(s1) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+        Boolean(s1.compareDocumentPosition(s2) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+        Boolean(s2.compareDocumentPosition(s3) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+        Boolean(s3.compareDocumentPosition(s4) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+      const rPin = pin.getBoundingClientRect();
+      const r1 = s1.getBoundingClientRect();
+      const r2 = s2.getBoundingClientRect();
+      const r3 = s3.getBoundingClientRect();
+      const r4 = s4.getBoundingClientRect();
+      const visualOrderOk =
+        rPin.top < r1.top && r1.top < r2.top && r2.top < r3.top && r3.top < r4.top;
+
+      const s3Heading = document.getElementById('exp-approval-step-3-heading')?.textContent || '';
+      const pinText = pin.textContent || '';
+      const approveBtn = document.getElementById('exp-approval-approve-btn');
+      const ackBox = document.getElementById('exp-approval-mismatch-ack');
+      const memoPre = document.getElementById('exp-approval-audit-memo-pre');
+      const compWrap = document
+        .getElementById('exp-approval-comparison-table')
+        ?.closest('.f12-table-wrap');
+      const compTableFitsAt1280 = Boolean(
+        compWrap && compWrap.scrollWidth <= compWrap.clientWidth + 1,
+      );
+
+      return {
+        ok: true,
+        expBadgeOk: expBadge.includes('EXPERIMENTAL PROTOTYPE'),
+        domOrderOk,
+        visualOrderOk,
+        compTableFitsAt1280,
+        unverifiedLabelOk: s3Heading.includes("Agent's description (unverified)"),
+        pinnedHasAll3Mismatches:
+          pinText.includes('[×] MISMATCH · Refund Amount (USD)') &&
+          pinText.includes('$2,500.00 USD') &&
+          pinText.includes('$25.00 USD') &&
+          pinText.includes('[×] MISMATCH · Destination Account') &&
+          pinText.includes('acct_ext_9901_wire') &&
+          pinText.includes('[×] MISMATCH · Reason Code') &&
+          pinText.includes('full_settlement_override'),
+        approveDisabledInitially: Boolean(approveBtn?.hasAttribute('disabled')),
+        ackUncheckedInitially: ackBox instanceof HTMLInputElement && !ackBox.checked,
+        memoCollapsedInitially: (memoPre?.textContent || '').length < 300,
+        noScriptExecuted: typeof window.__pwned === 'undefined',
+      };
+    });
+
+    // 2) Expand & collapse the 1,000+ char argument with embedded prompt-injection text; verify inert rendering and that pinned mismatches stay visible
+    await page.click('#exp-approval-toggle-long-arg');
+    const expandedMemoCheck = await page.evaluate(() => {
+      const memoText = document.getElementById('exp-approval-audit-memo-pre')?.textContent || '';
+      const pinRect = document.getElementById('exp-approval-mismatch-banner')?.getBoundingClientRect();
+      return {
+        len: memoText.length,
+        hasInjectionAsInertText:
+          memoText.includes('[SYSTEM OVERRIDE / INDIRECT PROMPT INJECTION PAYLOAD') &&
+          memoText.includes('<script>window.__pwned=true</script>'),
+        noScriptExecuted: typeof window.__pwned === 'undefined',
+        pinStillVisible: Boolean(pinRect && pinRect.height > 40),
+      };
+    });
+    await page.click('#exp-approval-toggle-long-arg');
+
+    // 3) Tick the explicit mismatch acknowledgment checkbox and approve Scenario B -> verify acknowledgment is recorded in simulated history & focus is preserved
+    await page.click('#exp-approval-mismatch-ack');
+    const approveEnabledAfterAck = await page.evaluate(
+      () => !document.getElementById('exp-approval-approve-btn')?.hasAttribute('disabled'),
+    );
+    await page.fill('#exp-approval-operator-note', 'Security review test override');
+    await page.focus('#exp-approval-approve-btn');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(60);
+    const afterScenarioBApprove = await page.evaluate(() => {
+      const histText = document.getElementById('exp-approval-history-table')?.textContent || '';
+      const active = document.activeElement;
+      return {
+        historyRecordedAck:
+          histText.includes('Recorded Acknowledgment: I have checked that Refund Amount (USD) in tool input is $2,500.00 USD (not $25.00 USD)') &&
+          histText.includes('Security review test override'),
+        focusPreserved: Boolean(active && active !== document.body && active.isConnected),
+      };
+    });
+
+    // 4) Switch to Scenario A (Ordinary $25 request) -> 0 mismatches, Approve enabled immediately; test Reject
+    await page.click('#exp-approval-select-apr-ordinary-25');
+    const scenarioACheck = await page.evaluate(() => {
+      const aligned = Boolean(document.getElementById('exp-approval-aligned-banner'));
+      const noPin = !document.getElementById('exp-approval-mismatch-banner');
+      const approveEnabled = !document
+        .getElementById('exp-approval-approve-btn')
+        ?.hasAttribute('disabled');
+      return { aligned, noPin, approveEnabled };
+    });
+    await page.click('#exp-approval-reject-btn');
+    const scenarioARejected = await page.evaluate(() => {
+      const disabledReason =
+        document.getElementById('exp-approval-disabled-reason')?.textContent || '';
+      const histText = document.getElementById('exp-approval-history-table')?.textContent || '';
+      return (
+        disabledReason.includes('rejected in local demonstration state') &&
+        histText.includes('Rejected payments.issueRefund (ORD-8821')
+      );
+    });
+
+    // 5) Switch to Scenario C (Expired & Superseded request) -> Approve disabled with plain-language reason
+    await page.click('#exp-approval-select-apr-expired-stale');
+    const scenarioCCheck = await page.evaluate(() => {
+      const approveDisabled = Boolean(
+        document.getElementById('exp-approval-approve-btn')?.hasAttribute('disabled'),
+      );
+      const reason = document.getElementById('exp-approval-disabled-reason')?.textContent || '';
+      return {
+        approveDisabled,
+        reasonHasExpiryAndTurn:
+          reason.includes('Approve disabled:') &&
+          reason.includes('expired at 2026-11-06 14:15:00 UTC') &&
+          reason.includes('advanced from turn #4 to turn #6'),
+      };
+    });
+
+    // 6) Reset demo state, test injectable clock (+40m late clock expires all requests), then reset and test Simulate Upstream Turn Change
+    await page.click('#exp-approval-reset-btn');
+    await page.click('#exp-approval-select-apr-ordinary-25');
+    await page.click('#exp-approval-clock-clock-late');
+    const lateClockExpiredScenarioA = await page.evaluate(() => {
+      const approveDisabled = Boolean(
+        document.getElementById('exp-approval-approve-btn')?.hasAttribute('disabled'),
+      );
+      const reason = document.getElementById('exp-approval-disabled-reason')?.textContent || '';
+      return approveDisabled && reason.includes('Approval window expired at 2026-11-06 14:31:00 UTC');
+    });
+    await page.click('#exp-approval-clock-clock-default');
+    await page.click('#exp-approval-simulate-change-btn');
+    const simulatedTurnChangeBlocked = await page.evaluate(() => {
+      const approveDisabled = Boolean(
+        document.getElementById('exp-approval-approve-btn')?.hasAttribute('disabled'),
+      );
+      const reason = document.getElementById('exp-approval-disabled-reason')?.textContent || '';
+      return approveDisabled && reason.includes('advanced to turn #5');
+    });
+    await page.click('#exp-approval-reset-btn');
+
+    // 7) 320px narrow mobile & prefers-reduced-motion check on /experiments/agent-approval
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.waitForTimeout(80);
+    const narrowAndReducedMotion = await page.evaluate(() => {
+      const sw = document.documentElement.scrollWidth;
+      const cw = document.documentElement.clientWidth;
+      const noOverflow = sw <= cw + 1;
+      const pinVisible = Boolean(
+        document.getElementById('exp-approval-mismatch-banner')?.getBoundingClientRect().height,
+      );
+      return { noOverflow, pinVisible, sw, cw };
+    });
+
+    // 8) Direct unit probes on evaluateApprovalRequest (computed trustedRecords verification, missing-evidence handling, and canonical amountCents consistency)
+    const { readFileSync } = await import('node:fs');
+    const { transformSync } = await import('esbuild');
+    const fixturesTs = readFileSync(
+      resolve(__dirname, '../app/experiments/agent-approval/fixtures.ts'),
+      'utf8',
+    );
+    const { code: fixturesEsm } = transformSync(fixturesTs, { loader: 'ts', format: 'esm' });
+    const fixturesMod = await import(
+      `data:text/javascript;base64,${Buffer.from(fixturesEsm).toString('base64')}`
+    );
+    const defaultClockMs = fixturesMod.SIMULATED_CLOCK_PRESETS[0].epochMs;
+
+    // Probe A: Claims and arguments agree ($2,500), but violate the $50 policy fixture in trustedRecords
+    const probePolicyViolation = structuredClone(fixturesMod.INITIAL_APPROVAL_REQUESTS[0]);
+    probePolicyViolation.claims.amountUsd = 2500;
+    probePolicyViolation.input.amountUsd = 2500;
+    probePolicyViolation.input.amountCents = 250000;
+    const evPolicyViolation = fixturesMod.evaluateApprovalRequest(
+      probePolicyViolation,
+      defaultClockMs,
+    );
+
+    // Probe B: Removing all supporting records (trustedRecords = []) flags all 5 fields as unverified mismatches
+    const probeMissingRecords = structuredClone(fixturesMod.INITIAL_APPROVAL_REQUESTS[0]);
+    probeMissingRecords.trustedRecords = [];
+    const evMissingRecords = fixturesMod.evaluateApprovalRequest(
+      probeMissingRecords,
+      defaultClockMs,
+    );
+
+    // Probe C: Inconsistent amountCents (250000) vs amountUsd (25) is flagged and canonical $2,500.00 is surfaced
+    const probeCentsMismatch = structuredClone(fixturesMod.INITIAL_APPROVAL_REQUESTS[0]);
+    probeCentsMismatch.input.amountCents = 250000;
+    const evCentsMismatch = fixturesMod.evaluateApprovalRequest(
+      probeCentsMismatch,
+      defaultClockMs,
+    );
+
+    const computedEvidenceProbesOk =
+      evPolicyViolation.mismatches.length === 1 &&
+      evPolicyViolation.mismatches[0]?.key === 'amountUsd' &&
+      evPolicyViolation.mismatches[0]?.claimMatchesInput === true &&
+      evPolicyViolation.mismatches[0]?.trustedMatchesInput === false &&
+      Boolean(
+        evPolicyViolation.requiredAcknowledgmentText?.includes('conflicts with trusted fixture'),
+      ) &&
+      evMissingRecords.mismatches.length === 5 &&
+      evMissingRecords.mismatches.every((m) => m.trustedMatchesInput === false) &&
+      Boolean(evMissingRecords.requiredAcknowledgmentText) &&
+      evCentsMismatch.mismatches.length === 1 &&
+      evCentsMismatch.mismatches[0]?.key === 'amountUsd' &&
+      evCentsMismatch.mismatches[0]?.claimMatchesInput === false &&
+      evCentsMismatch.mismatches[0]?.trustedMatchesInput === false &&
+      Boolean(evCentsMismatch.mismatches[0]?.actualInputDisplay.includes('$2,500.00 USD')) &&
+      Boolean(evCentsMismatch.requiredAcknowledgmentText);
+
+    check(
+      initialInspection.ok &&
+        initialInspection.expBadgeOk &&
+        initialInspection.domOrderOk &&
+        initialInspection.visualOrderOk &&
+        initialInspection.compTableFitsAt1280 &&
+        initialInspection.unverifiedLabelOk &&
+        initialInspection.pinnedHasAll3Mismatches &&
+        initialInspection.approveDisabledInitially &&
+        initialInspection.ackUncheckedInitially &&
+        initialInspection.memoCollapsedInitially &&
+        initialInspection.noScriptExecuted &&
+        expandedMemoCheck.len > 1000 &&
+        expandedMemoCheck.hasInjectionAsInertText &&
+        expandedMemoCheck.noScriptExecuted &&
+        expandedMemoCheck.pinStillVisible &&
+        approveEnabledAfterAck &&
+        afterScenarioBApprove.historyRecordedAck &&
+        afterScenarioBApprove.focusPreserved &&
+        scenarioACheck.aligned &&
+        scenarioACheck.noPin &&
+        scenarioACheck.approveEnabled &&
+        scenarioARejected &&
+        scenarioCCheck.approveDisabled &&
+        scenarioCCheck.reasonHasExpiryAndTurn &&
+        lateClockExpiredScenarioA &&
+        simulatedTurnChangeBlocked &&
+        narrowAndReducedMotion.noOverflow &&
+        narrowAndReducedMotion.pinVisible &&
+        computedEvidenceProbesOk,
+      'site /experiments/agent-approval prototype: DOM & visual reading order (Tool Args -> Trusted Context -> Unverified Agent Description), pinned non-collapsible mismatch summary, computed trustedRecords verification (policy violation, missing records, canonical amountCents consistency), inert long/injection string rendering, explicit mismatch acknowledgment recorded in history, Scenario A/B/C flows, injectable clock expiry, upstream turn-change block, and 320px/reduced-motion resilience',
+      JSON.stringify({
+        initialInspection,
+        expandedMemoCheck,
+        approveEnabledAfterAck,
+        afterScenarioBApprove,
+        scenarioACheck,
+        scenarioARejected,
+        scenarioCCheck,
+        lateClockExpiredScenarioA,
+        simulatedTurnChangeBlocked,
+        narrowAndReducedMotion,
+        computedEvidenceProbesOk,
+      }),
+    );
+
     await ctx.close();
   }
 
