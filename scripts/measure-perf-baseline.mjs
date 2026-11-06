@@ -9,6 +9,7 @@
  * mode to simulate cold-network .woff2 font swaps.
  */
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import net from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +17,9 @@ import { chromium } from 'playwright';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = resolve(ROOT, 'site');
-const NEXT_BIN = resolve(ROOT, 'node_modules/next/dist/bin/next');
+// Resolve Next.js from the site workspace: npm may install it under site/node_modules rather than
+// hoisting it to the repo root (it does from Next 16 on).
+const NEXT_BIN = createRequire(resolve(ROOT, 'site/package.json')).resolve('next/dist/bin/next');
 const RUNS = Number(process.env.F12_PERF_RUNS || 5);
 const fontDelayArg = process.argv.find((a) => a.startsWith('--font-delay-ms='));
 const FONT_DELAY_MS = fontDelayArg ? Number(fontDelayArg.split('=')[1]) : 0;

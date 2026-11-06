@@ -4,9 +4,6 @@ const nextConfig = {
   experimental: {
     externalDir: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 };
 
 export default nextConfig;

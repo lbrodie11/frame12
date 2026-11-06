@@ -655,6 +655,43 @@ export function GalleryApp() {
   );
 }
 
+/**
+ * A SegmentedControl whose value is restored right after mount, the way a saved theme, filter or
+ * tab is applied after hydration. Counts `transitionrun` events on its indicator so tests can
+ * assert that the restore snaps into place while a real click still animates.
+ */
+function RestoredSegmentedFixture() {
+  const [value, setValue] = React.useState<'a' | 'b' | 'c'>('a');
+  const [transitionRuns, setTransitionRuns] = React.useState(0);
+  const wrapRef = React.useRef<HTMLDivElement | null>(null);
+  React.useLayoutEffect(() => {
+    const el = wrapRef.current;
+    const onRun = (e: TransitionEvent) => {
+      if ((e.target as HTMLElement).classList.contains('f12-rng-ind')) {
+        setTransitionRuns((n) => n + 1);
+      }
+    };
+    el?.addEventListener('transitionrun', onRun);
+    setValue('c');
+    return () => el?.removeEventListener('transitionrun', onRun);
+  }, []);
+  return (
+    <div id="fixture-restored-seg" ref={wrapRef} data-transition-runs={transitionRuns}>
+      <SegmentedControl
+        idPrefix="fixture-restored-seg"
+        ariaLabel="Restored value"
+        options={[
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
+          { value: 'c', label: 'C' },
+        ]}
+        value={value}
+        onChange={setValue}
+      />
+    </div>
+  );
+}
+
 function UnitTestFixtures() {
   const [dlgOpen, setDlgOpen] = React.useState(false);
   const [rejectTrigger, setRejectTrigger] = React.useState(false);
@@ -702,6 +739,7 @@ function UnitTestFixtures() {
       </div>
 
       <Sheet motion="stepped" theme="light" id="fixture-sheet">
+        <RestoredSegmentedFixture />
         {/* Controlled Dialog for single onOpenChange(false) & asChild trigger */}
         <Dialog open={dlgOpen} onOpenChange={handleDlgOpenChange}>
           <DialogTrigger asChild>

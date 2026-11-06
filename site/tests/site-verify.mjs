@@ -5,6 +5,7 @@ import { chromium, firefox, webkit } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
@@ -249,9 +250,11 @@ const ROUTES = [
 
 const port = await getFreePort();
 const baseUrl = `http://127.0.0.1:${port}`;
-const nextBin = resolve(REPO_ROOT, 'node_modules/.bin/next');
+// Resolve Next.js from the site workspace itself: npm may install it under site/node_modules
+// rather than hoisting it to the repo root (it does from Next 16 on), so never assume the root.
+const nextBin = createRequire(resolve(SITE_ROOT, 'package.json')).resolve('next/dist/bin/next');
 
-const serverProc = spawn(nextBin, ['start', '-p', String(port), '-H', '127.0.0.1'], {
+const serverProc = spawn(process.execPath, [nextBin, 'start', '-p', String(port), '-H', '127.0.0.1'], {
   cwd: SITE_ROOT,
   stdio: ['ignore', 'pipe', 'pipe'],
   env: { ...process.env, NODE_ENV: 'production' },
@@ -645,6 +648,81 @@ try {
       isDarkViaShortcut && isSmoothViaShortcut && isDarkAttr && hasCompareLine,
       'site / interactive flow: header & keyboard (T/M) toggles and recovery dashboard range + intervention overlay',
     );
+
+    // Theme switch on reload: when dark is restored after hydration (saved choice or OS dark), the
+    // header indicator must appear under Dark without sliding over from Light; a real click still
+    // animates. Counts `transitionrun` events on the indicator from before the first script runs.
+    {
+      const themeSlide = [];
+      for (const [label, colorScheme, saved] of [
+        ['saved dark, OS light', 'light', 'dark'],
+        ['no saved choice, OS dark', 'dark', null],
+      ]) {
+        const slideCtx = await browser.newContext({
+          viewport: { width: 1280, height: 900 },
+          colorScheme,
+          reducedMotion: 'no-preference',
+        });
+        await slideCtx.addInitScript((savedTheme) => {
+          try {
+            if (savedTheme) localStorage.setItem('color-scheme', savedTheme);
+          } catch {
+            // ignore
+          }
+          window.__themeIndRuns = 0;
+          document.addEventListener(
+            'transitionrun',
+            (e) => {
+              const t = e.target;
+              if (
+                t instanceof HTMLElement &&
+                t.classList.contains('f12-rng-ind') &&
+                t.parentElement?.querySelector('#site-theme-dark')
+              ) {
+                window.__themeIndRuns += 1;
+              }
+            },
+            true,
+          );
+        }, saved);
+        const slidePage = await slideCtx.newPage();
+        await slidePage.goto(`${baseUrl}/`, { waitUntil: 'networkidle' });
+        await slidePage.waitForTimeout(400);
+        const readTheme = () =>
+          slidePage.evaluate(() => {
+            const dark = document.getElementById('site-theme-dark');
+            const ind = dark.parentElement.querySelector('.f12-rng-ind');
+            const pressed = dark.parentElement.querySelector('[aria-pressed="true"]');
+            return {
+              runs: window.__themeIndRuns,
+              pressed: pressed?.id ?? null,
+              indOnPressed:
+                !!ind &&
+                !!pressed &&
+                Math.abs(ind.getBoundingClientRect().left - pressed.getBoundingClientRect().left) <= 3,
+            };
+          });
+        const onLoad = await readTheme();
+        await slidePage.click('#site-theme-light');
+        await slidePage.waitForTimeout(400);
+        const afterClick = await readTheme();
+        themeSlide.push({ label, onLoad, afterClick });
+        await slideCtx.close();
+      }
+      check(
+        themeSlide.every(
+          ({ onLoad, afterClick }) =>
+            onLoad.runs === 0 &&
+            onLoad.pressed === 'site-theme-dark' &&
+            onLoad.indOnPressed &&
+            afterClick.runs >= 1 &&
+            afterClick.pressed === 'site-theme-light' &&
+            afterClick.indOnPressed,
+        ),
+        'site / theme switch on reload (saved dark + OS dark): indicator starts under Dark with 0 transitions (no Light→Dark slide), and a real click still animates',
+        JSON.stringify(themeSlide),
+      );
+    }
 
     await page.goto(`${baseUrl}/motion`, { waitUntil: 'networkidle' });
     await page.click('#stage-compare-mode-cut');

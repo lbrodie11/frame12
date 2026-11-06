@@ -130,6 +130,11 @@ function runAsync(cmd, args, options) {
 }
 
 const { server, port } = await startRegistryServer();
+// Real Next.js apps get `declare module '*.css'` from next-env.d.ts (and Vite apps from
+// vite/client). These synthetic consumers strip ambient types, so declare it the same way: from
+// TypeScript 6 on, `noUncheckedSideEffectImports` rejects `import '@/styles/frame12.css'` without it.
+const CSS_MODULE_DECL = "// Mirrors the CSS module declaration Next.js and Vite provide.\ndeclare module '*.css';\n";
+
 const tempDir = mkdtempSync(join(tmpdir(), 'frame12-smoke-'));
 
 try {
@@ -144,6 +149,7 @@ try {
   writeFileSync(join(tempDir, 'src/components/ui/button.tsx'), SENTINEL_BUTTON);
   writeFileSync(join(tempDir, 'src/components/ui/dialog.tsx'), SENTINEL_DIALOG);
   writeFileSync(join(tempDir, 'src/app/globals.css'), '/* host globals */\n');
+  writeFileSync(join(tempDir, 'src/global.d.ts'), CSS_MODULE_DECL);
 
   // Create a fast npm shim so `shadcn add` records requested npm packages without hitting the network,
   // after which we symlink the workspace node_modules for real TypeScript compilation.
@@ -170,7 +176,7 @@ try {
           '@types/node': '^22.13.0',
           '@types/react': '^19.0.0',
           '@types/react-dom': '^19.0.0',
-          typescript: '^5.8.2',
+          typescript: '^6.0.3',
         },
       },
       null,
@@ -581,6 +587,7 @@ console.log('R19_RUNTIME_OK:' + html.length + ' react@' + React.version);
     writeFileSync(blockShim, '#!/bin/sh\nexit 0\n');
     chmodSync(blockShim, 0o755);
     writeFileSync(join(blockDir, 'src/app/globals.css'), '/* host globals */\n');
+    writeFileSync(join(blockDir, 'src/global.d.ts'), CSS_MODULE_DECL);
     writeFileSync(
       join(blockDir, 'package.json'),
       readFileSync(join(tempDir, 'package.json'), 'utf8'),
@@ -713,6 +720,7 @@ export function renderBlockHtml() {
     writeFileSync(singleShim, '#!/bin/sh\nexit 0\n');
     chmodSync(singleShim, 0o755);
     writeFileSync(join(singleDir, 'src/app/globals.css'), '/* host globals */\n');
+    writeFileSync(join(singleDir, 'src/global.d.ts'), CSS_MODULE_DECL);
     writeFileSync(
       join(singleDir, 'package.json'),
       readFileSync(join(tempDir, 'package.json'), 'utf8'),
@@ -892,6 +900,8 @@ export function renderSingleHtml() {
     writeFileSync(r18Shim, '#!/bin/sh\nexit 0\n');
     chmodSync(r18Shim, 0o755);
     writeFileSync(join(r18Dir, 'src/index.css'), '/* host globals */\n');
+    // The standard Vite template file: brings in vite/client types, including `*.css` imports.
+    writeFileSync(join(r18Dir, 'src/vite-env.d.ts'), '/// <reference types="vite/client" />\n');
     writeFileSync(
       join(r18Dir, 'package.json'),
       JSON.stringify(
@@ -1147,9 +1157,11 @@ export default {
           : '',
     );
 
+    // `<link rel="icon" href="data:,">` stops Chromium requesting /favicon.ico, whose 404 would
+    // otherwise surface as a console error in the zero-console-errors hydration check below.
     writeFileSync(
       join(r18Dir, 'index.html'),
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FRAME/12 React 18</title></head><body><div id="root">${r18SsrOut.html}</div><script type="module" src="/src/main.tsx"></script></body></html>`,
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="icon" href="data:,"><title>FRAME/12 React 18</title></head><body><div id="root">${r18SsrOut.html}</div><script type="module" src="/src/main.tsx"></script></body></html>`,
     );
     const r18Build = await runAsync(join(r18Dir, 'node_modules/.bin/vite'), ['build'], {
       cwd: r18Dir,
@@ -1190,7 +1202,8 @@ export default {
         const errors = [];
         page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
         page.on('console', (m) => {
-          if (m.type() === 'error') errors.push(`console: ${m.text()}`);
+          // Include the source URL: for "Failed to load resource" it names the missing file.
+          if (m.type() === 'error') errors.push(`console: ${m.text()} (${m.location()?.url || 'no url'})`);
         });
         await page.goto(`http://127.0.0.1:${r18Port}/`, { waitUntil: 'load' });
         await page.waitForFunction(() => (window).__REACT_VERSION__);

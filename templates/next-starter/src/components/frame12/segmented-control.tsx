@@ -31,6 +31,21 @@ export function SegmentedControl<T extends string | number = string | number>({
   const resolvedPrefix = idPrefix ?? `seg-${autoId}`;
   const wrap = React.useRef<HTMLDivElement | null>(null);
   const [ind, setInd] = React.useState<{ x: number; w: number } | null>(null);
+  // The indicator only animates once it has been painted. Values restored while the page starts
+  // up (a saved theme, filter, or tab applied right after hydration) snap into place instead of
+  // sliding across from the server-rendered default; later changes animate as usual.
+  const [settled, setSettled] = React.useState(false);
+  React.useEffect(() => {
+    if (!ind || settled) return;
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setSettled(true));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, [ind, settled]);
   const [focusedValue, setFocusedValue] = React.useState<T>(value);
 
   React.useEffect(() => {
@@ -78,7 +93,11 @@ export function SegmentedControl<T extends string | number = string | number>({
         <span
           className="f12-rng-ind"
           aria-hidden="true"
-          style={{ transform: `translateX(${ind.x}px)`, width: ind.w }}
+          style={{
+            transform: `translateX(${ind.x}px)`,
+            width: ind.w,
+            transition: settled ? undefined : 'none',
+          }}
         />
       )}
       {options.map((opt, idx) => (
