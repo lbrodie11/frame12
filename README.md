@@ -42,7 +42,7 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 FRAME/12 is published in the official [`shadcn` registry index](https://ui.shadcn.com/r/registries.json) under the lowercase **`@frame12`** namespace. Run the `shadcn` CLI from your project root to copy the components (`components/frame12/`), motion hook (`hooks/use-on-twos.ts`), and stylesheet (`styles/frame12.css`) into your repo:
 
 ```bash
-# Install the full 31-component kit + base styles, hook, and fonts:
+# Install the full 31-component kit + base styles and hook (configure fonts in Step 2 or via @frame12/frame12-base):
 npx shadcn@latest add @frame12/frame12
 
 # Or install an individual component:
@@ -66,7 +66,7 @@ npx shadcn@latest add https://frame12.dev/r/analytics-dashboard.json
 <details>
 <summary><strong>Install individual components instead of the full bundle</strong></summary>
 
-Every component in `@frame12/<name>` (or `https://frame12.dev/r/<name>.json`) resolves `frame12-base` (`styles/frame12.css`, `hooks/use-on-twos.ts`, and font manifests) or sibling primitives via `registryDependencies`:
+Every component manifest in `@frame12/<name>` (or `https://frame12.dev/r/<name>.json`) resolves `frame12-styles` (`styles/frame12.css`) and any required hooks (`hooks/use-on-twos.ts`) or sibling primitives via `registryDependencies` (configure fonts in Step 2 or via `npx shadcn@latest add @frame12/frame12-base`):
 
 ```bash
 npx shadcn@latest add @frame12/sheet
@@ -246,7 +246,7 @@ npm test                          # runs sync checks, doc checks, static linter,
 
 ### What Ships in the Free MIT Release (`v0.2.0`)
 
-Everything in this repository and the public `@frame12` registry is open source under the [MIT License](LICENSE):
+All FRAME/12 source code, components, blocks, hooks, styles, agent skills, and linters in this repository and the public `@frame12` registry are open source under the [MIT License](LICENSE) (bundled font binaries remain under the [SIL Open Font License 1.1](https://openfontlicense.org/); see [Fonts & License](#fonts--license)):
 
 - **31 UI & Data-Visualization Primitives:** Layout (`Sheet`, `Scene`, `Panel`, `PanelPair`, `SegmentedControl`), forms (`Button`, `Field`, `Input`, `Textarea`, `Checkbox`, `RadioGroup`, `Switch`, `Select`), navigation & disclosure (`Tabs`, `Breadcrumb`, `Pagination`, `Dialog`, `DropdownMenu`, `Tooltip`), status & feedback (`Badge`, `Tag`, `Alert`, `Toast`, `Skeleton`, `EmptyState`, `Balloon`), and data display (`Table`, `Metric`, `ToneAreaChart`, `ToneBarList`, `ToneSpark`).
 - **3 Full-Page Application Blocks (`registry:block`):**
