@@ -2294,7 +2294,7 @@ try {
               JSON.stringify(navResizeGeom),
             );
 
-            // (c) Cold-font (.woff2 delayed) header control row placement stability at 320px and 390px
+            // (c) Cold-font (.woff2 gated until fallback layout is measured) header control row placement stability at 320px and 390px
             const coldFontShifts = [];
             for (const vw of [320, 390]) {
               const coldCtx = await xb.newContext({
@@ -2303,8 +2303,14 @@ try {
                 reducedMotion: 'reduce',
               });
               const coldPage = await coldCtx.newPage();
+              let releaseFonts;
+              const fontGate = new Promise((r) => {
+                releaseFonts = r;
+              });
+              let heldFonts = 0;
               await coldPage.route('**/*.woff2', async (route) => {
-                await new Promise((r) => setTimeout(r, 350));
+                heldFonts += 1;
+                await fontGate;
                 await route.continue();
               });
               await coldPage.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
@@ -2313,11 +2319,19 @@ try {
                   g.getBoundingClientRect(),
                 );
                 const navTop = document.querySelector('.site-nav')?.getBoundingClientRect().top ?? 0;
+                const loadedWoff2 = document.fonts
+                  ? [...document.fonts].filter(
+                      (f) =>
+                        !f.family.replace(/['"]/g, '').startsWith('f12') && f.status === 'loaded',
+                    ).length
+                  : 0;
                 return {
                   navTop: Math.round(navTop),
                   stacked: groups.length >= 2 ? Math.abs(groups[0].top - groups[1].top) > 10 : false,
+                  loadedWoff2,
                 };
               });
+              releaseFonts();
               await coldPage.waitForLoadState('networkidle');
               await coldPage.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
               await coldPage.waitForTimeout(80);
@@ -2326,27 +2340,37 @@ try {
                   g.getBoundingClientRect(),
                 );
                 const navTop = document.querySelector('.site-nav')?.getBoundingClientRect().top ?? 0;
+                const loadedWoff2 = document.fonts
+                  ? [...document.fonts].filter(
+                      (f) =>
+                        !f.family.replace(/['"]/g, '').startsWith('f12') && f.status === 'loaded',
+                    ).length
+                  : 0;
                 return {
                   navTop: Math.round(navTop),
                   stacked: groups.length >= 2 ? Math.abs(groups[0].top - groups[1].top) > 10 : false,
+                  loadedWoff2,
                 };
               });
               const navDelta = Math.abs(afterFont.navTop - beforeFont.navTop);
               const expectedStacked = vw === 320;
               if (
+                heldFonts === 0 ||
+                beforeFont.loadedWoff2 > 0 ||
+                afterFont.loadedWoff2 === 0 ||
                 navDelta > 2 ||
                 beforeFont.stacked !== expectedStacked ||
                 afterFont.stacked !== expectedStacked
               ) {
                 coldFontShifts.push(
-                  `${vw}px: before=${JSON.stringify(beforeFont)} after=${JSON.stringify(afterFont)} delta=${navDelta}px`,
+                  `${vw}px: held=${heldFonts} before=${JSON.stringify(beforeFont)} after=${JSON.stringify(afterFont)} delta=${navDelta}px`,
                 );
               }
               await coldCtx.close();
             }
             check(
               coldFontShifts.length === 0,
-              `site [${engineName}] cold-font (.woff2 delayed) .site-controls row placement deterministic at 320px (stacked) and 390px (single-row) with 0px nav jump`,
+              `site [${engineName}] cold-font (.woff2 gated) .site-controls row placement deterministic at 320px (stacked) and 390px (single-row) with 0px nav jump`,
               coldFontShifts.join('; '),
             );
           }

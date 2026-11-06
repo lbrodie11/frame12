@@ -9,7 +9,7 @@
   src: local("Arial"), local("Helvetica Neue"), local("Helvetica"), local("Liberation Sans"),
     local("Arimo"), local("Nimbus Sans"), local("Nimbus Sans L"), local("Roboto"),
     local("Noto Sans"), local("FreeSans");
-  font-weight: 100 900;
+  font-weight: 400;
   size-adjust: 131.74%;
   ascent-override: 88.05%;
   descent-override: 21.86%;
@@ -19,7 +19,7 @@
 @font-face {
   font-family: "f12DisplayFallbackDejaVu";
   src: local("DejaVu Sans"), local("Bitstream Vera Sans"), local("Verdana");
-  font-weight: 100 900;
+  font-weight: 400;
   size-adjust: 120.3%;
   ascent-override: 96.4%;
   descent-override: 23.9%;
@@ -31,7 +31,7 @@
   src: local("Arial"), local("Helvetica Neue"), local("Helvetica"), local("Liberation Sans"),
     local("Arimo"), local("Nimbus Sans"), local("Nimbus Sans L"), local("Roboto"),
     local("Noto Sans"), local("FreeSans");
-  font-weight: 100 900;
+  font-weight: 400;
   size-adjust: 99.1%;
   ascent-override: 117.05%;
   descent-override: 29.06%;
@@ -41,7 +41,7 @@
 @font-face {
   font-family: "f12BodyFallbackDejaVu";
   src: local("DejaVu Sans"), local("Bitstream Vera Sans"), local("Verdana");
-  font-weight: 100 900;
+  font-weight: 400;
   size-adjust: 90.5%;
   ascent-override: 128.17%;
   descent-override: 31.82%;
@@ -51,7 +51,7 @@
 @font-face {
   font-family: "f12MonoFallbackConsolas";
   src: local("Consolas");
-  font-weight: 100 900;
+  font-weight: 400;
   size-adjust: 90.91%;
   ascent-override: 110%;
   descent-override: 25.85%;
@@ -62,7 +62,7 @@
   font-family: "f12MonoFallback";
   src: local("Menlo"), local("DejaVu Sans Mono"), local("Courier New"), local("Liberation Mono"),
     local("Cousine"), local("Noto Sans Mono"), local("Droid Sans Mono");
-  font-weight: 100 900;
+  font-weight: 400;
   size-adjust: 83.19%;
   ascent-override: 120.21%;
   descent-override: 28.25%;

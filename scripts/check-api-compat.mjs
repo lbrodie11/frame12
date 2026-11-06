@@ -20,13 +20,13 @@ export function parse(src, name) {
   const norm = (t) => t.replace(/\s+/g, ' ').trim();
 
   function extractDefaults(fnNode, fnName) {
-    if (!fnNode?.parameters?.[0]) return;
-    const pat = fnNode.parameters[0].name;
-    if (!ts.isObjectBindingPattern(pat)) return;
     const d = new Map();
-    for (const el of pat.elements) {
-      const prop = (el.propertyName || el.name).getText(sf);
-      if (el.initializer) d.set(prop, norm(el.initializer.getText(sf)));
+    const pat = fnNode?.parameters?.[0]?.name;
+    if (pat && ts.isObjectBindingPattern(pat)) {
+      for (const el of pat.elements) {
+        const prop = (el.propertyName || el.name).getText(sf);
+        if (el.initializer) d.set(prop, norm(el.initializer.getText(sf)));
+      }
     }
     defaults.set(fnName, d);
   }
@@ -137,8 +137,8 @@ export function compareParsed(f, base, head, findings) {
     }
   }
   for (const [fn, bd] of base.defaults) {
-    const hd = head.defaults.get(fn);
-    if (!hd) continue;
+    if (!head.exports.has(fn)) continue;
+    const hd = head.defaults.get(fn) ?? new Map();
     for (const [prop, v] of bd) {
       if (hd.get(prop) !== v) {
         findings.defaultChanged.push(
@@ -236,8 +236,27 @@ function runSelfTest() {
   );
   assert.deepEqual(f4.defaultChanged, ["widget.tsx: Widget.label: `'ok'` → `'changed'`"]);
 
+  // 5. Destructured parameter replaced with plain `props` parameter -> reports removed default
+  const f5 = emptyFindings();
+  compareParsed(
+    'widget.tsx',
+    parse(baseSrc, 'widget.tsx'),
+    parse(
+      `import * as React from 'react';
+       export interface WidgetProps { label?: string; }
+       export const Widget = React.forwardRef<HTMLButtonElement, WidgetProps>(
+         function Widget(props, ref) {
+           return <button ref={ref}>{props.label}</button>;
+         },
+       );`,
+      'widget.tsx',
+    ),
+    f5,
+  );
+  assert.deepEqual(f5.defaultChanged, ["widget.tsx: Widget.label: `'ok'` → `(no initializer)`"]);
+
   console.log(
-    'PASS  check-api-compat self-test: required addition, optional addition, optional-to-required, and forwardRef default changes verified.',
+    'PASS  check-api-compat self-test: required addition, optional addition, optional-to-required, forwardRef default changes, and removed destructured defaults verified.',
   );
 }
 
