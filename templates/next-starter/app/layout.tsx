@@ -7,6 +7,8 @@ const delaGothicOne = localFont({
   weight: '400',
   variable: '--font-dela-gothic-one',
   display: 'swap',
+  adjustFontFallback: false,
+  fallback: ['f12DisplayFallback', 'f12DisplayFallbackDejaVu', 'sans-serif'],
 });
 
 const zenKakuGothicNew = localFont({
@@ -17,6 +19,8 @@ const zenKakuGothicNew = localFont({
   ],
   variable: '--font-zen-kaku-gothic-new',
   display: 'swap',
+  adjustFontFallback: false,
+  fallback: ['f12BodyFallback', 'f12BodyFallbackDejaVu', 'sans-serif'],
 });
 
 const mPlus1Code = localFont({
@@ -27,8 +31,11 @@ const mPlus1Code = localFont({
   ],
   variable: '--font-m-plus-1-code',
   display: 'swap',
+  // next/font only generates Arial/Times fallbacks. M PLUS 1 Code is a narrow (0.5em) monospace,
+  // so it gets metric-matched monospace fallbacks instead (`f12MonoFallback*` in
+  // styles/frame12.css): a cold font load then reflows nothing when the webfont swaps in.
   adjustFontFallback: false,
-  fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+  fallback: ['f12MonoFallbackConsolas', 'f12MonoFallback', 'ui-monospace', 'monospace'],
 });
 
 export const metadata: Metadata = {

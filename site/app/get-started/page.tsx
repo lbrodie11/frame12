@@ -27,7 +27,14 @@ import '@/styles/frame12.css';
 
 const displayFont = Dela_Gothic_One({ weight: '400', subsets: ['latin'], variable: '--font-dela-gothic-one', display: 'swap' });
 const bodyFont = Zen_Kaku_Gothic_New({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-zen-kaku-gothic-new', display: 'swap' });
-const monoFont = M_PLUS_1_Code({ weight: ['400', '500', '700'], subsets: ['latin'], variable: '--font-m-plus-1-code', display: 'swap' });
+const monoFont = M_PLUS_1_Code({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  variable: '--font-m-plus-1-code',
+  display: 'swap',
+  adjustFontFallback: false,
+  fallback: ['f12MonoFallbackConsolas', 'f12MonoFallback', 'ui-monospace', 'monospace'],
+});
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

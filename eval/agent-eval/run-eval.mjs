@@ -22,6 +22,7 @@ import { getRenderedCuts } from '../../registry/tests/lib.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
 const require = createRequire(path.resolve(repoRoot, 'package.json'));
+const evalRequire = createRequire(path.resolve(__dirname, '../package.json'));
 const ts = require('typescript');
 const registryRoot = path.resolve(repoRoot, 'registry');
 const distRoot = path.resolve(__dirname, 'dist');
@@ -45,6 +46,12 @@ const HOST_RESET =
 const f12ResolverPlugin = {
   name: 'frame12-agent-eval-resolver',
   setup(b) {
+    b.onResolve({ filter: /^react(\/.*)?$/ }, (args) => ({
+      path: evalRequire.resolve(args.path),
+    }));
+    b.onResolve({ filter: /^react-dom(\/.*)?$/ }, (args) => ({
+      path: evalRequire.resolve(args.path),
+    }));
     b.onResolve({ filter: /^@\/components\/frame12$/ }, () => ({
       path: path.resolve(registryRoot, 'ui/index.ts'),
     }));

@@ -1,10 +1,78 @@
 /* FRAME/12 Design System — Tokens, Panel Grammar, Screentone, and Motion on Twos.
    Works standalone without Tailwind. All rules are scoped to .f12-* classes. */
 
+/* Cross-platform metric-matched fallbacks for Dela Gothic One, Zen Kaku Gothic New, and
+   M PLUS 1 Code across macOS, Windows, Linux (Liberation/DejaVu/Noto), and Android (Roboto)
+   so cold-network .woff2 swaps do not reflow headings, controls, paragraphs, or tables. */
+@font-face {
+  font-family: "f12DisplayFallback";
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica"), local("Liberation Sans"),
+    local("Arimo"), local("Nimbus Sans"), local("Nimbus Sans L"), local("Roboto"),
+    local("Noto Sans"), local("FreeSans");
+  font-weight: 400;
+  size-adjust: 131.74%;
+  ascent-override: 88.05%;
+  descent-override: 21.86%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "f12DisplayFallbackDejaVu";
+  src: local("DejaVu Sans"), local("Bitstream Vera Sans"), local("Verdana");
+  font-weight: 400;
+  size-adjust: 120.3%;
+  ascent-override: 96.4%;
+  descent-override: 23.9%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "f12BodyFallback";
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica"), local("Liberation Sans"),
+    local("Arimo"), local("Nimbus Sans"), local("Nimbus Sans L"), local("Roboto"),
+    local("Noto Sans"), local("FreeSans");
+  font-weight: 400;
+  size-adjust: 99.1%;
+  ascent-override: 117.05%;
+  descent-override: 29.06%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "f12BodyFallbackDejaVu";
+  src: local("DejaVu Sans"), local("Bitstream Vera Sans"), local("Verdana");
+  font-weight: 400;
+  size-adjust: 90.5%;
+  ascent-override: 128.17%;
+  descent-override: 31.82%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "f12MonoFallbackConsolas";
+  src: local("Consolas");
+  font-weight: 400;
+  size-adjust: 90.91%;
+  ascent-override: 110%;
+  descent-override: 25.85%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "f12MonoFallback";
+  src: local("Menlo"), local("DejaVu Sans Mono"), local("Courier New"), local("Liberation Mono"),
+    local("Cousine"), local("Noto Sans Mono"), local("Droid Sans Mono");
+  font-weight: 400;
+  size-adjust: 83.19%;
+  ascent-override: 120.21%;
+  descent-override: 28.25%;
+  line-gap-override: 0%;
+}
+
 :where(:root) {
-  --font-f-display: var(--font-dela-gothic-one, "Dela Gothic One"), "Arial Black", "Helvetica Neue", sans-serif;
-  --font-f-body: var(--font-zen-kaku-gothic-new, "Zen Kaku Gothic New"), "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-f-mono: var(--font-m-plus-1-code, "M PLUS 1 Code"), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-f-display: var(--font-dela-gothic-one, "Dela Gothic One"), "f12DisplayFallback", "f12DisplayFallbackDejaVu", "Arial Black", "Helvetica Neue", sans-serif;
+  --font-f-body: var(--font-zen-kaku-gothic-new, "Zen Kaku Gothic New"), "f12BodyFallback", "f12BodyFallbackDejaVu", "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-f-mono: var(--font-m-plus-1-code, "M PLUS 1 Code"), "f12MonoFallbackConsolas", "f12MonoFallback", ui-monospace, "SF Mono", Menlo, monospace;
 
   --f-gutter-pair: 12px;
   --f-gutter-scene: 20px;
@@ -1565,7 +1633,7 @@
   font-size: 13px;
   line-height: 1.45;
   color: var(--f-ink-2);
-  max-width: 46ch;
+  max-width: 23.2em;
   margin: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -1829,10 +1897,10 @@ button.f12-breadcrumb-link {
    its panel; 14cqi caps short values so they don't balloon in wide columns. */
 .f12-metric.big {
   container-type: inline-size;
-  min-width: 0;
+  min-width: min(100%, 12rem);
 }
 .f12-metric.big .f12-m-value {
-  font-size: clamp(28px, min(14cqi, 100cqi / (var(--f12-m-chars, 8) * 0.8)), 56px);
+  font-size: clamp(20px, min(14cqi, 100cqi / (var(--f12-m-chars, 8) * 0.8)), 56px);
   line-height: 1.1;
   font-variant-numeric: proportional-nums;
   overflow-wrap: anywhere;
@@ -1882,7 +1950,7 @@ button.f12-breadcrumb-link {
   font-size: 13px;
   color: var(--f-ink-2);
   margin: 6px 0 0;
-  max-width: 30ch;
+  max-width: 15.1em;
 }
 
 .f12-spark {
@@ -1920,6 +1988,9 @@ button.f12-breadcrumb-link {
   gap: 12px 24px;
   margin-bottom: 4px;
 }
+.f12-c01-hd > .f12-metric {
+  flex: 1 1 220px;
+}
 .f12-legend,
 .f12-legend-hint {
   display: flex;
@@ -1939,7 +2010,7 @@ button.f12-breadcrumb-link {
   gap: 6px;
 }
 .f12-legend-hint {
-  max-width: 26ch;
+  max-width: 13em;
 }
 .f12-sw {
   display: inline-block;
@@ -2631,14 +2702,14 @@ dialog.f12-dialog > .f12-cut {
   font-size: 15px;
   line-height: 1.55;
   color: var(--f-ink);
-  max-width: 68ch;
+  max-width: 34.25em;
 }
 .f12-muted-copy {
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
   color: var(--f-ink-2);
-  max-width: 66ch;
+  max-width: 33.25em;
 }
 .f12-mono-note {
   margin: 0;

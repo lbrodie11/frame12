@@ -5,7 +5,7 @@
   "description": "Body typeface (--font-zen-kaku-gothic-new -> --font-f-body) for FRAME/12 interface copy and controls.",
   "type": "registry:font",
   "font": {
-    "family": "'Zen Kaku Gothic New', sans-serif",
+    "family": "'Zen Kaku Gothic New', 'f12BodyFallback', 'f12BodyFallbackDejaVu', sans-serif",
     "provider": "google",
     "import": "Zen_Kaku_Gothic_New",
     "variable": "--font-zen-kaku-gothic-new",

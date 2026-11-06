@@ -9,7 +9,9 @@
 //   5. Asserts that pre-existing `src/components/ui/button.tsx` and `src/components/ui/dialog.tsx`
 //      are 100% untouched (no collisions with stock shadcn/ui primitives).
 //   6. Compiles a consumer TSX file importing both `@/components/frame12` and `@/components/ui/button`
-//      with `tsc --noEmit`.
+//      with `tsc --noEmit`, then runs the installed components on the repo's React 19 runtime.
+//   7. Installs the full kit + 3 blocks into an isolated React 18 + Vite consumer (real npm install)
+//      and verifies tsc, SSR, vite build, and hydration/interaction in Chromium on React 18.3.1.
 
 import http from 'node:http';
 import { chromium } from 'playwright';
@@ -528,7 +530,10 @@ if (dlgPropsRefRead === 0 || tipPropsRefRead === 0 || dlgR19.didAccessLegacyRef(
 if (!html.includes('C-01') || !html.includes('R19 Child')) {
   throw new Error('Unexpected SSR output: ' + html.slice(0, 200));
 }
-console.log('R19_RUNTIME_OK:' + html.length);
+if (!React.version.startsWith('19.')) {
+  throw new Error('Expected the React 19 runtime, got React ' + React.version);
+}
+console.log('R19_RUNTIME_OK:' + html.length + ' react@' + React.version);
 `,
   );
 
@@ -872,6 +877,358 @@ export function renderSingleHtml() {
     }
   } finally {
     rmSync(singleDir, { recursive: true, force: true });
+  }
+
+  // 8. React 18 consumer (Vite). The repo hoists React 19, so React 18 support is proven in an
+  // isolated project with its own real React 18 install: shadcn add (full kit + 3 blocks) →
+  // tsc --noEmit against @types/react 18 → react-dom/server 18 SSR → vite build → hydrateRoot in
+  // Chromium with interaction checks and zero hydration/console errors.
+  const r18Dir = mkdtempSync(join(tmpdir(), 'frame12-react18-'));
+  let r18Server;
+  try {
+    mkdirSync(join(r18Dir, 'src'), { recursive: true });
+    mkdirSync(join(r18Dir, '.shim-bin'), { recursive: true });
+    const r18Shim = join(r18Dir, '.shim-bin/npm');
+    writeFileSync(r18Shim, '#!/bin/sh\nexit 0\n');
+    chmodSync(r18Shim, 0o755);
+    writeFileSync(join(r18Dir, 'src/index.css'), '/* host globals */\n');
+    writeFileSync(
+      join(r18Dir, 'package.json'),
+      JSON.stringify(
+        {
+          name: 'frame12-react18-consumer',
+          private: true,
+          version: '0.0.0',
+          type: 'module',
+          dependencies: {
+            '@radix-ui/react-dropdown-menu': '^2.1.6',
+            '@radix-ui/react-select': '^2.1.6',
+            react: '18.3.1',
+            'react-dom': '18.3.1',
+          },
+          devDependencies: {
+            '@types/react': '^18.3.31',
+            '@types/react-dom': '^18.3.7',
+            vite: '^8.0.0',
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    writeFileSync(
+      join(r18Dir, 'tsconfig.json'),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            target: 'ES2022',
+            lib: ['dom', 'dom.iterable', 'esnext'],
+            skipLibCheck: true,
+            strict: true,
+            noEmit: true,
+            module: 'esnext',
+            moduleResolution: 'bundler',
+            isolatedModules: true,
+            jsx: 'react-jsx',
+            types: [],
+            paths: { '@/*': ['./src/*'] },
+          },
+          include: ['src/**/*.ts', 'src/**/*.tsx'],
+        },
+        null,
+        2,
+      ),
+    );
+    writeFileSync(
+      join(r18Dir, 'components.json'),
+      JSON.stringify(
+        {
+          $schema: 'https://ui.shadcn.com/schema.json',
+          style: 'new-york',
+          rsc: false,
+          tsx: true,
+          tailwind: { config: '', css: 'src/index.css', baseColor: 'neutral', cssVariables: true, prefix: '' },
+          aliases: {
+            components: '@/components',
+            utils: '@/lib/utils',
+            ui: '@/components/ui',
+            lib: '@/lib',
+            hooks: '@/hooks',
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    const r18Add = await runAsync(
+      'npx',
+      [
+        '--yes',
+        'shadcn',
+        'add',
+        `http://127.0.0.1:${port}/r/frame12.json`,
+        `http://127.0.0.1:${port}/r/developer-console.json`,
+        `http://127.0.0.1:${port}/r/workspace-settings.json`,
+        `http://127.0.0.1:${port}/r/analytics-dashboard.json`,
+        '--yes',
+        '--overwrite',
+      ],
+      {
+        cwd: r18Dir,
+        env: { ...process.env, CI: 'true', PATH: `${join(r18Dir, '.shim-bin')}:${process.env.PATH || ''}` },
+      },
+    );
+    // Real install (network): React 18.3.1 + @types/react 18 + Vite, isolated from the repo tree.
+    const r18Install = await runAsync(
+      'npm',
+      ['install', '--no-audit', '--no-fund', '--loglevel=error'],
+      { cwd: r18Dir, env: { ...process.env, CI: 'true' } },
+    );
+    const r18Version = existsSync(join(r18Dir, 'node_modules/react/package.json'))
+      ? JSON.parse(readFileSync(join(r18Dir, 'node_modules/react/package.json'), 'utf8')).version
+      : 'missing';
+    const r18TypesVersion = existsSync(join(r18Dir, 'node_modules/@types/react/package.json'))
+      ? JSON.parse(readFileSync(join(r18Dir, 'node_modules/@types/react/package.json'), 'utf8')).version
+      : 'missing';
+    check(
+      r18Add.status === 0 && r18Install.status === 0 && r18Version === '18.3.1' && r18TypesVersion.startsWith('18.'),
+      `React 18 consumer: shadcn add (kit + 3 blocks) and isolated install resolve react@${r18Version}, @types/react@${r18TypesVersion}`,
+      r18Add.status !== 0
+        ? `${r18Add.stdout}\n${r18Add.stderr}`
+        : r18Install.status !== 0
+          ? `${r18Install.stdout}\n${r18Install.stderr}`
+          : '',
+    );
+
+    writeFileSync(
+      join(r18Dir, 'src/App.tsx'),
+      `import * as React from 'react';
+import {
+  Sheet, Scene, Panel, Button, Tabs, TabsList, TabsTrigger, TabsContent,
+  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Metric, Switch, ToastProvider,
+} from '@/components/frame12';
+import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';
+import { WorkspaceSettings } from '@/components/frame12/blocks/workspace-settings';
+import { AnalyticsDashboard } from '@/components/frame12/blocks/analytics-dashboard';
+
+export function App() {
+  const [on, setOn] = React.useState(false);
+  return (
+    <ToastProvider>
+      <Sheet autoCut theme="light" motion="cut">
+        <Scene gutter="scene" layout="split">
+          <Panel label="Hero"><Metric label="Recovered" value={120054} big /></Panel>
+          <Panel label="Controls">
+            <Switch id="r18-switch" label="Signed commits" checked={on} onCheckedChange={setOn} />
+            <Dialog>
+              <DialogTrigger asChild><Button id="r18-dialog-open">Open dialog</Button></DialogTrigger>
+              <DialogContent cut="C-09">
+                <DialogHeader>
+                  <DialogTitle>React 18 dialog</DialogTitle>
+                  <DialogDescription>Native dialog on React 18.</DialogDescription>
+                </DialogHeader>
+                <DialogFooter><DialogClose id="r18-dialog-close">Close</DialogClose></DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Select defaultValue="email">
+              <SelectTrigger id="r18-select" aria-label="Channel"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="pager">Pager</SelectItem>
+              </SelectContent>
+            </Select>
+          </Panel>
+        </Scene>
+        <Tabs defaultValue="one" idPrefix="r18-tabs">
+          <TabsList aria-label="React 18 tabs">
+            <TabsTrigger value="one">One</TabsTrigger>
+            <TabsTrigger value="two">Two</TabsTrigger>
+          </TabsList>
+          <TabsContent value="one">First panel</TabsContent>
+          <TabsContent value="two">Second panel</TabsContent>
+        </Tabs>
+      </Sheet>
+      <DeveloperConsole idPrefix="r18-console" />
+      <WorkspaceSettings idPrefix="r18-settings" />
+      <AnalyticsDashboard idPrefix="r18-analytics" />
+    </ToastProvider>
+  );
+}
+`,
+    );
+    writeFileSync(
+      join(r18Dir, 'src/main.tsx'),
+      `import * as React from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import '@/styles/frame12.css';
+import { App } from './App';
+
+(window as unknown as { __REACT_VERSION__: string }).__REACT_VERSION__ = React.version;
+hydrateRoot(document.getElementById('root')!, <App />, {
+  onRecoverableError: (err) => console.error('recoverable: ' + String((err as Error)?.message ?? err)),
+});
+`,
+    );
+    writeFileSync(
+      join(r18Dir, 'src/ssr.tsx'),
+      `import * as React from 'react';
+import { renderToString } from 'react-dom/server';
+import { App } from './App';
+export const html = () => renderToString(<App />);
+export const version = React.version;
+`,
+    );
+    writeFileSync(
+      join(r18Dir, 'vite.config.mjs'),
+      `import { fileURLToPath } from 'node:url';
+export default {
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  esbuild: { jsx: 'automatic' },
+  logLevel: 'error',
+};
+`,
+    );
+
+    const r18Tsc = spawnSync(tscBin, ['--noEmit', '-p', join(r18Dir, 'tsconfig.json')], {
+      cwd: r18Dir,
+      encoding: 'utf8',
+    });
+    check(
+      r18Tsc.status === 0,
+      'React 18 consumer: tsc --noEmit passes for the full kit + 3 blocks against @types/react 18',
+      r18Tsc.status !== 0 ? `${r18Tsc.stdout}\n${r18Tsc.stderr}`.slice(0, 2000) : '',
+    );
+
+    const r18SsrBundle = join(r18Dir, 'ssr.cjs');
+    const r18SsrBuild = spawnSync(
+      esbuildBin,
+      [
+        join(r18Dir, 'src/ssr.tsx'),
+        '--bundle',
+        '--platform=node',
+        '--format=cjs',
+        '--jsx=automatic',
+        '--loader:.css=empty',
+        `--tsconfig=${join(r18Dir, 'tsconfig.json')}`,
+        `--outfile=${r18SsrBundle}`,
+      ],
+      { cwd: r18Dir, encoding: 'utf8' },
+    );
+    const r18Ssr =
+      r18SsrBuild.status === 0
+        ? spawnSync(
+            process.execPath,
+            ['-e', `const m=require(${JSON.stringify(r18SsrBundle)});process.stdout.write(JSON.stringify({v:m.version,html:m.html()}))`],
+            { cwd: r18Dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+          )
+        : r18SsrBuild;
+    let r18SsrOut = { v: '', html: '' };
+    try {
+      r18SsrOut = JSON.parse(r18Ssr.stdout || '{}');
+    } catch {
+      // reported below
+    }
+    const r18Ids = [...(r18SsrOut.html || '').matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+    const r18DupIds = r18Ids.filter((id, idx) => r18Ids.indexOf(id) !== idx);
+    check(
+      r18Ssr.status === 0 &&
+        r18SsrOut.v === '18.3.1' &&
+        r18SsrOut.html.includes('Developer Console') &&
+        r18SsrOut.html.includes('Workspace &amp; Operator Settings') &&
+        r18SsrOut.html.includes('Fernwood Supply Co.') &&
+        r18DupIds.length === 0,
+      `React 18 consumer: react-dom/server@${r18SsrOut.v || '?'} renders the kit + 3 blocks with zero duplicate IDs`,
+      r18Ssr.status !== 0
+        ? `${r18Ssr.stdout}\n${r18Ssr.stderr}`.slice(0, 2000)
+        : r18DupIds.length
+          ? `Duplicate IDs: ${r18DupIds.slice(0, 5).join(', ')}`
+          : '',
+    );
+
+    writeFileSync(
+      join(r18Dir, 'index.html'),
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FRAME/12 React 18</title></head><body><div id="root">${r18SsrOut.html}</div><script type="module" src="/src/main.tsx"></script></body></html>`,
+    );
+    const r18Build = await runAsync(join(r18Dir, 'node_modules/.bin/vite'), ['build'], {
+      cwd: r18Dir,
+      env: { ...process.env, CI: 'true' },
+    });
+    check(
+      r18Build.status === 0 && existsSync(join(r18Dir, 'dist/index.html')),
+      'React 18 consumer: vite build succeeds',
+      r18Build.status !== 0 ? `${r18Build.stdout}\n${r18Build.stderr}`.slice(0, 2000) : '',
+    );
+
+    if (r18Build.status === 0) {
+      const distDir = join(r18Dir, 'dist');
+      r18Server = http.createServer((req, res) => {
+        const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+        const filePath = resolve(distDir, `.${urlPath === '/' ? '/index.html' : urlPath}`);
+        if (!filePath.startsWith(distDir) || !existsSync(filePath)) {
+          res.writeHead(404);
+          res.end();
+          return;
+        }
+        const type = filePath.endsWith('.js')
+          ? 'text/javascript'
+          : filePath.endsWith('.css')
+            ? 'text/css'
+            : 'text/html';
+        res.writeHead(200, { 'Content-Type': type });
+        res.end(readFileSync(filePath));
+      });
+      await new Promise((r) => r18Server.listen(0, '127.0.0.1', r));
+      const r18Port = r18Server.address().port;
+      const browser = await chromium.launch({
+        executablePath: process.env.CHROME_PATH || undefined,
+        args: ['--no-sandbox'],
+      });
+      try {
+        const page = await browser.newPage();
+        const errors = [];
+        page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+        page.on('console', (m) => {
+          if (m.type() === 'error') errors.push(`console: ${m.text()}`);
+        });
+        await page.goto(`http://127.0.0.1:${r18Port}/`, { waitUntil: 'load' });
+        await page.waitForFunction(() => (window).__REACT_VERSION__);
+        const runtimeVersion = await page.evaluate(() => (window).__REACT_VERSION__);
+        await page.click('#r18-dialog-open');
+        const dialogOpened = await page
+          .waitForFunction(() => document.querySelector('dialog.f12-dialog[open]'), null, { timeout: 3000 })
+          .then(() => true, () => false);
+        await page.keyboard.press('Escape');
+        const dialogClosed = await page
+          .waitForFunction(() => !document.querySelector('dialog.f12-dialog[open]'), null, { timeout: 3000 })
+          .then(() => true, () => false);
+        const focusReturned = await page.evaluate(() => document.activeElement?.id === 'r18-dialog-open');
+        await page.click('#r18-switch');
+        const switchOn = await page.evaluate(
+          () => document.getElementById('r18-switch')?.getAttribute('aria-checked') === 'true' ||
+            (document.getElementById('r18-switch')).checked === true,
+        );
+        await page.focus('#r18-tabs-tab-one');
+        await page.keyboard.press('ArrowRight');
+        const secondTabSelected = await page.evaluate(() => {
+          const tabs = [...document.querySelectorAll('[role="tablist"][aria-label="React 18 tabs"] [role="tab"]')];
+          return tabs[1]?.getAttribute('aria-selected') === 'true';
+        });
+        check(
+          runtimeVersion === '18.3.1' && dialogOpened && dialogClosed && focusReturned && switchOn && secondTabSelected && errors.length === 0,
+          `React 18 consumer: hydrates on react-dom@${runtimeVersion} in Chromium; Dialog open/Escape/focus return, Switch, and Tabs arrow-key selection work with zero console/hydration errors`,
+          JSON.stringify({ dialogOpened, dialogClosed, focusReturned, switchOn, secondTabSelected, errors: errors.slice(0, 5) }),
+        );
+      } finally {
+        await browser.close();
+      }
+    }
+  } finally {
+    if (r18Server) r18Server.close();
+    // F12_SMOKE_KEEP=1 keeps the React 18 consumer on disk for debugging.
+    if (process.env.F12_SMOKE_KEEP) console.log(`(kept React 18 consumer at ${r18Dir})`);
+    else rmSync(r18Dir, { recursive: true, force: true });
   }
 } finally {
   server.close();

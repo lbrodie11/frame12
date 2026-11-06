@@ -56,11 +56,29 @@ Route (app)                              Route JS   First Load JS (gzipped)
 | `/get-started` | **84.0 ms** | `[84, 76, 96, 80, 84]` | **0.0000** | **16.7 ms** | `[16.7, 20.3, 12.0, 30.5, 12.4]` | 0 / 0 |
 | `/components/panel` | **80.0 ms** | `[80, 76, 80, 76, 80]` | **0.0000** | **18.4 ms** | `[14.6, 14.9, 18.4, 32.5, 18.5]` | 0 / 0 |
 
-### 2.3 Laboratory Scope Caveat: Localhost Font Delivery vs. Cold-Network Font-Swap CLS
+### 2.3 Cold-Network Font-Swap CLS Verification (WP10 / TF-2)
 
-- **What Tables 2.1 and 2.2 Measure:** In both unthrottled and 4× CPU-throttled localhost runs against `next start`, `.woff2` webfont assets (`Dela Gothic One`, `Space Grotesk`, `Chakra Petch`, `IBM Plex Mono`) are served over loopback with near-zero network latency (`< 2 ms`). Because the fonts arrive before or during the initial render window, `font-display: swap` does not trigger a delayed fallback-to-webfont reflow, yielding near-zero laboratory CLS (`0.0000–0.0003`).
-- **Cold-Network Font-Swap Behavior on Production (`frame12.dev`):** On cold-cache network loads over real WAN latency (for example on `/motion`, where `Dela Gothic One` headlines swap in around `~700 ms`), fallback-to-webfont metric differences produce a single font-swap layout shift of **`~0.084–0.093`**—within Google's `< 0.10` "Good" Core Web Vitals threshold, but higher than our `< 0.05` internal target.
-- **Follow-Up Action:** In the subsequent performance/polish pass, `scripts/measure-perf-baseline.mjs` (`--font-delay-ms=400`) can inject a `300–500 ms` Playwright route delay on `*.woff2` requests to reproduce cold-network font-swap CLS deterministically in CI, paired with `size-adjust` / `ascent-override` / `descent-override` fallback-font metric descriptors to bring cold-network font-swap CLS below `0.05`.
+- **Root Cause & Fix (WP10 TF-2):** Under `--font-delay-ms=1500` (delaying all `.woff2` responses by 1.5s):
+  1. `M PLUS 1 Code` (`0.50em` advance width, `ascent: 1.0`, `descent: -0.235`, `lineGap: 0`) previously fell back to `ui-monospace` (`~0.60em` advance width).
+  2. On Linux environments (where `local("Arial")` is absent), `next/font/local`'s auto-generated `Fallback` faces (`src: local("Arial")`) failed to match any installed font, falling back to unadjusted `DejaVu Sans` / `Liberation Sans` for `Dela Gothic One` (`131.74%` width ratio) and `Zen Kaku Gothic New` (`100.39%` width ratio).
+  3. `.f12-body-copy` / `.f12-muted-copy` width caps used `ch` units (`68ch` / `66ch`, which shrank by ~48px when `Zen Kaku Gothic New`'s narrower `'0'` glyph swapped in), and at `320px` `.site-controls` wrapped from 1 row in fallback font to 2 rows in `Dela Gothic One`.
+  4. **Resolution:** Added cross-platform metric-matched `@font-face` rules directly in `registry/styles/frame12.css` covering macOS, Windows, Linux, and Android (`f12DisplayFallback` & `f12DisplayFallbackDejaVu` for `Dela Gothic One`; `f12BodyFallback` & `f12BodyFallbackDejaVu` for `Zen Kaku Gothic New`; `f12MonoFallbackConsolas` & `f12MonoFallback` for `M PLUS 1 Code`), replaced font-dependent `ch` width caps with font-swap-invariant `em` units (`34.25em` / `33.25em`), and made `.site-controls` stack deterministically at `<= 360px` while staying single-row at `>= 361px` (`390px`).
+- **10-Route Verification Results (`node scripts/measure-perf-baseline.mjs` & `--font-delay-ms=1500` on Next.js `15.5.29` / React `19.3.1`):**
+
+| Route | LCP Median 1× / 4× (ms) | CLS Median (Local Fonts) | CLS Median (`.woff2` +1.5s Cold Swap) | Lab Interaction Proxy Median 1× / 4× (ms) | Pre-Hydration Dark & SSR Markup |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `/` | **36 / 116** | **0.0002** | **0.0003** *(was 0.0526)* | 24.8 / 33.4 | ✓ (`FOUC_SCRIPT` + `<polygon>`) |
+| `/motion` | **40 / 112** | **0.0001** | **0.0003** *(was 0.2686)* | 31.1 / 30.6 | ✓ (`FOUC_SCRIPT` + `<polygon>`) |
+| `/components` | **40 / 100** | **0.0000** | **0.0001** *(was 0.1967)* | 28.7 / 26.8 | ✓ (`FOUC_SCRIPT` + `<polygon>`) |
+| `/style-sheet` | **40 / 116** | **0.0001** | **0.0001** *(was 0.0520)* | 24.5 / 34.5 | ✓ (`FOUC_SCRIPT` + `<polygon>`) |
+| `/agents` | **36 / 84** | **0.0000** | **0.0013** *(was 0.0518)* | 24.1 / 20.1 | ✓ (`FOUC_SCRIPT` + `<polygon>`) |
+| `/get-started` | **36 / 92** | **0.0000** | **0.0002** *(was 0.0541)* | 23.9 / 22.7 | ✓ (`FOUC_SCRIPT` + `<polygon>`) |
+| `/components/panel` | **32 / 96** | **0.0000** | **0.0004** *(was 0.0507)* | 22.4 / 28.1 | ✓ (`FOUC_SCRIPT` + `<polygon>`) |
+| `/blocks/developer-console` | **44 / 132** | **0.0000** | **0.0002** *(was 0.0470)* | 24.1 / 31.1 | ✓ (`FOUC_SCRIPT` + `<polygon>`) |
+| `/blocks/workspace-settings` | **36 / 100** | **0.0016** | **0.0013** *(was 0.3339)* | 20.4 / 29.1 | ✓ (`FOUC_SCRIPT` + `<polygon>`) |
+| `/blocks/analytics-dashboard` | **44 / 120** | **0.0002** | **0.0002** *(was 0.0992)* | 26.0 / 38.0 | ✓ (`FOUC_SCRIPT` + `<polygon>`) |
+
+Every single route now holds **CLS ≤ `0.0016`** with local fonts and **CLS ≤ `0.0013`** even under a 1.5-second cold-network webfont delay—nearly 8× below the `≤ 0.01` performance guardrail.
 
 ---
 

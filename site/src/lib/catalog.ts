@@ -1919,7 +1919,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "big",
         "type": "boolean",
         "defaultValue": "false",
-        "description": "Uses column-aware clamp(28px, min(14cqi, 100cqi / (var(--f12-m-chars, 8) * 0.8)), 56px) display scale for establishing C-01 panels."
+        "description": "Uses column-aware clamp(20px, min(14cqi, 100cqi / (var(--f12-m-chars, 8) * 0.8)), 56px) display scale for establishing C-01 panels."
       },
       {
         "name": "variant",
@@ -1955,7 +1955,7 @@ const RAW_CATALOG: CatalogEntry[] = [
       "Non-interactive readout; exposes a single polite .f12-sr-only live region with the final formatted value and directional delta (\"Up\" / \"Down\") so assistive tech never reads intermediate count-up frames."
     ],
     "themeBehavior": "Uses --f-ink for numerals and --f-marker background with --f-marker-ink text on the directional Delta badge.",
-    "responsiveBehavior": "Uses column-aware clamp(28px, min(14cqi, 100cqi / (var(--f12-m-chars, 8) * 0.8)), 56px) display sizing (--f12-m-chars from glyph count) with proportional-nums in big mode and 34px tabular-nums in standard mode so figures stay inside their panel column.",
+    "responsiveBehavior": "Uses column-aware clamp(20px, min(14cqi, 100cqi / (var(--f12-m-chars, 8) * 0.8)), 56px) display sizing (--f12-m-chars from glyph count, min-width: min(100%, 12rem)) with proportional-nums in big mode and 34px tabular-nums in standard mode so figures stay on a single line inside their panel column.",
     "grammarNotes": [
       "Uses tabular-nums so numerals never jitter horizontally while counting on twos."
     ],

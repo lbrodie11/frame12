@@ -2225,6 +2225,154 @@ try {
               `site [${engineName} 768px & 390px] /components, /blocks/*, /get-started & /agents: WP9 documentation sections and zero horizontal overflow verified`,
               errors.join('; '),
             );
+
+            // WP10 Review regressions:
+            // (a) Single-line <Metric big> (.f12-metric.big .f12-m-value) at 1280px, 768px, 390px, and 320px across /, /style-sheet, /components/metric, /blocks/developer-console, /blocks/analytics-dashboard
+            const metricRoutes = [
+              '/',
+              '/style-sheet',
+              '/components/metric',
+              '/blocks/developer-console',
+              '/blocks/analytics-dashboard',
+            ];
+            const metricWrapFailures = [];
+            for (const mRoute of metricRoutes) {
+              await page.setViewportSize({ width: 1280, height: 900 });
+              await page.goto(`${baseUrl}${mRoute}`, { waitUntil: 'networkidle' });
+              await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+              for (const vw of [1280, 768, 390, 320]) {
+                await page.setViewportSize({ width: vw, height: 844 });
+                await page.waitForTimeout(80);
+                const wraps = await page.evaluate(() => {
+                  const vals = [...document.querySelectorAll('.f12-metric.big .f12-m-value')];
+                  return vals
+                    .map((el) => {
+                      const st = getComputedStyle(el);
+                      const lh = parseFloat(st.lineHeight) || parseFloat(st.fontSize) || 24;
+                      const h = el.getBoundingClientRect().height;
+                      return {
+                        text: (el.textContent || '').trim(),
+                        height: Math.round(h * 10) / 10,
+                        lineHeight: Math.round(lh * 10) / 10,
+                        wrapped: h > lh * 1.45,
+                      };
+                    })
+                    .filter((item) => item.wrapped);
+                });
+                if (wraps.length > 0) {
+                  metricWrapFailures.push(`${mRoute}@${vw}px:${JSON.stringify(wraps)}`);
+                }
+              }
+            }
+            check(
+              metricWrapFailures.length === 0,
+              `site [${engineName}] <Metric big> single-line invariant across /, /style-sheet, /components/metric, /blocks/developer-console, /blocks/analytics-dashboard at 1280/768/390/320px`,
+              metricWrapFailures.join('; '),
+            );
+
+            // (b) Responsive resize (1280px -> 390px) recenters active [aria-current="page"] nav link on /get-started
+            await page.setViewportSize({ width: 1280, height: 900 });
+            await page.goto(`${baseUrl}/get-started`, { waitUntil: 'networkidle' });
+            await page.waitForTimeout(80);
+            await page.setViewportSize({ width: 390, height: 844 });
+            await page.waitForTimeout(150);
+            const navResizeGeom = await page.evaluate(() => {
+              const list = document.querySelector('.site-nav-list');
+              const active = list?.querySelector('[aria-current="page"]');
+              if (!list || !active) return { ok: false, scrollLeft: 0 };
+              const listRect = list.getBoundingClientRect();
+              const activeRect = active.getBoundingClientRect();
+              return {
+                scrollLeft: Math.round(list.scrollLeft),
+                activeVisible:
+                  activeRect.left >= listRect.left - 4 && activeRect.right <= listRect.right + 4,
+              };
+            });
+            check(
+              navResizeGeom.scrollLeft > 0 && navResizeGeom.activeVisible,
+              `site [${engineName}] /get-started responsive resize (1280px -> 390px) recenters active nav link (scrollLeft=${navResizeGeom.scrollLeft}px)`,
+              JSON.stringify(navResizeGeom),
+            );
+
+            // (c) Cold-font (.woff2 gated until fallback layout is measured) header control row placement stability at 320px and 390px
+            const coldFontShifts = [];
+            for (const vw of [320, 390]) {
+              const coldCtx = await xb.newContext({
+                viewport: { width: vw, height: 844 },
+                colorScheme: 'dark',
+                reducedMotion: 'reduce',
+              });
+              const coldPage = await coldCtx.newPage();
+              let releaseFonts;
+              const fontGate = new Promise((r) => {
+                releaseFonts = r;
+              });
+              let heldFonts = 0;
+              await coldPage.route('**/*.woff2', async (route) => {
+                heldFonts += 1;
+                await fontGate;
+                await route.continue();
+              });
+              await coldPage.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
+              const beforeFont = await coldPage.evaluate(() => {
+                const groups = [...document.querySelectorAll('.site-controls > .f12-rng')].map((g) =>
+                  g.getBoundingClientRect(),
+                );
+                const navTop = document.querySelector('.site-nav')?.getBoundingClientRect().top ?? 0;
+                const loadedWoff2 = document.fonts
+                  ? [...document.fonts].filter(
+                      (f) =>
+                        !f.family.replace(/['"]/g, '').startsWith('f12') && f.status === 'loaded',
+                    ).length
+                  : 0;
+                return {
+                  navTop: Math.round(navTop),
+                  stacked: groups.length >= 2 ? Math.abs(groups[0].top - groups[1].top) > 10 : false,
+                  loadedWoff2,
+                };
+              });
+              releaseFonts();
+              await coldPage.waitForLoadState('networkidle');
+              await coldPage.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+              await coldPage.waitForTimeout(80);
+              const afterFont = await coldPage.evaluate(() => {
+                const groups = [...document.querySelectorAll('.site-controls > .f12-rng')].map((g) =>
+                  g.getBoundingClientRect(),
+                );
+                const navTop = document.querySelector('.site-nav')?.getBoundingClientRect().top ?? 0;
+                const loadedWoff2 = document.fonts
+                  ? [...document.fonts].filter(
+                      (f) =>
+                        !f.family.replace(/['"]/g, '').startsWith('f12') && f.status === 'loaded',
+                    ).length
+                  : 0;
+                return {
+                  navTop: Math.round(navTop),
+                  stacked: groups.length >= 2 ? Math.abs(groups[0].top - groups[1].top) > 10 : false,
+                  loadedWoff2,
+                };
+              });
+              const navDelta = Math.abs(afterFont.navTop - beforeFont.navTop);
+              const expectedStacked = vw === 320;
+              if (
+                heldFonts === 0 ||
+                beforeFont.loadedWoff2 > 0 ||
+                afterFont.loadedWoff2 === 0 ||
+                navDelta > 2 ||
+                beforeFont.stacked !== expectedStacked ||
+                afterFont.stacked !== expectedStacked
+              ) {
+                coldFontShifts.push(
+                  `${vw}px: held=${heldFonts} before=${JSON.stringify(beforeFont)} after=${JSON.stringify(afterFont)} delta=${navDelta}px`,
+                );
+              }
+              await coldCtx.close();
+            }
+            check(
+              coldFontShifts.length === 0,
+              `site [${engineName}] cold-font (.woff2 gated) .site-controls row placement deterministic at 320px (stacked) and 390px (single-row) with 0px nav jump`,
+              coldFontShifts.join('; '),
+            );
           }
           await page.close();
         }

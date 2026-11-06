@@ -29,6 +29,10 @@ const ROUTES = [
   { path: '/agents', actionSelector: '#site-theme-light' },
   { path: '/get-started', actionSelector: '#site-theme-light' },
   { path: '/components/panel', actionSelector: '#site-theme-light' },
+  // Application blocks (WP6–WP8), added for the WP10 release-readiness audit.
+  { path: '/blocks/developer-console', actionSelector: '#site-theme-light' },
+  { path: '/blocks/workspace-settings', actionSelector: '#site-theme-light' },
+  { path: '/blocks/analytics-dashboard', actionSelector: '#site-theme-light' },
 ];
 
 function median(values) {
