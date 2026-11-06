@@ -39,7 +39,7 @@ export function BlockDocumentationSection({
             <div className="f12-row-pair">
               <Tag>Dependencies ({block.componentDependencies.length})</Tag>
               <span className="f12-mono-note">
-                Installed automatically via {block.slug}.json
+                Installed automatically via @frame12/{block.slug} (or {block.slug}.json)
               </span>
             </div>
             <h2 className="f12-section-title">Component & hook dependencies</h2>

@@ -22,7 +22,7 @@ export default function DeveloperConsoleShowcasePage() {
             <div className="f12-stack-pair">
               <div className="f12-row-between">
                 <div className="f12-row-pair">
-                  <Badge burst={false}>registry:block · developer-console.json</Badge>
+                  <Badge burst={false}>registry:block · @frame12/developer-console</Badge>
                   <span className="f12-mono-note">
                     Installs @/components/frame12/blocks/developer-console.tsx + full FRAME/12 kit
                   </span>
@@ -53,7 +53,12 @@ export default function DeveloperConsoleShowcasePage() {
               </div>
               <CopyCommand
                 id="copy-install-developer-console"
-                label="Install Developer Console block via shadcn CLI"
+                label="Install Developer Console block via shadcn CLI (@frame12 namespace)"
+                command="npx shadcn@latest add @frame12/developer-console"
+              />
+              <CopyCommand
+                id="copy-install-developer-console-url"
+                label="Full manifest URL alternative"
                 command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/developer-console.json`}
               />
             </div>

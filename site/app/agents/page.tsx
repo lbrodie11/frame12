@@ -215,11 +215,18 @@ export default function AgentsPage() {
                 </div>
                 <h2 className="f12-section-title">Add the kit</h2>
                 <p className="f12-muted-copy">
-                  Install the component registry and copy <code className="f12-code-inline">skills/frame12/</code> into your repo:
+                  Install the component registry via the official{' '}
+                  <code className="f12-code-inline">@frame12</code> namespace (or URL) and copy{' '}
+                  <code className="f12-code-inline">skills/frame12/</code> into your repo:
                 </p>
                 <CopyCommand
                   id="agents-copy-registry"
-                  label="Install FRAME/12 registry"
+                  label="Install FRAME/12 registry (@frame12 namespace)"
+                  command="npx shadcn@latest add @frame12/frame12"
+                />
+                <CopyCommand
+                  id="agents-copy-registry-url"
+                  label="Full manifest URL alternative"
                   command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/frame12.json`}
                 />
               </div>

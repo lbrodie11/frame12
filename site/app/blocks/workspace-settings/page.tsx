@@ -23,7 +23,7 @@ export default function WorkspaceSettingsShowcasePage() {
             <div className="f12-stack-pair">
               <div className="f12-row-between">
                 <div className="f12-row-pair">
-                  <Badge burst={false}>registry:block · workspace-settings.json</Badge>
+                  <Badge burst={false}>registry:block · @frame12/workspace-settings</Badge>
                   <span className="f12-mono-note">
                     Installs @/components/frame12/blocks/workspace-settings.tsx + full FRAME/12 kit
                   </span>
@@ -54,7 +54,12 @@ export default function WorkspaceSettingsShowcasePage() {
               </div>
               <CopyCommand
                 id="copy-install-workspace-settings"
-                label="Install Workspace Settings block via shadcn CLI"
+                label="Install Workspace Settings block via shadcn CLI (@frame12 namespace)"
+                command="npx shadcn@latest add @frame12/workspace-settings"
+              />
+              <CopyCommand
+                id="copy-install-workspace-settings-url"
+                label="Full manifest URL alternative"
                 command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/workspace-settings.json`}
               />
             </div>

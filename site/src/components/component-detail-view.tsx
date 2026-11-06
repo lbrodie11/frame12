@@ -38,7 +38,8 @@ function withCamelCaseBreaks(title: string): React.ReactNode {
 
 export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
   const { motion } = useSiteSettings();
-  const installCmd = `npx shadcn@latest add ${entry.registryUrl}`;
+  const namespaceInstallCmd = `npx shadcn@latest add @frame12/${entry.slug}`;
+  const urlInstallCmd = `npx shadcn@latest add ${entry.registryUrl}`;
 
   return (
     <Sheet autoCut pegs motion={motion}>
@@ -47,7 +48,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
           <p className="f12-eyebrow">
             {entry.category}
             <Tag>{entry.sourceFile}</Tag>
-            <span>/r/{entry.slug}.json</span>
+            <span>@frame12/{entry.slug} · /r/{entry.slug}.json</span>
           </p>
           <h1 className="f12-title">{withCamelCaseBreaks(entry.title)}</h1>
           <p className="f12-muted-copy">{entry.summary}</p>
@@ -157,8 +158,13 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
               <h2 className="f12-section-title">Install & copy-in source</h2>
               <CopyCommand
                 id={`copy-install-${entry.slug}`}
-                label={`shadcn CLI (${entry.slug}.json)`}
-                command={installCmd}
+                label={`shadcn CLI (@frame12/${entry.slug})`}
+                command={namespaceInstallCmd}
+              />
+              <CopyCommand
+                id={`copy-install-url-${entry.slug}`}
+                label={`Full manifest URL (${entry.slug}.json)`}
+                command={urlInstallCmd}
               />
             </div>
 

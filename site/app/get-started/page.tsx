@@ -162,12 +162,14 @@ export default function GetStartedPage() {
               <div className="f12-console-kv-item">
                 <span className="f12-console-kv-label">2. What You Can Build &amp; How to Install</span>
                 <span className="f12-console-kv-value">
-                  26 Core Components + 5 Primitive Adapters + 3 Full Application Blocks
+                  26 Core Components + 5 Primitive Adapters + 3 Full Application Blocks (MIT)
                 </span>
                 <span className="f12-mono-note">
                   Build analytics workstations, API control planes, dense settings ledgers, and
-                  product pages. Install via npx shadcn@latest add {REGISTRY_BASE_URL}/frame12.json or
-                  add developer-console.json, workspace-settings.json, or analytics-dashboard.json.
+                  product pages. Published in the official shadcn directory as @frame12: run npx
+                  shadcn@latest add @frame12/frame12 (or @frame12/sheet, @frame12/developer-console,
+                  @frame12/workspace-settings, @frame12/analytics-dashboard) or use full URLs (
+                  {REGISTRY_BASE_URL}/frame12.json).
                 </span>
               </div>
               <div className="f12-console-kv-item">
@@ -181,7 +183,8 @@ export default function GetStartedPage() {
                   Override --f-* CSS variables in globals.css, mix Expressive hero panels with{' '}
                   &lt;Panel variant=&quot;quiet&quot;&gt; and compact density, load skills/frame12/SKILL.md (or
                   /llms-full.txt) into your AI coding agent, and run node scripts/check-frame12.mjs in
-                  CI.
+                  CI. All 31 components and 3 blocks remain free under MIT; see
+                  docs/roadmap/v0.3-v0.4-roadmap.md and share feedback via GitHub Issues/Discussions.
                 </span>
               </div>
             </div>
@@ -241,18 +244,25 @@ export default function GetStartedPage() {
             children: (
               <div className="f12-stack-pair">
                 <div className="f12-row-pair">
-                  <Tag>Step 2 · Registry Install</Tag>
+                  <Tag>Step 2 · Registry Install (@frame12)</Tag>
                 </div>
                 <h2 className="f12-section-title">Add the registry kit</h2>
                 <p className="f12-muted-copy">
-                  Install the complete kit (<code className="f12-code-inline">frame12.json</code>) or
-                  pick individual components into <code className="f12-code-inline">components/frame12/</code>{' '}
-                  from <code className="f12-code-inline">frame12.dev</code> (or from your local dev
-                  server at <code className="f12-code-inline">http://localhost:3000/r/frame12.json</code>):
+                  Install the complete kit via the official{' '}
+                  <code className="f12-code-inline">@frame12</code> namespace (or pick individual
+                  components like <code className="f12-code-inline">@frame12/sheet</code> or blocks
+                  like <code className="f12-code-inline">@frame12/developer-console</code>) into{' '}
+                  <code className="f12-code-inline">components/frame12/</code>, or use the full
+                  manifest URL (<code className="f12-code-inline">{REGISTRY_BASE_URL}/frame12.json</code>):
                 </p>
                 <CopyCommand
                   id="start-copy-full-kit"
-                  label="Full kit"
+                  label="Full kit (@frame12 namespace)"
+                  command="npx shadcn@latest add @frame12/frame12"
+                />
+                <CopyCommand
+                  id="start-copy-url-kit"
+                  label="Full URL alternative"
                   command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/frame12.json`}
                 />
                 <CopyCommand
@@ -283,8 +293,8 @@ export default function GetStartedPage() {
                 </p>
                 <CopyCommand
                   id="start-copy-styles-only"
-                  label="Stylesheet registry item"
-                  command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/frame12-styles.json`}
+                  label="Stylesheet registry item (@frame12 or URL)"
+                  command="npx shadcn@latest add @frame12/frame12-styles"
                 />
               </div>
             ),

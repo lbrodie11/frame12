@@ -37,13 +37,27 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 - **Styling:** Works standalone via scoped `.f12-*` CSS custom properties (`styles/frame12.css`). Tailwind CSS is optional (`styles/frame12-tailwind.css` is included if you want Tailwind v4 utility classes).
 - **Status:** Pre-1.0 and experimental (package version `0.2.0`). The registry ships 31 components, 3 application blocks (Developer Console, Workspace Settings, Revenue Recovery Analytics), the `use-on-twos` motion hook, and 3 font packages. Release notes for `0.2.0` are in [`CHANGELOG.md`](CHANGELOG.md), the `v0.2.0` release-readiness audit is in [`docs/roadmap/v0.2-release-readiness.md`](docs/roadmap/v0.2-release-readiness.md), and planned `v0.3` / `v0.4` work is in [`docs/roadmap/v0.3-v0.4-roadmap.md`](docs/roadmap/v0.3-v0.4-roadmap.md).
 
-### 1. Add the registry kit
+### 1. Add the registry kit (`@frame12` namespace or direct URL)
 
-Run the `shadcn` CLI from your project root to copy the components (`components/frame12/`), motion hooks (`hooks/use-on-twos.ts`), and stylesheet (`styles/frame12.css`) into your repo:
+FRAME/12 is published in the official [`shadcn` registry index](https://ui.shadcn.com/r/registries.json) under the lowercase **`@frame12`** namespace. Run the `shadcn` CLI from your project root to copy the components (`components/frame12/`), motion hook (`hooks/use-on-twos.ts`), and stylesheet (`styles/frame12.css`) into your repo:
+
+```bash
+# Install the full 31-component kit + base styles, hook, and fonts:
+npx shadcn@latest add @frame12/frame12
+
+# Or install an individual component:
+npx shadcn@latest add @frame12/sheet
+
+# Or install a full-page application block + its required primitives:
+npx shadcn@latest add @frame12/developer-console
+npx shadcn@latest add @frame12/workspace-settings
+npx shadcn@latest add @frame12/analytics-dashboard
+```
+
+Full manifest URLs remain supported anywhere URL-based installation is preferred:
 
 ```bash
 npx shadcn@latest add https://frame12.dev/r/frame12.json
-# Or install the Developer Console, Workspace Settings, or Revenue Recovery Analytics application blocks + kit in one command:
 npx shadcn@latest add https://frame12.dev/r/developer-console.json
 npx shadcn@latest add https://frame12.dev/r/workspace-settings.json
 npx shadcn@latest add https://frame12.dev/r/analytics-dashboard.json
@@ -52,18 +66,22 @@ npx shadcn@latest add https://frame12.dev/r/analytics-dashboard.json
 <details>
 <summary><strong>Install individual components instead of the full bundle</strong></summary>
 
-Every component manifest at `https://frame12.dev/r/<name>.json` resolves `frame12-styles` (`styles/frame12.css`) and any required hooks (`hooks/use-on-twos.ts`) or sibling primitives via `registryDependencies`:
+Every component in `@frame12/<name>` (or `https://frame12.dev/r/<name>.json`) resolves `frame12-base` (`styles/frame12.css`, `hooks/use-on-twos.ts`, and font manifests) or sibling primitives via `registryDependencies`:
 
 ```bash
+npx shadcn@latest add @frame12/sheet
+npx shadcn@latest add @frame12/scene
+npx shadcn@latest add @frame12/panel
+npx shadcn@latest add @frame12/panel-pair
+npx shadcn@latest add @frame12/segmented-control
+npx shadcn@latest add @frame12/metric
+npx shadcn@latest add @frame12/tone-area-chart
+npx shadcn@latest add @frame12/dialog
+npx shadcn@latest add @frame12/select
+
+# Direct URL alternative:
 npx shadcn@latest add https://frame12.dev/r/sheet.json
-npx shadcn@latest add https://frame12.dev/r/scene.json
 npx shadcn@latest add https://frame12.dev/r/panel.json
-npx shadcn@latest add https://frame12.dev/r/panel-pair.json
-npx shadcn@latest add https://frame12.dev/r/segmented-control.json
-npx shadcn@latest add https://frame12.dev/r/metric.json
-npx shadcn@latest add https://frame12.dev/r/tone-area-chart.json
-npx shadcn@latest add https://frame12.dev/r/dialog.json
-npx shadcn@latest add https://frame12.dev/r/select.json
 ```
 
 > **Upgrading & Customizing Tokens:** Do not edit `styles/frame12.css` directly—put custom `--f-*` token overrides in your own stylesheet (such as `app/globals.css`). When upgrading or adding components after a FRAME/12 update (or in non-interactive CI/agent shells where `shadcn add -y` will skip installing if `styles/frame12.css` differs and still exit `0`), pass `--overwrite` and verify that `components/frame12/<name>.tsx` exists on disk.
@@ -224,6 +242,29 @@ npm test                          # runs sync checks, doc checks, static linter,
 
 ---
 
+## Open-Source Commitment, Roadmap & Community Feedback
+
+### What Ships in the Free MIT Release (`v0.2.0`)
+
+Everything in this repository and the public `@frame12` registry is open source under the [MIT License](LICENSE):
+
+- **31 UI & Data-Visualization Primitives:** Layout (`Sheet`, `Scene`, `Panel`, `PanelPair`, `SegmentedControl`), forms (`Button`, `Field`, `Input`, `Textarea`, `Checkbox`, `RadioGroup`, `Switch`, `Select`), navigation & disclosure (`Tabs`, `Breadcrumb`, `Pagination`, `Dialog`, `DropdownMenu`, `Tooltip`), status & feedback (`Badge`, `Tag`, `Alert`, `Toast`, `Skeleton`, `EmptyState`, `Balloon`), and data display (`Table`, `Metric`, `ToneAreaChart`, `ToneBarList`, `ToneSpark`).
+- **3 Full-Page Application Blocks (`registry:block`):**
+  - **[Developer Console (`@frame12/developer-console`)](https://frame12.dev/blocks/developer-console):** API gateway telemetry, service error attribution, API key issuance/revocation, and request log replay.
+  - **[Workspace Settings (`@frame12/workspace-settings`)](https://frame12.dev/blocks/workspace-settings):** Multi-section control plane with dirty-state guardrails, cross-tab validation, team role management, and live theme/motion configuration.
+  - **[Revenue Recovery Analytics (`@frame12/analytics-dashboard`)](https://frame12.dev/blocks/analytics-dashboard):** Executive KPI storyboard with `7d`/`30d`/`90d` window reconciliation, intervention attribution, and daily ledger inspection.
+- **Core Style System, Hook, Agent Skill & Grammar Checker:** `styles/frame12.css`, `styles/frame12-tailwind.css`, `hooks/use-on-twos.ts`, `skills/frame12/SKILL.md`, and `scripts/check-frame12.mjs`.
+- **Long-Term Open-Source Direction:** Existing MIT components, the three flagship blocks, the style system, the agent skill, and the grammar checker remain open source under MIT. Nobody needs to purchase a commercial product to adopt or ship with the FRAME/12 design system. Any potential future commercial extensions (if introduced after customer validation) will be separately identified, separately licensed, and hosted outside this repository.
+
+### Roadmap & Feedback
+
+- **Public `v0.3` & `v0.4` Roadmap:** Read [`docs/roadmap/v0.3-v0.4-roadmap.md`](docs/roadmap/v0.3-v0.4-roadmap.md) for planned open-source core primitives (`CommandPalette`, `Drawer`, `Popover`, `DateRangePicker`, `Accordion`, `CodeBlock`, `Kbd`/`CopyButton`, `Avatar`), screentone charts, free application blocks (`AgentReviewConsole`, `IncidentWarRoom`), and scope classifications.
+- **Share Feedback & Requests:**
+  - **Bug reports & installation issues:** Open an issue at **[github.com/lbrodie11/frame12/issues](https://github.com/lbrodie11/frame12/issues)**.
+  - **Feature requests, component prioritization & showcase ("Built with FRAME/12"):** Join **[github.com/lbrodie11/frame12/discussions](https://github.com/lbrodie11/frame12/discussions)**.
+
+---
+
 ## Fonts & License
 
 All typefaces used in FRAME/12 (`Dela Gothic One`, `Zen Kaku Gothic New`, and `M PLUS 1 Code`), as well as `Geist` and `Geist Mono` (used in the Phase 1 comparison baseline only), are open-source under the [SIL Open Font License 1.1](https://openfontlicense.org/).
@@ -232,7 +273,7 @@ MIT License — see [`LICENSE`](LICENSE). Copyright (c) 2026 Laqwan Brodie.
 
 ### Official sources & the FRAME/12 name
 
-FRAME/12 is only published from this repository, **[frame12.dev](https://frame12.dev)**, and its registry at `https://frame12.dev/r/<name>.json`. The MIT License covers the code; the FRAME/12 name and logo are covered by the [trademark policy](TRADEMARKS.md). Forks are welcome. Give yours its own name, and feel free to describe it as "based on FRAME/12".
+FRAME/12 is only published from this repository, **[frame12.dev](https://frame12.dev)**, and its registry at `@frame12` (`https://frame12.dev/r/<name>.json`). The MIT License covers the code; the FRAME/12 name and logo are covered by the [trademark policy](TRADEMARKS.md). Forks are welcome. Give yours its own name, and feel free to describe it as "based on FRAME/12".
 
 ### Security
 
