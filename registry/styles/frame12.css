@@ -2770,7 +2770,7 @@ dialog.f12-dialog > .f12-cut {
   min-width: 0;
 }
 .f12-console .f12-int-row {
-  grid-template-columns: minmax(224px, 1.75fr) minmax(56px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1.75fr) minmax(52px, 1fr) minmax(0, auto);
   gap: var(--f-gutter-pair);
 }
 .f12-console .f12-int-name {
@@ -2782,6 +2782,7 @@ dialog.f12-dialog > .f12-cut {
 }
 .f12-console .f12-int-val {
   font-size: 13px;
+  min-width: 0;
 }
 .f12-console-kpi-scene > .f12-panel > .f12-panel-body {
   padding: 20px 18px 16px;
@@ -3051,6 +3052,28 @@ dialog.f12-dialog > .f12-cut {
   .f12-settings .f12-tabs-list.f12-tabs-list-compact .f12-tabs-trigger + .f12-tabs-trigger {
     border-inline-start: 0;
     border-top: 1.5px solid var(--f-rule);
+  }
+}
+
+@container (max-width: 1180px) {
+  .f12-console .f12-int-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    grid-template-areas:
+      "name val"
+      "bar bar";
+    gap: 6px 12px;
+  }
+  .f12-console .f12-int-name {
+    grid-area: name;
+    white-space: normal;
+  }
+  .f12-console .f12-int-val {
+    grid-area: val;
+    white-space: normal;
+    text-align: end;
+  }
+  .f12-console .f12-int-bar {
+    grid-area: bar;
   }
 }
 

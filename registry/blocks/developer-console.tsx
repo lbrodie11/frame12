@@ -946,6 +946,56 @@ function DeveloperConsoleInner({
   const isEmptyDataset = datasetState === 'empty';
   const sloWithinBudget = snapshot.errorRateBasisPoints <= SLO_TARGET_MAX_ERROR_BPS;
 
+  const peakPoint = React.useMemo(
+    () =>
+      snapshot.series.reduce(
+        (best, pt) => (pt.value > best.value ? pt : best),
+        snapshot.series[0],
+      ),
+    [snapshot],
+  );
+
+  const rangeFooterMetrics = React.useMemo(() => {
+    const peakWindowValue =
+      snapshot.range === '24h'
+        ? `${fmtCompactNumber(peakPoint.value)}k (${peakPoint.label} UTC)`
+        : `${fmtCompactNumber(peakPoint.value)}k (${peakPoint.label})`;
+    const peakChartNote =
+      snapshot.range === '24h'
+        ? `peak ${fmtCompactNumber(peakPoint.value)}k at ${peakPoint.label} UTC`
+        : `peak ${fmtCompactNumber(peakPoint.value)}k on ${peakPoint.label}`;
+    const deliveredPct = ((10000 - snapshot.errorRateBasisPoints) / 100).toFixed(2);
+    const deliveredCount = snapshot.totalRequests - snapshot.errorCount;
+    const deliveredCountLabel =
+      deliveredCount >= 1_000_000
+        ? `${(deliveredCount / 1_000_000).toFixed(2)}M`
+        : `${(deliveredCount / 1_000).toFixed(1)}k`;
+    const deliveredValue = `${deliveredPct}% · ${deliveredCountLabel}`;
+
+    const errorBreakdown =
+      snapshot.range === '24h'
+        ? {
+            upstream5xx: '0.11% · 1,631',
+            throttled429: '0.31% · 4,597',
+          }
+        : snapshot.range === '7d'
+          ? {
+              upstream5xx: '0.14% · 13,776',
+              throttled429: '0.37% · 36,409',
+            }
+          : {
+              upstream5xx: '0.16% · 63,056',
+              throttled429: '0.42% · 165,522',
+            };
+
+    return {
+      peakWindowValue,
+      peakChartNote,
+      deliveredValue,
+      ...errorBreakdown,
+    };
+  }, [snapshot, peakPoint]);
+
   const effectiveServices = React.useMemo<ConsoleServiceItem[]>(
     () =>
       CONSOLE_SERVICES.map((svc) =>
@@ -982,8 +1032,9 @@ function DeveloperConsoleInner({
         id: svc.id,
         name: `${svc.name} (${svc.code})`,
         value: svc.requests24h,
-        formattedValue:
-          svc.status === 'degraded'
+        formattedValue: isEmptyDataset
+          ? `${fmtCompactNumber(svc.requests24h)} · ${svc.errorRatePct} err`
+          : svc.status === 'degraded'
             ? `${fmtCompactNumber(svc.requests24h)} · ${svc.errorRatePct} err (!)`
             : svc.status === 'canary'
               ? `${fmtCompactNumber(svc.requests24h)} · ${svc.errorRatePct} err (~1%)`
@@ -991,7 +1042,7 @@ function DeveloperConsoleInner({
         share: svc.share24h,
         pattern: svc.pattern,
       })),
-    [effectiveServices],
+    [effectiveServices, isEmptyDataset],
   );
 
   const effectiveEndpoints = React.useMemo<ConsoleEndpointItem[]>(
@@ -1295,6 +1346,7 @@ function DeveloperConsoleInner({
     logSearch,
     logStatusFilter,
     logServiceFilter,
+    selectedServiceId,
     resolvedIdPrefix,
   ]);
 
@@ -1455,15 +1507,15 @@ function DeveloperConsoleInner({
               />
               <div className="f12-console-kv-list f12-console-kpi-foot">
                 <div className="f12-console-kv-item">
-                  <span className="f12-console-kv-label">Peak 3h Window</span>
+                  <span className="f12-console-kv-label">Peak Interval</span>
                   <span className="f12-console-kv-value">
-                    {isEmptyDataset ? '0 reqs' : '248k (15:00 UTC)'}
+                    {isEmptyDataset ? '0 reqs' : rangeFooterMetrics.peakWindowValue}
                   </span>
                 </div>
                 <div className="f12-console-kv-item">
                   <span className="f12-console-kv-label">2xx Delivered</span>
                   <span className="f12-console-kv-value">
-                    {isEmptyDataset ? '0.00%' : '99.58% · 1.48M'}
+                    {isEmptyDataset ? '0.00% · 0' : rangeFooterMetrics.deliveredValue}
                   </span>
                 </div>
               </div>
@@ -1520,13 +1572,13 @@ function DeveloperConsoleInner({
                 <div className="f12-console-kv-item">
                   <span className="f12-console-kv-label">5xx Upstream Faults</span>
                   <span className="f12-console-kv-value">
-                    {isEmptyDataset ? '0 (0.00%)' : '0.11% · 1,631'}
+                    {isEmptyDataset ? '0 (0.00%)' : rangeFooterMetrics.upstream5xx}
                   </span>
                 </div>
                 <div className="f12-console-kv-item">
                   <span className="f12-console-kv-label">429 Rate Throttled</span>
                   <span className="f12-console-kv-value">
-                    {isEmptyDataset ? '0 (0.00%)' : '0.31% · 4,597'}
+                    {isEmptyDataset ? '0 (0.00%)' : rangeFooterMetrics.throttled429}
                   </span>
                 </div>
               </div>
@@ -1564,7 +1616,7 @@ function DeveloperConsoleInner({
                 <div className="f12-console-kpi-spark">
                   <ToneSpark
                     values={snapshot.latencySpark}
-                    label={`${snapshot.label} p95 trend (ms · now ${snapshot.p95LatencyMs} ms)`}
+                    label={`${snapshot.label} p95 trend (window ${snapshot.p95LatencyMs} ms)`}
                     rangeKey={snapshot.range}
                     motion={motion}
                   />
@@ -1697,8 +1749,17 @@ function DeveloperConsoleInner({
                     </h2>
 
                     <p className="f12-console-quiet-sub">
-                      Shaded area = Total gateway traffic (peak 248k at 15:00 UTC) · Dashed line ={' '}
-                      <strong>{selectedService.name}</strong> ({selectedService.code}).
+                      {isEmptyDataset ? (
+                        <>
+                          {`No throughput samples recorded in the selected ${snapshot.label.toLowerCase()} window · Selected overlay = `}
+                          <strong>{selectedService.name}</strong> ({selectedService.code}).
+                        </>
+                      ) : (
+                        <>
+                          {`Shaded area = Total gateway traffic (${rangeFooterMetrics.peakChartNote}) · Dashed line = `}
+                          <strong>{selectedService.name}</strong> ({selectedService.code}).
+                        </>
+                      )}
                     </p>
 
                     {isEmptyDataset ? (
@@ -1759,8 +1820,10 @@ function DeveloperConsoleInner({
                       <span className="f12-console-quiet-title">
                         SERVICE TRAFFIC &amp; HEALTH (1.00% LIMIT)
                       </span>
-                      <Badge status="warning" burst={false}>
-                        {`${degradedServices.length} OF ${effectiveServices.length} DEGRADED · 1 NEAR LIMIT`}
+                      <Badge status={isEmptyDataset ? 'neutral' : 'warning'} burst={false}>
+                        {isEmptyDataset
+                          ? '0 SAMPLES · IDLE'
+                          : `${degradedServices.length} OF ${effectiveServices.length} DEGRADED · 1 NEAR LIMIT`}
                       </Badge>
                     </div>
                     <p className="f12-console-quiet-sub">
@@ -1793,11 +1856,13 @@ function DeveloperConsoleInner({
                           Service Health (1.00% Limit)
                         </span>
                         <span className="f12-console-kv-value">
-                          {selectedService.status === 'degraded'
-                            ? `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (DEGRADED > 1.0%)`
-                            : selectedService.status === 'canary'
-                              ? `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (NEAR LIMIT · CANARY)`
-                              : `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (HEALTHY)`}
+                          {isEmptyDataset
+                            ? `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (NO SAMPLES)`
+                            : selectedService.status === 'degraded'
+                              ? `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (DEGRADED > 1.0%)`
+                              : selectedService.status === 'canary'
+                                ? `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (NEAR LIMIT · CANARY)`
+                                : `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (HEALTHY)`}
                         </span>
                       </div>
                     </div>
@@ -1809,12 +1874,19 @@ function DeveloperConsoleInner({
                     >
                       <p className="f12-mono-note">{selectedService.summary}</p>
                       <div className="f12-row-pair">
-                        {selectedService.id !== primaryDegradedService.id && (
+                        {!isEmptyDataset && selectedService.id !== primaryDegradedService.id && (
                           <Button
                             id={`${resolvedIdPrefix}-focus-degraded-svc`}
                             variant="secondary"
                             size="sm"
-                            onClick={() => setSelectedServiceId(primaryDegradedService.id)}
+                            onClick={() => {
+                              const targetId = `int-${resolvedIdPrefix}-svc-bar-${primaryDegradedService.id}`;
+                              document
+                                .getElementById(targetId)
+                                ?.focus({ preventScroll: true });
+                              pendingFocusTargetIdRef.current = targetId;
+                              setSelectedServiceId(primaryDegradedService.id);
+                            }}
                           >
                             {`Overlay ${primaryDegradedService.code} (${primaryDegradedService.errorRatePct} err)`}
                           </Button>
