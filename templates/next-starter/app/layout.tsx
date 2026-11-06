@@ -27,8 +27,11 @@ const mPlus1Code = localFont({
   ],
   variable: '--font-m-plus-1-code',
   display: 'swap',
+  // next/font only generates Arial/Times fallbacks. M PLUS 1 Code is a narrow (0.5em) monospace,
+  // so it gets metric-matched monospace fallbacks instead (`f12MonoFallback*` in
+  // styles/frame12.css): a cold font load then reflows nothing when the webfont swaps in.
   adjustFontFallback: false,
-  fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+  fallback: ['f12MonoFallbackConsolas', 'f12MonoFallback', 'ui-monospace', 'monospace'],
 });
 
 export const metadata: Metadata = {

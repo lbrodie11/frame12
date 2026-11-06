@@ -3,6 +3,10 @@
 import * as React from 'react';
 import { useSize } from '@/hooks/use-on-twos';
 
+// Bundlers (Next.js, webpack, Vite) statically replace `process.env.NODE_ENV`. Declared locally so
+// consumers without @types/node (e.g. Vite's react-ts template) still type-check this file.
+declare const process: { env: { NODE_ENV?: string } };
+
 export type PanelShape = 'rect' | 'slant-bottom' | 'slant-top';
 export type PanelVariant = 'expressive' | 'quiet';
 

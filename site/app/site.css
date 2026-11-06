@@ -264,7 +264,7 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   font-size: 15px;
   line-height: 1.55;
   color: var(--f-ink);
-  max-width: 68ch;
+  max-width: 34.25em;
 }
 
 .f12-muted-copy {
@@ -272,7 +272,7 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   font-size: 14px;
   line-height: 1.5;
   color: var(--f-ink-2);
-  max-width: 66ch;
+  max-width: 33.25em;
 }
 
 .f12-mono-note {
@@ -623,6 +623,35 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   .site-nav-link {
     padding: 5px 8px;
     font-size: 11px;
+  }
+  /* Narrow screens: one swipeable nav row instead of three wrapped rows, so content starts
+     ~120px higher. Links stay in the tab order; focusing one scrolls it into view. */
+  .site-nav {
+    margin-inline: -10px;
+  }
+  .site-nav-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 10px;
+    scrollbar-width: none;
+    padding: 4px 10px 6px;
+  }
+  .site-nav-list::-webkit-scrollbar {
+    display: none;
+  }
+  .site-nav-list > li {
+    flex: none;
+    scroll-snap-align: start;
+  }
+  .site-nav-link {
+    white-space: nowrap;
+  }
+  /* Tighter theme + motion switches so both share one row at 390px (they still wrap at 320px). */
+  .site-controls .f12-rng-btn {
+    min-width: 0;
+    padding: 5px 10px 4px;
   }
   .pose-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));

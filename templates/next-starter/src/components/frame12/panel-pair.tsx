@@ -3,6 +3,10 @@
 import * as React from 'react';
 import { Panel, usePanelVariantContext, type PanelProps, type PanelVariant } from './panel';
 
+// Bundlers (Next.js, webpack, Vite) statically replace `process.env.NODE_ENV`. Declared locally so
+// consumers without @types/node (e.g. Vite's react-ts template) still type-check this file.
+declare const process: { env: { NODE_ENV?: string } };
+
 export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: PanelVariant;
   top?: Omit<PanelProps, 'shape'>;

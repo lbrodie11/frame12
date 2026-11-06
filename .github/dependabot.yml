@@ -1,0 +1,30 @@
+# Weekly dependency updates. Grouped to keep PR volume reviewable; every PR runs the full CI
+# (build, 3-browser tests, smoke install, fresh create-next-app install).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      next-react:
+        patterns: ['next', 'react', 'react-dom', '@types/react', '@types/react-dom']
+      radix:
+        patterns: ['@radix-ui/*']
+      tooling:
+        patterns: ['typescript', 'esbuild', '@types/*']
+    ignore:
+      # The gallery, eval and lab harnesses pin React 18.3.1 on purpose: they hydrate with the
+      # React 18 UMD build to prove React 18 runtime compatibility (React 19 ships no UMD).
+      - dependency-name: react
+        update-types: ['version-update:semver-major']
+      - dependency-name: react-dom
+        update-types: ['version-update:semver-major']
+      # Playwright must move together with the CI container tag (scripts/check-playwright-image.mjs).
+      - dependency-name: playwright
+      - dependency-name: '@axe-core/playwright'
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

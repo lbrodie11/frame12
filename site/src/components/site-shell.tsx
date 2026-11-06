@@ -60,6 +60,19 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   const [themeOverride, setThemeOverride] = React.useState<ThemeMode | undefined>(undefined);
   const [hydrated, setHydrated] = React.useState(false);
   const [motion, setMotion] = React.useState<MotionMode>('stepped');
+  const navListRef = React.useRef<HTMLUListElement | null>(null);
+
+  // On narrow screens the nav is a single horizontally scrolling row: keep the current page's link
+  // visible. Only the list's own scrollLeft changes, so the page never jumps.
+  useIsomorphicLayoutEffect(() => {
+    const list = navListRef.current;
+    if (!list || list.scrollWidth <= list.clientWidth) return;
+    const active = list.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!active) return;
+    const offset = active.getBoundingClientRect().left - list.getBoundingClientRect().left;
+    const target = list.scrollLeft + offset - (list.clientWidth - active.offsetWidth) / 2;
+    list.scrollLeft = Math.max(0, Math.min(target, list.scrollWidth - list.clientWidth));
+  }, [pathname]);
 
   useIsomorphicLayoutEffect(() => {
     const mq =
@@ -218,7 +231,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
             </div>
 
             <nav aria-label="Primary" className="site-nav">
-              <ul className="site-nav-list" role="list">
+              <ul className="site-nav-list" role="list" ref={navListRef}>
                 {NAV_ITEMS.map((item) => {
                   const active =
                     item.href === '/'

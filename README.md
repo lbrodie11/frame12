@@ -31,7 +31,7 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 
 ### Requirements & Compatibility
 
-- **React & Next.js:** Tested on React `18.x` and type-checked/verified for React `19.x` (`element.props.ref` compatible) in Next.js `14+` App Router projects.
+- **React & Next.js:** Verified on React `18.3` (isolated Vite consumer: `tsc` against `@types/react` 18, SSR, hydration and interaction checks; plus the React 18 UMD component gallery in Chromium, Firefox and WebKit, and the eval and lab harnesses) and React `19` (documentation site, Next.js `15.5` starter, `create-next-app@latest` install, and `element.props.ref` runtime checks). The registry components have no Next.js dependency.
 - **Project setup:** An initialized `shadcn` project (`components.json` with a `@/*` path alias; tested with Radix-based `shadcn` styles such as `new-york` as well as `shadcn init -d` / `base-nova`). Or start from a pre-configured repo in [`templates/next-starter/`](templates/next-starter/).
 - **Styling:** Works standalone via scoped `.f12-*` CSS custom properties (`styles/frame12.css`). Tailwind CSS is optional (`styles/frame12-tailwind.css` is included if you want Tailwind v4 utility classes).
 - **Status:** Pre-1.0 and experimental (package version `0.1.0`). The registry ships 31 components, 3 application blocks (Developer Console, Workspace Settings, Revenue Recovery Analytics), the `use-on-twos` motion hook, and 3 font packages. Changes since `0.1.0` are listed under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md).
@@ -85,7 +85,7 @@ const mono = M_PLUS_1_Code({
   subsets: ['latin'],
   variable: '--font-m-plus-1-code',
   adjustFontFallback: false,
-  fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+  fallback: ['f12MonoFallbackConsolas', 'f12MonoFallback', 'ui-monospace', 'monospace'],
 });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -197,7 +197,7 @@ npm test                          # runs sync checks, doc checks, static linter,
 
 - Run the documentation site locally: `npm --workspace=@frame12/site run dev`
 - Run the standalone Next.js starter template: `npm --prefix templates/next-starter run dev`
-- Verify registry JSON placement and React 18/19 type-checking: `node scripts/smoke-install.mjs`
+- Verify registry JSON placement, React 19 runtime and the isolated React 18 + Vite consumer: `node scripts/smoke-install.mjs`
 - Run the 4-condition × 6-task (`24`-screen) guardrail & reference fixture suite: `node eval/agent-eval/run-eval.mjs`
 
 | Workspace / Directory | Contents |

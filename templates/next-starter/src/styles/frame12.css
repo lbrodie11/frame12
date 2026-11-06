@@ -1,10 +1,33 @@
 /* FRAME/12 Design System — Tokens, Panel Grammar, Screentone, and Motion on Twos.
    Works standalone without Tailwind. All rules are scoped to .f12-* classes. */
 
+/* Metric-matched monospace fallbacks for M PLUS 1 Code (advance width 0.50em, ascent 1.0,
+   descent -0.235, lineGap 0) so cold-network .woff2 swaps do not reflow labels or tables. */
+@font-face {
+  font-family: "f12MonoFallbackConsolas";
+  src: local("Consolas");
+  font-weight: 100 900;
+  size-adjust: 90.91%;
+  ascent-override: 110%;
+  descent-override: 25.85%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "f12MonoFallback";
+  src: local("Menlo"), local("DejaVu Sans Mono"), local("Courier New"), local("Liberation Mono"),
+    local("Cousine");
+  font-weight: 100 900;
+  size-adjust: 83.19%;
+  ascent-override: 120.21%;
+  descent-override: 28.25%;
+  line-gap-override: 0%;
+}
+
 :where(:root) {
   --font-f-display: var(--font-dela-gothic-one, "Dela Gothic One"), "Arial Black", "Helvetica Neue", sans-serif;
   --font-f-body: var(--font-zen-kaku-gothic-new, "Zen Kaku Gothic New"), "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-f-mono: var(--font-m-plus-1-code, "M PLUS 1 Code"), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-f-mono: var(--font-m-plus-1-code, "M PLUS 1 Code"), "f12MonoFallbackConsolas", "f12MonoFallback", ui-monospace, "SF Mono", Menlo, monospace;
 
   --f-gutter-pair: 12px;
   --f-gutter-scene: 20px;
@@ -1565,7 +1588,7 @@
   font-size: 13px;
   line-height: 1.45;
   color: var(--f-ink-2);
-  max-width: 46ch;
+  max-width: 23.2em;
   margin: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -1882,7 +1905,7 @@ button.f12-breadcrumb-link {
   font-size: 13px;
   color: var(--f-ink-2);
   margin: 6px 0 0;
-  max-width: 30ch;
+  max-width: 15.1em;
 }
 
 .f12-spark {
@@ -1920,6 +1943,9 @@ button.f12-breadcrumb-link {
   gap: 12px 24px;
   margin-bottom: 4px;
 }
+.f12-c01-hd > .f12-metric {
+  flex: 1 1 220px;
+}
 .f12-legend,
 .f12-legend-hint {
   display: flex;
@@ -1939,7 +1965,7 @@ button.f12-breadcrumb-link {
   gap: 6px;
 }
 .f12-legend-hint {
-  max-width: 26ch;
+  max-width: 13em;
 }
 .f12-sw {
   display: inline-block;
@@ -2631,14 +2657,14 @@ dialog.f12-dialog > .f12-cut {
   font-size: 15px;
   line-height: 1.55;
   color: var(--f-ink);
-  max-width: 68ch;
+  max-width: 34.25em;
 }
 .f12-muted-copy {
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
   color: var(--f-ink-2);
-  max-width: 66ch;
+  max-width: 33.25em;
 }
 .f12-mono-note {
   margin: 0;

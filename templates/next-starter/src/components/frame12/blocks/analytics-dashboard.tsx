@@ -1245,8 +1245,11 @@ function AnalyticsDashboardInner({
             Revenue Recovery
           </h1>
           <p className="f12-sub" id={`${resolvedIdPrefix}-subtitle`}>
-            Expressive storyboard establishing shot (<code className="f12-code-inline">C-01</code>
-            –<code className="f12-code-inline">C-04</code>) paired with Quiet period-comparison,
+            Expressive storyboard establishing shot{' '}
+            <span className="f12-nowrap">
+              (<code className="f12-code-inline">C-01</code>–<code className="f12-code-inline">C-04</code>)
+            </span>{' '}
+            paired with Quiet period-comparison,
             checkout-segment, and daily attribution ledgers reconciled from a single{' '}
             <code className="f12-code-inline">mulberry32(1207)</code> fixture.
           </p>

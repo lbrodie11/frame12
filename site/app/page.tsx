@@ -74,8 +74,8 @@ export default function HomePage() {
             <h2 className="f12-section-title">Panel grammar</h2>
             <p className="f12-body-copy">
               Every section is an ink-framed SVG polygon (2.5px mitered stroke) numbered in reading
-              order (<code className="f12-code-inline">C-01</code>,{' '}
-              <code className="f12-code-inline">C-02</code>…). Gutter width encodes relationships
+              order (<code className="f12-code-inline f12-nowrap">C-01</code>,{' '}
+              <code className="f12-code-inline f12-nowrap">C-02</code>…). Gutter width encodes relationships
               before any label is read: 12px pairs coupled metrics across a diagonal slant, 20px
               groups one scene, and 32px starts a new scene.
             </p>
