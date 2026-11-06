@@ -2714,7 +2714,7 @@ dialog.f12-dialog > .f12-cut {
 .f12-mono-note {
   margin: 0;
   font-family: var(--font-f-mono);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--f-ink-2);
 }
@@ -2731,6 +2731,15 @@ dialog.f12-dialog > .f12-cut {
   white-space: nowrap;
 }
 
+.f12-console .f12-hd > .f12-hd-text {
+  flex: 1 1 540px;
+}
+.f12-console .f12-sub {
+  max-width: 64ch;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 6px;
+}
 .f12-console-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -2761,7 +2770,52 @@ dialog.f12-dialog > .f12-cut {
   min-width: 0;
 }
 .f12-console .f12-int-row {
-  grid-template-columns: minmax(170px, 1.35fr) minmax(90px, 1.65fr) auto;
+  grid-template-columns: minmax(224px, 1.75fr) minmax(56px, 1fr) auto;
+  gap: var(--f-gutter-pair);
+}
+.f12-console .f12-int-name {
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.f12-console .f12-int-val {
+  font-size: 13px;
+}
+.f12-console-kpi-scene > .f12-panel > .f12-panel-body {
+  padding: 20px 18px 16px;
+}
+.f12-console-kpi-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--f-gutter-pair);
+  height: 100%;
+  min-width: 0;
+}
+.f12-console-kpi-card .f12-m-value {
+  margin-top: 4px;
+  line-height: 1.08;
+}
+.f12-console-kpi-card .f12-delta {
+  margin-top: 8px;
+  font-size: 12.5px;
+}
+.f12-console-kpi-spark {
+  margin-top: auto;
+}
+.f12-console-kpi-spark .f12-spark {
+  margin-top: 0;
+  padding-top: 4px;
+}
+.f12-console-kpi-spark .f12-spark-l {
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: 0.1em;
+}
+.f12-console-kpi-spark .f12-spark svg {
+  height: 38px;
 }
 .f12-console-kv-list {
   display: grid;
@@ -2770,32 +2824,94 @@ dialog.f12-dialog > .f12-cut {
   margin: 0;
   min-width: 0;
 }
+.f12-console-kv-list.f12-console-kpi-foot {
+  margin-top: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .f12-console-kv-item {
   display: flex;
   flex-direction: column;
   gap: 0;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 8px 11px;
   border: 1px solid var(--f-grid);
   background: var(--f-sheet);
 }
+.f12-console-kpi-foot .f12-console-kv-item {
+  padding: 7px 10px;
+}
 .f12-console-kv-label {
   font-family: var(--font-f-mono);
-  font-size: 10px;
+  font-size: 11.5px;
+  line-height: 1.35;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--f-ink-2);
 }
+.f12-console-kpi-foot .f12-console-kv-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
 .f12-console-kv-value {
-  margin-top: 2px;
+  margin-top: 3px;
   font-family: var(--font-f-mono);
-  font-size: 12.5px;
+  font-size: 13.5px;
+  line-height: 1.4;
   font-weight: 700;
   color: var(--f-ink);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+.f12-console-kpi-foot .f12-console-kv-value {
+  font-size: 13px;
+}
+.f12-console-chart-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--f-gutter-pair);
+  min-width: 0;
+}
+.f12-console-kbd-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 3px 8px;
+  border: 1px dashed var(--f-rule);
+  background: var(--f-sheet);
+  font-family: var(--font-f-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--f-ink);
+  white-space: nowrap;
+}
+.f12-console-kbd-hint kbd {
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 4px;
+  margin-inline-end: 4px;
+  border: 1px solid var(--f-rule);
+  background: var(--f-panel);
+  color: var(--f-ink);
+}
+.f12-console-investigate-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--f-gutter-pair);
+  padding-top: 4px;
+  border-top: 1px solid var(--f-grid);
+  min-width: 0;
+}
+.f12-console-investigate-bar > .f12-mono-note {
+  flex: 1 1 240px;
 }
 .f12-console-code {
   margin: 0;
@@ -2827,7 +2943,7 @@ dialog.f12-dialog > .f12-cut {
   gap: var(--f-gutter-pair);
   padding: 8px 0;
   border-bottom: 1px solid var(--f-grid);
-  font-size: 13px;
+  font-size: 13.5px;
 }
 .f12-console-feed-item:last-child {
   border-bottom: 0;
@@ -2836,7 +2952,7 @@ dialog.f12-dialog > .f12-cut {
 .f12-console-quiet-title {
   margin: 0;
   font-family: var(--font-f-mono);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2845,8 +2961,8 @@ dialog.f12-dialog > .f12-cut {
 .f12-console-quiet-sub {
   margin: 0;
   font-family: var(--font-f-body);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 13.5px;
+  line-height: 1.5;
   color: var(--f-ink-2);
 }
 
@@ -2938,6 +3054,13 @@ dialog.f12-dialog > .f12-cut {
   }
 }
 
+@container (max-width: 1080px) {
+  .f12-console-overview-scene.f12-scene.f12-scene-equal,
+  .f12-console-kv-list.f12-console-kpi-foot {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @container (max-width: 900px) {
   .f12-settings .f12-tabs-list {
     flex-direction: column;
@@ -2979,6 +3102,7 @@ dialog.f12-dialog > .f12-cut {
   .f12-console-filters,
   .f12-console-grid-2,
   .f12-console-kv-list,
+  .f12-console-kv-list.f12-console-kpi-foot,
   .f12-settings .f12-settings-posture-panel .f12-console-kv-list {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3004,8 +3128,10 @@ dialog.f12-dialog > .f12-cut {
     grid-template-areas: "name val" "bar bar";
     gap: 8px 12px;
   }
-  .f12-int-name {
+  .f12-int-name,
+  .f12-console .f12-int-name {
     grid-area: name;
+    white-space: normal;
   }
   .f12-int-val {
     grid-area: val;

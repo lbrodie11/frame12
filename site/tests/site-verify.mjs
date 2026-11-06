@@ -795,7 +795,7 @@ try {
     const slo24hOk = await page.evaluate(() => {
       const tag = document.getElementById('dev-console-slo-status-tag');
       return (
-        Boolean(tag?.textContent?.includes('SLO WITHIN BUDGET')) &&
+        Boolean(tag?.textContent?.includes('GATEWAY SLO: HEALTHY')) &&
         Boolean(tag?.classList.contains('f12-status-success'))
       );
     });
@@ -807,7 +807,7 @@ try {
       return (
         text.includes('9,840,200') &&
         text.includes('OVERLAY: SVC-03') &&
-        Boolean(tag?.textContent?.includes('SLO BUDGET BREACHED')) &&
+        Boolean(tag?.textContent?.includes('GATEWAY SLO: BREACHED')) &&
         Boolean(tag?.classList.contains('f12-status-warning'))
       );
     });
@@ -815,7 +815,7 @@ try {
     const slo30dOk = await page.evaluate(() => {
       const tag = document.getElementById('dev-console-slo-status-tag');
       return (
-        Boolean(tag?.textContent?.includes('SLO BUDGET BREACHED')) &&
+        Boolean(tag?.textContent?.includes('GATEWAY SLO: BREACHED')) &&
         Boolean(tag?.classList.contains('f12-status-warning'))
       );
     });
@@ -951,19 +951,26 @@ try {
         0,
         ...serviceNames.map((el) => el.getClientRects().length),
       );
-      const expressivePanels = [
+      const overviewPanels = [
         ...document.querySelectorAll(
-          '#dev-console-sheet .f12-tabs-content:not([hidden]) .f12-panel:not(.f12-panel-quiet)',
+          '#dev-console-sheet .f12-console-overview-scene > .f12-panel',
         ),
       ];
       const heightDiff =
-        expressivePanels.length === 2
+        overviewPanels.length === 2
           ? Math.abs(
-              expressivePanels[0].getBoundingClientRect().height -
-                expressivePanels[1].getBoundingClientRect().height,
+              overviewPanels[0].getBoundingClientRect().height -
+                overviewPanels[1].getBoundingClientRect().height,
             )
           : 999;
-      return balloons === 1 && maxServiceLines <= 2 && heightDiff <= 120;
+      const text = document.getElementById('dev-console-sheet')?.textContent || '';
+      const hasTruthfulChartHeading = text.includes('Gateway Throughput & Selected Service');
+      return (
+        balloons === 1 &&
+        maxServiceLines <= 2 &&
+        heightDiff <= 120 &&
+        hasTruthfulChartHeading
+      );
     });
     await page.click('#dev-console-overview-goto-logs');
     await page.waitForTimeout(40);
