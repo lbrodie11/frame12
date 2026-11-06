@@ -4,6 +4,8 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-06
+
 ### Added
 
 - **v0.2.0 Release-Readiness Audit & Targeted Fixes (Work Package 10):**

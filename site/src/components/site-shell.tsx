@@ -226,7 +226,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
             <div className="site-brand-row">
               <Link href="/" className="site-brand" id="site-brand-link">
                 <span className="site-brand-mark">FRAME/12</span>
-                <Tag>v0.1 · On Twos</Tag>
+                <Tag>v0.2 · On Twos</Tag>
               </Link>
 
               <div className="site-controls" role="group" aria-label="Theme and motion controls">
