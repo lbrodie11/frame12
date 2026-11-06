@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
+import { Analytics } from '@vercel/analytics/next';
 import '@/styles/frame12.css';
 import './site.css';
 import { SiteShell } from '@/components/site-shell';
@@ -69,6 +70,7 @@ export default function RootLayout({
       </head>
       <body>
         <SiteShell>{children}</SiteShell>
+        {process.env.VERCEL === '1' ? <Analytics /> : null}
       </body>
     </html>
   );

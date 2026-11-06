@@ -14,19 +14,28 @@ For worked screen examples, common drift fixes, and ESLint enforcement, read [re
 
 ## 1. Installation & Setup
 
-Install the full kit or individual components via the `shadcn` CLI:
+FRAME/12 is published in the official `shadcn` registry directory (`https://ui.shadcn.com/r/registries.json`) under the lowercase **`@frame12`** namespace. Install the full kit, application blocks, or individual components via `@frame12/<name>` (or via full manifest URLs at `https://frame12.dev/r/<name>.json`):
 
 ```bash
 # Full kit (styles, hooks, 26 core components, and 5 primitive adapters)
-npx shadcn@latest add https://frame12.dev/r/frame12.json
+npx shadcn@latest add @frame12/frame12
 
-# Or individual registry items
-npx shadcn@latest add https://frame12.dev/r/frame12-styles.json
+# Full-page application blocks (MIT)
+npx shadcn@latest add @frame12/developer-console
+npx shadcn@latest add @frame12/workspace-settings
+npx shadcn@latest add @frame12/analytics-dashboard
+
+# Or individual registry items via @frame12/<name>
+npx shadcn@latest add @frame12/frame12-styles
+npx shadcn@latest add @frame12/sheet
+npx shadcn@latest add @frame12/scene
+npx shadcn@latest add @frame12/panel
+npx shadcn@latest add @frame12/panel-pair
+npx shadcn@latest add @frame12/tone-area-chart
+
+# Direct manifest URL alternative (supported everywhere)
+npx shadcn@latest add https://frame12.dev/r/frame12.json
 npx shadcn@latest add https://frame12.dev/r/sheet.json
-npx shadcn@latest add https://frame12.dev/r/scene.json
-npx shadcn@latest add https://frame12.dev/r/panel.json
-npx shadcn@latest add https://frame12.dev/r/panel-pair.json
-npx shadcn@latest add https://frame12.dev/r/tone-area-chart.json
 ```
 
 > **Local / Self-Hosted Registry:** `https://frame12.dev` is the live production registry origin (`NEXT_PUBLIC_SITE_URL`). When working offline or locally, serve `site/public/r/` (`npm --workspace=@frame12/site run dev`) and pass `http://localhost:3000/r/frame12.json` to `npx shadcn@latest add`, or start from `templates/next-starter/`.

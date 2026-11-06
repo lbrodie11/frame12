@@ -96,12 +96,12 @@ export default function ComponentsIndexPage() {
             <div className="f12-row-between">
               <div className="f12-stack-pair">
                 <div className="f12-row-pair">
-                  <Badge burst={false}>Bundle · frame12.json</Badge>
+                  <Badge burst={false}>Bundle · @frame12/frame12</Badge>
                   <span className="f12-mono-note">
                     26 core components + 5 primitive adapters + useOnTwos hooks + CSS tokens
                   </span>
                 </div>
-                <h2 className="f12-section-title">Install via shadcn CLI</h2>
+                <h2 className="f12-section-title">Install via shadcn CLI (@frame12 namespace or URL)</h2>
               </div>
               <div className="f12-row-pair">
                 <Link
@@ -132,7 +132,12 @@ export default function ComponentsIndexPage() {
             </div>
             <CopyCommand
               id="comp-copy-bundle"
-              label="Install full FRAME/12 registry bundle"
+              label="Install full FRAME/12 registry bundle (@frame12 namespace)"
+              command="npx shadcn@latest add @frame12/frame12"
+            />
+            <CopyCommand
+              id="comp-copy-bundle-url"
+              label="Full manifest URL alternative"
               command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/frame12.json`}
             />
           </div>
