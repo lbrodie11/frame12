@@ -84,6 +84,21 @@ function decisionTagStatus(
   return 'warning';
 }
 
+function renderSoftBreakUnderscores(text: string): React.ReactNode {
+  if (!text.includes('_')) return text;
+  const parts = text.split('_');
+  return parts.map((part, idx) => (
+    <React.Fragment key={idx}>
+      {part}
+      {idx < parts.length - 1 ? (
+        <>
+          _<wbr />
+        </>
+      ) : null}
+    </React.Fragment>
+  ));
+}
+
 function AgentApprovalInboxContent() {
   const { motion } = useSiteSettings();
   const toast = useOptionalToast();
@@ -96,6 +111,9 @@ function AgentApprovalInboxContent() {
   const [ackByScenario, setAckByScenario] = React.useState<Record<string, boolean>>({});
   const [noteByScenario, setNoteByScenario] = React.useState<Record<string, string>>({});
   const [longArgExpandedByScenario, setLongArgExpandedByScenario] = React.useState<
+    Record<string, boolean>
+  >({});
+  const [overrideOpenByScenario, setOverrideOpenByScenario] = React.useState<
     Record<string, boolean>
   >({});
   const [history, setHistory] = React.useState<SimulatedDecisionHistoryEntry[]>(
@@ -229,17 +247,15 @@ function AgentApprovalInboxContent() {
   };
 
   const handleTryMisleadingScenario = () => {
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.scenarioId === 'apr-misleading-2500'
-          ? structuredClone(INITIAL_APPROVAL_REQUESTS[1])
-          : r,
-      ),
-    );
     setSelectedId('apr-misleading-2500');
-    setClockPresetId('clock-default');
-    setAckByScenario((prev) => ({ ...prev, 'apr-misleading-2500': false }));
     focusPersistentQueueItem('apr-misleading-2500');
+    const reviewPanel = document.getElementById('exp-approval-review-panel');
+    if (reviewPanel instanceof HTMLElement) {
+      reviewPanel.scrollIntoView({
+        behavior: motion === 'cut' ? 'auto' : 'smooth',
+        block: 'nearest',
+      });
+    }
   };
 
   const handleSimulateMidReviewChange = () => {
@@ -298,6 +314,7 @@ function AgentApprovalInboxContent() {
     setAckByScenario({});
     setNoteByScenario({});
     setLongArgExpandedByScenario({});
+    setOverrideOpenByScenario({});
     setHistory(INITIAL_DECISION_HISTORY);
     toast?.toast({
       status: 'info',
@@ -652,10 +669,10 @@ function AgentApprovalInboxContent() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div>{row.trustedExpectedDisplay}</div>
+                        <div>{renderSoftBreakUnderscores(row.trustedExpectedDisplay)}</div>
                       </TableCell>
                       <TableCell>
-                        <code>{row.claimedDisplay}</code>
+                        <code>{renderSoftBreakUnderscores(row.claimedDisplay)}</code>
                       </TableCell>
                       <TableCell className="f12-nowrap">
                         {row.isMismatch ? (
@@ -879,41 +896,6 @@ function AgentApprovalInboxContent() {
                 </span>
               </p>
 
-              {/* Mismatch Explicit Acknowledgment Checkbox (framed explicitly as an Unsafe Override Demo) */}
-              {selectedEvaluated.canApproveOrReject &&
-              selectedEvaluated.mismatches.length > 0 &&
-              selectedEvaluated.requiredAcknowledgmentText ? (
-                <Panel
-                  variant="quiet"
-                  label="Unsafe override demonstration for audit-trail testing"
-                >
-                  <div className="f12-stack-pair">
-                    <div className="f12-row-pair">
-                      <Tag status="danger">
-                        UNSAFE OVERRIDE DEMONSTRATION · AUDIT-TRAIL TEST ONLY
-                      </Tag>
-                      <span className="f12-mono-note">
-                        Not recommended: acknowledging a mismatch does not make a policy-violating
-                        tool call safe. Exists only to test how an audit log records an explicit
-                        operator override.
-                      </span>
-                    </div>
-                    <Checkbox
-                      id="exp-approval-mismatch-ack"
-                      checked={ackChecked}
-                      onCheckedChange={(checked) =>
-                        setAckByScenario((prev) => ({
-                          ...prev,
-                          [selectedReq.scenarioId]: checked,
-                        }))
-                      }
-                      label={selectedEvaluated.requiredAcknowledgmentText}
-                      hint="If overridden and approved, this exact acknowledgment statement is recorded in the simulated decision history."
-                    />
-                  </div>
-                </Panel>
-              ) : null}
-
               {/* Plain-language reason when Approve is disabled due to expiry, change, or prior decision */}
               {!selectedEvaluated.canApproveOrReject &&
               selectedEvaluated.disableApproveReason ? (
@@ -950,6 +932,17 @@ function AgentApprovalInboxContent() {
 
               <div className="f12-row-between">
                 <div className="f12-row-pair">
+                  {selectedEvaluated.mismatches.length === 0 ? (
+                    <Button
+                      id="exp-approval-approve-btn"
+                      variant="primary"
+                      disabled={approveDisabled}
+                      onClick={() => handleDecision('APPROVED')}
+                    >
+                      Approve {selectedReq.toolName} ($
+                      {formatCentsUsdNumber(selectedReq.input.amountCents)})
+                    </Button>
+                  ) : null}
                   <Button
                     id="exp-approval-reject-btn"
                     variant={selectedEvaluated.mismatches.length > 0 ? 'primary' : 'secondary'}
@@ -966,16 +959,6 @@ function AgentApprovalInboxContent() {
                   >
                     Request Correction
                   </Button>
-                  <Button
-                    id="exp-approval-approve-btn"
-                    variant={selectedEvaluated.mismatches.length > 0 ? 'secondary' : 'primary'}
-                    disabled={approveDisabled}
-                    onClick={() => handleDecision('APPROVED')}
-                  >
-                    {selectedEvaluated.mismatches.length > 0
-                      ? `Override & Approve ${selectedReq.toolName} ($${formatCentsUsdNumber(selectedReq.input.amountCents)})`
-                      : `Approve ${selectedReq.toolName} ($${formatCentsUsdNumber(selectedReq.input.amountCents)})`}
-                  </Button>
                 </div>
 
                 <div className="f12-row-pair">
@@ -990,6 +973,65 @@ function AgentApprovalInboxContent() {
                   </Button>
                 </div>
               </div>
+
+              {/* Collapsed Unsafe Override Disclosure (only when mismatches exist, placed below recommended actions) */}
+              {selectedEvaluated.mismatches.length > 0 ? (
+                <details
+                  className="f12-tbl"
+                  id="exp-approval-unsafe-override-details"
+                  open={Boolean(overrideOpenByScenario[selectedReq.scenarioId])}
+                  onToggle={(e) => {
+                    const isOpen = (e.currentTarget as HTMLDetailsElement).open;
+                    setOverrideOpenByScenario((prev) =>
+                      prev[selectedReq.scenarioId] === isOpen
+                        ? prev
+                        : { ...prev, [selectedReq.scenarioId]: isOpen },
+                    );
+                  }}
+                >
+                  <summary id="exp-approval-unsafe-override-summary">
+                    Test an unsafe override (audit-trail demonstration only — not recommended)
+                  </summary>
+                  <div className="f12-stack-pair">
+                    <div className="f12-row-pair">
+                      <Tag status="danger">
+                        UNSAFE OVERRIDE DEMONSTRATION · AUDIT-TRAIL TEST ONLY
+                      </Tag>
+                      <span className="f12-mono-note">
+                        Not recommended: acknowledging a mismatch does not make a policy-violating
+                        tool call safe. Exists only to test how an audit log records an explicit
+                        operator override.
+                      </span>
+                    </div>
+                    {selectedEvaluated.requiredAcknowledgmentText ? (
+                      <Checkbox
+                        id="exp-approval-mismatch-ack"
+                        checked={ackChecked}
+                        disabled={!selectedEvaluated.canApproveOrReject}
+                        onCheckedChange={(checked) =>
+                          setAckByScenario((prev) => ({
+                            ...prev,
+                            [selectedReq.scenarioId]: checked,
+                          }))
+                        }
+                        label={selectedEvaluated.requiredAcknowledgmentText}
+                        hint="If overridden and approved, this exact acknowledgment statement is recorded in the simulated decision history."
+                      />
+                    ) : null}
+                    <div className="f12-row-pair">
+                      <Button
+                        id="exp-approval-approve-btn"
+                        variant="secondary"
+                        disabled={approveDisabled}
+                        onClick={() => handleDecision('APPROVED')}
+                      >
+                        Override &amp; Approve {selectedReq.toolName} ($
+                        {formatCentsUsdNumber(selectedReq.input.amountCents)})
+                      </Button>
+                    </div>
+                  </div>
+                </details>
+              ) : null}
             </div>
           </div>
         </Panel>
