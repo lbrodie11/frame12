@@ -75,6 +75,11 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ### Changed
 
+- **`SegmentedControl` no longer slides on page load (`registry/ui/segmented-control.tsx`):**
+  - **The bug:** a value restored right after hydration animated across from the server-rendered default. On frame12.dev, reloading in dark mode (saved choice or OS dark) showed the theme switch's indicator appear under **Light** and slide to **Dark**. Any app restoring a saved theme, filter, or tab on load hit the same thing.
+  - **The fix:** the indicator now animates only after it has been painted once. Restored values snap into place, and later changes (clicks, keyboard, programmatic resets) still step "on twos". Reduced motion is unaffected.
+  - **Tests:** a gallery fixture plus a unit test assert 0 indicator transitions for a value restored on mount and at least 1 for a later click. A site test reloads `/` with saved dark and with OS dark and requires the indicator to start under Dark with no transition.
+
 - **Breadcrumb Navigation Contract (`registry/ui/breadcrumb.tsx`, all three blocks):**
   - Added `onSelect` to `BreadcrumbEntry` and a `BreadcrumbButton` export: in-page levels (a tab, a filter scope) now render as a real `<button type="button">` with link chrome instead of an `<a href="#…">` whose click handler calls `preventDefault()`. Fake hash links offered open-in-new-tab and copy-link affordances that led to dead `#…` URLs and hijacked Ctrl/⌘-click.
   - `href` + `onClick` items now skip `onClick` on modified clicks (Ctrl/⌘/Shift/Alt), so the browser opens the link natively (matching `Pagination`).

@@ -2231,6 +2231,39 @@ await page.waitForSelector('#unit-test-fixtures');
   }
 }
 
+// SegmentedControl: a value restored right after mount (saved theme/filter/tab) must snap into
+// place with no indicator transition, while a real click afterwards still animates.
+{
+  const readRestored = () =>
+    page.evaluate(() => {
+      const wrap = document.getElementById('fixture-restored-seg');
+      const ind = wrap.querySelector('.f12-rng-ind');
+      const pressed = wrap.querySelector('[aria-pressed="true"]');
+      return {
+        runs: Number(wrap.getAttribute('data-transition-runs')),
+        pressed: pressed?.id ?? null,
+        indOnPressed:
+          !!ind &&
+          !!pressed &&
+          Math.abs(ind.getBoundingClientRect().left - pressed.getBoundingClientRect().left) <= 3,
+      };
+    });
+  const afterMount = await readRestored();
+  await page.click('#fixture-restored-seg-a');
+  await page.waitForTimeout(400);
+  const afterClick = await readRestored();
+  check(
+    afterMount.runs === 0 &&
+      afterMount.pressed === 'fixture-restored-seg-c' &&
+      afterMount.indOnPressed &&
+      afterClick.runs >= 1 &&
+      afterClick.pressed === 'fixture-restored-seg-a' &&
+      afterClick.indOnPressed,
+    'SegmentedControl: value restored right after mount snaps the indicator into place (0 transitions), and a later click still animates',
+    JSON.stringify({ afterMount, afterClick }),
+  );
+}
+
 check(errors.length === 0, 'gallery unit run: zero console or page errors', errors[0] || '');
 
 await ctx.close();
