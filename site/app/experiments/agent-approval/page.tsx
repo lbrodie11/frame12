@@ -57,6 +57,9 @@ function statusTagMeta(
   if (effectiveStatus === 'rejected') {
     return { status: 'danger', label: 'REJECTED (LOCAL DEMO)' };
   }
+  if (effectiveStatus === 'correction-requested') {
+    return { status: 'info', label: 'CORRECTION REQUESTED' };
+  }
   if (effectiveStatus === 'expired') {
     return { status: 'warning', label: 'EXPIRED · STALE' };
   }
@@ -77,6 +80,7 @@ function decisionTagStatus(
 ): TagStatus {
   if (decision === 'APPROVED') return 'success';
   if (decision === 'REJECTED') return 'danger';
+  if (decision === 'CORRECTION_REQUESTED') return 'info';
   return 'warning';
 }
 
@@ -149,7 +153,9 @@ function AgentApprovalInboxContent() {
     }
   }, []);
 
-  const handleDecision = (decision: 'APPROVED' | 'REJECTED') => {
+  const handleDecision = (
+    decision: 'APPROVED' | 'REJECTED' | 'CORRECTION_REQUESTED',
+  ) => {
     if (!selectedEvaluated.canApproveOrReject) return;
     if (
       decision === 'APPROVED' &&
@@ -160,7 +166,11 @@ function AgentApprovalInboxContent() {
     }
 
     const nextStatus: ApprovalLifecycleState =
-      decision === 'APPROVED' ? 'approved' : 'rejected';
+      decision === 'APPROVED'
+        ? 'approved'
+        : decision === 'REJECTED'
+          ? 'rejected'
+          : 'correction-requested';
 
     // Move focus to the persistent queue item before this button disables itself
     focusPersistentQueueItem(selectedReq.scenarioId);
@@ -177,6 +187,13 @@ function AgentApprovalInboxContent() {
         ? selectedEvaluated.requiredAcknowledgmentText
         : null;
 
+    const summaryText =
+      decision === 'APPROVED'
+        ? `Approved ${selectedReq.toolName} (${selectedReq.input.orderId}, $${formatCentsUsdNumber(selectedReq.input.amountCents)} ${selectedReq.input.currency} to ${selectedReq.input.destination}) with ${selectedEvaluated.mismatches.length} mismatch(es).`
+        : decision === 'REJECTED'
+          ? `Rejected ${selectedReq.toolName} (${selectedReq.input.orderId}, proposed $${formatCentsUsdNumber(selectedReq.input.amountCents)} ${selectedReq.input.currency} to ${selectedReq.input.destination}).`
+          : `Requested correction on ${selectedReq.toolName} (${selectedReq.input.orderId}): returned to agent to reconcile $${formatCentsUsdNumber(selectedReq.input.amountCents)} ${selectedReq.input.currency} tool input against supporting records.`;
+
     const newEntry: SimulatedDecisionHistoryEntry = {
       id: `hist-${Date.now()}-${selectedReq.scenarioId}`,
       timestampIso: activeClock.iso,
@@ -187,10 +204,7 @@ function AgentApprovalInboxContent() {
       conversationId: selectedReq.conversation.conversationId,
       decision,
       actor: 'operator:demo-reviewer (local state)',
-      summary:
-        decision === 'APPROVED'
-          ? `Approved ${selectedReq.toolName} (${selectedReq.input.orderId}, $${formatCentsUsdNumber(selectedReq.input.amountCents)} ${selectedReq.input.currency} to ${selectedReq.input.destination}) with ${selectedEvaluated.mismatches.length} mismatch(es).`
-          : `Rejected ${selectedReq.toolName} (${selectedReq.input.orderId}, proposed $${formatCentsUsdNumber(selectedReq.input.amountCents)} ${selectedReq.input.currency} to ${selectedReq.input.destination}).`,
+      summary: summaryText,
       acknowledgmentRecorded: recordedAck,
       operatorNote: trimmedNote,
     };
@@ -198,13 +212,34 @@ function AgentApprovalInboxContent() {
     setHistory((prev) => [newEntry, ...prev]);
 
     toast?.toast({
-      status: decision === 'APPROVED' ? 'success' : 'danger',
+      status:
+        decision === 'APPROVED'
+          ? 'success'
+          : decision === 'REJECTED'
+            ? 'danger'
+            : 'info',
       title: `Local Demo State: ${decision} (${selectedReq.scenarioCode})`,
       description:
         decision === 'APPROVED'
           ? `Simulated addToolApprovalResponse({ id: "${selectedReq.approvalId}", approved: true }). Zero external side effects.`
-          : `Simulated addToolApprovalResponse({ id: "${selectedReq.approvalId}", approved: false }). Execution denied.`,
+          : decision === 'REJECTED'
+            ? `Simulated addToolApprovalResponse({ id: "${selectedReq.approvalId}", approved: false }). Execution denied.`
+            : `Simulated addToolApprovalResponse({ id: "${selectedReq.approvalId}", approved: false, reason: "Requested parameter correction" }).`,
     });
+  };
+
+  const handleTryMisleadingScenario = () => {
+    setRequests((prev) =>
+      prev.map((r) =>
+        r.scenarioId === 'apr-misleading-2500'
+          ? structuredClone(INITIAL_APPROVAL_REQUESTS[1])
+          : r,
+      ),
+    );
+    setSelectedId('apr-misleading-2500');
+    setClockPresetId('clock-default');
+    setAckByScenario((prev) => ({ ...prev, 'apr-misleading-2500': false }));
+    focusPersistentQueueItem('apr-misleading-2500');
   };
 
   const handleSimulateMidReviewChange = () => {
@@ -304,13 +339,14 @@ function AgentApprovalInboxContent() {
             <Badge id="exp-approval-experimental-badge" burst={false}>
               EXPERIMENTAL PROTOTYPE · NOT A REGISTRY BLOCK
             </Badge>
-            <Tag status="warning">OWASP ASI09 TRUST-EXPLOITATION DEFENSE</Tag>
-            <Tag status="neutral">DETERMINISTIC LOCAL FIXTURES ONLY</Tag>
+            <Tag status="warning">EVIDENCE-FIRST HUMAN REVIEW</Tag>
+            <Tag status="neutral">SIMULATED LOCAL DATA ONLY</Tag>
           </div>
           <h1 className="f12-title">Agent Approval Inbox</h1>
           <p className="f12-sub">
-            Evidence-first human review for AI tool calls: operators inspect the{' '}
-            <strong>actual proposed tool name and arguments first</strong>, cross-check{' '}
+            An AI says it&apos;s refunding <strong>$25</strong>. Its actual instructions request{' '}
+            <strong>$2,500</strong>. Would you catch the difference before approving it? Inspect
+            the <strong>actual proposed tool name and arguments first</strong>, cross-check{' '}
             <strong>independent local fixture records second</strong>, and read the{' '}
             <strong>agent&apos;s own unverified explanation last</strong>.
           </p>
@@ -320,8 +356,16 @@ function AgentApprovalInboxContent() {
           <div
             className="f12-row-pair"
             role="group"
-            aria-label="Injectable evaluation clock and demonstration reset"
+            aria-label="Scenario jump, injectable evaluation clock, and demonstration reset"
           >
+            <Button
+              id="exp-approval-try-misleading-btn"
+              variant="primary"
+              size="sm"
+              onClick={handleTryMisleadingScenario}
+            >
+              Try the Misleading $2,500 Refund
+            </Button>
             <SegmentedControl
               idPrefix="exp-approval-clock"
               ariaLabel="Injectable evaluation clock"
@@ -427,7 +471,7 @@ function AgentApprovalInboxContent() {
 
             <Panel variant="quiet" label="Queue legend and reading-order rule">
               <div className="f12-stack-pair">
-                <span className="f12-cmd-label">WHY READING ORDER MATTERS (ASI09)</span>
+                <span className="f12-cmd-label">WHY READING ORDER MATTERS (EVIDENCE BEFORE PROSE)</span>
                 <p className="f12-mono-note">
                   When an approval card leads with the model&apos;s polite explanation, operators
                   anchor on the prose and rubber-stamp destructive parameters. Cut C-02 enforces
@@ -538,9 +582,9 @@ function AgentApprovalInboxContent() {
             >
               <div className="f12-exp-step-head">
                 <h3 className="f12-exp-step-title" id="exp-approval-step-1-heading">
-                  01 · Actual Proposed Tool Call &amp; Structured Arguments (Authoritative)
+                  01 · Inspect: Actual Proposed Tool Call &amp; Structured Arguments (Authoritative)
                 </h3>
-                <Tag status="info">STEP 1 OF 3 · INSPECT FIRST</Tag>
+                <Tag status="info">INSPECT · STEP 1 OF 3</Tag>
               </div>
 
               <div className="f12-exp-kv-grid">
@@ -574,7 +618,8 @@ function AgentApprovalInboxContent() {
                 <TableCaption>
                   Deterministic field-by-field comparison of actual proposed tool arguments against
                   trusted local fixture records and structured agent claims (mismatched fields
-                  pinned first).
+                  pinned first). Limitation: compares structured <code>claims</code>—does not
+                  verify free-form prose on its own.
                 </TableCaption>
                 <TableHeader>
                   <TableRow>
@@ -681,9 +726,9 @@ function AgentApprovalInboxContent() {
             >
               <div className="f12-exp-step-head">
                 <h3 className="f12-exp-step-title" id="exp-approval-step-2-heading">
-                  02 · Independent Supporting Context (Labeled Local Fixture Records)
+                  02 · Inspect: Independent Supporting Context (Labeled Local Fixture Records)
                 </h3>
-                <Tag status="neutral">STEP 2 OF 3 · DETERMINISTIC FIXTURES</Tag>
+                <Tag status="neutral">INSPECT · STEP 2 OF 3</Tag>
               </div>
               <p className="f12-mono-note">
                 Fetched directly from labeled local fixture records by <code>orderId</code> and
@@ -747,9 +792,9 @@ function AgentApprovalInboxContent() {
             >
               <div className="f12-exp-step-head">
                 <h3 className="f12-exp-step-title" id="exp-approval-step-3-heading">
-                  03 · Agent&apos;s description (unverified)
+                  03 · Inspect: Agent&apos;s description (unverified)
                 </h3>
-                <Tag status="warning">STEP 3 OF 3 · UNTRUSTED MODEL OUTPUT</Tag>
+                <Tag status="warning">INSPECT · STEP 3 OF 3 · UNTRUSTED PROSE</Tag>
               </div>
 
               <div className="f12-exp-unverified-box">
@@ -766,11 +811,17 @@ function AgentApprovalInboxContent() {
                 >
                   &ldquo;{selectedReq.agentExplanation}&rdquo;
                 </blockquote>
+                <p className="f12-mono-note" id="exp-approval-prose-limitation-note">
+                  <strong>Verification Scope Limitation:</strong> Deterministic comparison checks
+                  the structured <code>claims</code> object against tool <code>input</code> and{' '}
+                  <code>trustedRecords</code>. It does <strong>not</strong> verify whether free-form
+                  AI prose is truthful on its own—always authorize based on Step 01 and Step 02.
+                </p>
                 <div className="f12-cmd-box">
                   <div className="f12-cmd-head">
                     <span className="f12-cmd-label">
                       AGENT STRUCTURED <code>claims</code> OBJECT (COMPARED FIELD-BY-FIELD IN STEP
-                      01; PROSE IS NEVER PARSED)
+                      01; FREE-FORM PROSE IS NOT VERIFIED)
                     </span>
                   </div>
                   <pre className="f12-cmd-pre" id="exp-approval-agent-claims-pre">
@@ -789,10 +840,21 @@ function AgentApprovalInboxContent() {
             >
               <div className="f12-exp-step-head">
                 <h3 className="f12-exp-step-title" id="exp-approval-step-4-heading">
-                  04 · What Happens After Approval &amp; Operator Decision Controls
+                  Decide · Operator Action Gate &amp; Post-Approval Impact
                 </h3>
-                <Tag status="neutral">LOCAL STATE SIMULATION</Tag>
+                <Tag status="neutral">DECIDE · STEP 4 (AFTER INSPECTING STEPS 1–3)</Tag>
               </div>
+
+              {selectedEvaluated.mismatches.length > 0 ? (
+                <Alert
+                  id="exp-approval-recommended-safer-path"
+                  status="danger"
+                  density="compact"
+                  live="off"
+                  title="Recommended Safer Decision: Reject Tool Call or Request Correction"
+                  description={`The AI claims $${selectedReq.claims.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}, while the actual tool call executes $${formatCentsUsdNumber(selectedReq.input.amountCents)} ${selectedReq.input.currency} with ${selectedEvaluated.mismatches.length} policy/record mismatch(es). In real operations, reject this tool call or return it for parameter correction rather than overriding.`}
+                />
+              ) : null}
 
               <div className="f12-exp-kv-grid">
                 <div className="f12-exp-kv-card">
@@ -817,19 +879,23 @@ function AgentApprovalInboxContent() {
                 </span>
               </p>
 
-              {/* Mismatch Explicit Acknowledgment Checkbox */}
+              {/* Mismatch Explicit Acknowledgment Checkbox (framed explicitly as an Unsafe Override Demo) */}
               {selectedEvaluated.canApproveOrReject &&
               selectedEvaluated.mismatches.length > 0 &&
               selectedEvaluated.requiredAcknowledgmentText ? (
                 <Panel
                   variant="quiet"
-                  label="Explicit mismatch override acknowledgment"
+                  label="Unsafe override demonstration for audit-trail testing"
                 >
                   <div className="f12-stack-pair">
                     <div className="f12-row-pair">
-                      <Tag status="danger">EXPLICIT OVERRIDE REQUIRED</Tag>
+                      <Tag status="danger">
+                        UNSAFE OVERRIDE DEMONSTRATION · AUDIT-TRAIL TEST ONLY
+                      </Tag>
                       <span className="f12-mono-note">
-                        Approve remains disabled until you acknowledge every mismatched field below.
+                        Not recommended: acknowledging a mismatch does not make a policy-violating
+                        tool call safe. Exists only to test how an audit log records an explicit
+                        operator override.
                       </span>
                     </div>
                     <Checkbox
@@ -842,7 +908,7 @@ function AgentApprovalInboxContent() {
                         }))
                       }
                       label={selectedEvaluated.requiredAcknowledgmentText}
-                      hint="If approved, this exact acknowledgment statement is recorded in the simulated decision history."
+                      hint="If overridden and approved, this exact acknowledgment statement is recorded in the simulated decision history."
                     />
                   </div>
                 </Panel>
@@ -885,21 +951,30 @@ function AgentApprovalInboxContent() {
               <div className="f12-row-between">
                 <div className="f12-row-pair">
                   <Button
-                    id="exp-approval-approve-btn"
-                    variant="primary"
-                    disabled={approveDisabled}
-                    onClick={() => handleDecision('APPROVED')}
-                  >
-                    Approve {selectedReq.toolName} ($
-                    {formatCentsUsdNumber(selectedReq.input.amountCents)})
-                  </Button>
-                  <Button
                     id="exp-approval-reject-btn"
-                    variant="secondary"
+                    variant={selectedEvaluated.mismatches.length > 0 ? 'primary' : 'secondary'}
                     disabled={!selectedEvaluated.canApproveOrReject}
                     onClick={() => handleDecision('REJECTED')}
                   >
                     Reject Tool Call
+                  </Button>
+                  <Button
+                    id="exp-approval-request-correction-btn"
+                    variant="secondary"
+                    disabled={!selectedEvaluated.canApproveOrReject}
+                    onClick={() => handleDecision('CORRECTION_REQUESTED')}
+                  >
+                    Request Correction
+                  </Button>
+                  <Button
+                    id="exp-approval-approve-btn"
+                    variant={selectedEvaluated.mismatches.length > 0 ? 'secondary' : 'primary'}
+                    disabled={approveDisabled}
+                    onClick={() => handleDecision('APPROVED')}
+                  >
+                    {selectedEvaluated.mismatches.length > 0
+                      ? `Override & Approve ${selectedReq.toolName} ($${formatCentsUsdNumber(selectedReq.input.amountCents)})`
+                      : `Approve ${selectedReq.toolName} ($${formatCentsUsdNumber(selectedReq.input.amountCents)})`}
                   </Button>
                 </div>
 
@@ -941,8 +1016,8 @@ function AgentApprovalInboxContent() {
 
             <Table density="compact" id="exp-approval-history-table">
               <TableCaption>
-                Simulated local decision log showing operator approvals, rejections, recorded
-                mismatch acknowledgments, and automatic TTL/turn-change blocks.
+                Simulated local decision log showing operator approvals, rejections, correction
+                requests, recorded mismatch acknowledgments, and automatic TTL/turn-change blocks.
               </TableCaption>
               <TableHeader>
                 <TableRow>
@@ -995,7 +1070,7 @@ function AgentApprovalInboxContent() {
           <div className="f12-stack-pair">
             <div className="f12-row-between">
               <span className="f12-cmd-label">
-                VERCEL AI SDK 7 MAPPING &amp; PRODUCTION VS. PROTOTYPE BOUNDARIES
+                TECHNICAL DETAILS · VERCEL AI SDK 7, OWASP ASI09 &amp; PRODUCTION BOUNDARIES
               </span>
               <div className="f12-row-pair">
                 <Link href="/agents" className="f12-link-btn" id="exp-approval-to-agents">
@@ -1011,40 +1086,47 @@ function AgentApprovalInboxContent() {
               </div>
             </div>
 
-            <div className="f12-exp-kv-grid-3">
-              <div className="f12-exp-kv-card">
-                <span className="f12-exp-kv-label">1. AI SDK 7 `toolApproval` Mapping</span>
-                <span className="f12-mono-note">
-                  Maps <code>approvalId</code> → <code>part.approval.id</code>,{' '}
-                  <code>toolCallId</code> → <code>part.toolCallId</code>, <code>toolName</code> →{' '}
-                  <code>part.toolName</code>, and <code>input</code> → <code>part.input</code> when{' '}
-                  <code>streamText</code> is configured with{' '}
-                  <code>toolApproval: {'{'} [toolName]: &apos;user-approval&apos; {'}'}</code> and
-                  resumed via <code>addToolApprovalResponse({'{'} id, approved, reason {'}'})</code>.
-                </span>
+            <details className="f12-tbl" id="exp-approval-technical-details">
+              <summary>
+                Show implementation notes (Vercel AI SDK 7 <code>toolApproval</code> mapping, OWASP
+                ASI09 trust-exploitation background, and production authorization requirements)
+              </summary>
+              <div className="f12-exp-kv-grid-3">
+                <div className="f12-exp-kv-card">
+                  <span className="f12-exp-kv-label">1. AI SDK 7 `toolApproval` Mapping</span>
+                  <span className="f12-mono-note">
+                    Maps <code>approvalId</code> → <code>part.approval.id</code>,{' '}
+                    <code>toolCallId</code> → <code>part.toolCallId</code>, <code>toolName</code> →{' '}
+                    <code>part.toolName</code>, and <code>input</code> → <code>part.input</code>{' '}
+                    when <code>streamText</code> is configured with{' '}
+                    <code>toolApproval: {'{'} [toolName]: &apos;user-approval&apos; {'}'}</code> and
+                    resumed via{' '}
+                    <code>addToolApprovalResponse({'{'} id, approved, reason {'}'})</code>.
+                  </span>
+                </div>
+                <div className="f12-exp-kv-card">
+                  <span className="f12-exp-kv-label">
+                    2. Why Inline Chat Confirmation Is Insufficient (OWASP ASI09)
+                  </span>
+                  <span className="f12-mono-note">
+                    Standard chat confirmation cards place the Approve button directly below the
+                    model&apos;s persuasive prose. Under OWASP ASI09 (Human-Agent Trust
+                    Exploitation), an injected or hallucinating agent can state &ldquo;$25
+                    refund&rdquo; while passing <code>amountCents: 250000</code> ($2,500.00).
+                  </span>
+                </div>
+                <div className="f12-exp-kv-card">
+                  <span className="f12-exp-kv-label">
+                    3. What Production Requires Beyond This UI
+                  </span>
+                  <span className="f12-mono-note">
+                    A production system must enforce server-side authentication/RBAC, cryptographic
+                    binding of approvals to canonicalized tool arguments, server-enforced TTL and
+                    single-use idempotency tokens, and an append-only server audit log.
+                  </span>
+                </div>
               </div>
-              <div className="f12-exp-kv-card">
-                <span className="f12-exp-kv-label">
-                  2. Why Inline Chat Confirmation Is Insufficient
-                </span>
-                <span className="f12-mono-note">
-                  Standard chat confirmation cards place the Approve button directly below the
-                  model&apos;s persuasive prose. Under OWASP ASI09 (Human-Agent Trust Exploitation),
-                  an injected or hallucinating agent can state &ldquo;$25 refund&rdquo; while
-                  passing <code>amountUsd: 2500</code>.
-                </span>
-              </div>
-              <div className="f12-exp-kv-card">
-                <span className="f12-exp-kv-label">
-                  3. What Production Requires Beyond This UI
-                </span>
-                <span className="f12-mono-note">
-                  A production system must enforce server-side authentication/RBAC, cryptographic
-                  binding of approvals to canonicalized tool arguments, server-enforced TTL and
-                  single-use idempotency tokens, and an append-only server audit log.
-                </span>
-              </div>
-            </div>
+            </details>
           </div>
         </Panel>
       </Scene>

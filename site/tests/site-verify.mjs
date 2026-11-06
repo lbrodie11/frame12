@@ -2215,6 +2215,9 @@ try {
       const compTableFitsAt1280 = Boolean(
         compWrap && compWrap.scrollWidth <= compWrap.clientWidth + 1,
       );
+      const saferPath = document.getElementById('exp-approval-recommended-safer-path');
+      const proseLimit = document.getElementById('exp-approval-prose-limitation-note');
+      const techDetails = document.getElementById('exp-approval-technical-details');
 
       return {
         ok: true,
@@ -2223,6 +2226,18 @@ try {
         visualOrderOk,
         compTableFitsAt1280,
         unverifiedLabelOk: s3Heading.includes("Agent's description (unverified)"),
+        saferPathVisibleOnMismatch: Boolean(
+          saferPath &&
+            saferPath.textContent?.includes(
+              'Recommended Safer Decision: Reject Tool Call or Request Correction',
+            ),
+        ),
+        proseLimitationStated: Boolean(
+          proseLimit &&
+            proseLimit.textContent?.includes('does not verify whether free-form AI prose is truthful'),
+        ),
+        techDetailsCollapsedInitially:
+          techDetails instanceof HTMLDetailsElement && !techDetails.open,
         pinnedHasAll3Mismatches:
           pinText.includes('[×] MISMATCH · Refund Amount (USD)') &&
           pinText.includes('$2,500.00 USD') &&
@@ -2331,6 +2346,20 @@ try {
       const reason = document.getElementById('exp-approval-disabled-reason')?.textContent || '';
       return approveDisabled && reason.includes('advanced to turn #5');
     });
+
+    // Test "Try the Misleading $2,500 Refund" CTA and "Request Correction" safer decision action
+    await page.click('#exp-approval-try-misleading-btn');
+    await page.click('#exp-approval-request-correction-btn');
+    const correctionRequestedOk = await page.evaluate(() => {
+      const disabledReason =
+        document.getElementById('exp-approval-disabled-reason')?.textContent || '';
+      const histText = document.getElementById('exp-approval-history-table')?.textContent || '';
+      return (
+        disabledReason.includes('Operator requested correction from the agent') &&
+        histText.includes('CORRECTION_REQUESTED') &&
+        histText.includes('Requested correction on payments.issueRefund (ORD-9104)')
+      );
+    });
     await page.click('#exp-approval-reset-btn');
 
     // 7) 320px narrow mobile & prefers-reduced-motion check on /experiments/agent-approval
@@ -2411,6 +2440,9 @@ try {
         initialInspection.visualOrderOk &&
         initialInspection.compTableFitsAt1280 &&
         initialInspection.unverifiedLabelOk &&
+        initialInspection.saferPathVisibleOnMismatch &&
+        initialInspection.proseLimitationStated &&
+        initialInspection.techDetailsCollapsedInitially &&
         initialInspection.pinnedHasAll3Mismatches &&
         initialInspection.approveDisabledInitially &&
         initialInspection.ackUncheckedInitially &&
@@ -2431,6 +2463,7 @@ try {
         scenarioCCheck.reasonHasExpiryAndTurn &&
         lateClockExpiredScenarioA &&
         simulatedTurnChangeBlocked &&
+        correctionRequestedOk &&
         narrowAndReducedMotion.noOverflow &&
         narrowAndReducedMotion.pinVisible &&
         computedEvidenceProbesOk,
@@ -2445,6 +2478,7 @@ try {
         scenarioCCheck,
         lateClockExpiredScenarioA,
         simulatedTurnChangeBlocked,
+        correctionRequestedOk,
         narrowAndReducedMotion,
         computedEvidenceProbesOk,
       }),
