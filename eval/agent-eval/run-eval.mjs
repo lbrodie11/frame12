@@ -670,7 +670,7 @@ async function main() {
     );
   }
 
-  console.log('\nAgent evaluation completed successfully. Summary written to eval/agent-eval/results/summary.json and REPORT.md.');
+  console.log('\nGuardrail & reference fixture suite completed successfully. Summary written to eval/agent-eval/results/summary.json and REPORT.md.');
 }
 
 main().catch((err) => {
