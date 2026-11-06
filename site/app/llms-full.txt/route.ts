@@ -5,14 +5,17 @@ import { SITE_URL, REGISTRY_BASE_URL } from '@/lib/config';
 
 export const dynamic = 'force-static';
 
+// This route is force-static: these reads run once at build time, never on the server. The
+// turbopackIgnore hints stop Next.js from tracing (and deploying) the whole repository just because
+// the paths are computed at runtime.
 function readRepoFile(relPath: string): string {
   const candidates = [
-    path.resolve(process.cwd(), '..', relPath),
-    path.resolve(process.cwd(), relPath),
+    path.resolve(/* turbopackIgnore: true */ process.cwd(), '..', relPath),
+    path.resolve(/* turbopackIgnore: true */ process.cwd(), relPath),
   ];
   for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return fs.readFileSync(candidate, 'utf8').trim();
+    if (fs.existsSync(/* turbopackIgnore: true */ candidate)) {
+      return fs.readFileSync(/* turbopackIgnore: true */ candidate, 'utf8').trim();
     }
   }
   throw new Error(`Unable to locate canonical source file for llms-full.txt: ${relPath}`);

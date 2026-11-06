@@ -7,14 +7,29 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Groups batch only minor/patch bumps. Major versions arrive as their own PRs so one breaking
+    # upgrade (e.g. TypeScript 7) can't block unrelated updates bundled with it.
     groups:
       next-react:
         patterns: ['next', 'react', 'react-dom', '@types/react', '@types/react-dom']
+        update-types: ['minor', 'patch']
       radix:
         patterns: ['@radix-ui/*']
+        update-types: ['minor', 'patch']
       tooling:
         patterns: ['typescript', 'esbuild', '@types/*']
+        update-types: ['minor', 'patch']
     ignore:
+      # TypeScript 7 (the native compiler) doesn't provide the JS compiler API that Next.js uses to
+      # read tsconfig `paths` (the starter build fails to resolve `@/…`) and that
+      # scripts/check-doc-sync.mjs, check-frame12.mjs and check-api-compat.mjs depend on. Stay on
+      # TypeScript 6 until Next.js and those scripts support 7, then remove this rule.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      # @types/node tracks the Node.js runtime (22, per `engines` and the CI setup-node version).
+      # Bump its major together with node-version in .github/workflows/ci.yml, not on its own.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
       # The gallery, eval and lab harnesses pin React 18.3.1 on purpose: they hydrate with the
       # React 18 UMD build to prove React 18 runtime compatibility (React 19 ships no UMD).
       - dependency-name: react

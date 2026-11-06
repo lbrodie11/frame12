@@ -5,6 +5,7 @@ import { chromium, firefox, webkit } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
@@ -249,9 +250,11 @@ const ROUTES = [
 
 const port = await getFreePort();
 const baseUrl = `http://127.0.0.1:${port}`;
-const nextBin = resolve(REPO_ROOT, 'node_modules/.bin/next');
+// Resolve Next.js from the site workspace itself: npm may install it under site/node_modules
+// rather than hoisting it to the repo root (it does from Next 16 on), so never assume the root.
+const nextBin = createRequire(resolve(SITE_ROOT, 'package.json')).resolve('next/dist/bin/next');
 
-const serverProc = spawn(nextBin, ['start', '-p', String(port), '-H', '127.0.0.1'], {
+const serverProc = spawn(process.execPath, [nextBin, 'start', '-p', String(port), '-H', '127.0.0.1'], {
   cwd: SITE_ROOT,
   stdio: ['ignore', 'pipe', 'pipe'],
   env: { ...process.env, NODE_ENV: 'production' },
