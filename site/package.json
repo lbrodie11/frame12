@@ -14,7 +14,7 @@
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.6",
     "@radix-ui/react-select": "^2.1.6",
-    "next": "^15.5.29",
+    "next": "^16.4.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
