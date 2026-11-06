@@ -811,6 +811,8 @@ try {
       return (
         Boolean(tag?.textContent?.includes('GATEWAY SLO: HEALTHY')) &&
         Boolean(tag?.classList.contains('f12-status-success')) &&
+        text.includes('5xx Upstream Faults') &&
+        text.includes('4xx Client & Throttled') &&
         text.includes('248k (15:00 UTC)') &&
         text.includes('99.58% · 1.48M') &&
         text.includes('0.11% · 1,631') &&

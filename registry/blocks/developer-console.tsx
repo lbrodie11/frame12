@@ -972,20 +972,21 @@ function DeveloperConsoleInner({
         : `${(deliveredCount / 1_000).toFixed(1)}k`;
     const deliveredValue = `${deliveredPct}% · ${deliveredCountLabel}`;
 
+    // Partition non-2xx responses into 5xx upstream faults and 4xx client/throttled (401/422/429)
     const errorBreakdown =
       snapshot.range === '24h'
         ? {
             upstream5xx: '0.11% · 1,631',
-            throttled429: '0.31% · 4,597',
+            client4xx: '0.31% · 4,597',
           }
         : snapshot.range === '7d'
           ? {
               upstream5xx: '0.14% · 13,776',
-              throttled429: '0.37% · 36,409',
+              client4xx: '0.37% · 36,409',
             }
           : {
               upstream5xx: '0.16% · 63,056',
-              throttled429: '0.42% · 165,522',
+              client4xx: '0.42% · 165,522',
             };
 
     return {
@@ -1576,9 +1577,9 @@ function DeveloperConsoleInner({
                   </span>
                 </div>
                 <div className="f12-console-kv-item">
-                  <span className="f12-console-kv-label">429 Rate Throttled</span>
+                  <span className="f12-console-kv-label">4xx Client &amp; Throttled</span>
                   <span className="f12-console-kv-value">
-                    {isEmptyDataset ? '0 (0.00%)' : rangeFooterMetrics.throttled429}
+                    {isEmptyDataset ? '0 (0.00%)' : rangeFooterMetrics.client4xx}
                   </span>
                 </div>
               </div>
