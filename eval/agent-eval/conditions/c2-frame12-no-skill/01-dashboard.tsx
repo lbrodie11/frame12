@@ -44,11 +44,11 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
-            Dashboard <Tag>Unguided</Tag>
+            Dashboard <Tag>Negative Fixture</Tag>
           </p>
           <h1 className="f12-title">Operational Incident & SLO Dashboard</h1>
           <p style={{ color: '#64748b', margin: 0 }}>
-            Unguided generation without SKILL.md (exhibits hex literals, 16px gaps, and explicit cuts inside autoCut)
+            Guardrail fixture exercising color-literal, illegal-gutter, marker-misuse, explicit-cut-in-autocut, and missing chart companion table.
           </p>
         </div>
         <SegmentedControl
@@ -69,13 +69,13 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <Metric
               label="Mean Time to Recovery (MTTR)"
-              value={range === '7d' ? 1420 : range === '30d' ? 4890 : 12450}
-              format={(v) => `${Math.round(v)} ops`}
-              delta={0.12}
+              value={range === '7d' ? 11.8 : range === '30d' ? 14.2 : 16.4}
+              format={(v) => `${v.toFixed(1)}m`}
+              delta={-0.12}
               big
             />
             <span style={{ color: 'var(--f-marker)', fontWeight: 700 }}>
-              Highlighted marker text misuse
+              Marker yellow misused as foreground text
             </span>
             <ToneAreaChart
               data={SERIES}
@@ -118,16 +118,16 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
         <Panel cut="C-05" label="Service breakdown">
           <ToneBarList title="Service blast-radius breakdown" items={BARS} />
         </Panel>
-        <Panel cut="C-06" label="Operational filter and table">
+        <Panel cut="C-06" label="Incident responder ledger">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <Input
-              label="Filter endpoints"
+              label="Filter incidents"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <Switch label="Enforce strict signature verification" defaultChecked />
+            <Switch label="Enforce strict incident paging" defaultChecked />
             <div style={{ display: 'flex', gap: '16px' }}>
-              <Button variant="primary">Apply Changes</Button>
+              <Button variant="primary">Acknowledge Incident</Button>
               <span style={{ background: '#16a34a', color: '#ffffff', padding: '4px 8px' }}>
                 Healthy
               </span>
@@ -136,12 +136,14 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
               <TableCaption>Active incident responder ledger (Operational Incident & SLO Dashboard)</TableCaption>
               <TableHeader>
                 <TableRow>
+                  <TableHead scope="col">Incident ID</TableHead>
                   <TableHead scope="col">Service</TableHead>
-                  <TableHead scope="col">Volume</TableHead>
+                  <TableHead scope="col">Burn Rate</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
+                  <TableCell>INC-401</TableCell>
                   <TableCell>Edge Gateway</TableCell>
                   <TableCell>590 req/s</TableCell>
                 </TableRow>

@@ -14,6 +14,12 @@ export interface PropDoc {
   description: string;
 }
 
+export interface SubcomponentDoc {
+  name: string;
+  propsType: string;
+  description: string;
+}
+
 export interface CatalogEntry {
   slug: string;
   title: string;
@@ -24,6 +30,7 @@ export interface CatalogEntry {
   whenToUse: string[];
   whenNotToUse: string[];
   props: PropDoc[];
+  subcomponents?: SubcomponentDoc[];
   stateBehavior: string;
   a11yNotes: string[];
   keyboardNotes: string[];
@@ -45,6 +52,7 @@ export interface BlockCatalogEntry {
   fixtureNotes: string[];
   componentDependencies: string[];
   props: PropDoc[];
+  subcomponents?: SubcomponentDoc[];
   customizationGuidance: string[];
   a11yNotes: string[];
   knownLimitations: string[];
@@ -90,15 +98,15 @@ const RAW_CATALOG: CatalogEntry[] = [
       },
       {
         "name": "motion",
-        "type": "'stepped' | 'smooth' | 'cut'",
+        "type": "MotionMode",
         "defaultValue": "'stepped'",
-        "description": "Sets the active motion grammar class (.f12-m-stepped, .f12-m-smooth, or .f12-m-cut)."
+        "description": "Motion timing mode: 'stepped' (12fps on twos), 'smooth' (60fps), or 'cut' (0ms instant)."
       },
       {
         "name": "theme",
-        "type": "'light' | 'dark' | undefined",
+        "type": "'light' | 'dark'",
         "defaultValue": "undefined",
-        "description": "Optional explicit theme override (.f12-theme-light or .f12-theme-dark)."
+        "description": "Optional explicit theme override ('light' | 'dark')."
       },
       {
         "name": "sheetClassName",
@@ -208,7 +216,7 @@ const RAW_CATALOG: CatalogEntry[] = [
       {
         "name": "variant",
         "type": "'expressive' | 'quiet'",
-        "defaultValue": "'expressive'",
+        "defaultValue": "'expressive' ('quiet' inside TabsContent)",
         "description": "Selects the 2.5px SVG polygon storyboard frame (expressive) or the 1px orthographic exposure-sheet ledger frame (quiet, which omits automatic cut numbers by default)."
       },
       {
@@ -256,8 +264,8 @@ const RAW_CATALOG: CatalogEntry[] = [
     "props": [
       {
         "name": "variant",
-        "type": "'expressive' | 'quiet'",
-        "defaultValue": "'expressive'",
+        "type": "PanelVariant",
+        "defaultValue": "'expressive' ('quiet' inside TabsContent)",
         "description": "When set to quiet, renders rectangular 1px orthographic panels without diagonal slants or automatic cut badges."
       },
       {
@@ -273,16 +281,28 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Props and children for the lower slant-top panel."
       },
       {
-        "name": "topCut / bottomCut",
+        "name": "topCut",
         "type": "string | false",
         "defaultValue": "undefined",
-        "description": "Cut labels (or false to hide) when passing two child elements directly; omit inside <Sheet autoCut> for automatic numbering."
+        "description": "Optional cut label (or false to hide) for the upper panel when passing two child elements directly."
       },
       {
-        "name": "topLabel / bottomLabel",
+        "name": "bottomCut",
+        "type": "string | false",
+        "defaultValue": "undefined",
+        "description": "Optional cut label (or false to hide) for the lower panel when passing two child elements directly."
+      },
+      {
+        "name": "topLabel",
         "type": "string",
         "defaultValue": "undefined",
-        "description": "Accessible aria-label overrides for the top and bottom <section> panels when passing two child elements directly."
+        "description": "Accessible aria-label override for the upper <section> panel when passing two child elements directly."
+      },
+      {
+        "name": "bottomLabel",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Accessible aria-label override for the lower <section> panel when passing two child elements directly."
       }
     ],
     "stateBehavior": "Stateless composition wrapper that renders two <Panel> instances (either from top/bottom prop objects or from two React child nodes).",
@@ -322,7 +342,7 @@ const RAW_CATALOG: CatalogEntry[] = [
     "props": [
       {
         "name": "options",
-        "type": "Array<{ value: T; label: string; unit?: string }>",
+        "type": "Array<SegmentedOption<T>>",
         "defaultValue": "required",
         "description": "Ordered cell options with display numeral/label and optional mono unit."
       },
@@ -330,7 +350,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "value",
         "type": "T",
         "defaultValue": "required",
-        "description": "Currently active option value."
+        "description": "Controlled active value."
       },
       {
         "name": "onChange",
@@ -342,23 +362,23 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "ariaLabel",
         "type": "string",
         "defaultValue": "'Options'",
-        "description": "Accessible label for the role=\"group\" container."
+        "description": "Accessible aria-label override for the landmark or control."
       },
       {
         "name": "idPrefix",
         "type": "string",
         "defaultValue": "'seg'",
-        "description": "Prefix for deterministic button IDs (${idPrefix}-${opt.value})."
+        "description": "Deterministic DOM ID prefix for multi-instance rendering without duplicate IDs."
       }
     ],
     "stateBehavior": "Controlled component requiring value and onChange(nextValue). Tracks the active option index to position the mix-blend-mode: difference indicator.",
     "a11yNotes": [
       "Uses role=\"group\" with aria-pressed={active} on native <button type=\"button\"> elements.",
-      "Provides a 3px solid --f-marker inset focus ring on :focus-visible."
+      "Provides a 3px solid var(--f-ink) inset focus-visible outline."
     ],
     "keyboardNotes": [
-      "Renders native <button type=\"button\" aria-pressed={active}> elements inside role=\"group\"; reachable via Tab and activated with Enter or Space.",
-      "Displays a 3px solid --f-marker inset focus ring on :focus-visible."
+      "Renders native <button type=\"button\" aria-pressed={active}> elements inside role=\"group\" with roving tabIndex and ArrowLeft/ArrowRight/Home/End navigation.",
+      "Displays a 3px solid var(--f-ink) inset focus-visible outline."
     ],
     "themeBehavior": "Uses mix-blend-mode: difference on an active cell indicator inside an isolation: isolate container so active cells invert ink and paper in both light and dark themes.",
     "responsiveBehavior": "Cells flex equally across available width (--seg-count) and wrap cleanly inside header toolbars on 390px mobile viewports.",
@@ -446,24 +466,24 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "hint",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Optional helper text linked via aria-describedby."
+        "description": "Optional helper text rendered below the control and chained into aria-describedby."
       },
       {
         "name": "error",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Validation error message rendered in a role=\"alert\" live region with a marker flag."
+        "description": "Validation error message rendered in a marker-flagged role=\"alert\" live region and setting aria-invalid=\"true\"."
       },
       {
         "name": "density",
         "type": "'comfortable' | 'compact'",
         "defaultValue": "'comfortable'",
-        "description": "Reduces input padding and switches to a 1.5px rule for dense settings and filter bars."
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
       },
       {
         "name": "fieldClassName",
         "type": "string",
-        "defaultValue": "undefined",
+        "defaultValue": "''",
         "description": "Additional class names applied to the outer .f12-field wrapper when Input renders standalone."
       }
     ],
@@ -503,6 +523,18 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
+        "name": "id",
+        "type": "string",
+        "defaultValue": "useId()",
+        "description": "Explicit DOM id for the control or container (defaults to a stable React.useId() value)."
+      },
+      {
+        "name": "htmlFor",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Target control DOM id for programmatic <label htmlFor> association."
+      },
+      {
         "name": "label",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
@@ -512,31 +544,31 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "hint",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Helper text rendered below the control and chained into aria-describedby."
+        "description": "Optional helper text rendered below the control and chained into aria-describedby."
       },
       {
         "name": "error",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Marker-flagged error message rendered in a role=\"alert\" live region and setting aria-invalid=\"true\"."
+        "description": "Validation error message rendered in a marker-flagged role=\"alert\" live region and setting aria-invalid=\"true\"."
       },
       {
         "name": "density",
         "type": "'comfortable' | 'compact'",
         "defaultValue": "'comfortable'",
-        "description": "Propagates comfortable or compact density to child Input, Textarea, Checkbox, RadioGroup, Switch, or Select controls."
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
       },
       {
-        "name": "required / disabled",
+        "name": "required",
         "type": "boolean",
         "defaultValue": "false",
-        "description": "Propagates required and disabled states to child controls via FieldContext."
+        "description": "Marks the control or field group as required and renders the monospace * indicator."
       },
       {
-        "name": "id / htmlFor",
-        "type": "string",
-        "defaultValue": "useId()",
-        "description": "Explicit base ID or target control ID for programmatic <label htmlFor> association."
+        "name": "disabled",
+        "type": "boolean",
+        "defaultValue": "false",
+        "description": "Disables user interaction and switches the control border to a dashed ink rule."
       }
     ],
     "stateBehavior": "Provides FieldContext (id, labelId, hintId, errorId, describedBy, invalid, disabled, required, density) and dynamically switches between a single linked <label htmlFor>, a <fieldset>/<legend> delegation for <RadioGroup>, or a <div role=\"group\" aria-labelledby> for multi-option groups.",
@@ -556,7 +588,14 @@ const RAW_CATALOG: CatalogEntry[] = [
       "Adding a manual <label> or duplicate error <div> next to a child <Input> that is already wrapped in <Field label=\"...\" error=\"...\">.",
       "Setting required on a <Field> wrapping multiple independent <Checkbox> options when any single checked option satisfies the group (Field automatically suppresses per-checkbox required in control groups)."
     ],
-    "usageTemplate": "import { Field, Input } from '@/components/frame12';\n\nexport function EndpointField() {\n  return (\n    <Field\n      label=\"Webhook endpoint URL\"\n      hint=\"Must accept TLS 1.3 POST requests\"\n      required\n    >\n      <Input defaultValue=\"https://api.acme.dev/webhooks/f12\" />\n    </Field>\n  );\n}"
+    "usageTemplate": "import { Field, Input } from '@/components/frame12';\n\nexport function EndpointField() {\n  return (\n    <Field\n      label=\"Webhook endpoint URL\"\n      hint=\"Must accept TLS 1.3 POST requests\"\n      required\n    >\n      <Input defaultValue=\"https://api.acme.dev/webhooks/f12\" />\n    </Field>\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "Label",
+        "propsType": "LabelProps",
+        "description": "Standalone uppercase monospace <label> primitive with optional required asterisk."
+      }
+    ]
   },
   {
     "slug": "textarea",
@@ -582,24 +621,24 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "hint",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Optional helper text linked via aria-describedby."
+        "description": "Optional helper text rendered below the control and chained into aria-describedby."
       },
       {
         "name": "error",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Validation error message rendered in a role=\"alert\" live region."
+        "description": "Validation error message rendered in a marker-flagged role=\"alert\" live region and setting aria-invalid=\"true\"."
       },
       {
         "name": "density",
         "type": "'comfortable' | 'compact'",
         "defaultValue": "'comfortable'",
-        "description": "Switches to a 1.5px rule and tighter padding for dense operational forms."
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
       },
       {
         "name": "fieldClassName",
         "type": "string",
-        "defaultValue": "undefined",
+        "defaultValue": "''",
         "description": "Additional class names applied to the outer .f12-field wrapper when Textarea renders standalone."
       }
     ],
@@ -643,10 +682,28 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Inline label linked to the native <input type=\"checkbox\"> via htmlFor/id."
       },
       {
+        "name": "hint",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Optional helper text rendered below the control and chained into aria-describedby."
+      },
+      {
+        "name": "error",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Validation error message rendered in a marker-flagged role=\"alert\" live region and setting aria-invalid=\"true\"."
+      },
+      {
         "name": "indeterminate",
         "type": "boolean",
         "defaultValue": "false",
         "description": "Renders the horizontal mixed-state mark in SSR HTML/CSS and syncs DOM input.indeterminate across user activation and form.reset()."
+      },
+      {
+        "name": "density",
+        "type": "'comfortable' | 'compact'",
+        "defaultValue": "'comfortable'",
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
       },
       {
         "name": "onCheckedChange",
@@ -655,21 +712,9 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Convenience callback invoked with the boolean checked state on change."
       },
       {
-        "name": "density",
-        "type": "'comfortable' | 'compact'",
-        "defaultValue": "'comfortable'",
-        "description": "Reduces border weight to 1.5px while preserving a 24×24px WCAG 2.5.8 click target."
-      },
-      {
-        "name": "hint / error",
-        "type": "React.ReactNode",
-        "defaultValue": "undefined",
-        "description": "Optional helper text and role=\"alert\" validation message chained into aria-describedby."
-      },
-      {
         "name": "fieldClassName",
         "type": "string",
-        "defaultValue": "undefined",
+        "defaultValue": "''",
         "description": "Additional class names applied to the outer .f12-field wrapper."
       }
     ],
@@ -707,40 +752,22 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "label",
-        "type": "React.ReactNode",
-        "defaultValue": "undefined",
-        "description": "Group caption rendered inside <legend className=\"f12-label\">."
-      },
-      {
-        "name": "options",
-        "type": "RadioOption[]",
-        "defaultValue": "undefined",
-        "description": "Shorthand array of { value, label, hint?, disabled? } items; or pass <RadioGroupItem> children."
-      },
-      {
-        "name": "orientation",
-        "type": "'vertical' | 'horizontal'",
-        "defaultValue": "'vertical'",
-        "description": "Stacks radio items vertically or wraps them horizontally."
-      },
-      {
-        "name": "density",
-        "type": "'comfortable' | 'compact'",
-        "defaultValue": "'comfortable'",
-        "description": "Switches to 1.5px radio borders and tighter spacing while keeping 24×24px targets."
-      },
-      {
         "name": "name",
         "type": "string",
         "defaultValue": "useId()",
         "description": "Shared form control name applied to child <input type=\"radio\"> inputs."
       },
       {
-        "name": "value / defaultValue",
+        "name": "value",
         "type": "string",
         "defaultValue": "undefined",
-        "description": "Controlled or uncontrolled active radio option value."
+        "description": "Controlled active value."
+      },
+      {
+        "name": "defaultValue",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Initial value for uncontrolled usage."
       },
       {
         "name": "onValueChange",
@@ -749,16 +776,52 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Callback invoked when the selected radio option changes."
       },
       {
-        "name": "hint / error",
-        "type": "React.ReactNode",
+        "name": "options",
+        "type": "RadioOption[]",
         "defaultValue": "undefined",
-        "description": "Group-level helper text and role=\"alert\" validation message linked via aria-describedby on the <fieldset>."
+        "description": "Shorthand array of { value, label, hint?, disabled? } items; or pass <RadioGroupItem> children."
       },
       {
-        "name": "required / disabled",
+        "name": "label",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Group caption rendered inside <legend className=\"f12-label\">."
+      },
+      {
+        "name": "hint",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Optional helper text rendered below the control and chained into aria-describedby."
+      },
+      {
+        "name": "error",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Validation error message rendered in a marker-flagged role=\"alert\" live region and setting aria-invalid=\"true\"."
+      },
+      {
+        "name": "density",
+        "type": "'comfortable' | 'compact'",
+        "defaultValue": "'comfortable'",
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
+      },
+      {
+        "name": "orientation",
+        "type": "'vertical' | 'horizontal'",
+        "defaultValue": "'vertical'",
+        "description": "Stacks radio items vertically or wraps them horizontally."
+      },
+      {
+        "name": "disabled",
         "type": "boolean",
         "defaultValue": "false",
-        "description": "Propagates required and disabled states to every radio option in the group."
+        "description": "Disables user interaction and switches the control border to a dashed ink rule."
+      },
+      {
+        "name": "required",
+        "type": "boolean",
+        "defaultValue": "false",
+        "description": "Marks the control or field group as required and renders the monospace * indicator."
       }
     ],
     "stateBehavior": "Supports controlled (value + onValueChange) and uncontrolled (defaultValue) modes on native <fieldset> + <input type=\"radio\"> elements, preserving native FormData and form.reset().",
@@ -778,7 +841,14 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Wrapping <RadioGroup> in a custom <label> instead of letting RadioGroup (or <Field>) render a semantic <legend> inside <fieldset>."
     ],
-    "usageTemplate": "import { RadioGroup } from '@/components/frame12';\n\nexport function CadenceRadio() {\n  return (\n    <RadioGroup\n      label=\"Digest cadence\"\n      name=\"cadence\"\n      defaultValue=\"daily\"\n      options={[\n        { value: 'realtime', label: 'Real-time', hint: 'Immediate webhook dispatch' },\n        { value: 'daily', label: 'Daily cut', hint: '09:00 UTC exposure sheet summary' },\n        { value: 'weekly', label: 'Weekly rollup', hint: 'Monday 09:00 UTC digest' },\n      ]}\n    />\n  );\n}"
+    "usageTemplate": "import { RadioGroup } from '@/components/frame12';\n\nexport function CadenceRadio() {\n  return (\n    <RadioGroup\n      label=\"Digest cadence\"\n      name=\"cadence\"\n      defaultValue=\"daily\"\n      options={[\n        { value: 'realtime', label: 'Real-time', hint: 'Immediate webhook dispatch' },\n        { value: 'daily', label: 'Daily cut', hint: '09:00 UTC exposure sheet summary' },\n        { value: 'weekly', label: 'Weekly rollup', hint: 'Monday 09:00 UTC digest' },\n      ]}\n    />\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "RadioGroupItem",
+        "propsType": "RadioGroupItemProps",
+        "description": "Individual circular 24×24px radio option (value, label?, hint?, density?) when composing <RadioGroup> with children."
+      }
+    ]
   },
   {
     "slug": "switch",
@@ -801,10 +871,34 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Inline label linked to the native <input type=\"checkbox\" role=\"switch\">."
       },
       {
-        "name": "onLabel / offLabel",
+        "name": "hint",
         "type": "React.ReactNode",
-        "defaultValue": "'ON' / 'OFF'",
-        "description": "Configurable visual track glyphs (marked aria-hidden=\"true\" so role=\"switch\" never double-announces English text)."
+        "defaultValue": "undefined",
+        "description": "Optional helper text rendered below the control and chained into aria-describedby."
+      },
+      {
+        "name": "error",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Validation error message rendered in a marker-flagged role=\"alert\" live region and setting aria-invalid=\"true\"."
+      },
+      {
+        "name": "density",
+        "type": "'comfortable' | 'compact'",
+        "defaultValue": "'comfortable'",
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
+      },
+      {
+        "name": "onLabel",
+        "type": "React.ReactNode",
+        "defaultValue": "'ON'",
+        "description": "Visual track glyph shown when the switch is checked (marked aria-hidden=\"true\")."
+      },
+      {
+        "name": "offLabel",
+        "type": "React.ReactNode",
+        "defaultValue": "'OFF'",
+        "description": "Visual track glyph shown when the switch is unchecked (marked aria-hidden=\"true\")."
       },
       {
         "name": "onCheckedChange",
@@ -813,21 +907,9 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Callback fired with the boolean checked state on toggle."
       },
       {
-        "name": "density",
-        "type": "'comfortable' | 'compact'",
-        "defaultValue": "'comfortable'",
-        "description": "Selects 54×28px (2.5px border) or 48×24px (1.5px border) exposure-sheet cell dimensions."
-      },
-      {
-        "name": "hint / error",
-        "type": "React.ReactNode",
-        "defaultValue": "undefined",
-        "description": "Optional helper text and role=\"alert\" validation message chained into aria-describedby."
-      },
-      {
         "name": "fieldClassName",
         "type": "string",
-        "defaultValue": "undefined",
+        "defaultValue": "''",
         "description": "Additional class names applied to the outer .f12-field wrapper."
       }
     ],
@@ -864,10 +946,16 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "value / defaultValue",
+        "name": "value",
         "type": "string",
-        "defaultValue": "''",
-        "description": "Controlled or uncontrolled active tab value."
+        "defaultValue": "undefined",
+        "description": "Controlled active value."
+      },
+      {
+        "name": "defaultValue",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Initial value for uncontrolled usage."
       },
       {
         "name": "onValueChange",
@@ -885,7 +973,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "density",
         "type": "'comfortable' | 'compact'",
         "defaultValue": "'comfortable'",
-        "description": "Adjusts tab trigger padding and rule weight (2.5px vs 1.5px)."
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
       },
       {
         "name": "activationMode",
@@ -897,13 +985,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "idPrefix",
         "type": "string",
         "defaultValue": "useId()",
-        "description": "Deterministic prefix for generated tab (${idPrefix}-tab-${value}) and tabpanel (${idPrefix}-panel-${value}) IDs."
-      },
-      {
-        "name": "ariaLabel / forceMount",
-        "type": "string / boolean",
-        "defaultValue": "undefined / false",
-        "description": "Subcomponent props on TabsListProps (accessible tablist label) and TabsContentProps (keep inactive panel mounted in DOM)."
+        "description": "Deterministic DOM ID prefix for multi-instance rendering without duplicate IDs."
       }
     ],
     "stateBehavior": "Supports controlled (value + onValueChange) and uncontrolled (defaultValue) state. Automatically provides a Quiet panel default context inside <TabsContent> so switching tabs never renumbers sheet-level C-01..C-0n cuts.",
@@ -924,7 +1006,24 @@ const RAW_CATALOG: CatalogEntry[] = [
       "Omitting defaultValue on uncontrolled <Tabs> when wrapping <TabsTrigger> in custom components, which prevents SSR from knowing which panel is initially active.",
       "Forcing expressive auto-numbered panels inside <TabsContent>, which would cause sheet cut numbers to change when tabs switch."
     ],
-    "usageTemplate": "import { Tabs, TabsList, TabsTrigger, TabsContent, Panel, Input } from '@/components/frame12';\n\nexport function SettingsTabs() {\n  return (\n    <Tabs defaultValue=\"routing\">\n      <TabsList ariaLabel=\"Pipeline configuration\">\n        <TabsTrigger value=\"routing\">Routing</TabsTrigger>\n        <TabsTrigger value=\"retries\">Retries</TabsTrigger>\n      </TabsList>\n      <TabsContent value=\"routing\">\n        <Panel label=\"Routing configuration\">\n          <Input label=\"Primary endpoint\" defaultValue=\"https://api.acme.dev/hooks\" />\n        </Panel>\n      </TabsContent>\n      <TabsContent value=\"retries\">\n        <Panel label=\"Retry configuration\">\n          <Input label=\"Max retry attempts\" defaultValue=\"5\" />\n        </Panel>\n      </TabsContent>\n    </Tabs>\n  );\n}"
+    "usageTemplate": "import { Tabs, TabsList, TabsTrigger, TabsContent, Panel, Input } from '@/components/frame12';\n\nexport function SettingsTabs() {\n  return (\n    <Tabs defaultValue=\"routing\">\n      <TabsList ariaLabel=\"Pipeline configuration\">\n        <TabsTrigger value=\"routing\">Routing</TabsTrigger>\n        <TabsTrigger value=\"retries\">Retries</TabsTrigger>\n      </TabsList>\n      <TabsContent value=\"routing\">\n        <Panel label=\"Routing configuration\">\n          <Input label=\"Primary endpoint\" defaultValue=\"https://api.acme.dev/hooks\" />\n        </Panel>\n      </TabsContent>\n      <TabsContent value=\"retries\">\n        <Panel label=\"Retry configuration\">\n          <Input label=\"Max retry attempts\" defaultValue=\"5\" />\n        </Panel>\n      </TabsContent>\n    </Tabs>\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "TabsList",
+        "propsType": "TabsListProps",
+        "description": "WAI-ARIA role=\"tablist\" container accepting ariaLabel?: string."
+      },
+      {
+        "name": "TabsTrigger",
+        "propsType": "TabsTriggerProps",
+        "description": "WAI-ARIA role=\"tab\" button requiring value: string."
+      },
+      {
+        "name": "TabsContent",
+        "propsType": "TabsContentProps",
+        "description": "WAI-ARIA role=\"tabpanel\" container accepting value: string and forceMount?: boolean."
+      }
+    ]
   },
   {
     "slug": "badge",
@@ -951,13 +1050,13 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "glyph",
         "type": "string | false",
         "defaultValue": "undefined",
-        "description": "Overrides or suppresses (false) the automatic status glyph prefix."
+        "description": "Overrides or suppresses (false) the automatic orthographic status glyph ([i]/[+]/[!]/[×])."
       },
       {
         "name": "srLabel",
         "type": "string | false",
         "defaultValue": "undefined",
-        "description": "Overrides or suppresses (false) the screen-reader status announcement prefix (e.g., for localized labels)."
+        "description": "Overrides or suppresses (false) the visually hidden screen-reader status announcement prefix."
       },
       {
         "name": "pop",
@@ -968,7 +1067,7 @@ const RAW_CATALOG: CatalogEntry[] = [
       {
         "name": "burst",
         "type": "boolean",
-        "defaultValue": "true",
+        "defaultValue": "true (false when status is set)",
         "description": "Renders the decorative 14-line radial SVG Burst behind the badge."
       }
     ],
@@ -1014,19 +1113,19 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "glyph",
         "type": "string | false",
         "defaultValue": "undefined",
-        "description": "Overrides or suppresses (false) the automatic status glyph prefix."
+        "description": "Overrides or suppresses (false) the automatic orthographic status glyph ([i]/[+]/[!]/[×])."
       },
       {
         "name": "srLabel",
         "type": "string | false",
         "defaultValue": "undefined",
-        "description": "Overrides or suppresses (false) the screen-reader status announcement prefix (e.g., for localized labels)."
+        "description": "Overrides or suppresses (false) the visually hidden screen-reader status announcement prefix."
       },
       {
         "name": "children",
         "type": "React.ReactNode",
-        "defaultValue": "required",
-        "description": "Short metadata label rendered inside the marker strip."
+        "defaultValue": "undefined",
+        "description": "Child elements rendered inside the component."
       }
     ],
     "stateBehavior": "Stateless inline metadata marker supporting default highlighter yellow or non-color semantic status variants.",
@@ -1072,43 +1171,55 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "title",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Optional inline title or use <AlertTitle> compound subcomponent."
+        "description": "Primary headline or accessible title text."
+      },
+      {
+        "name": "description",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Supporting body copy rendered inside the component."
+      },
+      {
+        "name": "glyph",
+        "type": "string | false",
+        "defaultValue": "undefined",
+        "description": "Overrides or suppresses (false) the automatic orthographic status glyph ([i]/[+]/[!]/[×])."
+      },
+      {
+        "name": "srLabel",
+        "type": "string | false",
+        "defaultValue": "undefined",
+        "description": "Overrides or suppresses (false) the visually hidden screen-reader status announcement prefix."
+      },
+      {
+        "name": "density",
+        "type": "'comfortable' | 'compact'",
+        "defaultValue": "'comfortable'",
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
       },
       {
         "name": "live",
         "type": "'off' | 'polite' | 'assertive'",
-        "defaultValue": "Notice: 'off' | Alert: 'assertive' on danger, 'off' otherwise",
+        "defaultValue": "'off'",
         "description": "Controls ARIA live-region behavior: off -> role=\"note\", polite -> role=\"status\", assertive -> role=\"alert\"."
       },
       {
         "name": "onDismiss",
         "type": "() => void",
         "defaultValue": "undefined",
-        "description": "Renders a 24×24px minimum dismiss button when provided."
+        "description": "Callback invoked when the user or auto-dismiss timer closes the item."
       },
       {
-        "name": "description / actions",
+        "name": "dismissLabel",
+        "type": "string",
+        "defaultValue": "'Dismiss notice'",
+        "description": "Accessible aria-label applied to the dismiss button."
+      },
+      {
+        "name": "actions",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Optional description body and action control slot (or use <AlertDescription> and <AlertActions>)."
-      },
-      {
-        "name": "glyph / srLabel",
-        "type": "string | false",
-        "defaultValue": "undefined",
-        "description": "Overrides or suppresses (false) the automatic status glyph ([i]/[+]/[!]/[×]) and screen-reader status prefix."
-      },
-      {
-        "name": "density / dismissLabel",
-        "type": "'comfortable' | 'compact' / string",
-        "defaultValue": "'comfortable' / 'Dismiss notice'",
-        "description": "Adjusts banner padding/border weight and customizes the aria-label on the optional dismiss button."
-      },
-      {
-        "name": "NoticeProps / AlertTitleProps / AlertDescriptionProps / AlertActionsProps",
-        "type": "Subcomponent Prop Aliases",
-        "defaultValue": "HTMLDivElement attributes",
-        "description": "Exported prop type aliases for <Notice>, <AlertTitle>, <AlertDescription>, and <AlertActions>."
+        "description": "Optional action button slot rendered alongside the message."
       }
     ],
     "stateBehavior": "Stateless banner component with optional onDismiss callback to render a 24×24px close button.",
@@ -1127,7 +1238,29 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Rendering multiple role=\"alert\" banners on initial page mount instead of using <Notice> (role=\"note\") for static callouts."
     ],
-    "usageTemplate": "import { Alert, Notice } from '@/components/frame12';\n\nexport function WebhookNotices() {\n  return (\n    <div className=\"f12-stack-pair\">\n      <Notice status=\"info\" title=\"Dual-key rotation window\">\n        Both webhook signing keys remain valid for 24 hours.\n      </Notice>\n      <Alert status=\"danger\" title=\"Dead-letter queue threshold exceeded\">\n        14 checkout events require manual replay.\n      </Alert>\n    </div>\n  );\n}"
+    "usageTemplate": "import { Alert, Notice } from '@/components/frame12';\n\nexport function WebhookNotices() {\n  return (\n    <div className=\"f12-stack-pair\">\n      <Notice status=\"info\" title=\"Dual-key rotation window\">\n        Both webhook signing keys remain valid for 24 hours.\n      </Notice>\n      <Alert status=\"danger\" title=\"Dead-letter queue threshold exceeded\">\n        14 checkout events require manual replay.\n      </Alert>\n    </div>\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "Notice",
+        "propsType": "NoticeProps",
+        "description": "Static operational callout alias of AlertProps that defaults live=\"off\" (role=\"note\")."
+      },
+      {
+        "name": "AlertTitle",
+        "propsType": "AlertTitleProps",
+        "description": "Compound headline subcomponent (React.HTMLAttributes<HTMLDivElement>)."
+      },
+      {
+        "name": "AlertDescription",
+        "propsType": "AlertDescriptionProps",
+        "description": "Compound body copy subcomponent (React.HTMLAttributes<HTMLDivElement>)."
+      },
+      {
+        "name": "AlertActions",
+        "propsType": "AlertActionsProps",
+        "description": "Compound action button row subcomponent (React.HTMLAttributes<HTMLDivElement>)."
+      }
+    ]
   },
   {
     "slug": "toast",
@@ -1145,52 +1278,82 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "maxVisible",
-        "type": "number",
-        "defaultValue": "3",
-        "description": "Maximum simultaneously visible toasts before showing the +N QUEUED indicator."
-      },
-      {
-        "name": "duration",
-        "type": "number",
-        "defaultValue": "5000",
-        "description": "Auto-dismiss timeout in milliseconds (0 disables auto-dismiss; pauses on hover or focus-within)."
-      },
-      {
         "name": "status",
         "type": "'neutral' | 'info' | 'success' | 'warning' | 'danger'",
         "defaultValue": "'neutral'",
         "description": "Non-color semantic status with [i]/[+]/[!]/[×] glyph and deduplicated screen-reader prefix."
       },
       {
-        "name": "title / description / action",
+        "name": "title",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Headline, supporting body text, and optional interactive action button or ToastActionDescriptor."
+        "description": "Primary headline or accessible title text."
       },
       {
-        "name": "glyph / srLabel",
+        "name": "description",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Supporting body copy rendered inside the component."
+      },
+      {
+        "name": "glyph",
         "type": "string | false",
         "defaultValue": "undefined",
-        "description": "Overrides or suppresses (false) the status glyph stamp and screen-reader live-region announcement prefix."
+        "description": "Overrides or suppresses (false) the automatic orthographic status glyph ([i]/[+]/[!]/[×])."
       },
       {
-        "name": "dismissible / dismissLabel / onDismiss",
-        "type": "boolean / string / () => void",
-        "defaultValue": "true / 'Dismiss notification'",
-        "description": "Controls whether the close button is rendered, its accessible label, and the callback fired on dismissal."
+        "name": "srLabel",
+        "type": "string | false",
+        "defaultValue": "undefined",
+        "description": "Overrides or suppresses (false) the visually hidden screen-reader status announcement prefix."
       },
       {
-        "name": "density / paused / resetKey",
-        "type": "'comfortable' | 'compact' / boolean / number",
-        "defaultValue": "'comfortable' / false / 0",
-        "description": "Controls card padding/border weight, timer pause state, and timer reset counter on in-place toast updates."
+        "name": "action",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Primary interactive action element rendered in the component."
       },
       {
-        "name": "defaultDuration / label / renderViewport / hotkey / altText / ToastTitleProps / ToastDescriptionProps / ToastCloseProps",
-        "type": "number / string / boolean / string[] / string / Subcomponent Prop Aliases",
-        "defaultValue": "5000 / 'Notifications' / true / ['F8'] / undefined",
-        "description": "Subcomponent props on ToastProviderProps, ToastViewportProps, ToastActionProps, and exported ToastTitle/Description/Close prop aliases."
+        "name": "duration",
+        "type": "number",
+        "defaultValue": "5000 (10000 with action)",
+        "description": "Auto-dismiss timeout in milliseconds (0 disables auto-dismiss; pauses on hover or focus-within)."
+      },
+      {
+        "name": "resetKey",
+        "type": "number",
+        "defaultValue": "0",
+        "description": "Numeric counter that resets the auto-dismiss timer when incremented on in-place updates."
+      },
+      {
+        "name": "paused",
+        "type": "boolean",
+        "defaultValue": "undefined",
+        "description": "Controlled boolean that pauses the auto-dismiss countdown when true."
+      },
+      {
+        "name": "dismissible",
+        "type": "boolean",
+        "defaultValue": "true",
+        "description": "Whether the user can dismiss the notification via the close button or Escape key."
+      },
+      {
+        "name": "dismissLabel",
+        "type": "string",
+        "defaultValue": "'Dismiss notification'",
+        "description": "Accessible aria-label applied to the dismiss button."
+      },
+      {
+        "name": "density",
+        "type": "'comfortable' | 'compact'",
+        "defaultValue": "'comfortable'",
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
+      },
+      {
+        "name": "onDismiss",
+        "type": "() => void",
+        "defaultValue": "undefined",
+        "description": "Callback invoked when the user or auto-dismiss timer closes the item."
       }
     ],
     "stateBehavior": "Managed via <ToastProvider> and useToast() (or standalone <Toast>). Queues notifications beyond maxVisible (default 3) with a +N QUEUED badge, pauses timers on pointer hover, focus-within, or backgrounded document tabs, and portals into any active modal <dialog[open]> top layer.",
@@ -1209,7 +1372,39 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Calling useToast() outside a <ToastProvider> without a fallback (use useOptionalToast() in shared components that may render with or without a provider)."
     ],
-    "usageTemplate": "import { ToastProvider, useToast, Button } from '@/components/frame12';\n\nfunction ReplayTrigger() {\n  const { toast } = useToast();\n  return (\n    <Button\n      variant=\"secondary\"\n      onClick={() =>\n        toast({\n          status: 'success',\n          title: 'Webhook replayed',\n          description: 'Dispatched cut C-04 to primary endpoint.',\n        })\n      }\n    >\n      Trigger Toast\n    </Button>\n  );\n}\n\nexport function ToastDemo() {\n  return (\n    <ToastProvider>\n      <ReplayTrigger />\n    </ToastProvider>\n  );\n}"
+    "usageTemplate": "import { ToastProvider, useToast, Button } from '@/components/frame12';\n\nfunction ReplayTrigger() {\n  const { toast } = useToast();\n  return (\n    <Button\n      variant=\"secondary\"\n      onClick={() =>\n        toast({\n          status: 'success',\n          title: 'Webhook replayed',\n          description: 'Dispatched cut C-04 to primary endpoint.',\n        })\n      }\n    >\n      Trigger Toast\n    </Button>\n  );\n}\n\nexport function ToastDemo() {\n  return (\n    <ToastProvider>\n      <ReplayTrigger />\n    </ToastProvider>\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "ToastProvider",
+        "propsType": "ToastProviderProps",
+        "description": "Context provider managing toast queue (maxVisible?: number = 3, defaultDuration?: number = 5000, density?: ToastDensity = 'comfortable', label?: string = 'Notifications', renderViewport?: boolean = true)."
+      },
+      {
+        "name": "ToastViewport",
+        "propsType": "ToastViewportProps",
+        "description": "Notification region viewport (density?: ToastDensity, label?: string = 'Notifications', hotkey?: string = 'F8')."
+      },
+      {
+        "name": "ToastAction",
+        "propsType": "ToastActionProps",
+        "description": "Interactive toast action button extending ButtonHTMLAttributes with altText?: string."
+      },
+      {
+        "name": "ToastTitle",
+        "propsType": "ToastTitleProps",
+        "description": "Compound toast headline subcomponent (React.HTMLAttributes<HTMLDivElement>)."
+      },
+      {
+        "name": "ToastDescription",
+        "propsType": "ToastDescriptionProps",
+        "description": "Compound toast description subcomponent (React.HTMLAttributes<HTMLDivElement>)."
+      },
+      {
+        "name": "ToastClose",
+        "propsType": "ToastCloseProps",
+        "description": "Compound toast close button subcomponent (React.ButtonHTMLAttributes<HTMLButtonElement>)."
+      }
+    ]
   },
   {
     "slug": "skeleton",
@@ -1232,10 +1427,16 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Selects pre-sized geometry matching text lines, avatars, KPI metrics, or full panels."
       },
       {
-        "name": "label",
-        "type": "string",
+        "name": "width",
+        "type": "number | string",
         "defaultValue": "undefined",
-        "description": "When omitted, renders aria-hidden=\"true\"; when provided, renders role=\"status\" aria-busy=\"true\" with a .f12-sr-only label."
+        "description": "Explicit width override in pixels or CSS units (e.g. '68%' or 240)."
+      },
+      {
+        "name": "height",
+        "type": "number | string",
+        "defaultValue": "undefined",
+        "description": "Explicit height in pixels or CSS units."
       },
       {
         "name": "animated",
@@ -1244,22 +1445,16 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Enables the 4-step 12fps opacity pulse (automatically disabled under prefers-reduced-motion: reduce)."
       },
       {
-        "name": "width / height",
-        "type": "number | string",
-        "defaultValue": "variant default",
-        "description": "Explicit pixel or CSS dimension overrides so loading placeholders match populated geometry with zero CLS."
-      },
-      {
         "name": "density",
         "type": "'comfortable' | 'compact'",
         "defaultValue": "'comfortable'",
-        "description": "Matches comfortable or compact row and panel heights."
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
       },
       {
-        "name": "lines / lastLineWidth",
-        "type": "number / number | string",
-        "defaultValue": "3 / '68%'",
-        "description": "Subcomponent props on SkeletonTextProps controlling line count and trailing line width."
+        "name": "label",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "When omitted, renders aria-hidden=\"true\"; when provided, renders role=\"status\" aria-busy=\"true\" with a .f12-sr-only label."
       }
     ],
     "stateBehavior": "Stateless placeholder; defaults to aria-hidden=\"true\" unless a descriptive label prop is provided on the primary loading container.",
@@ -1277,7 +1472,14 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Passing label=\"...\" on every individual skeleton line inside a loading panel, causing screen readers to announce dozens of busy regions instead of a single container label."
     ],
-    "usageTemplate": "import { Skeleton, SkeletonText } from '@/components/frame12';\n\nexport function LoadingPanel() {\n  return (\n    <div className=\"f12-stack-pair\">\n      <Skeleton variant=\"metric\" label=\"Loading revenue metric\" />\n      <SkeletonText lines={3} />\n    </div>\n  );\n}"
+    "usageTemplate": "import { Skeleton, SkeletonText } from '@/components/frame12';\n\nexport function LoadingPanel() {\n  return (\n    <div className=\"f12-stack-pair\">\n      <Skeleton variant=\"metric\" label=\"Loading revenue metric\" />\n      <SkeletonText lines={3} />\n    </div>\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "SkeletonText",
+        "propsType": "SkeletonTextProps",
+        "description": "Multi-line paragraph skeleton placeholder (lines?: number = 3, lastLineWidth?: number | string = '65%', animated?: boolean = true, density?: SkeletonDensity = 'comfortable', label?: string)."
+      }
+    ]
   },
   {
     "slug": "empty-state",
@@ -1297,25 +1499,13 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "title",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Headline title for the empty state (or use <EmptyStateTitle>)."
+        "description": "Primary headline or accessible title text."
       },
       {
         "name": "description",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Supporting explanation or recovery guidance (or use <EmptyStateDescription>)."
-      },
-      {
-        "name": "code",
-        "type": "string",
-        "defaultValue": "undefined",
-        "description": "Optional uppercase monospace status code stamp (e.g., \"0 MATCHING ROWS\")."
-      },
-      {
-        "name": "variant",
-        "type": "'dashed' | 'quiet'",
-        "defaultValue": "'dashed'",
-        "description": "Selects a 2px dashed ink frame or a quiet 1px exposure-sheet frame."
+        "description": "Supporting body copy rendered inside the component."
       },
       {
         "name": "icon",
@@ -1324,22 +1514,40 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Custom registration glyph or false to hide the decorative stamp."
       },
       {
-        "name": "action / secondaryAction",
+        "name": "code",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Primary and secondary recovery action slots (e.g., Reset filters or Restore live fixture)."
+        "description": "Optional uppercase monospace status code stamp (e.g., \"0 MATCHING ROWS\")."
       },
       {
-        "name": "density / headingLevel",
-        "type": "'comfortable' | 'compact' / 'h2' | 'h3' | 'h4' | 'div'",
-        "defaultValue": "'comfortable' / 'h3'",
-        "description": "Controls frame padding and semantic heading tag for document outline hierarchy."
+        "name": "action",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Primary interactive action element rendered in the component."
       },
       {
-        "name": "as / EmptyStateIconProps / EmptyStateDescriptionProps / EmptyStateActionsProps",
-        "type": "'h2' | 'h3' | 'h4' | 'div' / Subcomponent Prop Aliases",
+        "name": "secondaryAction",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Optional secondary action element rendered beside the primary action."
+      },
+      {
+        "name": "density",
+        "type": "'comfortable' | 'compact'",
+        "defaultValue": "'comfortable'",
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
+      },
+      {
+        "name": "variant",
+        "type": "'dashed' | 'quiet'",
+        "defaultValue": "'dashed'",
+        "description": "Selects a 2px dashed ink frame or a quiet 1px exposure-sheet frame."
+      },
+      {
+        "name": "headingLevel",
+        "type": "'h2' | 'h3' | 'h4' | 'div'",
         "defaultValue": "'h3'",
-        "description": "Subcomponent prop on EmptyStateTitleProps (as) and exported EmptyState compound subcomponent prop aliases."
+        "description": "Semantic heading element tag ('h2' | 'h3' | 'h4' | 'div') used for the title."
       }
     ],
     "stateBehavior": "Stateless presentation component supporting both shorthand props (title, description, code, action, secondaryAction) and compound subcomponents.",
@@ -1357,7 +1565,29 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Omitting the action slot on filtered-empty states, leaving users without a one-click way to clear active search or select filters."
     ],
-    "usageTemplate": "import { EmptyState, Button } from '@/components/frame12';\n\nexport function ZeroLedger({ onReset }: { onReset: () => void }) {\n  return (\n    <EmptyState\n      code=\"0 MATCHING ROWS\"\n      title=\"No matching interventions\"\n      description=\"Clear the search filter or broaden the exposure window.\"\n      action={<Button variant=\"secondary\" size=\"sm\" onClick={onReset}>Reset filters</Button>}\n    />\n  );\n}"
+    "usageTemplate": "import { EmptyState, Button } from '@/components/frame12';\n\nexport function ZeroLedger({ onReset }: { onReset: () => void }) {\n  return (\n    <EmptyState\n      code=\"0 MATCHING ROWS\"\n      title=\"No matching interventions\"\n      description=\"Clear the search filter or broaden the exposure window.\"\n      action={<Button variant=\"secondary\" size=\"sm\" onClick={onReset}>Reset filters</Button>}\n    />\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "EmptyStateTitle",
+        "propsType": "EmptyStateTitleProps",
+        "description": "Compound heading subcomponent accepting as?: 'h2' | 'h3' | 'h4' | 'div' (default 'h3')."
+      },
+      {
+        "name": "EmptyStateIcon",
+        "propsType": "EmptyStateIconProps",
+        "description": "Compound registration glyph wrapper (React.HTMLAttributes<HTMLDivElement>)."
+      },
+      {
+        "name": "EmptyStateDescription",
+        "propsType": "EmptyStateDescriptionProps",
+        "description": "Compound description paragraph (React.HTMLAttributes<HTMLParagraphElement>)."
+      },
+      {
+        "name": "EmptyStateActions",
+        "propsType": "EmptyStateActionsProps",
+        "description": "Compound recovery action button row (React.HTMLAttributes<HTMLDivElement>)."
+      }
+    ]
   },
   {
     "slug": "breadcrumb",
@@ -1386,22 +1616,16 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Custom visual separator rendered between breadcrumb items with aria-hidden=\"true\"."
       },
       {
-        "name": "ariaLabel",
-        "type": "string",
-        "defaultValue": "'Breadcrumb'",
-        "description": "Accessible landmark label for the outer <nav> element."
-      },
-      {
         "name": "density",
         "type": "'comfortable' | 'compact'",
         "defaultValue": "'comfortable'",
-        "description": "Adjusts font scale and spacing while keeping 24×24px minimum interactive link targets."
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
       },
       {
-        "name": "asChild / aria-current / BreadcrumbButtonProps / BreadcrumbListProps / BreadcrumbItemProps / BreadcrumbSeparatorProps / BreadcrumbEllipsisProps",
-        "type": "boolean / React.AriaAttributes['aria-current'] / Subcomponent Prop Aliases",
-        "defaultValue": "false / 'page'",
-        "description": "Subcomponent props on BreadcrumbLinkProps (asChild), BreadcrumbPageProps (aria-current), and compound button/list/item/separator/ellipsis prop aliases."
+        "name": "ariaLabel",
+        "type": "string",
+        "defaultValue": "'Breadcrumb'",
+        "description": "Accessible aria-label override for the landmark or control."
       }
     ],
     "stateBehavior": "Stateless navigation landmark (<nav aria-label=\"Breadcrumb\">) supporting shorthand items array or compound BreadcrumbList / BreadcrumbItem / BreadcrumbLink / BreadcrumbButton / BreadcrumbPage children.",
@@ -1414,7 +1638,7 @@ const RAW_CATALOG: CatalogEntry[] = [
     "keyboardNotes": [
       "All ancestor BreadcrumbLink items are standard keyboard-focusable links (or BreadcrumbButton buttons when onSelect is used without href); the active BreadcrumbPage carries aria-current=\"page\"."
     ],
-    "themeBehavior": "Renders ancestor links in --f-ink-2 with --f-ink hover/current states and --f-marker focus rings.",
+    "themeBehavior": "Renders ancestor links in --f-ink-2 with --f-ink hover/current states and 3px solid var(--f-ink) focus-visible outlines.",
     "responsiveBehavior": "Wraps path items across multiple lines on narrow 390px viewports while keeping >= 24×24px interactive hit targets.",
     "grammarNotes": [
       "Uses uppercase monospace path tokens with 24×24px minimum interactive link targets."
@@ -1422,7 +1646,44 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Making the current page breadcrumb item a self-referential link instead of marking it current: true (<BreadcrumbPage>)."
     ],
-    "usageTemplate": "import { Breadcrumb } from '@/components/frame12';\n\nexport function SheetPath({ onOpenSheets }: { onOpenSheets: () => void }) {\n  return (\n    <Breadcrumb\n      items={[\n        { label: 'Workspace', href: '/workspace' }, // real route → <a>\n        { label: 'Sheets', onSelect: onOpenSheets }, // in-page level → <button>\n        { label: 'Cut C-04 Ledger', current: true },\n      ]}\n    />\n  );\n}"
+    "usageTemplate": "import { Breadcrumb } from '@/components/frame12';\n\nexport function SheetPath({ onOpenSheets }: { onOpenSheets: () => void }) {\n  return (\n    <Breadcrumb\n      items={[\n        { label: 'Workspace', href: '/workspace' }, // real route → <a>\n        { label: 'Sheets', onSelect: onOpenSheets }, // in-page level → <button>\n        { label: 'Cut C-04 Ledger', current: true },\n      ]}\n    />\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "BreadcrumbLink",
+        "propsType": "BreadcrumbLinkProps",
+        "description": "Ancestor route link accepting AnchorHTMLAttributes and asChild?: boolean (default false)."
+      },
+      {
+        "name": "BreadcrumbPage",
+        "propsType": "BreadcrumbPageProps",
+        "description": "Current breadcrumb item (<span aria-current=\"page\">) accepting aria-current?: AriaAttributes['aria-current'] | false."
+      },
+      {
+        "name": "BreadcrumbList",
+        "propsType": "BreadcrumbListProps",
+        "description": "Ordered list container (<ol>, React.OlHTMLAttributes<HTMLOListElement>)."
+      },
+      {
+        "name": "BreadcrumbItem",
+        "propsType": "BreadcrumbItemProps",
+        "description": "List item wrapper (<li>, React.LiHTMLAttributes<HTMLLIElement>)."
+      },
+      {
+        "name": "BreadcrumbButton",
+        "propsType": "BreadcrumbButtonProps",
+        "description": "In-page ancestor action button (<button type=\"button\">) used when onSelect is provided."
+      },
+      {
+        "name": "BreadcrumbSeparator",
+        "propsType": "BreadcrumbSeparatorProps",
+        "description": "Decorative separator item (role=\"presentation\" aria-hidden=\"true\", React.HTMLAttributes<HTMLElement>)."
+      },
+      {
+        "name": "BreadcrumbEllipsis",
+        "propsType": "BreadcrumbEllipsisProps",
+        "description": "Collapsed level indicator with screen-reader label (React.HTMLAttributes<HTMLSpanElement>)."
+      }
+    ]
   },
   {
     "slug": "pagination",
@@ -1439,10 +1700,22 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "page / totalPages",
+        "name": "page",
         "type": "number",
         "defaultValue": "undefined",
-        "description": "Current 1-indexed page and total page count for data-driven rendering."
+        "description": "Controlled 1-indexed active page number."
+      },
+      {
+        "name": "defaultPage",
+        "type": "number",
+        "defaultValue": "1",
+        "description": "Initial 1-indexed page number when rendered uncontrolled."
+      },
+      {
+        "name": "totalPages",
+        "type": "number",
+        "defaultValue": "undefined",
+        "description": "Total number of pages in the dataset."
       },
       {
         "name": "onPageChange",
@@ -1451,46 +1724,82 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Callback fired when a page number or Prev/Next button is activated."
       },
       {
+        "name": "siblingCount",
+        "type": "number",
+        "defaultValue": "1",
+        "description": "Number of adjacent page buttons shown on each side of the current page."
+      },
+      {
+        "name": "boundaryCount",
+        "type": "number",
+        "defaultValue": "1",
+        "description": "Number of page buttons always shown at the start and end of the range."
+      },
+      {
+        "name": "density",
+        "type": "'comfortable' | 'compact'",
+        "defaultValue": "'comfortable'",
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
+      },
+      {
+        "name": "ariaLabel",
+        "type": "string",
+        "defaultValue": "'Pagination'",
+        "description": "Accessible aria-label override for the landmark or control."
+      },
+      {
+        "name": "previousLabel",
+        "type": "React.ReactNode",
+        "defaultValue": "'Prev'",
+        "description": "Custom label content for the Previous page button."
+      },
+      {
+        "name": "nextLabel",
+        "type": "React.ReactNode",
+        "defaultValue": "'Next'",
+        "description": "Custom label content for the Next page button."
+      },
+      {
+        "name": "ellipsisLabel",
+        "type": "string",
+        "defaultValue": "'More pages'",
+        "description": "Screen-reader label for collapsed ellipsis items."
+      },
+      {
         "name": "showSummary",
         "type": "boolean",
         "defaultValue": "false",
         "description": "Renders the monospace PAGE X OF Y exposure-sheet counter alongside the page buttons."
       },
       {
-        "name": "density",
-        "type": "'comfortable' | 'compact'",
-        "defaultValue": "'comfortable'",
-        "description": "Switches to 1.5px rules and compact padding while preserving >= 24×24px targets."
-      },
-      {
-        "name": "defaultPage / siblingCount / boundaryCount",
+        "name": "totalItems",
         "type": "number",
-        "defaultValue": "1 / 1 / 1",
-        "description": "Uncontrolled initial page and number of sibling/boundary page buttons shown around the active page before ellipsis collapse."
-      },
-      {
-        "name": "totalItems / pageSize / formatSummary",
-        "type": "number / number / (details: PaginationSummaryDetails) => React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Optional item count metadata and custom formatter for the exposure-sheet range summary."
+        "description": "Optional total record count used by the exposure-sheet summary."
       },
       {
-        "name": "ariaLabel / previousLabel / nextLabel / ellipsisLabel",
-        "type": "string / React.ReactNode",
-        "defaultValue": "'Pagination' / '← PREV' / 'NEXT →' / 'More pages'",
-        "description": "Accessible landmark label and customizable button/ellipsis labels."
+        "name": "pageSize",
+        "type": "number",
+        "defaultValue": "20",
+        "description": "Number of items per page used to compute startItem and endItem in the summary."
       },
       {
-        "name": "getItemAriaLabel / getItemHref",
-        "type": "function",
+        "name": "formatSummary",
+        "type": "(details: PaginationSummaryDetails) => React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Optional callbacks for custom aria-label strings and anchor href generation on page links."
+        "description": "Custom formatter receiving { page, totalPages, startItem, endItem, totalItems }."
       },
       {
-        "name": "type / disabled / isActive / onClick / PaginationContentProps / PaginationItemProps / PaginationPreviousProps / PaginationNextProps / PaginationEllipsisProps",
-        "type": "'button' | 'submit' | 'reset' / boolean / boolean / React.MouseEventHandler<HTMLElement> / Subcomponent Prop Aliases",
-        "defaultValue": "'button' / false / false / undefined",
-        "description": "Subcomponent props on PaginationLinkProps and exported compound pagination prop aliases."
+        "name": "getItemAriaLabel",
+        "type": "( type: 'page' | 'previous' | 'next', page: number, isCurrent: boolean, ) => string",
+        "defaultValue": "undefined",
+        "description": "Callback returning a custom aria-label for page, previous, and next buttons."
+      },
+      {
+        "name": "getItemHref",
+        "type": "(page: number) => string | undefined",
+        "defaultValue": "undefined",
+        "description": "Optional callback returning an anchor href for each page number."
       }
     ],
     "stateBehavior": "Supports controlled (page + onPageChange) and uncontrolled (defaultPage) modes, computing deterministic page + ellipsis ranges via buildPaginationRange().",
@@ -1509,7 +1818,39 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Forgetting to clamp or reset the active page to 1 when a user changes a search filter that reduces totalPages."
     ],
-    "usageTemplate": "import { Pagination } from '@/components/frame12';\n\nexport function LedgerPagination({ page, onChange }: { page: number; onChange: (p: number) => void }) {\n  return (\n    <Pagination\n      page={page}\n      totalPages={12}\n      onPageChange={onChange}\n      showSummary\n    />\n  );\n}"
+    "usageTemplate": "import { Pagination } from '@/components/frame12';\n\nexport function LedgerPagination({ page, onChange }: { page: number; onChange: (p: number) => void }) {\n  return (\n    <Pagination\n      page={page}\n      totalPages={12}\n      onPageChange={onChange}\n      showSummary\n    />\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "PaginationLink",
+        "propsType": "PaginationLinkProps",
+        "description": "Page button or link accepting isActive?: boolean, disabled?: boolean, density?: PaginationDensity, href?: string, type?: string, and onClick."
+      },
+      {
+        "name": "PaginationContent",
+        "propsType": "PaginationContentProps",
+        "description": "Unordered list container (<ul>, React.HTMLAttributes<HTMLUListElement>)."
+      },
+      {
+        "name": "PaginationItem",
+        "propsType": "PaginationItemProps",
+        "description": "List item wrapper (<li>, React.LiHTMLAttributes<HTMLLIElement>)."
+      },
+      {
+        "name": "PaginationPrevious",
+        "propsType": "PaginationPreviousProps",
+        "description": "Previous-page control extending PaginationLinkProps."
+      },
+      {
+        "name": "PaginationNext",
+        "propsType": "PaginationNextProps",
+        "description": "Next-page control extending PaginationLinkProps."
+      },
+      {
+        "name": "PaginationEllipsis",
+        "propsType": "PaginationEllipsisProps",
+        "description": "Collapsed page range indicator (React.HTMLAttributes<HTMLSpanElement>)."
+      }
+    ]
   },
   {
     "slug": "metric",
@@ -1536,12 +1877,12 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "value",
         "type": "number",
         "defaultValue": "required",
-        "description": "Numeric metric value interpolated on twos via useCountUp."
+        "description": "Controlled active value."
       },
       {
         "name": "format",
         "type": "(value: number) => string",
-        "defaultValue": "fmtCurrency",
+        "defaultValue": "fmtMoney",
         "description": "Formatter function converting numeric values to display strings."
       },
       {
@@ -1557,6 +1898,24 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Formats delta as percentage (%) or percentage points (pp)."
       },
       {
+        "name": "comparisonLabel",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Explicit comparison context label (e.g. 'vs prior 30 days')."
+      },
+      {
+        "name": "range",
+        "type": "number | string",
+        "defaultValue": "undefined",
+        "description": "Observation window length in days (or label) used in the default comparison caption."
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Secondary caption rendered beneath the metric readout."
+      },
+      {
         "name": "big",
         "type": "boolean",
         "defaultValue": "false",
@@ -1569,28 +1928,22 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Selects display headline scale on twos (expressive) or 22px tabular monospace exposure-sheet scale with instant cut default (quiet)."
       },
       {
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "'stepped' ('cut' in quiet variant)",
+        "description": "Motion timing mode: 'stepped' (12fps on twos), 'smooth' (60fps), or 'cut' (0ms instant)."
+      },
+      {
         "name": "spark",
         "type": "React.ReactNode",
         "defaultValue": "undefined",
         "description": "Optional bottom slot for a ToneSpark daily bar strip."
       },
       {
-        "name": "comparisonLabel / range / note",
-        "type": "string / number | string / string",
-        "defaultValue": "undefined",
-        "description": "Contextual comparison label (e.g., \"vs prior 30d\"), day window badge, or secondary footnote."
-      },
-      {
-        "name": "headingLevel / motion",
-        "type": "'h2' | 'h3' | 'h4' | 'div' | 'p' / MotionMode",
-        "defaultValue": "'h2' / 'stepped' ('cut' in quiet variant)",
-        "description": "Semantic element tag for the metric label and motion mode override for useCountUp."
-      },
-      {
-        "name": "kind",
-        "type": "'pct' | 'pp'",
-        "defaultValue": "'pct'",
-        "description": "Subcomponent prop on DeltaProps selecting percentage (%) or percentage-point (pp) formatting."
+        "name": "headingLevel",
+        "type": "'h2' | 'h3' | 'h4' | 'div' | 'p'",
+        "defaultValue": "'h2'",
+        "description": "Semantic heading element tag ('h2' | 'h3' | 'h4' | 'div') used for the title."
       }
     ],
     "stateBehavior": "Interpolates numeric value changes at 12fps via useCountUp in expressive mode (and defaults to instant cut in quiet mode).",
@@ -1609,7 +1962,14 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Formatting the number into a string before passing it to value (Metric requires a numeric value and a format={(v) => string} function)."
     ],
-    "usageTemplate": "import { Metric, fmtCurrency } from '@/components/frame12';\n\nexport function HeroKpi() {\n  return (\n    <Metric\n      label=\"Recovered revenue\"\n      value={120054}\n      format={fmtCurrency}\n      delta={0.114}\n      deltaKind=\"pct\"\n      range={30}\n      big\n    />\n  );\n}"
+    "usageTemplate": "import { Metric, fmtCurrency } from '@/components/frame12';\n\nexport function HeroKpi() {\n  return (\n    <Metric\n      label=\"Recovered revenue\"\n      value={120054}\n      format={fmtCurrency}\n      delta={0.114}\n      deltaKind=\"pct\"\n      range={30}\n      big\n    />\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "Delta",
+        "propsType": "DeltaProps",
+        "description": "Standalone directional delta badge (value: number, kind?: 'pct' | 'pp' = 'pct', comparisonLabel?: string, range?: number | string)."
+      }
+    ]
   },
   {
     "slug": "tone-area-chart",
@@ -1645,10 +2005,46 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Optional dashed comparison series label."
       },
       {
+        "name": "labelColumnHeader",
+        "type": "string",
+        "defaultValue": "'Label'",
+        "description": "Column header for the x-axis label column in the collapsible semantic data table."
+      },
+      {
+        "name": "formatValue",
+        "type": "(v: number) => string",
+        "defaultValue": "defaultFormatValue",
+        "description": "Formatter for crosshair and table cell values (pass fmtCurrency for USD)."
+      },
+      {
+        "name": "formatShort",
+        "type": "(v: number) => string",
+        "defaultValue": "defaultFormatShort",
+        "description": "Compact formatter for Y-axis ticks (pass fmtCurrencyShort for USD)."
+      },
+      {
+        "name": "annotation",
+        "type": "ToneAreaAnnotation | null",
+        "defaultValue": "undefined",
+        "description": "Explicit speech-balloon callout { index, text }, null to hide, or undefined for auto-peak."
+      },
+      {
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "'stepped'",
+        "description": "Motion timing mode: 'stepped' (12fps on twos), 'smooth' (60fps), or 'cut' (0ms instant)."
+      },
+      {
         "name": "height",
         "type": "number",
         "defaultValue": "260",
-        "description": "SVG chart height in pixels."
+        "description": "Explicit height in pixels or CSS units."
+      },
+      {
+        "name": "tableSummary",
+        "type": "string",
+        "defaultValue": "'Show data table'",
+        "description": "Toggle label for the collapsible <details className=\"f12-tbl\"> data table."
       },
       {
         "name": "showTable",
@@ -1657,22 +2053,10 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Renders the accessible <details className=\"tbl\"> semantic data table."
       },
       {
-        "name": "labelColumnHeader / tableSummary / ariaLabel",
+        "name": "ariaLabel",
         "type": "string",
-        "defaultValue": "'Label' / 'Show data table' / auto",
-        "description": "First column header in the semantic data table, <summary> toggle text, and SVG aria-label override."
-      },
-      {
-        "name": "formatValue / formatShort",
-        "type": "(v: number) => string",
-        "defaultValue": "defaultFormatValue / defaultFormatShort",
-        "description": "Formatters for full crosshair/table values and compact Y-axis tick labels (pass fmtCurrency / fmtCurrencyShort for USD)."
-      },
-      {
-        "name": "annotation / motion",
-        "type": "{ index: number; text: string } | null / MotionMode",
-        "defaultValue": "undefined (auto-peak) / 'stepped'",
-        "description": "Custom speech-balloon annotation point (or null to hide) and 12fps chart reveal motion mode."
+        "defaultValue": "undefined",
+        "description": "Accessible aria-label override for the landmark or control."
       }
     ],
     "stateBehavior": "Manages interactive pointer/keyboard crosshair index state internally and animates series reveal on twos via useOnTwos when data or range changes.",
@@ -1712,6 +2096,18 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
+        "name": "title",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Primary headline or accessible title text."
+      },
+      {
+        "name": "subtitle",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Right-aligned monospace subtitle displayed in the list header."
+      },
+      {
         "name": "items",
         "type": "ToneBarItem[]",
         "defaultValue": "required",
@@ -1730,6 +2126,12 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Callback fired when a row is toggled."
       },
       {
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "undefined",
+        "description": "Motion timing mode: 'stepped' (12fps on twos), 'smooth' (60fps), or 'cut' (0ms instant)."
+      },
+      {
         "name": "changed",
         "type": "boolean",
         "defaultValue": "false",
@@ -1739,19 +2141,13 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "density",
         "type": "'comfortable' | 'compact'",
         "defaultValue": "'comfortable'",
-        "description": "Reduces row padding and bar height for high-density operational lists."
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
       },
       {
-        "name": "title / subtitle",
+        "name": "idPrefix",
         "type": "string",
         "defaultValue": "undefined",
-        "description": "Optional header title and right-aligned monospace subtitle above the ranked bar list."
-      },
-      {
-        "name": "motion / idPrefix",
-        "type": "MotionMode / string",
-        "defaultValue": "'stepped' / undefined",
-        "description": "Controls 12fps bar-width wipe cadence and deterministic button ID prefix (int-${idPrefix}-${item.id})."
+        "description": "Deterministic DOM ID prefix for multi-instance rendering without duplicate IDs."
       }
     ],
     "stateBehavior": "Controlled selection via selectedId and onSelect(id | null); clicking the currently selected bar toggles selection off (null).",
@@ -1799,16 +2195,28 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Uppercase monospace caption rendered above the sparkline."
       },
       {
+        "name": "ariaLabel",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Accessible aria-label override for the landmark or control."
+      },
+      {
         "name": "rangeKey",
         "type": "string | number",
         "defaultValue": "undefined",
         "description": "Key that replays the stepped bar reveal when changed."
       },
       {
-        "name": "ariaLabel / motion / height",
-        "type": "string / MotionMode / number",
-        "defaultValue": "auto / 'stepped' / 36",
-        "description": "Accessible role=\"img\" label override, 12fps bar reveal mode, and SVG sparkline height in pixels."
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "'stepped'",
+        "description": "Motion timing mode: 'stepped' (12fps on twos), 'smooth' (60fps), or 'cut' (0ms instant)."
+      },
+      {
+        "name": "height",
+        "type": "number",
+        "defaultValue": "40",
+        "description": "Explicit height in pixels or CSS units."
       }
     ],
     "stateBehavior": "Stateless SVG bar strip that replays a stepped 12fps vertical wipe via useOnTwos whenever rangeKey changes.",
@@ -1938,28 +2346,22 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "open / onOpenChange",
-        "type": "boolean / (open: boolean) => void",
-        "defaultValue": "uncontrolled",
-        "description": "Controlled or uncontrolled modal state synchronized with native dialog.showModal()."
-      },
-      {
-        "name": "cut",
-        "type": "string",
+        "name": "open",
+        "type": "boolean",
         "defaultValue": "undefined",
-        "description": "Optional sequential cut badge rendered on the top edge of DialogContent."
+        "description": "Controlled open state."
       },
       {
         "name": "defaultOpen",
         "type": "boolean",
         "defaultValue": "false",
-        "description": "Initial open state when Dialog is rendered as an uncontrolled modal."
+        "description": "Initial open state for uncontrolled usage."
       },
       {
-        "name": "asChild",
-        "type": "boolean",
-        "defaultValue": "false",
-        "description": "Subcomponent prop on DialogTriggerProps and DialogCloseProps to merge behavior onto a custom child button."
+        "name": "onOpenChange",
+        "type": "(open: boolean) => void",
+        "defaultValue": "undefined",
+        "description": "Callback fired when the open state changes."
       }
     ],
     "stateBehavior": "Supports controlled (open + onOpenChange) and uncontrolled (defaultOpen) state synchronized with native HTML <dialog>.showModal(). Automatically coordinates with nested Select, DropdownMenu, and Toast portals.",
@@ -1978,7 +2380,44 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Omitting DialogTitle inside DialogContent, which leaves the modal dialog without an accessible aria-labelledby name."
     ],
-    "usageTemplate": "import {\n  Dialog, DialogTrigger, DialogContent, DialogHeader,\n  DialogTitle, DialogDescription, DialogFooter, DialogClose,\n} from '@/components/frame12';\n\nexport function ConfirmModal() {\n  return (\n    <Dialog>\n      <DialogTrigger variant=\"marker\">Open Modal</DialogTrigger>\n      <DialogContent>\n        <DialogHeader>\n          <DialogTitle>Rotate webhook secret?</DialogTitle>\n          <DialogDescription>Active endpoints will verify both keys for 24 hours.</DialogDescription>\n        </DialogHeader>\n        <DialogFooter>\n          <DialogClose variant=\"secondary\">Cancel</DialogClose>\n          <DialogClose variant=\"primary\">Confirm</DialogClose>\n        </DialogFooter>\n      </DialogContent>\n    </Dialog>\n  );\n}"
+    "usageTemplate": "import {\n  Dialog, DialogTrigger, DialogContent, DialogHeader,\n  DialogTitle, DialogDescription, DialogFooter, DialogClose,\n} from '@/components/frame12';\n\nexport function ConfirmModal() {\n  return (\n    <Dialog>\n      <DialogTrigger variant=\"marker\">Open Modal</DialogTrigger>\n      <DialogContent>\n        <DialogHeader>\n          <DialogTitle>Rotate webhook secret?</DialogTitle>\n          <DialogDescription>Active endpoints will verify both keys for 24 hours.</DialogDescription>\n        </DialogHeader>\n        <DialogFooter>\n          <DialogClose variant=\"secondary\">Cancel</DialogClose>\n          <DialogClose variant=\"primary\">Confirm</DialogClose>\n        </DialogFooter>\n      </DialogContent>\n    </Dialog>\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "DialogTrigger",
+        "propsType": "DialogTriggerProps",
+        "description": "Modal trigger button extending ButtonProps with asChild?: boolean (default false)."
+      },
+      {
+        "name": "DialogContent",
+        "propsType": "DialogContentProps",
+        "description": "Modal <dialog> surface extending DialogHTMLAttributes with cut?: string."
+      },
+      {
+        "name": "DialogHeader",
+        "propsType": "React.HTMLAttributes<HTMLDivElement>",
+        "description": "Modal header container for DialogTitle and DialogDescription."
+      },
+      {
+        "name": "DialogTitle",
+        "propsType": "React.HTMLAttributes<HTMLHeadingElement>",
+        "description": "Accessible modal heading automatically linked to <dialog> via aria-labelledby."
+      },
+      {
+        "name": "DialogDescription",
+        "propsType": "React.HTMLAttributes<HTMLParagraphElement>",
+        "description": "Supporting modal description automatically linked to <dialog> via aria-describedby."
+      },
+      {
+        "name": "DialogFooter",
+        "propsType": "React.HTMLAttributes<HTMLDivElement>",
+        "description": "Bottom action bar for DialogClose and confirmation buttons."
+      },
+      {
+        "name": "DialogClose",
+        "propsType": "ButtonProps",
+        "description": "Button that closes the parent Dialog on click (accepts ButtonProps; does not support asChild)."
+      }
+    ]
   },
   {
     "slug": "select",
@@ -1996,40 +2435,28 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "value / defaultValue",
-        "type": "string",
-        "defaultValue": "''",
-        "description": "Controlled or uncontrolled selected item value."
-      },
-      {
-        "name": "onValueChange",
-        "type": "(value: string) => void",
-        "defaultValue": "undefined",
-        "description": "Callback fired when an option is selected."
-      },
-      {
         "name": "label",
         "type": "string",
         "defaultValue": "undefined",
         "description": "Optional visible <label> automatically linked to the trigger button."
       },
       {
-        "name": "density",
-        "type": "'comfortable' | 'compact'",
-        "defaultValue": "'comfortable'",
-        "description": "Reduces trigger padding and border width for dense operational forms."
-      },
-      {
         "name": "id",
         "type": "string",
         "defaultValue": "useId()",
-        "description": "Explicit trigger button ID linked to the visible <label> or outer <Field>."
+        "description": "Explicit DOM id for the control or container (defaults to a stable React.useId() value)."
       },
       {
-        "name": "ariaLabel / SelectValueProps / SelectContentProps / SelectItemProps / SelectGroupProps / SelectLabelProps / SelectSeparatorProps",
-        "type": "string / Radix Select Contracts",
-        "defaultValue": "undefined / Radix defaults",
-        "description": "Subcomponent prop on SelectTriggerProps (ariaLabel) and exported Radix Select compound prop aliases."
+        "name": "density",
+        "type": "'comfortable' | 'compact'",
+        "defaultValue": "'comfortable'",
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
+      },
+      {
+        "name": "className",
+        "type": "string",
+        "defaultValue": "''",
+        "description": "Additional CSS class names applied to the root element."
       }
     ],
     "stateBehavior": "Supports controlled (value + onValueChange) and uncontrolled (defaultValue) state, plus native <form> FormData participation when name or required is passed.",
@@ -2048,7 +2475,44 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Omitting both label on <Select> and ariaLabel on <SelectTrigger>, leaving the combobox trigger without an accessible name."
     ],
-    "usageTemplate": "import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/frame12';\n\nexport function ChannelSelect() {\n  return (\n    <Select defaultValue=\"cart\" label=\"Intervention channel\">\n      <SelectTrigger><SelectValue /></SelectTrigger>\n      <SelectContent>\n        <SelectItem value=\"cart\">Abandoned-cart email</SelectItem>\n        <SelectItem value=\"exit\">Exit-intent offer</SelectItem>\n        <SelectItem value=\"stock\">Back-in-stock alert</SelectItem>\n      </SelectContent>\n    </Select>\n  );\n}"
+    "usageTemplate": "import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/frame12';\n\nexport function ChannelSelect() {\n  return (\n    <Select defaultValue=\"cart\" label=\"Intervention channel\">\n      <SelectTrigger><SelectValue /></SelectTrigger>\n      <SelectContent>\n        <SelectItem value=\"cart\">Abandoned-cart email</SelectItem>\n        <SelectItem value=\"exit\">Exit-intent offer</SelectItem>\n        <SelectItem value=\"stock\">Back-in-stock alert</SelectItem>\n      </SelectContent>\n    </Select>\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "SelectTrigger",
+        "propsType": "SelectTriggerProps",
+        "description": "Listbox trigger button accepting ariaLabel?: string and Radix Select.Trigger props."
+      },
+      {
+        "name": "SelectValue",
+        "propsType": "SelectValueProps",
+        "description": "Selected value display (Radix Select.Value props, including placeholder?: ReactNode)."
+      },
+      {
+        "name": "SelectContent",
+        "propsType": "SelectContentProps",
+        "description": "Portaled listbox popup surface (Radix Select.Content props)."
+      },
+      {
+        "name": "SelectItem",
+        "propsType": "SelectItemProps",
+        "description": "Selectable option row (Radix Select.Item props without asChild)."
+      },
+      {
+        "name": "SelectGroup",
+        "propsType": "SelectGroupProps",
+        "description": "Option group container (Radix Select.Group props)."
+      },
+      {
+        "name": "SelectLabel",
+        "propsType": "SelectLabelProps",
+        "description": "Uppercase monospace group header (Radix Select.Label props)."
+      },
+      {
+        "name": "SelectSeparator",
+        "propsType": "SelectSeparatorProps",
+        "description": "1px horizontal divider between option groups (Radix Select.Separator props)."
+      }
+    ]
   },
   {
     "slug": "tooltip",
@@ -2065,28 +2529,22 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "TooltipTrigger",
-        "type": "{ asChild?: boolean; children: React.ReactElement }",
-        "defaultValue": "required",
-        "description": "Trigger element that opens the tooltip on hover or keyboard focus."
+        "name": "open",
+        "type": "boolean",
+        "defaultValue": "undefined",
+        "description": "Controlled open state."
       },
       {
-        "name": "TooltipContent",
-        "type": "React.HTMLAttributes<HTMLDivElement>",
-        "defaultValue": "required",
-        "description": "Tooltip surface linked to the trigger via aria-describedby."
-      },
-      {
-        "name": "open / defaultOpen / onOpenChange",
-        "type": "boolean / boolean / (open: boolean) => void",
-        "defaultValue": "uncontrolled",
-        "description": "Controlled or uncontrolled visibility state for the tooltip popup."
-      },
-      {
-        "name": "asChild",
+        "name": "defaultOpen",
         "type": "boolean",
         "defaultValue": "false",
-        "description": "Subcomponent prop on TooltipTriggerProps to attach trigger handlers and aria-describedby directly to a child element."
+        "description": "Initial open state for uncontrolled usage."
+      },
+      {
+        "name": "onOpenChange",
+        "type": "(open: boolean) => void",
+        "defaultValue": "undefined",
+        "description": "Callback fired when the open state changes."
       }
     ],
     "stateBehavior": "Supports controlled (open + onOpenChange) and uncontrolled (defaultOpen) visibility, opening on pointer enter or keyboard focus.",
@@ -2105,7 +2563,24 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Placing TooltipTrigger around a disabled button without a focusable wrapper, preventing keyboard users from reaching the tooltip."
     ],
-    "usageTemplate": "import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent, Button } from '@/components/frame12';\n\nexport function HoldoutHint() {\n  return (\n    <TooltipProvider>\n      <Tooltip>\n        <TooltipTrigger asChild><Button variant=\"secondary\" size=\"sm\">Holdout spec</Button></TooltipTrigger>\n        <TooltipContent>10% randomized checkout holdout cohort</TooltipContent>\n      </Tooltip>\n    </TooltipProvider>\n  );\n}"
+    "usageTemplate": "import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent, Button } from '@/components/frame12';\n\nexport function HoldoutHint() {\n  return (\n    <TooltipProvider>\n      <Tooltip>\n        <TooltipTrigger asChild><Button variant=\"secondary\" size=\"sm\">Holdout spec</Button></TooltipTrigger>\n        <TooltipContent>10% randomized checkout holdout cohort</TooltipContent>\n      </Tooltip>\n    </TooltipProvider>\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "TooltipTrigger",
+        "propsType": "TooltipTriggerProps",
+        "description": "Trigger button extending ButtonHTMLAttributes with asChild?: boolean (default false)."
+      },
+      {
+        "name": "TooltipProvider",
+        "propsType": "{ children?: React.ReactNode }",
+        "description": "Shared wrapper for Tooltip instances."
+      },
+      {
+        "name": "TooltipContent",
+        "propsType": "React.HTMLAttributes<HTMLSpanElement>",
+        "description": "Role=\"tooltip\" popup surface linked to TooltipTrigger via aria-describedby."
+      }
+    ]
   },
   {
     "slug": "dropdown-menu",
@@ -2122,21 +2597,9 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "DropdownMenuTrigger",
-        "type": "{ asChild?: boolean; children: React.ReactElement }",
-        "defaultValue": "required",
-        "description": "Button that toggles the role=\"menu\" popup."
-      },
-      {
-        "name": "DropdownMenuItem",
-        "type": "{ onSelect?: () => void }",
-        "defaultValue": "optional",
-        "description": "Focusable role=\"menuitem\" button that closes the menu on activation."
-      },
-      {
-        "name": "asChild / DropdownMenuProps / DropdownMenuContentProps / DropdownMenuLabelProps / DropdownMenuSeparatorProps / DropdownMenuItemProps / DropdownMenuGroupProps",
-        "type": "boolean / Radix Menu Contracts",
-        "defaultValue": "false / Radix defaults",
+        "name": "asChild",
+        "type": "boolean",
+        "defaultValue": "false",
         "description": "Subcomponent prop on DropdownMenuTriggerProps (asChild) and exported Radix menu subcomponent prop aliases."
       }
     ],
@@ -2155,7 +2618,39 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Using DropdownMenuItem for navigation links without handling keyboard activation or focus management."
     ],
-    "usageTemplate": "import {\n  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,\n  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem,\n} from '@/components/frame12';\n\nexport function RowActions() {\n  return (\n    <DropdownMenu>\n      <DropdownMenuTrigger variant=\"secondary\" size=\"sm\">Actions ▼</DropdownMenuTrigger>\n      <DropdownMenuContent>\n        <DropdownMenuLabel>Webhook</DropdownMenuLabel>\n        <DropdownMenuSeparator />\n        <DropdownMenuItem>Replay payload</DropdownMenuItem>\n        <DropdownMenuItem>Inspect headers</DropdownMenuItem>\n      </DropdownMenuContent>\n    </DropdownMenu>\n  );\n}"
+    "usageTemplate": "import {\n  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,\n  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem,\n} from '@/components/frame12';\n\nexport function RowActions() {\n  return (\n    <DropdownMenu>\n      <DropdownMenuTrigger variant=\"secondary\" size=\"sm\">Actions ▼</DropdownMenuTrigger>\n      <DropdownMenuContent>\n        <DropdownMenuLabel>Webhook</DropdownMenuLabel>\n        <DropdownMenuSeparator />\n        <DropdownMenuItem>Replay payload</DropdownMenuItem>\n        <DropdownMenuItem>Inspect headers</DropdownMenuItem>\n      </DropdownMenuContent>\n    </DropdownMenu>\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "DropdownMenu",
+        "propsType": "DropdownMenuProps",
+        "description": "Root menu controller (Radix DropdownMenu.Root props: open?, defaultOpen?, onOpenChange?, modal?)."
+      },
+      {
+        "name": "DropdownMenuContent",
+        "propsType": "DropdownMenuContentProps",
+        "description": "Portaled menu popup surface (Radix DropdownMenu.Content props)."
+      },
+      {
+        "name": "DropdownMenuLabel",
+        "propsType": "DropdownMenuLabelProps",
+        "description": "Uppercase monospace section label inside the menu."
+      },
+      {
+        "name": "DropdownMenuSeparator",
+        "propsType": "DropdownMenuSeparatorProps",
+        "description": "1px horizontal rule between menu groups."
+      },
+      {
+        "name": "DropdownMenuItem",
+        "propsType": "DropdownMenuItemProps",
+        "description": "Focusable role=\"menuitem\" action row (onSelect?: (event: Event) => void)."
+      },
+      {
+        "name": "DropdownMenuGroup",
+        "propsType": "DropdownMenuGroupProps",
+        "description": "Logical group of related menu items."
+      }
+    ]
   },
   {
     "slug": "table",
@@ -2175,19 +2670,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "density",
         "type": "'comfortable' | 'compact'",
         "defaultValue": "'comfortable'",
-        "description": "Reduces cell padding and header rule weight for high-row-count operational ledgers."
-      },
-      {
-        "name": "TableHead",
-        "type": "React.ThHTMLAttributes<HTMLTableCellElement>",
-        "defaultValue": "scope=\"col\"",
-        "description": "Header cell defaulting to scope=\"col\" with 2.5px bottom ink border."
-      },
-      {
-        "name": "TableCaption",
-        "type": "React.HTMLAttributes<HTMLTableCaptionElement>",
-        "defaultValue": "optional",
-        "description": "Accessible table caption placed at the bottom edge in monospace type."
+        "description": "Selects comfortable (default) or compact exposure-sheet spacing and border weight."
       },
       {
         "name": "wrapperProps",
@@ -2212,7 +2695,44 @@ const RAW_CATALOG: CatalogEntry[] = [
     "commonErrors": [
       "Using raw <th> without scope=\"col\" or forgetting tabular-nums alignment on numeric columns."
     ],
-    "usageTemplate": "import {\n  Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption, Tag,\n} from '@/components/frame12';\n\nexport function RecoveryTable() {\n  return (\n    <Table>\n      <TableCaption>Recent recovered checkouts</TableCaption>\n      <TableHeader>\n        <TableRow>\n          <TableHead>Order</TableHead>\n          <TableHead>Intervention</TableHead>\n          <TableHead>Status</TableHead>\n          <TableHead>Amount</TableHead>\n        </TableRow>\n      </TableHeader>\n      <TableBody>\n        <TableRow>\n          <TableCell>ORD-9041</TableCell>\n          <TableCell>Abandoned-cart email</TableCell>\n          <TableCell><Tag>Recovered</Tag></TableCell>\n          <TableCell>$184</TableCell>\n        </TableRow>\n      </TableBody>\n    </Table>\n  );\n}"
+    "usageTemplate": "import {\n  Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption, Tag,\n} from '@/components/frame12';\n\nexport function RecoveryTable() {\n  return (\n    <Table>\n      <TableCaption>Recent recovered checkouts</TableCaption>\n      <TableHeader>\n        <TableRow>\n          <TableHead>Order</TableHead>\n          <TableHead>Intervention</TableHead>\n          <TableHead>Status</TableHead>\n          <TableHead>Amount</TableHead>\n        </TableRow>\n      </TableHeader>\n      <TableBody>\n        <TableRow>\n          <TableCell>ORD-9041</TableCell>\n          <TableCell>Abandoned-cart email</TableCell>\n          <TableCell><Tag>Recovered</Tag></TableCell>\n          <TableCell>$184</TableCell>\n        </TableRow>\n      </TableBody>\n    </Table>\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "TableHeader",
+        "propsType": "React.HTMLAttributes<HTMLTableSectionElement>",
+        "description": "Semantic <thead> section with 2.5px bottom ink rule."
+      },
+      {
+        "name": "TableBody",
+        "propsType": "React.HTMLAttributes<HTMLTableSectionElement>",
+        "description": "Semantic <tbody> section with 1px row dividers."
+      },
+      {
+        "name": "TableFooter",
+        "propsType": "React.HTMLAttributes<HTMLTableSectionElement>",
+        "description": "Semantic <tfoot> summary section with 2px top ink rule."
+      },
+      {
+        "name": "TableRow",
+        "propsType": "React.HTMLAttributes<HTMLTableRowElement>",
+        "description": "Table row (<tr>) with subtle screentone hover highlight."
+      },
+      {
+        "name": "TableHead",
+        "propsType": "React.ThHTMLAttributes<HTMLTableCellElement>",
+        "description": "Uppercase monospace header cell (<th>) defaulting to scope=\"col\"."
+      },
+      {
+        "name": "TableCell",
+        "propsType": "React.TdHTMLAttributes<HTMLTableCellElement>",
+        "description": "Data cell (<td>) supporting tabular-nums alignment."
+      },
+      {
+        "name": "TableCaption",
+        "propsType": "React.HTMLAttributes<HTMLTableCaptionElement>",
+        "description": "Accessible <caption> linked to the scroll wrapper when overflowing."
+      }
+    ]
   }
 ];
 
@@ -2265,46 +2785,94 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "defaultSection / initialSection",
-        "type": "'overview' | 'endpoints' | 'keys' | 'logs'",
+        "name": "defaultSection",
+        "type": "'overview' | 'services' | 'api-keys' | 'request-logs'",
         "defaultValue": "'overview'",
         "description": "Initial active console tab section on mount (initialSection is supported as a backwards-compatible alias)."
       },
       {
-        "name": "defaultDatasetState / initialDatasetState",
+        "name": "defaultDatasetState",
         "type": "'populated' | 'loading' | 'empty' | 'error'",
         "defaultValue": "'populated'",
         "description": "Initial dataset sandbox posture for testing zero-CLS skeletons, empty states, and fault recovery."
       },
       {
-        "name": "defaultTimeRange / initialTimeRange",
+        "name": "defaultTimeRange",
         "type": "'24h' | '7d' | '30d'",
         "defaultValue": "'24h'",
         "description": "Initial telemetry exposure window."
       },
       {
-        "name": "defaultEnvironment / initialEnvironment",
-        "type": "'prod' | 'staging'",
+        "name": "defaultEnvironment",
+        "type": "'prod-us-east-1' | 'staging-eu-central-1'",
         "defaultValue": "'prod'",
         "description": "Initial control-plane target environment."
       },
       {
-        "name": "motion / theme",
-        "type": "MotionMode / 'light' | 'dark'",
-        "defaultValue": "'stepped' / undefined",
-        "description": "Presentation overrides for 12fps/60fps/Cut motion and explicit light/dark sheet theme."
-      },
-      {
-        "name": "idPrefix / showSandboxControls",
-        "type": "string / boolean",
-        "defaultValue": "'dc' / true",
-        "description": "Deterministic DOM ID prefix for multi-instance rendering and toggle for the top demo state switcher bar."
-      },
-      {
-        "name": "headerSlot / footerSlot / className",
-        "type": "React.ReactNode / React.ReactNode / string",
+        "name": "initialSection",
+        "type": "'overview' | 'services' | 'api-keys' | 'request-logs'",
         "defaultValue": "undefined",
-        "description": "Optional slots rendered above the header or below the main scenes, plus custom outer className."
+        "description": "Backwards-compatible alias for defaultSection."
+      },
+      {
+        "name": "initialDatasetState",
+        "type": "'populated' | 'loading' | 'empty' | 'error'",
+        "defaultValue": "undefined",
+        "description": "Backwards-compatible alias for defaultDatasetState."
+      },
+      {
+        "name": "initialTimeRange",
+        "type": "'24h' | '7d' | '30d'",
+        "defaultValue": "undefined",
+        "description": "Backwards-compatible alias for defaultTimeRange."
+      },
+      {
+        "name": "initialEnvironment",
+        "type": "'prod-us-east-1' | 'staging-eu-central-1'",
+        "defaultValue": "undefined",
+        "description": "Backwards-compatible alias for defaultEnvironment."
+      },
+      {
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "'stepped'",
+        "description": "Motion timing mode: 'stepped' (12fps on twos), 'smooth' (60fps), or 'cut' (0ms instant)."
+      },
+      {
+        "name": "theme",
+        "type": "'light' | 'dark'",
+        "defaultValue": "undefined",
+        "description": "Optional explicit theme override ('light' | 'dark')."
+      },
+      {
+        "name": "idPrefix",
+        "type": "string",
+        "defaultValue": "'f12-console-<id>'",
+        "description": "Deterministic DOM ID prefix for multi-instance rendering without duplicate IDs."
+      },
+      {
+        "name": "showSandboxControls",
+        "type": "boolean",
+        "defaultValue": "true",
+        "description": "Renders the interactive sandbox environment and dataset state toolbar when true."
+      },
+      {
+        "name": "className",
+        "type": "string",
+        "defaultValue": "''",
+        "description": "Additional CSS class names applied to the root element."
+      },
+      {
+        "name": "headerSlot",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Optional React node rendered in the header region."
+      },
+      {
+        "name": "footerSlot",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Optional React node rendered at the bottom of the sheet."
       }
     ],
     "customizationGuidance": [
@@ -2366,28 +2934,70 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "defaultSection / initialSection",
-        "type": "'profile' | 'workspace' | 'notifications' | 'appearance' | 'motion' | 'team' | 'danger'",
+        "name": "defaultSection",
+        "type": "| 'profile' | 'workspace' | 'notifications' | 'appearance' | 'motion' | 'team' | 'danger-zone'",
         "defaultValue": "'profile'",
         "description": "Initial active settings tab section on mount."
       },
       {
-        "name": "defaultDatasetState / initialDatasetState",
+        "name": "defaultDatasetState",
         "type": "'populated' | 'loading' | 'empty' | 'error'",
         "defaultValue": "'populated'",
         "description": "Initial dataset state for previewing loading skeletons, empty team roster, or fault banners."
       },
       {
-        "name": "defaultWorkspaceId / initialWorkspaceId",
-        "type": "'prod' | 'staging'",
+        "name": "defaultWorkspaceId",
+        "type": "'prod-atelier' | 'staging-atelier'",
         "defaultValue": "'prod'",
         "description": "Initial workspace configuration target."
       },
       {
-        "name": "motion / theme",
-        "type": "MotionMode / 'light' | 'dark'",
+        "name": "initialSection",
+        "type": "| 'profile' | 'workspace' | 'notifications' | 'appearance' | 'motion' | 'team' | 'danger-zone'",
         "defaultValue": "undefined",
-        "description": "Host presentation overrides applied without marking the user draft as dirty on initial mount."
+        "description": "Backwards-compatible alias for defaultSection."
+      },
+      {
+        "name": "initialDatasetState",
+        "type": "'populated' | 'loading' | 'empty' | 'error'",
+        "defaultValue": "undefined",
+        "description": "Backwards-compatible alias for defaultDatasetState."
+      },
+      {
+        "name": "initialWorkspaceId",
+        "type": "'prod-atelier' | 'staging-atelier'",
+        "defaultValue": "undefined",
+        "description": "Backwards-compatible alias for defaultWorkspaceId."
+      },
+      {
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "'stepped'",
+        "description": "Motion timing mode: 'stepped' (12fps on twos), 'smooth' (60fps), or 'cut' (0ms instant)."
+      },
+      {
+        "name": "theme",
+        "type": "'light' | 'dark'",
+        "defaultValue": "undefined",
+        "description": "Optional explicit theme override ('light' | 'dark')."
+      },
+      {
+        "name": "className",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Additional CSS class names applied to the root element."
+      },
+      {
+        "name": "showSandboxControls",
+        "type": "boolean",
+        "defaultValue": "true",
+        "description": "Renders the interactive sandbox environment and dataset state toolbar when true."
+      },
+      {
+        "name": "idPrefix",
+        "type": "string",
+        "defaultValue": "'f12-ws-<id>'",
+        "description": "Deterministic DOM ID prefix for multi-instance rendering without duplicate IDs."
       },
       {
         "name": "onDirtyChange",
@@ -2396,16 +3006,16 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
         "description": "Callback fired whenever unsaved draft state or modified sections change."
       },
       {
-        "name": "idPrefix / showSandboxControls",
-        "type": "string / boolean",
-        "defaultValue": "'ws' / true",
-        "description": "Deterministic DOM ID prefix and toggle for the top demo state switcher bar."
+        "name": "headerSlot",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Optional React node rendered in the header region."
       },
       {
-        "name": "headerSlot / footerSlot / className",
-        "type": "React.ReactNode / React.ReactNode / string",
+        "name": "footerSlot",
+        "type": "React.ReactNode",
         "defaultValue": "undefined",
-        "description": "Optional header/footer slots and outer container className."
+        "description": "Optional React node rendered at the bottom of the sheet."
       }
     ],
     "customizationGuidance": [
@@ -2437,7 +3047,7 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
     ],
     "fixtureNotes": [
       "Generated deterministically from mulberry32(1207) across 180 days (90 current days + 90 prior-window baseline days) for Fernwood Supply Co.",
-      "Reconciles to the dollar: daily intervention and checkout-segment amounts sum to each day total, and daily totals sum to the 7D ($28,042), 30D ($120,054), and 90D ($313,448) headline figures."
+      "Reconciles to the dollar: daily intervention and checkout-segment amounts sum to each day total, and daily totals sum to the 7D ($32,805), 30D ($120,054), and 90D ($331,895) headline figures."
     ],
     "componentDependencies": [
       "sheet",
@@ -2466,52 +3076,94 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
     ],
     "props": [
       {
-        "name": "defaultRange / initialRange",
+        "name": "defaultRange",
         "type": "7 | 30 | 90",
         "defaultValue": "30",
         "description": "Initial date range window in days."
       },
       {
-        "name": "defaultFocusId / initialFocusId",
+        "name": "defaultFocusId",
         "type": "string | null",
         "defaultValue": "null",
         "description": "Initial focused intervention channel ID (\"cart\" | \"exit\" | \"pay\" | \"stock\" | \"browse\" | null)."
       },
       {
-        "name": "defaultComparisonMode / initialComparisonMode",
-        "type": "'prior' | 'none'",
-        "defaultValue": "'prior'",
+        "name": "defaultComparisonMode",
+        "type": "'intervention' | 'prior-period'",
+        "defaultValue": "'intervention'",
         "description": "Whether to overlay the dashed prior-period baseline series and deltas by default."
       },
       {
-        "name": "defaultDatasetState / initialDatasetState",
+        "name": "defaultDatasetState",
         "type": "'populated' | 'loading' | 'empty' | 'error'",
         "defaultValue": "'populated'",
         "description": "Initial dataset state for testing loading skeletons, zero-data empty states, and fault recovery."
       },
       {
-        "name": "motion / theme",
-        "type": "MotionMode / 'light' | 'dark'",
-        "defaultValue": "'stepped' / undefined",
-        "description": "Controls 12fps stepped count-up/chart wipe motion and explicit light/dark theme override."
-      },
-      {
-        "name": "idPrefix / showSandboxControls",
-        "type": "string / boolean",
-        "defaultValue": "useId() / true",
-        "description": "Instance-scoped ID prefix (safe for mounting multiple dashboards on one page) and sandbox toolbar toggle."
-      },
-      {
-        "name": "headerSlot / footerSlot / className",
-        "type": "React.ReactNode / React.ReactNode / string",
+        "name": "initialRange",
+        "type": "7 | 30 | 90",
         "defaultValue": "undefined",
-        "description": "Optional header/footer slots and outer container className."
+        "description": "Backwards-compatible alias for defaultRange."
       },
       {
-        "name": "range / focus / onSelectFocus / chartHeight / datasetState / comparisonMode / onRestorePopulated",
-        "type": "RevenueRecoveryCoreScenesProps",
-        "defaultValue": "required / optional",
-        "description": "Props accepted by the exported <RevenueRecoveryCoreScenes> subcomponent shared between the homepage and the Analytics Dashboard block."
+        "name": "initialFocusId",
+        "type": "string | null",
+        "defaultValue": "undefined",
+        "description": "Backwards-compatible alias for defaultFocusId."
+      },
+      {
+        "name": "initialComparisonMode",
+        "type": "'intervention' | 'prior-period'",
+        "defaultValue": "undefined",
+        "description": "Backwards-compatible alias for defaultComparisonMode."
+      },
+      {
+        "name": "initialDatasetState",
+        "type": "'populated' | 'loading' | 'empty' | 'error'",
+        "defaultValue": "undefined",
+        "description": "Backwards-compatible alias for defaultDatasetState."
+      },
+      {
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "'stepped'",
+        "description": "Motion timing mode: 'stepped' (12fps on twos), 'smooth' (60fps), or 'cut' (0ms instant)."
+      },
+      {
+        "name": "theme",
+        "type": "'light' | 'dark'",
+        "defaultValue": "undefined",
+        "description": "Optional explicit theme override ('light' | 'dark')."
+      },
+      {
+        "name": "className",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Additional CSS class names applied to the root element."
+      },
+      {
+        "name": "showSandboxControls",
+        "type": "boolean",
+        "defaultValue": "true",
+        "description": "Renders the interactive sandbox environment and dataset state toolbar when true."
+      },
+      {
+        "name": "idPrefix",
+        "type": "string",
+        "defaultValue": "'f12-analytics-<id>'",
+        "description": "Deterministic DOM ID prefix for multi-instance rendering without duplicate IDs."
+      },
+      {
+        "name": "headerSlot",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Optional React node rendered in the header region."
+      },
+      {
+        "name": "footerSlot",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Optional React node rendered at the bottom of the sheet."
       }
     ],
     "customizationGuidance": [
@@ -2525,7 +3177,14 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
     "knownLimitations": [
       "CSV summary export copies a deterministic tabular ledger snapshot to the clipboard / toast notification in the browser sandbox rather than streaming a backend file download."
     ],
-    "usageTemplate": "import { AnalyticsDashboard } from '@/components/frame12/blocks/analytics-dashboard';\n\nexport default function AnalyticsPage() {\n  return (\n    <AnalyticsDashboard\n      defaultRange={30}\n      defaultComparisonMode=\"prior\"\n      showSandboxControls={false}\n    />\n  );\n}"
+    "usageTemplate": "import { AnalyticsDashboard } from '@/components/frame12/blocks/analytics-dashboard';\n\nexport default function AnalyticsPage() {\n  return (\n    <AnalyticsDashboard\n      defaultRange={30}\n      defaultComparisonMode=\"intervention\"\n      showSandboxControls={false}\n    />\n  );\n}",
+    "subcomponents": [
+      {
+        "name": "RevenueRecoveryCoreScenes",
+        "propsType": "RevenueRecoveryCoreScenesProps",
+        "description": "Shared 4-cut Expressive Storyboard core (range, focus, onSelectFocus, motion?, idPrefix?, chartHeight?, datasetState?, comparisonMode?, onRestorePopulated?)."
+      }
+    ]
   }
 ];
 

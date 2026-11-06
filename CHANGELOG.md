@@ -6,6 +6,10 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ### Added
 
+- **Project Governance:**
+  - [`TRADEMARKS.md`](TRADEMARKS.md): a permissive policy for the FRAME/12 name, logo and `frame12.dev`. The code stays MIT. Forks are welcome under their own name and may say "based on FRAME/12", but may not present themselves as official. It also lists the official sources.
+  - [`SECURITY.md`](SECURITY.md): private vulnerability reporting via GitHub, scope, and response expectations. Fictional `f12_sim_*` and `whsec_f12_*` demo fixtures are explicitly out of scope.
+  - README: an "Official sources & the FRAME/12 name" section and a Security pointer. The status line now matches the shipped registry (31 components, 3 application blocks; it said 14 + 5), and the badge reads 41 registry items, consistent with the README body.
 - **Revenue Recovery Analytics Block (Work Package 8):**
   - Extracted the homepage Revenue Recovery experience into a reusable, installable `registry:block` in `registry/blocks/analytics-dashboard.tsx` (`AnalyticsDashboard` / `RevenueRecoveryAnalytics`, `RevenueRecoveryCoreScenes`, and the authoritative `mulberry32(1207)` `Fernwood Supply Co.` 180-day recovery fixture model) and published it at `/r/analytics-dashboard.json` (`target: "components/frame12/blocks/analytics-dashboard.tsx"`, `41` total registry items):
     - **Shared Authoritative Fixture Model (`mulberry32(1207)`):** Powers both the public homepage (`/`, via `site/src/lib/data.ts`) and `/blocks/analytics-dashboard` without duplicating generator logic, reconciling 100% of recovered revenue, incremental profit, intervention shares, checkout segments (`Returning VIP & Loyalty`, `First-Time Mobile Checkout`, `High-AOV Desktop Carts`), and daily ledger rows across `7d`, `30d`, and `90d` windows.

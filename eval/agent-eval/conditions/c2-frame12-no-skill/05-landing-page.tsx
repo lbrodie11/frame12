@@ -5,11 +5,9 @@ import {
   Panel,
   PanelPair,
   SegmentedControl,
-  Button,
-  Input,
-  Switch,
   Tag,
   Metric,
+  Balloon,
   ToneAreaChart,
   ToneBarList,
   Table,
@@ -21,39 +19,37 @@ import {
   TableCaption,
 } from '@/components/frame12';
 
-const SERIES = [
-  { label: 'Day 01', value: 410, compareValue: 380 },
-  { label: 'Day 02', value: 465, compareValue: 400 },
-  { label: 'Day 03', value: 520, compareValue: 430 },
-  { label: 'Day 04', value: 495, compareValue: 440 },
-  { label: 'Day 05', value: 590, compareValue: 460 },
+const BENCHMARK_SERIES = [
+  { label: 'P50', value: 11200, compareValue: 9400 },
+  { label: 'P90', value: 18400, compareValue: 15100 },
+  { label: 'P99', value: 24900, compareValue: 19800 },
 ];
 
-const BARS = [
-  { id: 'edge', name: 'Edge Gateway', value: 590, formattedValue: '590 req/s', share: 0.48 },
-  { id: 'webhook', name: 'Webhook Relay', value: 410, formattedValue: '410 req/s', share: 0.33 },
-  { id: 'ledger', name: 'Ledger Worker', value: 230, formattedValue: '230 req/s', share: 0.19 },
+const TIER_BARS = [
+  { id: 'ent', name: 'Enterprise Dedicated Mesh', value: 24900, formattedValue: '24,900 req/s', share: 0.54 },
+  { id: 'grow', name: 'Growth Multi-Region', value: 14200, formattedValue: '14,200 req/s', share: 0.31 },
+  { id: 'start', name: 'Starter Shared Edge', value: 6900, formattedValue: '6,900 req/s', share: 0.15 },
 ];
 
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [range, setRange] = React.useState<'7d' | '30d' | '90d'>('30d');
-  const [query, setQuery] = React.useState('');
+  const [planTier, setPlanTier] = React.useState<'starter' | 'growth' | 'enterprise'>('growth');
 
   return (
-    <Sheet autoCut pegs motion="stepped" theme={theme}>
+    <Sheet autoCut={false} pegs motion="stepped" theme={theme}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
-            Landing Page <Tag>Unguided</Tag>
+            Landing Page <Tag>Negative Fixture</Tag>
           </p>
           <h1 className="f12-title">Developer Platform Product Launch & Pricing Page</h1>
-          <p style={{ color: '#64748b', margin: 0 }}>
-            Unguided generation without SKILL.md (exhibits hex literals, 16px gaps, and explicit cuts inside autoCut)
+          <p className="f12-muted-copy">
+            Guardrail fixture exercising reversed cut-order (C-02 before C-01), malformed cut label (CUT-3), marker background with white text, and hex accent literal.
           </p>
         </div>
         <SegmentedControl
           idPrefix="c2-range-05-landing-page"
-          ariaLabel="Time window"
+          ariaLabel="Benchmark window"
           options={[
             { value: '7d', label: '7', unit: 'days' },
             { value: '30d', label: '30', unit: 'days' },
@@ -64,23 +60,28 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
         />
       </header>
 
-      <Scene gutter="scene" layout="split" style={{ gap: '16px' }}>
-        <Panel cut="C-01" label="Primary telemetry">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <Metric
-              label="Verified Edge Benchmark Throughput"
-              value={range === '7d' ? 1420 : range === '30d' ? 4890 : 12450}
-              format={(v) => `${Math.round(v)} ops`}
-              delta={0.12}
-              big
-            />
-            <span style={{ color: 'var(--f-marker)', fontWeight: 700 }}>
-              Highlighted marker text misuse
-            </span>
+      <Scene gutter="scene" layout="split">
+        <Panel cut="C-02" label="Hero benchmark throughput">
+          <div className="f12-stack-scene">
+            <div className="f12-row-between">
+              <Metric
+                label="Verified Edge Benchmark Throughput"
+                value={range === '7d' ? 18400 : range === '30d' ? 24900 : 31200}
+                format={(v) => `${Math.round(v).toLocaleString('en-US')} req/s`}
+                delta={0.18}
+                big
+              />
+              <Balloon tailOffset={-12} showDot>
+                Global PoP mesh verified
+              </Balloon>
+            </div>
+            <div style={{ background: 'var(--f-marker)', color: '#ffffff', padding: '6px 10px' }}>
+              Launch Promo: White text on marker background violates contrast and marker-misuse rules
+            </div>
             <ToneAreaChart
-              data={SERIES}
+              data={BENCHMARK_SERIES}
               seriesLabel="Benchmark req/s"
-              compareLabel="Baseline"
+              compareLabel="Prior release"
               showTable={false}
               height={220}
             />
@@ -89,24 +90,24 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
 
         <PanelPair
           top={{
-            cut: 'C-03',
-            label: 'Secondary KPI top',
+            cut: 'C-01',
+            label: 'Out-of-order cut C-01',
             children: (
               <Metric
-                label="P95 Latency"
-                value={42}
+                label="Global P95 Latency"
+                value={14}
                 format={(v) => `${Math.round(v)}ms`}
-                delta={-0.08}
+                delta={-0.11}
               />
             ),
           }}
           bottom={{
-            cut: 'C-04',
-            label: 'Secondary KPI bottom',
+            cut: 'CUT-3',
+            label: 'Malformed cut label CUT-3',
             children: (
               <Metric
-                label="Attainment"
-                value={99.96}
+                label="Uptime SLA"
+                value={99.99}
                 format={(v) => `${v.toFixed(2)}%`}
               />
             ),
@@ -115,35 +116,51 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       </Scene>
 
       <Scene gutter="scene" layout="equal">
-        <Panel cut="C-05" label="Service breakdown">
-          <ToneBarList title="Throughput by plan tier" items={BARS} />
+        <Panel cut="C-04" label="Throughput by plan tier">
+          <ToneBarList title="Throughput by plan tier" items={TIER_BARS} />
         </Panel>
-        <Panel cut="C-06" label="Operational filter and table">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <Input
-              label="Filter endpoints"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <Switch label="Enforce strict signature verification" defaultChecked />
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <Button variant="primary">Apply Changes</Button>
-              <span style={{ background: '#16a34a', color: '#ffffff', padding: '4px 8px' }}>
-                Healthy
+        <Panel cut="C-05" label="Interactive plan pricing & comparison matrix">
+          <div className="f12-stack-pair">
+            <div className="f12-row-between">
+              <span style={{ color: '#0284c7', fontWeight: 700 }}>
+                Active tier: {planTier.toUpperCase()}
               </span>
+              <SegmentedControl
+                idPrefix="c2-tier-05-landing-page"
+                ariaLabel="Pricing tier"
+                options={[
+                  { value: 'starter', label: 'START', unit: '5' },
+                  { value: 'growth', label: 'GROW', unit: '25' },
+                  { value: 'enterprise', label: 'ENT', unit: 'max' },
+                ]}
+                value={planTier}
+                onChange={setPlanTier}
+              />
             </div>
             <Table density="compact">
               <TableCaption>Regional PoP benchmark verification ledger</TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col">Service</TableHead>
-                  <TableHead scope="col">Volume</TableHead>
+                  <TableHead scope="col">Plan Tier</TableHead>
+                  <TableHead scope="col">Monthly Price</TableHead>
+                  <TableHead scope="col">Committed Volume</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell>Edge Gateway</TableCell>
-                  <TableCell>590 req/s</TableCell>
+                  <TableCell>Starter</TableCell>
+                  <TableCell>$49/mo</TableCell>
+                  <TableCell>1M reqs</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Growth</TableCell>
+                  <TableCell>$249/mo</TableCell>
+                  <TableCell>25M reqs</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Enterprise</TableCell>
+                  <TableCell>$990/mo</TableCell>
+                  <TableCell>250M+ reqs</TableCell>
                 </TableRow>
               </TableBody>
             </Table>

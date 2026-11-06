@@ -130,7 +130,7 @@ export default function AgentsPage() {
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
-            AI Agent Skill · Static Rule Linter · Reproduction Eval
+            AI Agent Skill · Static Rule Linter · Guardrail Fixture Suite
             <Tag>skills/frame12/SKILL.md</Tag>
           </p>
           <h1 className="f12-title">FRAME/12 for coding agents</h1>
@@ -392,38 +392,43 @@ export default function AgentsPage() {
       </Scene>
 
       <Scene gutter="scene" layout="stack">
-        <Panel variant="quiet" label="4-condition reproducible agent evaluation (WP9)">
+        <Panel variant="quiet" label="4-condition × 6-task guardrail and reference fixture suite">
           <div className="f12-stack-pair" id="agents-four-condition-eval">
             <div className="f12-row-pair">
-              <Tag status="info">eval/agent-eval/REPORT.md</Tag>
+              <Tag status="info">eval/agent-eval/results/REPORT.md</Tag>
               <span className="f12-mono-note">
-                4 conditions × 6 unseen tasks (24 screens) · Universal Quality vs. FRAME/12 Grammar
+                4 conditions × 6 application tasks (24 fixture screens) · Universal Quality vs. FRAME/12 Grammar
               </span>
             </div>
             <h2 className="f12-section-title">
-              4-condition × 6-task reproducible agent evaluation
+              4-condition × 6-task guardrail &amp; reference fixture suite
             </h2>
             <p className="f12-body-copy">
-              Evaluates 6 unseen application tasks (
+              Regression-tests 6 application tasks (
               <code className="f12-code-inline">01-dashboard</code>,{' '}
               <code className="f12-code-inline">02-settings</code>,{' '}
               <code className="f12-code-inline">03-developer-console</code>,{' '}
               <code className="f12-code-inline">04-data-heavy</code>,{' '}
               <code className="f12-code-inline">05-landing-page</code>,{' '}
-              <code className="f12-code-inline">06-multi-step-form</code>) across 4 conditions.
-              Universal UI quality metrics (compile, axe WCAG AA, light/dark contrast, keyboard
-              reachability, 1280px/390px overflow) are measured separately from FRAME/12 grammar
-              compliance so the conventional shadcn/Tailwind baseline (Condition 1) is never
-              penalized for FRAME/12-specific rules.
+              <code className="f12-code-inline">06-multi-step-form</code>) across 4 committed
+              fixture conditions: a conventional shadcn/Tailwind baseline (Condition 1), a negative
+              fixture suite with planted linter &amp; runtime violations across all 6 static checker
+              rules (Condition 2), pre-checker reference fixtures with planted single-rule drift in
+              Tasks 02 and 04 (Condition 3), and checker-verified reference fixtures after
+              remediation (Condition 4). Universal UI quality metrics (esbuild compile,{' '}
+              <code className="f12-code-inline">tsc --noEmit</code>, axe WCAG AA, light/dark
+              contrast, keyboard reachability, interactive workflows, 1280px/390px overflow) are
+              measured separately from FRAME/12 grammar compliance so the conventional baseline
+              (Condition 1) is never penalized for FRAME/12-specific rules.
             </p>
             <CopyCommand
               id="agents-copy-eval-runner"
-              label="Reproduce 24-screen evaluation harness"
+              label="Run 24-screen guardrail fixture suite"
               command="node eval/agent-eval/run-eval.mjs"
             />
             <Table density="compact">
               <TableCaption>
-                Reproducible results from eval/agent-eval/results/summary.json (N = 6 unseen tasks per condition)
+                Deterministic fixture results from eval/agent-eval/results/summary.json (6 application tasks per condition; no live LLM calls)
               </TableCaption>
               <TableHeader>
                 <TableRow>
@@ -450,21 +455,21 @@ export default function AgentsPage() {
                 </TableRow>
                 <TableRow>
                   <TableCell>
-                    <strong>C2 · FRAME/12 Without SKILL.md</strong>
+                    <strong>C2 · Negative Fixture Suite (Planted Violations)</strong>
                   </TableCell>
                   <TableCell>
                     <Tag status="danger">0 / 6 Pass</Tag>
                   </TableCell>
-                  <TableCell>12</TableCell>
-                  <TableCell>24 (--f-marker text misuse)</TableCell>
+                  <TableCell>7</TableCell>
+                  <TableCell>15 (planted low-contrast &amp; marker misuse)</TableCell>
                   <TableCell>
                     <Tag status="danger">0 / 6 Pass</Tag>
                   </TableCell>
-                  <TableCell>78 (hex, 16px/24px gaps, cut-order)</TableCell>
+                  <TableCell>58 (all 6 static rules exercised: 13, 11, 9, 4, 8, 13)</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>
-                    <strong>C3 · FRAME/12 With SKILL.md (Single-Pass)</strong>
+                    <strong>C3 · Pre-Checker Reference Fixtures (Planted Drift)</strong>
                   </TableCell>
                   <TableCell>
                     <Tag status="success">6 / 6 Pass</Tag>
@@ -472,13 +477,13 @@ export default function AgentsPage() {
                   <TableCell>0</TableCell>
                   <TableCell>0</TableCell>
                   <TableCell>
-                    <Tag status="info">5 / 6 Pass</Tag>
+                    <Tag status="info">4 / 6 Pass</Tag>
                   </TableCell>
-                  <TableCell>1 (single-pass 16px inline gap)</TableCell>
+                  <TableCell>2 (explicit-cut-in-autocut in 02, 16px illegal-gutter in 04)</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>
-                    <strong>C4 · FRAME/12 With SKILL.md + check-frame12.mjs</strong>
+                    <strong>C4 · Checker-Verified Reference Fixtures (Remediated)</strong>
                   </TableCell>
                   <TableCell>
                     <Tag status="success">6 / 6 Pass</Tag>

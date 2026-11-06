@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Reproducible 4-Condition × 6-Task AI-Agent Evaluation Harness (WP9 §15.4)
+ * Reproducible 4-Condition × 6-Task Guardrail & Reference Fixture Suite
  *
- * Evaluates 24 unseen application screens (4 conditions × 6 tasks):
+ * Evaluates 24 application fixture screens (4 conditions × 6 tasks):
  *   - c1-shadcn-baseline: Conventional shadcn/Tailwind baseline (Universal Quality ONLY; FRAME/12 grammar = N/A)
- *   - c2-frame12-no-skill: FRAME/12 components without SKILL.md
- *   - c3-frame12-with-skill: FRAME/12 components with SKILL.md (single-pass before static checker)
- *   - c4-frame12-skill-plus-checker: FRAME/12 components with SKILL.md + check-frame12.mjs + Playwright loop
+ *   - c2-frame12-no-skill: Negative fixture suite exercising all 6 static check-frame12.mjs rules and DOM/contrast failures
+ *   - c3-frame12-with-skill: Pre-checker reference fixtures with planted static rule drift in Tasks 02 and 04
+ *   - c4-frame12-skill-plus-checker: Checker-verified reference fixtures (post-remediation, 0 static/DOM violations)
  */
 
 import { build } from 'esbuild';
@@ -50,6 +50,10 @@ const f12ResolverPlugin = {
     }));
     b.onResolve({ filter: /^@\/components\/frame12\/(.*)$/ }, (args) => {
       const sub = args.path.replace(/^@\/components\/frame12\//, '');
+      return { path: path.resolve(registryRoot, 'ui', `${sub}.tsx`) };
+    });
+    b.onResolve({ filter: /^@\/components\/ui\/(.*)$/ }, (args) => {
+      const sub = args.path.replace(/^@\/components\/ui\//, '');
       return { path: path.resolve(registryRoot, 'ui', `${sub}.tsx`) };
     });
     b.onResolve({ filter: /^@\/hooks\/(.*)$/ }, (args) => {
@@ -237,7 +241,34 @@ async function verifyTaskWorkflow(page, conditionId, taskId) {
     const euCount = await page.locator(`#c1-ledger-table-${taskId} tbody tr`).count();
     await page.selectOption(`#c1-channel-${taskId}`, 'all');
     const restoredCount = await page.locator(`#c1-ledger-table-${taskId} tbody tr`).count();
-    return initialCount === 3 && euCount === 1 && restoredCount === 3;
+    const filterOk = initialCount === 3 && euCount === 1 && restoredCount === 3;
+    if (!filterOk) return false;
+
+    if (taskId === '05-landing-page') {
+      const hasPlanTable =
+        (await page.locator('#eval-plan-comparison-table tbody tr').count()) === 4;
+      await page.click('#eval-tier-05-landing-page-enterprise');
+      const tierText = await page.locator('#eval-active-tier-summary').innerText();
+      await page.click('#eval-tier-05-landing-page-growth');
+      return hasPlanTable && tierText.includes('Enterprise Tier · $990/mo');
+    }
+
+    if (taskId === '06-multi-step-form') {
+      const step1Text = await page.locator('#eval-wizard-step-indicator').innerText();
+      await page.click('#eval-wizard-next');
+      const step2Text = await page.locator('#eval-wizard-step-indicator').innerText();
+      await page.click('#eval-wizard-next');
+      const step3Text = await page.locator('#eval-wizard-step-indicator').innerText();
+      await page.click('#eval-wizard-prev');
+      await page.click('#eval-wizard-prev');
+      return (
+        step1Text.includes('STEP-1') &&
+        step2Text.includes('STEP-2') &&
+        step3Text.includes('STEP-3')
+      );
+    }
+
+    return true;
   }
 
   if (conditionId === 'c2-frame12-no-skill') {
@@ -539,11 +570,11 @@ async function main() {
   );
 
   const reportLines = [
-    '# FRAME/12 4-Condition × 6-Task Reproducible Agent Evaluation Report',
+    '# FRAME/12 4-Condition × 6-Task Guardrail & Reference Fixture Report',
     '',
     '> Generated deterministically by `node eval/agent-eval/run-eval.mjs`. Universal UI quality metrics are reported separately from FRAME/12 grammar compliance so the conventional shadcn/Tailwind baseline (Condition 1) is never penalized for FRAME/12-specific aesthetic rules.',
     '',
-    '## 1. Condition Summary Table (6 Unseen Application Tasks per Condition)',
+    '## 1. Condition Summary Table (6 Application Tasks per Condition)',
     '',
     '| Condition | Universal UI Quality Pass | Axe WCAG AA Violations (Light+Dark) | Contrast Failures (Light+Dark) | Responsive Overflow (1280px/390px) | FRAME/12 Grammar Pass | Static `check-frame12.mjs` Violations |',
     '| --- | --- | --- | --- | --- | --- | --- |',
@@ -555,7 +586,7 @@ async function main() {
       return `| **${c.label}** | \`${c.universalPassCount} / ${c.taskCount}\` | \`${c.totalAxeViolations}\` | \`${c.totalContrastFailures}\` | \`${c.overflowTasks} / ${c.taskCount}\` | \`${gramPass}\` | \`${staticCount}\` |`;
     }),
     '',
-    '## 2. Per-Task Breakdown Across All 24 Screens',
+    '## 2. Per-Task Breakdown Across All 24 Fixture Screens',
     '',
     '| Condition | Task | Universal Pass | Contrast Failures (L/D) | Static Grammar Violations | Cut Sequence Valid | Chart Table Present | Expressive / Quiet Balance |',
     '| --- | --- | --- | --- | --- | --- | --- | --- |',
@@ -566,10 +597,10 @@ async function main() {
     '',
     '## 3. Methodology & Scope Notes',
     '',
-    '- **Separation of Universal vs. Grammar Metrics:** Condition 1 (`c1-shadcn-baseline`) is evaluated strictly on universal UI engineering metrics (esbuild compilation, `@axe-core/playwright` WCAG 2.1 AA, computed text contrast in light & dark themes, keyboard focus visibility, and zero horizontal overflow at `1280px` and `390px`) and achieves `6 / 6` universal pass.',
-    '- **Unguided FRAME/12 Failure Modes (`c2-frame12-no-skill`):** When FRAME/12 components are used without `skills/frame12/SKILL.md`, screens compile (`6 / 6` build) but exhibit predictable grammar drift: hardcoded hex literals (`color-literal`), arbitrary `16px`/`24px` gaps (`illegal-gutter`), explicit or skipped cut props inside `<Sheet autoCut>` (`explicit-cut-in-autocut`, `cut-order`), foreground `--f-marker` text (`marker-misuse`, which also fails light-paper contrast), and omitted chart data tables (`showTable={false}`).',
-    '- **Single-Pass Skill vs. Skill + Static Checker (`c3` vs `c4`):** Providing `skills/frame12/SKILL.md` (`c3-frame12-with-skill`) resolves contrast, cut numbering, chart tables, and Expressive/Quiet hierarchy (`6 / 6` universal pass, `5 / 6` zero-violation grammar pass, with `1` single-pass inline `16px` gap in `04-data-heavy`). Pairing `SKILL.md` with `node scripts/check-frame12.mjs` (`c4-frame12-skill-plus-checker`) catches that remaining single-pass violation and achieves `6 / 6` universal quality pass and `6 / 6` (`0` violations) FRAME/12 grammar compliance.',
-    '- **Limitations & Honesty Note:** This harness is a deterministic repository benchmark across 24 representative reference screens (`4 conditions × 6 unseen tasks`). It verifies mechanical reproducibility of the evaluation criteria and static/DOM guardrails rather than claiming statistical significance from a multi-sample external human-subject study.',
+    '- **Separation of Universal vs. Grammar Metrics:** Condition 1 (`c1-shadcn-baseline`) is evaluated strictly on universal UI engineering metrics (esbuild compilation, TypeScript `tsc --noEmit`, `@axe-core/playwright` WCAG 2.1 AA, computed text contrast in light & dark themes, keyboard focus visibility, interactive task workflow assertions, and zero horizontal overflow at `1280px` and `390px`) and achieves `6 / 6` universal pass.',
+    '- **Negative Fixture Suite (`c2-frame12-no-skill`):** Exercises all 6 static `scripts/check-frame12.mjs` rules across task-specific screens (`color-literal`, `illegal-gutter`, `marker-misuse`, `cut-order`, `explicit-cut-in-autocut`, and `raw-shadcn-import`) as well as runtime DOM/contrast failures (`showTable={false}`, non-sequential cut order, and low-contrast text). Each of the 6 tasks tests a distinct combination and count of planted violations.',
+    '- **Pre-Checker vs. Checker-Verified Reference Fixtures (`c3` vs `c4`):** Condition 3 (`c3-frame12-with-skill`) and Condition 4 (`c4-frame12-skill-plus-checker`) are distinct across all 6 tasks. Condition 3 plants realistic single-rule static drift in Task 02 (`explicit-cut-in-autocut` on `<Panel cut="C-01">` inside `<Sheet autoCut>`) and Task 04 (`illegal-gutter` `gap: "16px"` on the filter toolbar) (`6 / 6` universal pass, `4 / 6` grammar pass, `2` static violations). Condition 4 remediates those violations and standardizes layout utility classes (`6 / 6` universal pass, `6 / 6` grammar pass, `0` violations).',
+    '- **Scope & Honesty Note:** This suite is a deterministic guardrail & reference fixture harness (`4 conditions × 6 tasks = 24 committed TSX fixtures`), not a stochastic multi-sample LLM benchmark. No live model API calls are executed during `run-eval.mjs`; instead, it regression-tests the static linter (`scripts/check-frame12.mjs`), TypeScript contracts, and Playwright DOM/WCAG invariants against known-good and known-bad reference screens.',
   ];
 
   fs.writeFileSync(

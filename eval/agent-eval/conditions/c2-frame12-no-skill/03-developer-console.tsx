@@ -7,7 +7,11 @@ import {
   SegmentedControl,
   Button,
   Input,
-  Switch,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
   Tag,
   Metric,
   ToneAreaChart,
@@ -21,66 +25,79 @@ import {
   TableCaption,
 } from '@/components/frame12';
 
-const SERIES = [
-  { label: 'Day 01', value: 410, compareValue: 380 },
-  { label: 'Day 02', value: 465, compareValue: 400 },
-  { label: 'Day 03', value: 520, compareValue: 430 },
-  { label: 'Day 04', value: 495, compareValue: 440 },
-  { label: 'Day 05', value: 590, compareValue: 460 },
+const WEBHOOK_SERIES = [
+  { label: '00:00', value: 1120, compareValue: 980 },
+  { label: '06:00', value: 1480, compareValue: 1210 },
+  { label: '12:00', value: 1890, compareValue: 1540 },
+  { label: '18:00', value: 2140, compareValue: 1790 },
 ];
 
-const BARS = [
-  { id: 'edge', name: 'Edge Gateway', value: 590, formattedValue: '590 req/s', share: 0.48 },
-  { id: 'webhook', name: 'Webhook Relay', value: 410, formattedValue: '410 req/s', share: 0.33 },
-  { id: 'ledger', name: 'Ledger Worker', value: 230, formattedValue: '230 req/s', share: 0.19 },
+const ENDPOINT_BARS = [
+  { id: 'orders', name: 'POST /v2/webhooks/orders', value: 14820, formattedValue: '14,820 ops', share: 0.49 },
+  { id: 'settlements', name: 'POST /v2/webhooks/settlements', value: 9410, formattedValue: '9,410 ops', share: 0.31 },
+  { id: 'inventory', name: 'POST /v2/webhooks/inventory', value: 6050, formattedValue: '6,050 ops', share: 0.20 },
 ];
 
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
+  const [env, setEnv] = React.useState<'prod' | 'stage'>('prod');
   const [range, setRange] = React.useState<'7d' | '30d' | '90d'>('30d');
   const [query, setQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('all');
 
   return (
     <Sheet autoCut pegs motion="stepped" theme={theme}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
-            Developer Console <Tag>Unguided</Tag>
+            Developer Console <Tag>Negative Fixture</Tag>
           </p>
           <h1 className="f12-title">Webhook Delivery & Event Stream Console</h1>
-          <p style={{ color: '#64748b', margin: 0 }}>
-            Unguided generation without SKILL.md (exhibits hex literals, 16px gaps, and explicit cuts inside autoCut)
+          <p className="f12-muted-copy">
+            Guardrail fixture exercising marker border/foreground misuse, 18px/24px illegal gutters, explicit cuts in autoCut, and showTable=false.
           </p>
         </div>
-        <SegmentedControl
-          idPrefix="c2-range-03-developer-console"
-          ariaLabel="Time window"
-          options={[
-            { value: '7d', label: '7', unit: 'days' },
-            { value: '30d', label: '30', unit: 'days' },
-            { value: '90d', label: '90', unit: 'days' },
-          ]}
-          value={range}
-          onChange={setRange}
-        />
+        <div style={{ display: 'flex', columnGap: '24px' }}>
+          <SegmentedControl
+            idPrefix="c2-env-03-developer-console"
+            ariaLabel="Target environment"
+            options={[
+              { value: 'prod', label: 'PROD', unit: 'us-east' },
+              { value: 'stage', label: 'STAGE', unit: 'eu-central' },
+            ]}
+            value={env}
+            onChange={setEnv}
+          />
+          <SegmentedControl
+            idPrefix="c2-range-03-developer-console"
+            ariaLabel="Time window"
+            options={[
+              { value: '7d', label: '7', unit: 'days' },
+              { value: '30d', label: '30', unit: 'days' },
+              { value: '90d', label: '90', unit: 'days' },
+            ]}
+            value={range}
+            onChange={setRange}
+          />
+        </div>
       </header>
 
-      <Scene gutter="scene" layout="split" style={{ gap: '16px' }}>
-        <Panel cut="C-01" label="Primary telemetry">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <Scene gutter="scene" layout="split">
+        <Panel cut="C-01" label="Webhook delivery throughput">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <Metric
               label="24h Webhook Delivery Volume"
-              value={range === '7d' ? 1420 : range === '30d' ? 4890 : 12450}
-              format={(v) => `${Math.round(v)} ops`}
-              delta={0.12}
+              value={env === 'prod' ? 30280 : 8420}
+              format={(v) => `${Math.round(v).toLocaleString('en-US')} ops`}
+              delta={0.142}
               big
             />
-            <span style={{ color: 'var(--f-marker)', fontWeight: 700 }}>
-              Highlighted marker text misuse
-            </span>
+            <div style={{ border: '2px solid var(--f-marker)', padding: '8px' }}>
+              <span style={{ color: '#ffd60a' }}>Marker border and hex yellow text misuse</span>
+            </div>
             <ToneAreaChart
-              data={SERIES}
+              data={WEBHOOK_SERIES}
               seriesLabel="Webhook deliveries"
-              compareLabel="Baseline"
+              compareLabel="Prior 24h"
               showTable={false}
               height={220}
             />
@@ -89,24 +106,23 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
 
         <PanelPair
           top={{
-            cut: 'C-03',
-            label: 'Secondary KPI top',
+            cut: 'C-02',
+            label: 'Delivery P95 Latency',
             children: (
               <Metric
-                label="P95 Latency"
-                value={42}
+                label="P95 Delivery Latency"
+                value={env === 'prod' ? 28 : 41}
                 format={(v) => `${Math.round(v)}ms`}
-                delta={-0.08}
+                delta={-0.06}
               />
             ),
           }}
           bottom={{
-            cut: 'C-04',
-            label: 'Secondary KPI bottom',
+            label: 'Retry Queue Depth',
             children: (
               <Metric
-                label="Attainment"
-                value={99.96}
+                label="Success Rate"
+                value={99.94}
                 format={(v) => `${v.toFixed(2)}%`}
               />
             ),
@@ -115,35 +131,55 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       </Scene>
 
       <Scene gutter="scene" layout="equal">
-        <Panel cut="C-05" label="Service breakdown">
-          <ToneBarList title="Destination endpoint breakdown" items={BARS} />
+        <Panel label="Destination endpoint breakdown">
+          <ToneBarList title="Destination endpoint breakdown" items={ENDPOINT_BARS} />
         </Panel>
-        <Panel cut="C-06" label="Operational filter and table">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <Input
-              label="Filter endpoints"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <Switch label="Enforce strict signature verification" defaultChecked />
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <Button variant="primary">Apply Changes</Button>
-              <span style={{ background: '#16a34a', color: '#ffffff', padding: '4px 8px' }}>
-                Healthy
-              </span>
+        <Panel label="Event delivery stream log">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div style={{ display: 'flex', gap: '18px' }}>
+              <Input
+                label="Filter endpoint path"
+                density="compact"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <Select
+                label="Delivery status"
+                id="c2-status-03-developer-console"
+                density="compact"
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+              >
+                <SelectTrigger ariaLabel="Delivery status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All deliveries</SelectItem>
+                  <SelectItem value="202">202 Delivered</SelectItem>
+                  <SelectItem value="429">429 Retrying</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            <Button variant="secondary" size="sm">Replay Dead-Letter Queue</Button>
             <Table density="compact">
               <TableCaption>Event delivery log table (Webhook Delivery & Event Stream Console)</TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col">Service</TableHead>
-                  <TableHead scope="col">Volume</TableHead>
+                  <TableHead scope="col">Event ID</TableHead>
+                  <TableHead scope="col">Destination</TableHead>
+                  <TableHead scope="col">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell>Edge Gateway</TableCell>
-                  <TableCell>590 req/s</TableCell>
+                  <TableCell>EVT-301</TableCell>
+                  <TableCell>POST /v2/webhooks/orders</TableCell>
+                  <TableCell><Tag status="success">202 Delivered</Tag></TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>EVT-303</TableCell>
+                  <TableCell>POST /v2/webhooks/inventory</TableCell>
+                  <TableCell><Tag status="warning">429 Retrying</Tag></TableCell>
                 </TableRow>
               </TableBody>
             </Table>

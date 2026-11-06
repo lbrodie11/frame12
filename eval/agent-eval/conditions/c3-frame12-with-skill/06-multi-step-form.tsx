@@ -374,7 +374,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
               <span id="eval-wizard-step-indicator" className="f12-muted-copy">
                 Active wizard stage: {wizardStep.toUpperCase()}
               </span>
-              <div className="f12-row-pair">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--f-gutter-pair)', alignItems: 'center' }}>
                 <Button
                   id="eval-wizard-prev"
                   variant="secondary"

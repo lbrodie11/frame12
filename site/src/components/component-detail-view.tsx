@@ -225,39 +225,72 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
 
       <Scene gutter="scene" layout="stack">
         <Panel label={`${entry.title} props reference`}>
-          <div className="f12-stack-pair">
-            <h2 className="f12-section-title">Props & TypeScript API</h2>
-            <Table>
-              <TableCaption>
-                Exported from{' '}
-                {entry.slug === 'use-on-twos' ? '@/hooks/use-on-twos' : '@/components/frame12'} (
-                {entry.sourceFile})
-              </TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col">Prop</TableHead>
-                  <TableHead scope="col">Type</TableHead>
-                  <TableHead scope="col">Default</TableHead>
-                  <TableHead scope="col">Description</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entry.props.map((p) => (
-                  <TableRow key={p.name}>
-                    <TableCell>
-                      <code className="f12-code-inline">{p.name}</code>
-                    </TableCell>
-                    <TableCell>
-                      <code className="f12-code-inline">{p.type}</code>
-                    </TableCell>
-                    <TableCell>
-                      <code className="f12-code-inline">{p.defaultValue}</code>
-                    </TableCell>
-                    <TableCell>{p.description}</TableCell>
+          <div className="f12-stack-scene">
+            <div className="f12-stack-pair">
+              <h2 className="f12-section-title">Props & TypeScript API</h2>
+              <Table>
+                <TableCaption>
+                  Exported from{' '}
+                  {entry.slug === 'use-on-twos' ? '@/hooks/use-on-twos' : '@/components/frame12'} (
+                  {entry.sourceFile})
+                </TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col">Prop</TableHead>
+                    <TableHead scope="col">Type</TableHead>
+                    <TableHead scope="col">Default</TableHead>
+                    <TableHead scope="col">Description</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {entry.props.map((p) => (
+                    <TableRow key={p.name}>
+                      <TableCell>
+                        <code className="f12-code-inline">{p.name}</code>
+                      </TableCell>
+                      <TableCell>
+                        <code className="f12-code-inline">{p.type}</code>
+                      </TableCell>
+                      <TableCell>
+                        <code className="f12-code-inline">{p.defaultValue}</code>
+                      </TableCell>
+                      <TableCell>{p.description}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {entry.subcomponents && entry.subcomponents.length > 0 && (
+              <div className="f12-stack-pair">
+                <h2 className="f12-section-title">Compound Subcomponents & Exported Types</h2>
+                <Table>
+                  <TableCaption>
+                    Compound subcomponents and exported TypeScript prop contracts for {entry.title}
+                  </TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead scope="col">Subcomponent</TableHead>
+                      <TableHead scope="col">Exported Props Type</TableHead>
+                      <TableHead scope="col">Description</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {entry.subcomponents.map((sub) => (
+                      <TableRow key={`${sub.name}-${sub.propsType}`}>
+                        <TableCell>
+                          <code className="f12-code-inline">&lt;{sub.name}&gt;</code>
+                        </TableCell>
+                        <TableCell>
+                          <code className="f12-code-inline">{sub.propsType}</code>
+                        </TableCell>
+                        <TableCell>{sub.description}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </div>
         </Panel>
       </Scene>

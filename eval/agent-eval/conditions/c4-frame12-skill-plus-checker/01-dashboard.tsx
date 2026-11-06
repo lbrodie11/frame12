@@ -166,6 +166,12 @@ const LEDGER_ROWS: LedgerRow[] = [
   }
 ];
 
+const INCIDENT_DURATIONS_MIN_BY_RANGE: Record<7 | 30 | 90, readonly number[]> = {
+  7: [10.4, 12.6, 11.2, 13.0],
+  30: [13.2, 15.6, 12.8, 15.2],
+  90: [15.4, 17.8, 16.0, 16.4],
+};
+
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [range, setRange] = React.useState<7 | 30 | 90>(30);
   const [selectedBar, setSelectedBar] = React.useState<string | null>(null);
@@ -178,7 +184,9 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const changed = useChanged(`${range}-${selectedBar}`);
 
   const series = SERIES_BY_RANGE[range];
-  const headlineValue = series.reduce((acc, p) => acc + p.value, 0);
+  const recoverySamples = INCIDENT_DURATIONS_MIN_BY_RANGE[range];
+  const headlineValue =
+    recoverySamples.reduce((acc, d) => acc + d, 0) / recoverySamples.length;
 
   const filteredRows = LEDGER_ROWS.filter((r) => {
     const matchesSearch =
@@ -235,8 +243,8 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
               <Metric
                 label="Mean Time to Recovery (MTTR)"
                 value={headlineValue}
-                format={(v) => `${Math.round(v).toLocaleString('en-US')} ops`}
-                delta={0.142}
+                format={(v) => `${v.toFixed(1)}m`}
+                delta={-0.142}
                 deltaKind="pct"
                 range={range}
                 big

@@ -17,6 +17,7 @@
       "@/components/frame12": ["../registry/ui/index.ts"],
       "@/components/frame12/blocks/*": ["../registry/blocks/*"],
       "@/components/frame12/*": ["../registry/ui/*"],
+      "@/components/ui/*": ["../registry/ui/*"],
       "@/hooks/*": ["../registry/hooks/*"],
       "@/styles/*": ["../registry/styles/*"]
     }

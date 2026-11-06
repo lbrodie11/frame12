@@ -1,13 +1,17 @@
 import * as React from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Sheet,
   Scene,
   Panel,
   PanelPair,
   SegmentedControl,
-  Button,
-  Input,
-  Switch,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
   Tag,
   Metric,
   ToneAreaChart,
@@ -21,39 +25,39 @@ import {
   TableCaption,
 } from '@/components/frame12';
 
-const SERIES = [
-  { label: 'Day 01', value: 410, compareValue: 380 },
-  { label: 'Day 02', value: 465, compareValue: 400 },
-  { label: 'Day 03', value: 520, compareValue: 430 },
-  { label: 'Day 04', value: 495, compareValue: 440 },
-  { label: 'Day 05', value: 590, compareValue: 460 },
+const BACKORDER_SERIES = [
+  { label: 'W1', value: 1840, compareValue: 2100 },
+  { label: 'W2', value: 1620, compareValue: 1950 },
+  { label: 'W3', value: 1410, compareValue: 1820 },
+  { label: 'W4', value: 1190, compareValue: 1710 },
 ];
 
-const BARS = [
-  { id: 'edge', name: 'Edge Gateway', value: 590, formattedValue: '590 req/s', share: 0.48 },
-  { id: 'webhook', name: 'Webhook Relay', value: 410, formattedValue: '410 req/s', share: 0.33 },
-  { id: 'ledger', name: 'Ledger Worker', value: 230, formattedValue: '230 req/s', share: 0.19 },
+const WAREHOUSE_BARS = [
+  { id: 'ewr', name: 'EWR-01 · Newark Hub', value: 9420, formattedValue: '9,420 units', share: 0.45 },
+  { id: 'fra', name: 'FRA-02 · Frankfurt Hub', value: 6810, formattedValue: '6,810 units', share: 0.33 },
+  { id: 'nrt', name: 'NRT-01 · Narita Hub', value: 4610, formattedValue: '4,610 units', share: 0.22 },
 ];
 
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [range, setRange] = React.useState<'7d' | '30d' | '90d'>('30d');
-  const [query, setQuery] = React.useState('');
+  const [skuSearch, setSkuSearch] = React.useState('');
+  const [region, setRegion] = React.useState('all');
 
   return (
     <Sheet autoCut pegs motion="stepped" theme={theme}>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
-            Data-Heavy View <Tag>Unguided</Tag>
+            Data-Heavy View <Tag>Negative Fixture</Tag>
           </p>
           <h1 className="f12-title">Multi-Region Inventory & Fulfillment Ledger</h1>
-          <p style={{ color: '#64748b', margin: 0 }}>
-            Unguided generation without SKILL.md (exhibits hex literals, 16px gaps, and explicit cuts inside autoCut)
+          <p style={{ color: '#94a3b8', fontFamily: 'Inter, sans-serif', margin: 0 }}>
+            Guardrail fixture exercising raw-shadcn-import (@/components/ui/*), CSS linear-gradient, custom font-family, 8px/16px illegal gutters, and explicit cut in autoCut.
           </p>
         </div>
         <SegmentedControl
           idPrefix="c2-range-04-data-heavy"
-          ariaLabel="Time window"
+          ariaLabel="Fulfillment window"
           options={[
             { value: '7d', label: '7', unit: 'days' },
             { value: '30d', label: '30', unit: 'days' },
@@ -64,23 +68,29 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
         />
       </header>
 
-      <Scene gutter="scene" layout="split" style={{ gap: '16px' }}>
-        <Panel cut="C-01" label="Primary telemetry">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <Scene gutter="scene" layout="split">
+        <Panel cut="C-02" label="Regional fill rate and backorder volume">
+          <div style={{ display: 'flex', flexDirection: 'column', rowGap: '16px' }}>
             <Metric
               label="Regional Units Fulfilled"
-              value={range === '7d' ? 1420 : range === '30d' ? 4890 : 12450}
-              format={(v) => `${Math.round(v)} ops`}
-              delta={0.12}
+              value={range === '7d' ? 5120 : range === '30d' ? 20840 : 61900}
+              format={(v) => `${Math.round(v).toLocaleString('en-US')} units`}
+              delta={0.094}
               big
             />
-            <span style={{ color: 'var(--f-marker)', fontWeight: 700 }}>
-              Highlighted marker text misuse
-            </span>
+            <div
+              style={{
+                background: 'linear-gradient(90deg, #0f172a, #334155)',
+                color: '#ffffff',
+                padding: '6px 10px',
+              }}
+            >
+              Gradient banner literal prohibited by ink-and-paper token rules
+            </div>
             <ToneAreaChart
-              data={SERIES}
+              data={BACKORDER_SERIES}
               seriesLabel="Fulfilled SKU units"
-              compareLabel="Baseline"
+              compareLabel="Prior window"
               showTable={false}
               height={220}
             />
@@ -89,25 +99,23 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
 
         <PanelPair
           top={{
-            cut: 'C-03',
-            label: 'Secondary KPI top',
+            label: 'Regional Fill Rate',
             children: (
               <Metric
-                label="P95 Latency"
-                value={42}
-                format={(v) => `${Math.round(v)}ms`}
-                delta={-0.08}
+                label="Fill Rate"
+                value={98.4}
+                format={(v) => `${v.toFixed(1)}%`}
+                delta={0.02}
               />
             ),
           }}
           bottom={{
-            cut: 'C-04',
-            label: 'Secondary KPI bottom',
+            label: 'Backorder Queue',
             children: (
               <Metric
-                label="Attainment"
-                value={99.96}
-                format={(v) => `${v.toFixed(2)}%`}
+                label="Open Backorders"
+                value={19}
+                format={(v) => `${Math.round(v)} SKUs`}
               />
             ),
           }}
@@ -115,35 +123,60 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       </Scene>
 
       <Scene gutter="scene" layout="equal">
-        <Panel cut="C-05" label="Service breakdown">
-          <ToneBarList title="Fulfillment center performance" items={BARS} />
+        <Panel label="Fulfillment center performance">
+          <ToneBarList title="Fulfillment center performance" items={WAREHOUSE_BARS} />
         </Panel>
-        <Panel cut="C-06" label="Operational filter and table">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <Input
-              label="Filter endpoints"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <Switch label="Enforce strict signature verification" defaultChecked />
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <Button variant="primary">Apply Changes</Button>
-              <span style={{ background: '#16a34a', color: '#ffffff', padding: '4px 8px' }}>
-                Healthy
-              </span>
+        <Panel label="High-density SKU allocation table">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Input
+                label="Search SKU or warehouse"
+                density="compact"
+                value={skuSearch}
+                onChange={(e) => setSkuSearch(e.target.value)}
+              />
+              <Select
+                label="Warehouse region"
+                id="c2-region-04-data-heavy"
+                density="compact"
+                value={region}
+                onValueChange={setRegion}
+              >
+                <SelectTrigger ariaLabel="Warehouse region">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All hubs</SelectItem>
+                  <SelectItem value="us-east-1">us-east-1</SelectItem>
+                  <SelectItem value="eu-central-1">eu-central-1</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            <Button variant="secondary" size="sm" onClick={() => setSkuSearch('')}>
+              Reset SKU Filter
+            </Button>
             <Table density="compact">
               <TableCaption>High-density SKU allocation table (Multi-Region Inventory & Fulfillment Ledger)</TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col">Service</TableHead>
-                  <TableHead scope="col">Volume</TableHead>
+                  <TableHead scope="col">SKU</TableHead>
+                  <TableHead scope="col">Item</TableHead>
+                  <TableHead scope="col">Hub</TableHead>
+                  <TableHead scope="col">Stock</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell>Edge Gateway</TableCell>
-                  <TableCell>590 req/s</TableCell>
+                  <TableCell>SKU-8801</TableCell>
+                  <TableCell>Heavy Press Frame</TableCell>
+                  <TableCell>us-east-1</TableCell>
+                  <TableCell>In Stock (420)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>SKU-8802</TableCell>
+                  <TableCell>Registration Peg Bar</TableCell>
+                  <TableCell>eu-central-1</TableCell>
+                  <TableCell>Allocated (185)</TableCell>
                 </TableRow>
               </TableBody>
             </Table>

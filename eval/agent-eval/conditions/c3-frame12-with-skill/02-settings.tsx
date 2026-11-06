@@ -229,7 +229,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       </header>
 
       <Scene gutter="scene" layout="split">
-        <Panel label="Establishing telemetry and trend">
+        <Panel cut="C-01" label="Establishing telemetry and trend">
           <div className="f12-stack-scene">
             <div className="f12-row-between">
               <Metric

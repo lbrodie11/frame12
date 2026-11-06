@@ -2,6 +2,8 @@ import * as React from 'react';
 
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [windowDays, setWindowDays] = React.useState<'7d' | '30d' | '90d'>('30d');
+  const [orgName, setOrgName] = React.useState('Atelier Koma Production');
+  const [cadence, setCadence] = React.useState<'realtime' | 'daily' | 'weekly'>('daily');
   const [query, setQuery] = React.useState('');
   const [channel, setChannel] = React.useState<'all' | 'us' | 'eu'>('all');
   const [enforced, setEnforced] = React.useState(true);
@@ -21,7 +23,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       <header className="b-header">
         <div>
           <span className="b-badge">Settings</span>
-          <h1 className="b-title">Organization Security & Billing Preferences</h1>
+          <h1 className="b-title">Organization Security &amp; Billing Preferences</h1>
           <p className="b-sub">Conventional shadcn/Tailwind card &amp; table baseline</p>
         </div>
         <div className="b-btn-row" role="group" aria-label="Time window">
@@ -43,7 +45,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       <div className="b-grid-2">
         <section className="b-card" aria-label="Primary performance summary">
           <p className="b-kpi-label">Enforced Security Controls (02-settings)</p>
-          <p className="b-kpi-val">{windowDays === '7d' ? '14.2m' : windowDays === '30d' ? '11.8m' : '9.4m'}</p>
+          <p className="b-kpi-val">{windowDays === '7d' ? '26,110 ops' : windowDays === '30d' ? '92,770 ops' : '278,410 ops'}</p>
           <p className="b-sub">Compared against prior window baseline</p>
           <div className="b-table-wrap" style={{ marginTop: 16 }}>
             <table className="b-table">
@@ -64,22 +66,38 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           </div>
         </section>
 
-        <div className="b-card-stack">
-          <section className="b-card" aria-label="Secondary metric top">
-            <p className="b-kpi-label">P95 Dispatch Latency</p>
-            <p className="b-kpi-val">42ms</p>
-            <span className="b-badge">-8.4% vs prior</span>
-          </section>
-          <section className="b-card" aria-label="Secondary metric bottom">
-            <p className="b-kpi-label">SLO Availability</p>
-            <p className="b-kpi-val">99.96%</p>
-            <span className="b-badge">Within budget</span>
-          </section>
-        </div>
+        <section className="b-card" aria-label="Workspace security and billing form">
+          <h2 style={{ fontSize: 18, marginTop: 0, color: 'var(--b-text)' }}>Security &amp; Billing Configuration</h2>
+          <div className="b-field">
+            <label className="b-label" htmlFor="c1-org-name-02">Organization display name</label>
+            <input
+              id="c1-org-name-02"
+              className="b-input"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+            />
+          </div>
+          <div className="b-field">
+            <label className="b-label" htmlFor="c1-cadence-02">Invoice &amp; audit digest cadence</label>
+            <select
+              id="c1-cadence-02"
+              className="b-select"
+              value={cadence}
+              onChange={(e) => setCadence(e.target.value as 'realtime' | 'daily' | 'weekly')}
+            >
+              <option value="realtime">Real-time webhook</option>
+              <option value="daily">Daily exposure digest</option>
+              <option value="weekly">Weekly rollup</option>
+            </select>
+          </div>
+          <div className="b-btn-row">
+            <button type="button" className="b-btn b-btn-primary">Save Preferences</button>
+          </div>
+        </section>
       </div>
 
       <section className="b-card" aria-label="Operational configuration and ledger">
-        <h2 style={{ fontSize: 18, marginTop: 0, color: 'var(--b-text)' }}>Security & billing audit trail (Organization Security & Billing Preferences)</h2>
+        <h2 style={{ fontSize: 18, marginTop: 0, color: 'var(--b-text)' }}>Security &amp; billing audit trail (Organization Security &amp; Billing Preferences)</h2>
         <div className="b-grid-equal">
           <div className="b-field">
             <label className="b-label" htmlFor="c1-search-02-settings">Filter records</label>
@@ -119,7 +137,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
         </div>
         <div className="b-table-wrap">
           <table className="b-table" id="c1-ledger-table-02-settings">
-            <caption>Security & billing audit trail (Organization Security & Billing Preferences)</caption>
+            <caption>Security &amp; billing audit trail (Organization Security &amp; Billing Preferences)</caption>
             <thead>
               <tr>
                 <th scope="col">ID</th>

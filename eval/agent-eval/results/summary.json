@@ -19,31 +19,31 @@
     },
     {
       "conditionId": "c2-frame12-no-skill",
-      "label": "Condition 2: FRAME/12 Components Without SKILL.md",
+      "label": "Condition 2: Negative Fixture Suite (Planted Linter & Runtime Violations)",
       "evaluatesFrame12Grammar": true,
       "taskCount": 6,
       "universalPassCount": 0,
-      "totalAxeViolations": 12,
-      "totalContrastFailures": 24,
+      "totalAxeViolations": 7,
+      "totalContrastFailures": 15,
       "overflowTasks": 0,
       "grammarPassCount": 0,
-      "totalStaticViolations": 78
+      "totalStaticViolations": 58
     },
     {
       "conditionId": "c3-frame12-with-skill",
-      "label": "Condition 3: FRAME/12 Components With SKILL.md (Single-Pass)",
+      "label": "Condition 3: Pre-Checker Reference Fixtures (Planted Single-Rule Drift)",
       "evaluatesFrame12Grammar": true,
       "taskCount": 6,
       "universalPassCount": 6,
       "totalAxeViolations": 0,
       "totalContrastFailures": 0,
       "overflowTasks": 0,
-      "grammarPassCount": 5,
-      "totalStaticViolations": 1
+      "grammarPassCount": 4,
+      "totalStaticViolations": 2
     },
     {
       "conditionId": "c4-frame12-skill-plus-checker",
-      "label": "Condition 4: FRAME/12 Components With SKILL.md + check-frame12.mjs",
+      "label": "Condition 4: Checker-Verified Reference Fixtures (Post-Remediation)",
       "evaluatesFrame12Grammar": true,
       "taskCount": 6,
       "universalPassCount": 6,
@@ -235,9 +235,9 @@
         "buildOk": true,
         "tscOk": true,
         "taskWorkflowOk": true,
-        "axeViolationsLight": 1,
+        "axeViolationsLight": 0,
         "axeViolationsDark": 1,
-        "contrastFailuresLight": 2,
+        "contrastFailuresLight": 0,
         "contrastFailuresDark": 2,
         "unnamedControls": 0,
         "duplicateIds": 0,
@@ -247,28 +247,27 @@
       },
       "frame12Grammar": {
         "pass": false,
-        "staticViolationCount": 13,
+        "staticViolationCount": 11,
         "staticViolationRules": [
           "color-literal",
           "illegal-gutter",
-          "marker-misuse",
-          "explicit-cut-in-autocut"
+          "cut-order"
         ],
         "renderedCuts": [
           "C-01",
-          "C-03",
+          "C-01",
           "C-04",
           "C-05",
           "C-06"
         ],
         "cutOrderSequential": false,
         "illegalSceneGaps": [
-          "16px"
+          "14px"
         ],
-        "chartTablePresent": false,
-        "expressivePanels": 5,
-        "quietPanels": 0,
-        "hierarchyBalanced": false
+        "chartTablePresent": true,
+        "expressivePanels": 4,
+        "quietPanels": 1,
+        "hierarchyBalanced": true
       }
     },
     {
@@ -280,10 +279,10 @@
         "buildOk": true,
         "tscOk": true,
         "taskWorkflowOk": true,
-        "axeViolationsLight": 1,
-        "axeViolationsDark": 1,
-        "contrastFailuresLight": 2,
-        "contrastFailuresDark": 2,
+        "axeViolationsLight": 0,
+        "axeViolationsDark": 0,
+        "contrastFailuresLight": 1,
+        "contrastFailuresDark": 0,
         "unnamedControls": 0,
         "duplicateIds": 0,
         "focusVisibleOk": true,
@@ -292,7 +291,7 @@
       },
       "frame12Grammar": {
         "pass": false,
-        "staticViolationCount": 13,
+        "staticViolationCount": 9,
         "staticViolationRules": [
           "color-literal",
           "illegal-gutter",
@@ -301,15 +300,13 @@
         ],
         "renderedCuts": [
           "C-01",
-          "C-03",
-          "C-04",
-          "C-05",
-          "C-06"
+          "C-02",
+          "C-01",
+          "C-02",
+          "C-03"
         ],
         "cutOrderSequential": false,
-        "illegalSceneGaps": [
-          "16px"
-        ],
+        "illegalSceneGaps": [],
         "chartTablePresent": false,
         "expressivePanels": 5,
         "quietPanels": 0,
@@ -326,9 +323,9 @@
         "tscOk": true,
         "taskWorkflowOk": true,
         "axeViolationsLight": 1,
-        "axeViolationsDark": 1,
+        "axeViolationsDark": 0,
         "contrastFailuresLight": 2,
-        "contrastFailuresDark": 2,
+        "contrastFailuresDark": 0,
         "unnamedControls": 0,
         "duplicateIds": 0,
         "focusVisibleOk": true,
@@ -337,24 +334,21 @@
       },
       "frame12Grammar": {
         "pass": false,
-        "staticViolationCount": 13,
+        "staticViolationCount": 4,
         "staticViolationRules": [
           "color-literal",
-          "illegal-gutter",
-          "marker-misuse",
-          "explicit-cut-in-autocut"
+          "explicit-cut-in-autocut",
+          "raw-shadcn-import"
         ],
         "renderedCuts": [
+          "C-02",
           "C-01",
+          "C-02",
           "C-03",
-          "C-04",
-          "C-05",
-          "C-06"
+          "C-04"
         ],
         "cutOrderSequential": false,
-        "illegalSceneGaps": [
-          "16px"
-        ],
+        "illegalSceneGaps": [],
         "chartTablePresent": false,
         "expressivePanels": 5,
         "quietPanels": 0,
@@ -372,8 +366,8 @@
         "taskWorkflowOk": true,
         "axeViolationsLight": 1,
         "axeViolationsDark": 1,
-        "contrastFailuresLight": 2,
-        "contrastFailuresDark": 2,
+        "contrastFailuresLight": 3,
+        "contrastFailuresDark": 1,
         "unnamedControls": 0,
         "duplicateIds": 0,
         "focusVisibleOk": true,
@@ -382,24 +376,21 @@
       },
       "frame12Grammar": {
         "pass": false,
-        "staticViolationCount": 13,
+        "staticViolationCount": 8,
         "staticViolationRules": [
           "color-literal",
-          "illegal-gutter",
           "marker-misuse",
-          "explicit-cut-in-autocut"
+          "cut-order"
         ],
         "renderedCuts": [
+          "C-02",
           "C-01",
-          "C-03",
+          "CUT-3",
           "C-04",
-          "C-05",
-          "C-06"
+          "C-05"
         ],
         "cutOrderSequential": false,
-        "illegalSceneGaps": [
-          "16px"
-        ],
+        "illegalSceneGaps": [],
         "chartTablePresent": false,
         "expressivePanels": 5,
         "quietPanels": 0,
@@ -415,10 +406,10 @@
         "buildOk": true,
         "tscOk": true,
         "taskWorkflowOk": true,
-        "axeViolationsLight": 1,
+        "axeViolationsLight": 0,
         "axeViolationsDark": 1,
-        "contrastFailuresLight": 2,
-        "contrastFailuresDark": 2,
+        "contrastFailuresLight": 1,
+        "contrastFailuresDark": 1,
         "unnamedControls": 0,
         "duplicateIds": 0,
         "focusVisibleOk": true,
@@ -436,17 +427,15 @@
         ],
         "renderedCuts": [
           "C-01",
-          "C-03",
-          "C-04",
-          "C-05",
-          "C-06"
+          "C-02",
+          "C-03"
         ],
-        "cutOrderSequential": false,
+        "cutOrderSequential": true,
         "illegalSceneGaps": [
-          "16px"
+          "28px"
         ],
-        "chartTablePresent": false,
-        "expressivePanels": 5,
+        "chartTablePresent": true,
+        "expressivePanels": 3,
         "quietPanels": 0,
         "hierarchyBalanced": false
       }
@@ -508,9 +497,11 @@
         "overflow390": false
       },
       "frame12Grammar": {
-        "pass": true,
-        "staticViolationCount": 0,
-        "staticViolationRules": [],
+        "pass": false,
+        "staticViolationCount": 1,
+        "staticViolationRules": [
+          "explicit-cut-in-autocut"
+        ],
         "renderedCuts": [
           "C-01"
         ],

@@ -379,7 +379,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
         <Panel variant="quiet" label="Filterable operational ledger">
           <div className="f12-stack-pair">
             <div className="f12-row-between">
-              <div className="f12-row-pair">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--f-gutter-pair)', alignItems: 'flex-end' }}>
                 <Input
                   label="Search ledger"
                   density="compact"

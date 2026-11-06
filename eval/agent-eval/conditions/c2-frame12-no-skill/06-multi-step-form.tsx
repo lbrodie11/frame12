@@ -3,15 +3,22 @@ import {
   Sheet,
   Scene,
   Panel,
-  PanelPair,
   SegmentedControl,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
   Button,
+  Field,
   Input,
+  Textarea,
+  Checkbox,
+  RadioGroup,
   Switch,
+  Notice,
   Tag,
+  Breadcrumb,
   Metric,
-  ToneAreaChart,
-  ToneBarList,
   Table,
   TableHeader,
   TableBody,
@@ -21,39 +28,35 @@ import {
   TableCaption,
 } from '@/components/frame12';
 
-const SERIES = [
-  { label: 'Day 01', value: 410, compareValue: 380 },
-  { label: 'Day 02', value: 465, compareValue: 400 },
-  { label: 'Day 03', value: 520, compareValue: 430 },
-  { label: 'Day 04', value: 495, compareValue: 440 },
-  { label: 'Day 05', value: 590, compareValue: 460 },
-];
-
-const BARS = [
-  { id: 'edge', name: 'Edge Gateway', value: 590, formattedValue: '590 req/s', share: 0.48 },
-  { id: 'webhook', name: 'Webhook Relay', value: 410, formattedValue: '410 req/s', share: 0.33 },
-  { id: 'ledger', name: 'Ledger Worker', value: 230, formattedValue: '230 req/s', share: 0.19 },
-];
-
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [range, setRange] = React.useState<'7d' | '30d' | '90d'>('30d');
-  const [query, setQuery] = React.useState('');
+  const [step, setStep] = React.useState('step-1');
+  const [digest, setDigest] = React.useState('sha256:9f84c2a1b0e4');
+  const [trafficPolicy, setTrafficPolicy] = React.useState('canary-10');
+  const [autoRollback, setAutoRollback] = React.useState(true);
 
   return (
     <Sheet autoCut pegs motion="stepped" theme={theme}>
       <header className="f12-hd">
         <div className="f12-hd-text">
+          <Breadcrumb
+            items={[
+              { label: 'FRAME/12 Control Plane', href: '#control-plane' },
+              { label: 'Multi-Step Form', href: '#category' },
+              { label: 'Production Deployment & Rollout Wizard', current: true },
+            ]}
+          />
           <p className="f12-eyebrow">
-            Multi-Step Form <Tag>Unguided</Tag>
+            Multi-Step Form <Tag>Negative Fixture</Tag>
           </p>
           <h1 className="f12-title">Production Deployment & Rollout Wizard</h1>
-          <p style={{ color: '#64748b', margin: 0 }}>
-            Unguided generation without SKILL.md (exhibits hex literals, 16px gaps, and explicit cuts inside autoCut)
+          <p style={{ color: '#334155', margin: 0 }}>
+            Guardrail fixture exercising 10px/28px illegal gutters, marker outline misuse, hex error color literal, and explicit cuts inside autoCut.
           </p>
         </div>
         <SegmentedControl
           idPrefix="c2-range-06-multi-step-form"
-          ariaLabel="Time window"
+          ariaLabel="Rollout window"
           options={[
             { value: '7d', label: '7', unit: 'days' },
             { value: '30d', label: '30', unit: 'days' },
@@ -64,90 +67,123 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
         />
       </header>
 
-      <Scene gutter="scene" layout="split" style={{ gap: '16px' }}>
-        <Panel cut="C-01" label="Primary telemetry">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <Scene gutter="scene" layout="split" style={{ gap: '28px' }}>
+        <Panel cut="C-01" label="Pre-flight readiness summary">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <Metric
               label="Pre-Flight Verification Checks"
-              value={range === '7d' ? 1420 : range === '30d' ? 4890 : 12450}
-              format={(v) => `${Math.round(v)} ops`}
-              delta={0.12}
+              value={range === '7d' ? 18 : range === '30d' ? 42 : 128}
+              format={(v) => `${Math.round(v)} checks`}
+              delta={0.05}
               big
             />
-            <span style={{ color: 'var(--f-marker)', fontWeight: 700 }}>
-              Highlighted marker text misuse
-            </span>
-            <ToneAreaChart
-              data={SERIES}
-              seriesLabel="Canary validation probes"
-              compareLabel="Baseline"
-              showTable={false}
-              height={220}
-            />
-          </div>
-        </Panel>
-
-        <PanelPair
-          top={{
-            cut: 'C-03',
-            label: 'Secondary KPI top',
-            children: (
-              <Metric
-                label="P95 Latency"
-                value={42}
-                format={(v) => `${Math.round(v)}ms`}
-                delta={-0.08}
-              />
-            ),
-          }}
-          bottom={{
-            cut: 'C-04',
-            label: 'Secondary KPI bottom',
-            children: (
-              <Metric
-                label="Attainment"
-                value={99.96}
-                format={(v) => `${v.toFixed(2)}%`}
-              />
-            ),
-          }}
-        />
-      </Scene>
-
-      <Scene gutter="scene" layout="equal">
-        <Panel cut="C-05" label="Service breakdown">
-          <ToneBarList title="Canary readiness by region" items={BARS} />
-        </Panel>
-        <Panel cut="C-06" label="Operational filter and table">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <Input
-              label="Filter endpoints"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <Switch label="Enforce strict signature verification" defaultChecked />
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <Button variant="primary">Apply Changes</Button>
-              <span style={{ background: '#16a34a', color: '#ffffff', padding: '4px 8px' }}>
-                Healthy
+            <div style={{ outline: '2px solid var(--f-marker)', padding: '8px' }}>
+              <span style={{ color: '#ef4444' }}>
+                Canary gate warning styled with prohibited hex literal and marker outline
               </span>
             </div>
-            <Table density="compact">
-              <TableCaption>Canary rollout gate verification ledger</TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col">Service</TableHead>
-                  <TableHead scope="col">Volume</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell>Edge Gateway</TableCell>
-                  <TableCell>590 req/s</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
           </div>
+        </Panel>
+
+        <Panel cut="C-02" label="Three-step rollout wizard">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <Tabs value={step} onValueChange={setStep} density="compact" idPrefix="c2-wizard-06">
+              <TabsList ariaLabel="Rollout wizard steps">
+                <TabsTrigger value="step-1">Step 1 · Artifact</TabsTrigger>
+                <TabsTrigger value="step-2">Step 2 · Traffic</TabsTrigger>
+                <TabsTrigger value="step-3">Step 3 · Signoff</TabsTrigger>
+              </TabsList>
+              <TabsContent value="step-1">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <Notice status="info" title="Step 1: Target OCI Artifact">
+                    Verify artifact digest before promoting canary traffic.
+                  </Notice>
+                  <Input
+                    label="Signed artifact digest"
+                    density="compact"
+                    value={digest}
+                    onChange={(e) => setDigest(e.target.value)}
+                  />
+                </div>
+              </TabsContent>
+              <TabsContent value="step-2">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <Field label="Canary traffic progression policy" density="compact">
+                    <RadioGroup
+                      name="c2-traffic-06"
+                      value={trafficPolicy}
+                      onValueChange={setTrafficPolicy}
+                      density="compact"
+                      orientation="horizontal"
+                      options={[
+                        { value: 'canary-10', label: '10% Canary' },
+                        { value: 'canary-25', label: '25% Progressive' },
+                        { value: 'blue-green', label: 'Blue/Green Hold' },
+                      ]}
+                    />
+                  </Field>
+                  <Switch
+                    label="Auto-rollback if P95 latency exceeds 60ms"
+                    density="compact"
+                    checked={autoRollback}
+                    onCheckedChange={setAutoRollback}
+                  />
+                </div>
+              </TabsContent>
+              <TabsContent value="step-3">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <Checkbox
+                    label="Require dual-operator signoff on production promotion"
+                    density="compact"
+                    defaultChecked
+                  />
+                  <Textarea
+                    label="Release rollback runbook note"
+                    density="compact"
+                    defaultValue="Verified artifact sha256:9f84c2 across us-east-1 and eu-central-1."
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setStep((s) => (s === 'step-3' ? 'step-2' : 'step-1'))}
+              >
+                Previous Step
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setStep((s) => (s === 'step-1' ? 'step-2' : 'step-3'))}
+              >
+                Next Step
+              </Button>
+            </div>
+          </div>
+        </Panel>
+      </Scene>
+
+      <Scene gutter="scene" layout="stack">
+        <Panel cut="C-03" label="Canary rollout gate verification ledger">
+          <Table density="compact">
+            <TableCaption>Canary rollout gate verification ledger</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col">Gate ID</TableHead>
+                <TableHead scope="col">Cluster</TableHead>
+                <TableHead scope="col">Readiness</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell>REL-601</TableCell>
+                <TableCell>us-east-1 · Canary Ring 0</TableCell>
+                <TableCell>Ready</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </Panel>
       </Scene>
     </Sheet>

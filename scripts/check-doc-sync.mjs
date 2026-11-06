@@ -2,10 +2,10 @@
 /**
  * Canonical TypeScript API <-> Documentation & Skill Synchronization Checker (WP9 §15.1 & §15.2)
  *
- * Parses exported TypeScript `*Props` interfaces in `registry/ui/*.tsx`, `registry/blocks/*.tsx`,
- * and `registry/hooks/use-on-twos.ts` and verifies 100% synchronization with:
- *   1. `site/src/lib/catalog.ts` (`CATALOG` and `BLOCK_CATALOG`)
- *   2. `skills/frame12/references/components-and-adapters.md`
+ * Parses exported TypeScript `*Props` interfaces and type aliases in `registry/ui/*.tsx`,
+ * `registry/blocks/*.tsx`, and `registry/hooks/use-on-twos.ts` and verifies synchronization with:
+ *   1. `site/src/lib/catalog.ts` (`CATALOG` and `BLOCK_CATALOG` — 1-row-per-prop, types, defaults, subcomponents)
+ *   2. `skills/frame12/references/components-and-adapters.md` (fenced TypeScript AST contract parity)
  *   3. `site/public/r/*.json` registry manifests
  */
 
@@ -17,6 +17,43 @@ const require = createRequire(path.join(process.cwd(), 'package.json'));
 const ts = require('typescript');
 
 const errors = [];
+
+const PRIMARY_INTERFACE_BY_SLUG = {
+  sheet: 'SheetProps',
+  scene: 'SceneProps',
+  panel: 'PanelProps',
+  'panel-pair': 'PanelPairProps',
+  'segmented-control': 'SegmentedControlProps',
+  button: 'ButtonProps',
+  input: 'InputProps',
+  field: 'FieldProps',
+  textarea: 'TextareaProps',
+  checkbox: 'CheckboxProps',
+  'radio-group': 'RadioGroupProps',
+  switch: 'SwitchProps',
+  tabs: 'TabsProps',
+  badge: 'BadgeProps',
+  tag: 'TagProps',
+  alert: 'AlertProps',
+  toast: 'ToastProps',
+  skeleton: 'SkeletonProps',
+  'empty-state': 'EmptyStateProps',
+  breadcrumb: 'BreadcrumbProps',
+  pagination: 'PaginationProps',
+  metric: 'MetricProps',
+  'tone-area-chart': 'ToneAreaChartProps',
+  'tone-bar-list': 'ToneBarListProps',
+  'tone-spark': 'ToneSparkProps',
+  balloon: 'BalloonProps',
+  dialog: 'DialogProps',
+  select: 'SelectProps',
+  tooltip: 'TooltipProps',
+  'dropdown-menu': 'DropdownMenuTriggerProps',
+  table: 'TableProps',
+  'developer-console': 'DeveloperConsoleProps',
+  'workspace-settings': 'WorkspaceSettingsProps',
+  'analytics-dashboard': 'AnalyticsDashboardProps',
+};
 
 function loadCatalogModule() {
   const catalogPath = path.join(process.cwd(), 'site/src/lib/catalog.ts');
@@ -31,90 +68,182 @@ function loadCatalogModule() {
   return mod.exports;
 }
 
-function getExpandedCatalogPropNames(propsArray) {
-  const set = new Set();
-  for (const p of propsArray) {
-    for (const part of p.name.split('/')) {
-      const trimmed = part.trim();
-      if (trimmed) set.add(trimmed);
-    }
-  }
-  return set;
-}
+function parseSourceFileContracts(filePath, codeOverride) {
+  const src = codeOverride ?? fs.readFileSync(filePath, 'utf8');
+  const sf = ts.createSourceFile(
+    filePath,
+    src,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const contracts = new Map();
+  const typeAliases = new Map();
+  const defaults = new Map();
 
-function getExportedPropsContracts(filePath) {
-  const src = fs.readFileSync(filePath, 'utf8');
-  const sf = ts.createSourceFile(filePath, src, ts.ScriptTarget.Latest, true);
-  const contracts = [];
-  sf.forEachChild((node) => {
-    const isExported = node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
-    if (!isExported) return;
-
-    if (ts.isInterfaceDeclaration(node) && node.name.text.endsWith('Props')) {
-      const props = [];
-      for (const m of node.members) {
-        if (ts.isPropertySignature(m)) {
-          props.push(m.name.getText(sf).replace(/['"]/g, ''));
-        }
+  function visit(node) {
+    if (ts.isTypeAliasDeclaration(node)) {
+      const isExported = Boolean(
+        node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword),
+      );
+      const rawType = node.type.getText(sf).replace(/\s+/g, ' ').trim();
+      typeAliases.set(node.name.text, { exported: isExported, type: rawType });
+      if (isExported && node.name.text.endsWith('Props')) {
+        contracts.set(node.name.text, {
+          name: node.name.text,
+          kind: 'type',
+          type: rawType,
+          props: new Map(),
+        });
       }
-      contracts.push({ name: node.name.text, kind: 'interface', props });
-    } else if (ts.isTypeAliasDeclaration(node) && node.name.text.endsWith('Props')) {
-      const props = [];
-      if (ts.isTypeLiteralNode(node.type)) {
-        for (const m of node.type.members) {
-          if (ts.isPropertySignature(m)) {
-            props.push(m.name.getText(sf).replace(/['"]/g, ''));
+    } else if (ts.isInterfaceDeclaration(node)) {
+      const isExported = Boolean(
+        node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword),
+      );
+      if (isExported && node.name.text.endsWith('Props')) {
+        const props = new Map();
+        for (const m of node.members) {
+          if (ts.isPropertySignature(m) && m.name) {
+            const propName = m.name.getText(sf).replace(/^['"]|['"]$/g, '');
+            const propType = m.type ? m.type.getText(sf).replace(/\s+/g, ' ').trim() : 'unknown';
+            const optional = Boolean(m.questionToken);
+            props.set(propName, { name: propName, type: propType, optional });
+          }
+        }
+        contracts.set(node.name.text, {
+          name: node.name.text,
+          kind: 'interface',
+          props,
+        });
+      }
+    }
+    if (ts.isObjectBindingPattern(node)) {
+      for (const el of node.elements) {
+        if (el.initializer) {
+          const propName = (el.propertyName || el.name)
+            .getText(sf)
+            .replace(/^['"]|['"]$/g, '');
+          if (!defaults.has(propName)) {
+            defaults.set(propName, el.initializer.getText(sf).trim());
           }
         }
       }
-      contracts.push({ name: node.name.text, kind: 'type', props });
     }
-  });
-  return contracts;
+    ts.forEachChild(node, visit);
+  }
+  visit(sf);
+  return { contracts, typeAliases, defaults };
 }
 
-function getSkillSectionForSource(markdown, shortSource) {
-  const escaped = shortSource.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const lines = markdown.split('\n');
-  let startLine = -1;
-  let startLevel = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    if (new RegExp(`\\(\`${escaped}\`\\)`).test(lines[i])) {
-      startLine = i;
-      const headingMatch = lines[i].match(/^(#{2,4})\s+/);
-      startLevel = headingMatch ? headingMatch[1].length : 0;
-      break;
+function getAllowedTypesForProp(rawType, typeAliases) {
+  const allowed = new Set([rawType]);
+  if (typeAliases.has(rawType)) {
+    const aliasType = typeAliases.get(rawType).type;
+    allowed.add(aliasType);
+    if (typeAliases.has(aliasType)) {
+      allowed.add(typeAliases.get(aliasType).type);
     }
   }
-  if (startLine === -1) return null;
+  if (
+    rawType === 'SemanticStatus' ||
+    rawType === 'BadgeStatus' ||
+    rawType === 'AlertStatus' ||
+    rawType === 'ToastStatus'
+  ) {
+    allowed.add("'neutral' | 'info' | 'success' | 'warning' | 'danger'");
+  }
+  return allowed;
+}
 
-  const sectionLines = [lines[startLine]];
-  for (let i = startLine + 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (startLevel > 0) {
-      const h = line.match(/^(#{2,4})\s+/);
-      if (h && h[1].length <= startLevel) break;
-    } else {
-      if (/^\d+\.\s+\*\*/.test(line) || /^#{2,4}\s+/.test(line) || /^---\s*$/.test(line)) {
-        break;
+function validateCatalogEntryPropsAndSubcomponents(entry, labelPrefix) {
+  if (entry.slug === 'use-on-twos') return;
+
+  // 1. Enforce 1-row-per-prop (no slash-joined prop names or *Props type names in props table)
+  const documentedPropsByName = new Map();
+  for (const p of entry.props) {
+    if (p.name.includes('/')) {
+      errors.push(
+        `${labelPrefix}[${entry.slug}] contains slash-joined prop row "${p.name}". Use one row per prop.`,
+      );
+    }
+    if (/^[A-Z].*Props$/.test(p.name)) {
+      errors.push(
+        `${labelPrefix}[${entry.slug}] lists type name "${p.name}" in props[]. Put subcomponent contracts in subcomponents[].`,
+      );
+    }
+    documentedPropsByName.set(p.name, p);
+  }
+
+  const fullPath = path.join(process.cwd(), entry.sourceFile);
+  if (!fs.existsSync(fullPath)) return;
+  const { contracts, typeAliases, defaults } = parseSourceFileContracts(fullPath);
+
+  const primaryName = PRIMARY_INTERFACE_BY_SLUG[entry.slug];
+  const primaryContract = contracts.get(primaryName);
+  if (!primaryContract) {
+    errors.push(
+      `${labelPrefix}[${entry.slug}] could not find primary interface "${primaryName}" in ${entry.sourceFile}`,
+    );
+    return;
+  }
+
+  // 2. Verify every source prop on primary interface is documented with matching type & default
+  for (const [propName, propMeta] of primaryContract.props) {
+    if (propName === 'children' || propName === 'className') continue;
+    const docProp = documentedPropsByName.get(propName);
+    if (!docProp) {
+      errors.push(
+        `${labelPrefix}[${entry.slug}] is missing prop "${propName}" from ${primaryName} (${entry.sourceFile})`,
+      );
+      continue;
+    }
+    const allowedTypes = getAllowedTypesForProp(propMeta.type, typeAliases);
+    if (!allowedTypes.has(docProp.type)) {
+      errors.push(
+        `${labelPrefix}[${entry.slug}].props["${propName}"] type mismatch: documented "${docProp.type}", source has "${propMeta.type}"`,
+      );
+    }
+    if (defaults.has(propName)) {
+      const srcDefault = defaults.get(propName);
+      if (docProp.defaultValue !== srcDefault && !docProp.defaultValue.startsWith(srcDefault)) {
+        errors.push(
+          `${labelPrefix}[${entry.slug}].props["${propName}"] default mismatch: documented "${docProp.defaultValue}", source destructuring has "${srcDefault}"`,
+        );
       }
     }
-    sectionLines.push(line);
   }
-  return sectionLines.join('\n');
-}
 
-function sectionContainsIdentifier(sectionText, identifier) {
-  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^a-zA-Z0-9_])${escaped}([^a-zA-Z0-9_]|$)`).test(sectionText);
+  // 3. Reject extra/unknown props in entry.props that do not exist on primaryContract
+  for (const [docPropName] of documentedPropsByName) {
+    if (!primaryContract.props.has(docPropName)) {
+      errors.push(
+        `${labelPrefix}[${entry.slug}] documents prop "${docPropName}" which does not exist on ${primaryName} (${entry.sourceFile})`,
+      );
+    }
+  }
+
+  // 4. Verify all secondary exported *Props contracts in the source file appear in entry.subcomponents
+  const subPropTypes = new Set((entry.subcomponents ?? []).map((s) => s.propsType));
+  for (const [contractName] of contracts) {
+    if (contractName === primaryName) continue;
+    if (!subPropTypes.has(contractName)) {
+      errors.push(
+        `${labelPrefix}[${entry.slug}].subcomponents is missing exported contract "${contractName}" (${entry.sourceFile})`,
+      );
+    }
+  }
 }
 
 const { CATALOG, BLOCK_CATALOG } = loadCatalogModule();
-const skillRef = fs.readFileSync(
-  path.join(process.cwd(), 'skills/frame12/references/components-and-adapters.md'),
-  'utf8',
+const skillRefPath = path.join(
+  process.cwd(),
+  'skills/frame12/references/components-and-adapters.md',
 );
+const skillRef = fs.readFileSync(skillRefPath, 'utf8');
+const skillTsxBlocks = [...skillRef.matchAll(/```tsx\n([\s\S]*?)```/g)]
+  .map((m) => m[1])
+  .join('\n\n');
+const skillParsed = parseSourceFileContracts(skillRefPath, skillTsxBlocks);
 
 // 1. Verify every registry/ui/*.tsx file is in CATALOG
 const uiFiles = fs
@@ -146,12 +275,7 @@ for (const file of blockFiles) {
   }
 }
 
-// 3. Verify all 13 Section 15.1 fields and canonical TypeScript prop sync for CATALOG
-const PRIMARY_INTERFACE_OVERRIDES = {
-  alert: 'AlertProps',
-  'use-on-twos': null,
-};
-
+// 3. Verify all CATALOG entries
 for (const entry of CATALOG) {
   const requiredStrings = [
     'slug',
@@ -185,62 +309,20 @@ for (const entry of CATALOG) {
     }
   }
 
-  // Verify sourceFile and registry manifest exist
   if (!fs.existsSync(path.join(process.cwd(), entry.sourceFile))) {
     errors.push(`CATALOG[${entry.slug}] sourceFile does not exist: ${entry.sourceFile}`);
   }
   const manifestPath = path.join(process.cwd(), `site/public/r/${entry.slug}.json`);
   if (!fs.existsSync(manifestPath)) {
-    errors.push(`CATALOG[${entry.slug}] registry manifest missing: site/public/r/${entry.slug}.json`);
-  }
-
-  // Verify skill reference section and canonical TypeScript props across ALL exported *Props interfaces & type aliases
-  const shortSource = entry.sourceFile.replace(/^registry\//, '');
-  const skillSection = getSkillSectionForSource(skillRef, shortSource);
-  if (!skillSection) {
     errors.push(
-      `skills/frame12/references/components-and-adapters.md does not have a section for ${shortSource}`,
+      `CATALOG[${entry.slug}] registry manifest missing: site/public/r/${entry.slug}.json`,
     );
   }
 
-  if (entry.slug !== 'use-on-twos') {
-    const contracts = getExportedPropsContracts(path.join(process.cwd(), entry.sourceFile));
-    if (contracts.length === 0) {
-      errors.push(`No exported *Props contracts found in ${entry.sourceFile}`);
-    }
-    const documentedProps = getExpandedCatalogPropNames(entry.props);
-    for (const contract of contracts) {
-      if (contract.kind === 'type' && contract.props.length === 0) {
-        // Wrapper type alias (e.g., DropdownMenuContentProps): verify the contract alias is documented
-        if (!documentedProps.has(contract.name)) {
-          errors.push(
-            `CATALOG[${entry.slug}] is missing exported type alias "${contract.name}" (${entry.sourceFile})`,
-          );
-        }
-        if (skillSection && !sectionContainsIdentifier(skillSection, contract.name)) {
-          errors.push(
-            `skills/frame12/references/components-and-adapters.md (${shortSource}) is missing exported type alias "${contract.name}"`,
-          );
-        }
-      }
-      for (const propName of contract.props) {
-        if (propName === 'children' || propName === 'className') continue;
-        if (!documentedProps.has(propName)) {
-          errors.push(
-            `CATALOG[${entry.slug}] is missing TypeScript prop "${propName}" from ${contract.name} (${entry.sourceFile})`,
-          );
-        }
-        if (skillSection && !sectionContainsIdentifier(skillSection, propName)) {
-          errors.push(
-            `skills/frame12/references/components-and-adapters.md (${shortSource}) is missing TypeScript prop "${propName}" from ${contract.name}`,
-          );
-        }
-      }
-    }
-  }
+  validateCatalogEntryPropsAndSubcomponents(entry, 'CATALOG');
 }
 
-// 4. Verify all Section 15.2 fields and canonical TypeScript prop sync for BLOCK_CATALOG
+// 4. Verify all BLOCK_CATALOG entries
 const catalogSlugSet = new Set(CATALOG.map((c) => c.slug));
 
 for (const block of BLOCK_CATALOG) {
@@ -286,44 +368,79 @@ for (const block of BLOCK_CATALOG) {
     );
   }
 
-  const shortSource = block.sourceFile.replace(/^registry\//, '');
-  const skillSection = getSkillSectionForSource(skillRef, shortSource);
-  if (!skillSection) {
-    errors.push(
-      `skills/frame12/references/components-and-adapters.md does not have a section for ${shortSource}`,
-    );
-  }
+  validateCatalogEntryPropsAndSubcomponents(block, 'BLOCK_CATALOG');
+}
 
-  const contracts = getExportedPropsContracts(path.join(process.cwd(), block.sourceFile));
-  if (contracts.length === 0) {
-    errors.push(`No exported *Props contracts found in ${block.sourceFile}`);
-  }
-  const documentedProps = getExpandedCatalogPropNames(block.props);
-  for (const contract of contracts) {
-    for (const propName of contract.props) {
-      if (propName === 'children') continue;
-      if (!documentedProps.has(propName)) {
-        errors.push(
-          `BLOCK_CATALOG[${block.slug}] is missing TypeScript prop "${propName}" from ${contract.name} (${block.sourceFile})`,
-        );
+// 5. Verify AST-level contract parity between registry/{ui,blocks}/*.tsx and skills/frame12/references/components-and-adapters.md
+const allSourceFiles = [
+  ...uiFiles.map((f) => `registry/ui/${f}`),
+  ...blockFiles.map((f) => `registry/blocks/${f}`),
+];
+
+let totalContractsChecked = 0;
+for (const relPath of allSourceFiles) {
+  const fullPath = path.join(process.cwd(), relPath);
+  const { contracts } = parseSourceFileContracts(fullPath);
+  for (const [contractName, srcContract] of contracts) {
+    totalContractsChecked++;
+    const docContract = skillParsed.contracts.get(contractName);
+    if (!docContract) {
+      errors.push(
+        `skills/frame12/references/components-and-adapters.md is missing exported TypeScript contract "${contractName}" (${relPath})`,
+      );
+      continue;
+    }
+    if (srcContract.kind !== docContract.kind) {
+      errors.push(
+        `skills/frame12/references/components-and-adapters.md contract "${contractName}" kind mismatch: expected ${srcContract.kind}, got ${docContract.kind}`,
+      );
+      continue;
+    }
+    if (srcContract.kind === 'interface') {
+      for (const [propName, srcProp] of srcContract.props) {
+        if (propName === 'children' || propName === 'className') continue;
+        const docProp = docContract.props.get(propName);
+        if (!docProp) {
+          errors.push(
+            `skills/frame12/references/components-and-adapters.md contract "${contractName}" is missing property "${propName}" (${relPath})`,
+          );
+        } else {
+          if (docProp.optional !== srcProp.optional) {
+            errors.push(
+              `skills/frame12/references/components-and-adapters.md contract "${contractName}.${propName}" optionality mismatch: expected optional=${srcProp.optional}, got optional=${docProp.optional}`,
+            );
+          }
+          if (docProp.type !== srcProp.type) {
+            errors.push(
+              `skills/frame12/references/components-and-adapters.md contract "${contractName}.${propName}" type mismatch: expected "${srcProp.type}", got "${docProp.type}"`,
+            );
+          }
+        }
       }
-      if (skillSection && !sectionContainsIdentifier(skillSection, propName)) {
-        errors.push(
-          `skills/frame12/references/components-and-adapters.md (${shortSource}) is missing TypeScript prop "${propName}" from ${contract.name}`,
-        );
+      for (const [docPropName] of docContract.props) {
+        if (docPropName === 'children' || docPropName === 'className') continue;
+        if (!srcContract.props.has(docPropName)) {
+          errors.push(
+            `skills/frame12/references/components-and-adapters.md contract "${contractName}" documents unsupported extra property "${docPropName}" not in ${relPath}`,
+          );
+        }
       }
+    } else if (srcContract.type !== docContract.type) {
+      errors.push(
+        `skills/frame12/references/components-and-adapters.md type alias "${contractName}" mismatch: expected "${srcContract.type}", got "${docContract.type}"`,
+      );
     }
   }
 }
 
 if (errors.length > 0) {
-  console.error('check-doc-sync failed with', errors.length, 'issue(s):');
+  console.error(`✗ Documentation synchronization check failed (${errors.length} error(s)):`);
   for (const err of errors) {
-    console.error('  -', err);
+    console.error(`  - ${err}`);
   }
   process.exit(1);
 }
 
 console.log(
-  `check-doc-sync passed: ${CATALOG.length} components and ${BLOCK_CATALOG.length} application blocks synchronized with canonical TypeScript definitions and skill references.`,
+  `✓ Documentation synchronization check passed (${CATALOG.length} catalog entries, ${BLOCK_CATALOG.length} block entries, ${totalContractsChecked} TypeScript contracts verified for names, types, optionality, and defaults).`,
 );

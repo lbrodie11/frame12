@@ -2,6 +2,7 @@ import * as React from 'react';
 
 export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [windowDays, setWindowDays] = React.useState<'7d' | '30d' | '90d'>('30d');
+  const [planTier, setPlanTier] = React.useState<'starter' | 'growth' | 'enterprise'>('growth');
   const [query, setQuery] = React.useState('');
   const [channel, setChannel] = React.useState<'all' | 'us' | 'eu'>('all');
   const [enforced, setEnforced] = React.useState(true);
@@ -21,7 +22,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       <header className="b-header">
         <div>
           <span className="b-badge">Landing Page</span>
-          <h1 className="b-title">Developer Platform Product Launch & Pricing Page</h1>
+          <h1 className="b-title">Developer Platform Product Launch &amp; Pricing Page</h1>
           <p className="b-sub">Conventional shadcn/Tailwind card &amp; table baseline</p>
         </div>
         <div className="b-btn-row" role="group" aria-label="Time window">
@@ -43,7 +44,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       <div className="b-grid-2">
         <section className="b-card" aria-label="Primary performance summary">
           <p className="b-kpi-label">Verified Edge Benchmark Throughput (05-landing-page)</p>
-          <p className="b-kpi-val">{windowDays === '7d' ? '14.2m' : windowDays === '30d' ? '11.8m' : '9.4m'}</p>
+          <p className="b-kpi-val">{windowDays === '7d' ? '26,110 ops' : windowDays === '30d' ? '92,770 ops' : '278,410 ops'}</p>
           <p className="b-sub">Compared against prior window baseline</p>
           <div className="b-table-wrap" style={{ marginTop: 16 }}>
             <table className="b-table">
@@ -67,8 +68,8 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
         <div className="b-card-stack">
           <section className="b-card" aria-label="Secondary metric top">
             <p className="b-kpi-label">P95 Dispatch Latency</p>
-            <p className="b-kpi-val">42ms</p>
-            <span className="b-badge">-8.4% vs prior</span>
+            <p className="b-kpi-val">38ms</p>
+            <span className="b-badge">-9.4% vs prior</span>
           </section>
           <section className="b-card" aria-label="Secondary metric bottom">
             <p className="b-kpi-label">SLO Availability</p>
@@ -77,6 +78,78 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
           </section>
         </div>
       </div>
+
+      <section className="b-card" aria-label="Plan comparison matrix and tier pricing">
+        <div className="b-header" style={{ marginBottom: 12 }}>
+          <div>
+            <h2 style={{ fontSize: 18, margin: 0, color: 'var(--b-text)' }}>Seat &amp; Volume Pricing Tiers</h2>
+            <p id="eval-active-tier-summary" className="b-sub">
+              {planTier === 'starter'
+                ? 'Starter Tier · $49/mo · Up to 5 seats & 1M events/mo'
+                : planTier === 'growth'
+                  ? 'Growth Tier · $249/mo · Up to 25 seats & 25M events/mo'
+                  : 'Enterprise Tier · $990/mo · Unlimited seats & 250M+ events/mo'}
+            </p>
+          </div>
+          <div className="b-btn-row" role="group" aria-label="Seat and volume pricing tier">
+            {([
+              { value: 'starter', label: 'START (5)' },
+              { value: 'growth', label: 'GROW (25)' },
+              { value: 'enterprise', label: 'ENT (max)' },
+            ] as const).map((tier) => (
+              <button
+                key={tier.value}
+                type="button"
+                id={`eval-tier-05-landing-page-${tier.value}`}
+                className={`b-btn ${planTier === tier.value ? 'b-btn-primary' : ''}`}
+                aria-pressed={planTier === tier.value}
+                onClick={() => setPlanTier(tier.value)}
+              >
+                {tier.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="b-table-wrap">
+          <table className="b-table" id="eval-plan-comparison-table">
+            <caption>Plan comparison matrix across Starter, Growth, and Enterprise tiers</caption>
+            <thead>
+              <tr>
+                <th scope="col">Capability</th>
+                <th scope="col">Starter ($49/mo)</th>
+                <th scope="col">Growth ($249/mo)</th>
+                <th scope="col">Enterprise ($990/mo)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Included Operator Seats</td>
+                <td>5 seats</td>
+                <td>25 seats</td>
+                <td>Unlimited</td>
+              </tr>
+              <tr>
+                <td>Monthly Committed Volume</td>
+                <td>1,000,000 reqs</td>
+                <td>25,000,000 reqs</td>
+                <td>250,000,000+ reqs</td>
+              </tr>
+              <tr>
+                <td>Global Edge P95 SLA</td>
+                <td>&lt; 45ms</td>
+                <td>&lt; 25ms</td>
+                <td>&lt; 15ms Dedicated</td>
+              </tr>
+              <tr>
+                <td>Audit Log Retention</td>
+                <td>30 days</td>
+                <td>90 days</td>
+                <td>365 days (Immutable)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="b-card" aria-label="Operational configuration and ledger">
         <h2 style={{ fontSize: 18, marginTop: 0, color: 'var(--b-text)' }}>Regional PoP benchmark verification ledger</h2>
@@ -119,13 +192,13 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
         </div>
         <div className="b-table-wrap">
           <table className="b-table" id="c1-ledger-table-05-landing-page">
-            <caption>Regional PoP benchmark verification ledger</caption>
+            <caption>Active operational records</caption>
             <thead>
               <tr>
                 <th scope="col">ID</th>
-                <th scope="col">Resource</th>
+                <th scope="col">Service / Cohort</th>
                 <th scope="col">Region</th>
-                <th scope="col">Attainment</th>
+                <th scope="col">Throughput</th>
                 <th scope="col">Status</th>
               </tr>
             </thead>

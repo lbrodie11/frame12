@@ -59,20 +59,20 @@
     },
     {
       "id": "c2-frame12-no-skill",
-      "label": "Condition 2: FRAME/12 Components Without SKILL.md",
-      "description": "Uses @/components/frame12 components from component names/types alone without reading skills/frame12/SKILL.md or running scripts/check-frame12.mjs.",
+      "label": "Condition 2: Negative Fixture Suite (Planted Linter & Runtime Violations)",
+      "description": "Negative guardrail fixtures exercising all 6 static check-frame12.mjs rules (color-literal, illegal-gutter, marker-misuse, cut-order, explicit-cut-in-autocut, raw-shadcn-import) and runtime DOM/contrast regressions across task-specific screens.",
       "evaluatesFrame12Grammar": true
     },
     {
       "id": "c3-frame12-with-skill",
-      "label": "Condition 3: FRAME/12 Components With SKILL.md (Single-Pass)",
-      "description": "Guided by skills/frame12/SKILL.md before running the automated static checker.",
+      "label": "Condition 3: Pre-Checker Reference Fixtures (Planted Single-Rule Drift)",
+      "description": "Reference screens structured per skills/frame12/SKILL.md with planted pre-checker static rule drift in Tasks 02 (explicit-cut-in-autocut) and 04 (illegal-gutter) to verify check-frame12.mjs detection.",
       "evaluatesFrame12Grammar": true
     },
     {
       "id": "c4-frame12-skill-plus-checker",
-      "label": "Condition 4: FRAME/12 Components With SKILL.md + check-frame12.mjs",
-      "description": "Guided by skills/frame12/SKILL.md and verified with scripts/check-frame12.mjs + Playwright feedback loop.",
+      "label": "Condition 4: Checker-Verified Reference Fixtures (Post-Remediation)",
+      "description": "Canonical reference screens remediated with scripts/check-frame12.mjs and verified against all universal quality and FRAME/12 DOM grammar invariants.",
       "evaluatesFrame12Grammar": true
     }
   ]

@@ -98,6 +98,21 @@ export function BlockDocumentationSection({
                 </div>
               ))}
             </div>
+            {block.subcomponents && block.subcomponents.length > 0 && (
+              <div
+                className="f12-console-kv-list"
+                role="list"
+                aria-label={`${block.title} exported subcomponents`}
+              >
+                {block.subcomponents.map((sub) => (
+                  <div key={sub.propsType} className="f12-console-kv-item" role="listitem">
+                    <span className="f12-console-kv-label">&lt;{sub.name}&gt;</span>
+                    <span className="f12-console-kv-value">{sub.propsType}</span>
+                    <span className="f12-mono-note">{sub.description}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="f12-stack-pair">
