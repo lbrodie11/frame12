@@ -38,23 +38,13 @@ import {
   INITIAL_APPROVAL_REQUESTS,
   INITIAL_DECISION_HISTORY,
   evaluateApprovalRequest,
+  formatCentsUsdNumber,
 } from './fixtures';
 
 const LONG_ARG_COLLAPSE_THRESHOLD = 220;
 
 function cloneInitialRequests(): ExperimentalToolApprovalRequest[] {
-  return INITIAL_APPROVAL_REQUESTS.map((req) => ({
-    ...req,
-    conversation: { ...req.conversation },
-    input: { ...req.input },
-    claims: { ...req.claims },
-    fieldSpecs: req.fieldSpecs.map((s) => ({ ...s })),
-    trustedRecords: req.trustedRecords.map((r) => ({
-      ...r,
-      facts: r.facts.map((f) => ({ ...f })),
-    })),
-    postApprovalEffect: { ...req.postApprovalEffect },
-  }));
+  return structuredClone(INITIAL_APPROVAL_REQUESTS);
 }
 
 function statusTagMeta(
@@ -199,8 +189,8 @@ function AgentApprovalInboxContent() {
       actor: 'operator:demo-reviewer (local state)',
       summary:
         decision === 'APPROVED'
-          ? `Approved ${selectedReq.toolName} (${selectedReq.input.orderId}, $${selectedReq.input.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD to ${selectedReq.input.destination}) with ${selectedEvaluated.mismatches.length} mismatch(es).`
-          : `Rejected ${selectedReq.toolName} (${selectedReq.input.orderId}, proposed $${selectedReq.input.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD to ${selectedReq.input.destination}).`,
+          ? `Approved ${selectedReq.toolName} (${selectedReq.input.orderId}, $${formatCentsUsdNumber(selectedReq.input.amountCents)} ${selectedReq.input.currency} to ${selectedReq.input.destination}) with ${selectedEvaluated.mismatches.length} mismatch(es).`
+          : `Rejected ${selectedReq.toolName} (${selectedReq.input.orderId}, proposed $${formatCentsUsdNumber(selectedReq.input.amountCents)} ${selectedReq.input.currency} to ${selectedReq.input.destination}).`,
       acknowledgmentRecorded: recordedAck,
       operatorNote: trimmedNote,
     };
@@ -417,8 +407,7 @@ function AgentApprovalInboxContent() {
                       <p className="f12-exp-queue-meta">
                         TOOL: <strong>{req.toolName}</strong> · INPUT AMOUNT:{' '}
                         <strong>
-                          ${req.input.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}{' '}
-                          {req.input.currency}
+                          ${formatCentsUsdNumber(req.input.amountCents)} {req.input.currency}
                         </strong>{' '}
                         (CLAIMED: $
                         {req.claims.amountUsd.toLocaleString('en-US', {
@@ -571,9 +560,7 @@ function AgentApprovalInboxContent() {
                   <span className="f12-exp-kv-label">Raw Amount Cents (Executes)</span>
                   <span className="f12-exp-kv-val" id="exp-approval-raw-cents">
                     {selectedReq.input.amountCents.toLocaleString('en-US')} cents ($
-                    {selectedReq.input.amountUsd.toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                    })}{' '}
+                    {formatCentsUsdNumber(selectedReq.input.amountCents)}{' '}
                     {selectedReq.input.currency})
                   </span>
                 </div>
@@ -704,40 +691,50 @@ function AgentApprovalInboxContent() {
               </p>
 
               <div className="f12-stack-pair">
-                {selectedReq.trustedRecords.map((rec) => (
-                  <Panel
-                    key={rec.recordId}
-                    variant="quiet"
-                    label={`${rec.title} (${rec.sourceFile})`}
-                  >
-                    <div className="f12-stack-pair">
-                      <div className="f12-row-between">
-                        <strong>{rec.title}</strong>
-                        <Tag status="neutral">{rec.sourceFile}</Tag>
-                      </div>
-                      <span className="f12-mono-note">
-                        Fixture snapshot timestamp: {rec.snapshotAt}
-                      </span>
-                      <div
-                        className={
-                          rec.facts.length === 3 ? 'f12-exp-kv-grid-3' : 'f12-exp-kv-grid'
-                        }
-                      >
-                        {rec.facts.map((fact) => (
-                          <div key={fact.label} className="f12-exp-kv-card">
-                            <div className="f12-row-between">
-                              <span className="f12-exp-kv-label">{fact.label}</span>
-                              <Tag status={fact.matchesProposedInput ? 'success' : 'danger'}>
-                                {fact.matchesProposedInput ? 'OK' : 'CONFLICT'}
-                              </Tag>
+                {selectedEvaluated.evaluatedTrustedRecords.length === 0 ? (
+                  <Alert
+                    status="danger"
+                    density="compact"
+                    live="off"
+                    title="Missing Independent Supporting Evidence"
+                    description="No trusted fixture records were supplied for this request. All fields are marked as unverified mismatches."
+                  />
+                ) : (
+                  selectedEvaluated.evaluatedTrustedRecords.map((rec) => (
+                    <Panel
+                      key={rec.recordId}
+                      variant="quiet"
+                      label={`${rec.title} (${rec.sourceFile})`}
+                    >
+                      <div className="f12-stack-pair">
+                        <div className="f12-row-between">
+                          <strong>{rec.title}</strong>
+                          <Tag status="neutral">{rec.sourceFile}</Tag>
+                        </div>
+                        <span className="f12-mono-note">
+                          Fixture snapshot timestamp: {rec.snapshotAt}
+                        </span>
+                        <div
+                          className={
+                            rec.facts.length === 3 ? 'f12-exp-kv-grid-3' : 'f12-exp-kv-grid'
+                          }
+                        >
+                          {rec.facts.map((fact) => (
+                            <div key={fact.label} className="f12-exp-kv-card">
+                              <div className="f12-row-between">
+                                <span className="f12-exp-kv-label">{fact.label}</span>
+                                <Tag status={fact.matchesProposedInput ? 'success' : 'danger'}>
+                                  {fact.matchesProposedInput ? 'OK' : 'CONFLICT'}
+                                </Tag>
+                              </div>
+                              <span className="f12-exp-kv-val">{fact.value}</span>
                             </div>
-                            <span className="f12-exp-kv-val">{fact.value}</span>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </Panel>
-                ))}
+                    </Panel>
+                  ))
+                )}
               </div>
             </div>
 
@@ -894,10 +891,7 @@ function AgentApprovalInboxContent() {
                     onClick={() => handleDecision('APPROVED')}
                   >
                     Approve {selectedReq.toolName} ($
-                    {selectedReq.input.amountUsd.toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                    })}
-                    )
+                    {formatCentsUsdNumber(selectedReq.input.amountCents)})
                   </Button>
                   <Button
                     id="exp-approval-reject-btn"

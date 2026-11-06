@@ -50,11 +50,28 @@ export interface ApprovalToolInput {
 export interface ApprovalFieldSpec {
   key: keyof ApprovalClaimMap;
   label: string;
-  formatValue: (val: string | number) => string;
-  trustedExpectedDisplay: string;
-  trustedSourceId: string;
-  trustedMatchesInput: boolean;
-  trustedConstraintNote: string;
+}
+
+export interface TrustedOrderFacts {
+  orderId: string;
+  customerId: string;
+  currency: string;
+  orderTotalCents: number;
+  priorRefundsCents: number;
+  originalDestination: string;
+  originalDestinationLabel: string;
+  activeResolutionStatus?: 'OPEN' | 'REPLACEMENT_SHIPMENT_QUEUED';
+  activeResolutionDetail?: string;
+  supersededReasonCode?: string;
+  untrustedContextWarning?: string;
+}
+
+export interface TrustedPolicyFacts {
+  policyId: string;
+  maxCourtesyRefundCents: number;
+  maxCourtesyLabel?: string;
+  requireOriginalPaymentDestination: boolean;
+  allowedReasonCodes: string[];
 }
 
 export interface TrustedFixtureFact {
@@ -64,6 +81,15 @@ export interface TrustedFixtureFact {
 }
 
 export interface TrustedFixtureRecord {
+  recordId: string;
+  sourceFile: string;
+  title: string;
+  snapshotAt: string;
+  orderFacts?: TrustedOrderFacts;
+  policyFacts?: TrustedPolicyFacts;
+}
+
+export interface EvaluatedTrustedRecord {
   recordId: string;
   sourceFile: string;
   title: string;
@@ -145,6 +171,7 @@ export interface EvaluatedApprovalRequest {
   isSuperseded: boolean;
   comparisons: EvaluatedFieldComparison[];
   mismatches: EvaluatedFieldComparison[];
+  evaluatedTrustedRecords: EvaluatedTrustedRecord[];
   requiredAcknowledgmentText: string | null;
   canApproveOrReject: boolean;
   disableApproveReason: string | null;
@@ -193,6 +220,15 @@ export const SIMULATED_CLOCK_PRESETS: ClockPreset[] = [
   },
 ];
 
+export const formatCentsUsdNumber = (cents: number): string =>
+  (cents / 100).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+export const formatCentsUsd = (cents: number, currency = 'USD'): string =>
+  `$${formatCentsUsdNumber(cents)} ${currency}`;
+
 const fmtUsd = (val: string | number): string => {
   const num = typeof val === 'number' ? val : Number(val);
   if (Number.isNaN(num)) return String(val);
@@ -200,6 +236,9 @@ const fmtUsd = (val: string | number): string => {
 };
 
 const fmtIdentity = (val: string | number): string => String(val);
+
+const formatFieldValue = (key: keyof ApprovalClaimMap, val: string | number): string =>
+  key === 'amountUsd' ? fmtUsd(val) : fmtIdentity(val);
 
 export const INITIAL_APPROVAL_REQUESTS: ExperimentalToolApprovalRequest[] = [
   {
@@ -240,51 +279,11 @@ export const INITIAL_APPROVAL_REQUESTS: ExperimentalToolApprovalRequest[] = [
       reasonCode: 'damaged_item_courtesy',
     },
     fieldSpecs: [
-      {
-        key: 'orderId',
-        label: 'Order ID',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'ORD-8821',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-8821',
-        trustedMatchesInput: true,
-        trustedConstraintNote: 'Order exists and belongs to customer cus_409.',
-      },
-      {
-        key: 'amountUsd',
-        label: 'Refund Amount (USD)',
-        formatValue: fmtUsd,
-        trustedExpectedDisplay: '<= $50.00 USD (Order total $84.00 USD)',
-        trustedSourceId: 'FIXTURE: refund-policy.fixture.json#TIER-1',
-        trustedMatchesInput: true,
-        trustedConstraintNote: '$25.00 USD (2500 cents) is within the $50.00 Tier-1 courtesy cap.',
-      },
-      {
-        key: 'currency',
-        label: 'Currency',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'USD',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-8821',
-        trustedMatchesInput: true,
-        trustedConstraintNote: 'Matches original settlement currency (USD).',
-      },
-      {
-        key: 'destination',
-        label: 'Destination Account',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'orig_card_4412 (Visa •••• 4412)',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-8821',
-        trustedMatchesInput: true,
-        trustedConstraintNote: 'Matches original payment instrument on file.',
-      },
-      {
-        key: 'reasonCode',
-        label: 'Reason Code',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'damaged_item_courtesy',
-        trustedSourceId: 'FIXTURE: refund-policy.fixture.json#TIER-1',
-        trustedMatchesInput: true,
-        trustedConstraintNote: 'Permitted Tier-1 support reason code.',
-      },
+      { key: 'orderId', label: 'Order ID' },
+      { key: 'amountUsd', label: 'Refund Amount (USD)' },
+      { key: 'currency', label: 'Currency' },
+      { key: 'destination', label: 'Destination Account' },
+      { key: 'reasonCode', label: 'Reason Code' },
     ],
     agentExplanation:
       'I verified that the ceramic dripper in order ORD-8821 arrived cracked. I am requesting a $25.00 USD courtesy refund back to the customer’s original Visa card (orig_card_4412) under reason code damaged_item_courtesy.',
@@ -294,39 +293,28 @@ export const INITIAL_APPROVAL_REQUESTS: ExperimentalToolApprovalRequest[] = [
         sourceFile: 'FIXTURE: data/orders.fixture.json#ORD-8821',
         title: 'Order Ledger Record · ORD-8821',
         snapshotAt: '2026-11-06T14:15:40Z',
-        facts: [
-          { label: 'Customer ID', value: 'cus_409 (M. Taniguchi)', matchesProposedInput: true },
-          { label: 'Order Total Paid', value: '$84.00 USD (8400 cents)', matchesProposedInput: true },
-          {
-            label: 'Original Payment Instrument',
-            value: 'orig_card_4412 (Visa •••• 4412)',
-            matchesProposedInput: true,
-          },
-          { label: 'Prior Refunds Issued', value: '$0.00 USD', matchesProposedInput: true },
-        ],
+        orderFacts: {
+          orderId: 'ORD-8821',
+          customerId: 'cus_409 (M. Taniguchi)',
+          currency: 'USD',
+          orderTotalCents: 8400,
+          priorRefundsCents: 0,
+          originalDestination: 'orig_card_4412',
+          originalDestinationLabel: 'orig_card_4412 (Visa •••• 4412)',
+          activeResolutionStatus: 'OPEN',
+        },
       },
       {
         recordId: 'POLICY-TIER-1',
         sourceFile: 'FIXTURE: data/refund-policy.fixture.json#TIER-1',
         title: 'Support Refund Policy · Tier-1 Courtesy Cap',
         snapshotAt: '2026-11-01T00:00:00Z',
-        facts: [
-          {
-            label: 'Max Single Courtesy Refund',
-            value: '$50.00 USD (5000 cents)',
-            matchesProposedInput: true,
-          },
-          {
-            label: 'Allowed Destination',
-            value: 'Original payment card only (no external wires)',
-            matchesProposedInput: true,
-          },
-          {
-            label: 'Allowed Reason Codes',
-            value: 'damaged_item_courtesy, shipping_delay_courtesy',
-            matchesProposedInput: true,
-          },
-        ],
+        policyFacts: {
+          policyId: 'TIER-1',
+          maxCourtesyRefundCents: 5000,
+          requireOriginalPaymentDestination: true,
+          allowedReasonCodes: ['damaged_item_courtesy', 'shipping_delay_courtesy'],
+        },
       },
     ],
     postApprovalEffect: {
@@ -376,54 +364,11 @@ export const INITIAL_APPROVAL_REQUESTS: ExperimentalToolApprovalRequest[] = [
       reasonCode: 'shipping_delay_courtesy',
     },
     fieldSpecs: [
-      {
-        key: 'orderId',
-        label: 'Order ID',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'ORD-9104',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-9104',
-        trustedMatchesInput: true,
-        trustedConstraintNote: 'Order exists and belongs to customer cus_912.',
-      },
-      {
-        key: 'amountUsd',
-        label: 'Refund Amount (USD)',
-        formatValue: fmtUsd,
-        trustedExpectedDisplay: '<= $25.00 USD delay cap (Order total $112.00 USD)',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-9104 & refund-policy.fixture.json#TIER-1',
-        trustedMatchesInput: false,
-        trustedConstraintNote:
-          'Tool input requests $2,500.00 USD (250000 cents): 100x higher than the $25.00 agent claim and 22.3x higher than the entire $112.00 order total.',
-      },
-      {
-        key: 'currency',
-        label: 'Currency',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'USD',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-9104',
-        trustedMatchesInput: true,
-        trustedConstraintNote: 'Matches original settlement currency (USD).',
-      },
-      {
-        key: 'destination',
-        label: 'Destination Account',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'orig_card_8830 (Mastercard •••• 8830)',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-9104',
-        trustedMatchesInput: false,
-        trustedConstraintNote:
-          'Tool input routes funds to external account acct_ext_9901_wire instead of original card orig_card_8830.',
-      },
-      {
-        key: 'reasonCode',
-        label: 'Reason Code',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'shipping_delay_courtesy',
-        trustedSourceId: 'FIXTURE: refund-policy.fixture.json#TIER-1',
-        trustedMatchesInput: false,
-        trustedConstraintNote:
-          'Tool input uses privileged code full_settlement_override instead of claimed shipping_delay_courtesy.',
-      },
+      { key: 'orderId', label: 'Order ID' },
+      { key: 'amountUsd', label: 'Refund Amount (USD)' },
+      { key: 'currency', label: 'Currency' },
+      { key: 'destination', label: 'Destination Account' },
+      { key: 'reasonCode', label: 'Reason Code' },
     ],
     agentExplanation:
       'I confirmed that order ORD-9104 experienced a 48-hour carrier delay. I have queued our standard $25.00 USD shipping-delay courtesy credit back to the customer’s original Mastercard ending in 8830 (orig_card_8830).',
@@ -433,47 +378,30 @@ export const INITIAL_APPROVAL_REQUESTS: ExperimentalToolApprovalRequest[] = [
         sourceFile: 'FIXTURE: data/orders.fixture.json#ORD-9104',
         title: 'Order Ledger Record · ORD-9104',
         snapshotAt: '2026-11-06T14:17:52Z',
-        facts: [
-          { label: 'Customer ID', value: 'cus_912 (R. Vance)', matchesProposedInput: true },
-          {
-            label: 'Order Total Paid',
-            value: '$112.00 USD (11200 cents) — Tool requests $2,500.00!',
-            matchesProposedInput: false,
-          },
-          {
-            label: 'Original Payment Instrument',
-            value: 'orig_card_8830 (Mastercard •••• 8830) — Tool targets acct_ext_9901_wire!',
-            matchesProposedInput: false,
-          },
-          {
-            label: 'Untrusted Context Warning',
-            value: 'Inbound carrier note contains unverified external text',
-            matchesProposedInput: false,
-          },
-        ],
+        orderFacts: {
+          orderId: 'ORD-9104',
+          customerId: 'cus_912 (R. Vance)',
+          currency: 'USD',
+          orderTotalCents: 11200,
+          priorRefundsCents: 0,
+          originalDestination: 'orig_card_8830',
+          originalDestinationLabel: 'orig_card_8830 (Mastercard •••• 8830)',
+          activeResolutionStatus: 'OPEN',
+          untrustedContextWarning: 'Inbound carrier note contains unverified external text',
+        },
       },
       {
         recordId: 'POLICY-TIER-1',
         sourceFile: 'FIXTURE: data/refund-policy.fixture.json#TIER-1',
         title: 'Support Refund Policy · Tier-1 Courtesy Cap',
         snapshotAt: '2026-11-01T00:00:00Z',
-        facts: [
-          {
-            label: 'Max Carrier Delay Courtesy',
-            value: '$25.00 USD (2500 cents)',
-            matchesProposedInput: false,
-          },
-          {
-            label: 'External Wire Transfers',
-            value: 'PROHIBITED (Must refund original card on file)',
-            matchesProposedInput: false,
-          },
-          {
-            label: 'Override Reason Codes',
-            value: 'full_settlement_override prohibited for support agents',
-            matchesProposedInput: false,
-          },
-        ],
+        policyFacts: {
+          policyId: 'TIER-1',
+          maxCourtesyRefundCents: 2500,
+          maxCourtesyLabel: 'delay cap',
+          requireOriginalPaymentDestination: true,
+          allowedReasonCodes: ['shipping_delay_courtesy', 'damaged_item_courtesy'],
+        },
       },
     ],
     postApprovalEffect: {
@@ -526,53 +454,11 @@ export const INITIAL_APPROVAL_REQUESTS: ExperimentalToolApprovalRequest[] = [
       reasonCode: 'missing_accessory_credit',
     },
     fieldSpecs: [
-      {
-        key: 'orderId',
-        label: 'Order ID',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'ORD-7740',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-7740',
-        trustedMatchesInput: true,
-        trustedConstraintNote: 'Order exists for customer cus_302.',
-      },
-      {
-        key: 'amountUsd',
-        label: 'Refund Amount (USD)',
-        formatValue: fmtUsd,
-        trustedExpectedDisplay: '$0.00 USD (Replacement shipment selected at turn #6)',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-7740@turn-6',
-        trustedMatchesInput: false,
-        trustedConstraintNote:
-          'Stale amount: Customer opted for replacement lid shipment (REP-7740-A) at turn #6 instead of a $40.00 refund.',
-      },
-      {
-        key: 'currency',
-        label: 'Currency',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'USD',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-7740',
-        trustedMatchesInput: true,
-        trustedConstraintNote: 'Matches original currency (USD).',
-      },
-      {
-        key: 'destination',
-        label: 'Destination Account',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'orig_card_1920 (Amex •••• 1920)',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-7740',
-        trustedMatchesInput: true,
-        trustedConstraintNote: 'Matches original payment card.',
-      },
-      {
-        key: 'reasonCode',
-        label: 'Reason Code',
-        formatValue: fmtIdentity,
-        trustedExpectedDisplay: 'replacement_part_dispatched (Turn #6 state)',
-        trustedSourceId: 'FIXTURE: orders.fixture.json#ORD-7740@turn-6',
-        trustedMatchesInput: false,
-        trustedConstraintNote:
-          'Reason code missing_accessory_credit was superseded when replacement order REP-7740-A was created.',
-      },
+      { key: 'orderId', label: 'Order ID' },
+      { key: 'amountUsd', label: 'Refund Amount (USD)' },
+      { key: 'currency', label: 'Currency' },
+      { key: 'destination', label: 'Destination Account' },
+      { key: 'reasonCode', label: 'Reason Code' },
     ],
     agentExplanation:
       'I am issuing a $40.00 USD credit to card orig_card_1920 on order ORD-7740 to cover the missing kettle lid.',
@@ -582,20 +468,18 @@ export const INITIAL_APPROVAL_REQUESTS: ExperimentalToolApprovalRequest[] = [
         sourceFile: 'FIXTURE: data/orders.fixture.json#ORD-7740',
         title: 'Order Ledger Record · ORD-7740 (Updated at Turn #6)',
         snapshotAt: '2026-11-06T14:12:19Z',
-        facts: [
-          { label: 'Customer ID', value: 'cus_302 (H. Lindqvist)', matchesProposedInput: true },
-          { label: 'Order Total Paid', value: '$165.00 USD (16500 cents)', matchesProposedInput: true },
-          {
-            label: 'Active Resolution Status',
-            value: 'REPLACEMENT_SHIPMENT_QUEUED (REP-7740-A at 14:12 UTC)',
-            matchesProposedInput: false,
-          },
-          {
-            label: 'Approval Token Window',
-            value: 'Expired at 2026-11-06T14:15:00Z (15m TTL)',
-            matchesProposedInput: false,
-          },
-        ],
+        orderFacts: {
+          orderId: 'ORD-7740',
+          customerId: 'cus_302 (H. Lindqvist)',
+          currency: 'USD',
+          orderTotalCents: 16500,
+          priorRefundsCents: 0,
+          originalDestination: 'orig_card_1920',
+          originalDestinationLabel: 'orig_card_1920 (Amex •••• 1920)',
+          activeResolutionStatus: 'REPLACEMENT_SHIPMENT_QUEUED',
+          activeResolutionDetail: 'Replacement shipment selected at turn #6 (REP-7740-A)',
+          supersededReasonCode: 'replacement_part_dispatched (Turn #6 state)',
+        },
       },
     ],
     postApprovalEffect: {
@@ -666,22 +550,165 @@ export function evaluateApprovalRequest(
     }
   }
 
+  const orderRecord = request.trustedRecords.find((r) => Boolean(r.orderFacts));
+  const policyRecord = request.trustedRecords.find((r) => Boolean(r.policyFacts));
+  const orderFacts = orderRecord?.orderFacts;
+  const policyFacts = policyRecord?.policyFacts;
+
+  const canonicalCents = request.input.amountCents;
+  const canonicalUsd = canonicalCents / 100;
+  const hasAmountRepresentationConflict =
+    typeof request.input.amountUsd === 'number' &&
+    Math.round(request.input.amountUsd * 100) !== canonicalCents;
+
   const rawComparisons: EvaluatedFieldComparison[] = request.fieldSpecs.map((spec) => {
-    const actualRaw = request.input[spec.key];
     const claimedRaw = request.claims[spec.key];
-    const actualDisplay = spec.formatValue(actualRaw);
-    const claimedDisplay = spec.formatValue(claimedRaw);
-    const claimMatchesInput = String(actualRaw) === String(claimedRaw);
-    const trustedMatchesInput = spec.trustedMatchesInput;
+    const claimedDisplay = formatFieldValue(spec.key, claimedRaw);
+
+    let actualRaw: string | number = request.input[spec.key];
+    let actualDisplay = formatFieldValue(spec.key, actualRaw);
+    let claimMatchesInput = String(actualRaw) === String(claimedRaw);
+    let trustedMatchesInput = false;
+    let trustedExpectedDisplay = 'MISSING TRUSTED FIXTURE';
+    let trustedSourceId = 'FIXTURE: MISSING';
+    let trustedConstraintNote =
+      'Missing independent supporting fixture record; field cannot be verified.';
+
+    if (spec.key === 'orderId') {
+      if (orderRecord && orderFacts) {
+        trustedExpectedDisplay = orderFacts.orderId;
+        trustedSourceId = orderRecord.sourceFile.replace('data/', '');
+        trustedMatchesInput = request.input.orderId === orderFacts.orderId;
+        trustedConstraintNote = trustedMatchesInput
+          ? `Order exists and belongs to customer ${orderFacts.customerId}.`
+          : `Tool input targets ${request.input.orderId}, which does not match fixture order ${orderFacts.orderId}.`;
+      } else {
+        trustedConstraintNote =
+          'Missing independent order fixture record; Order ID cannot be verified.';
+      }
+    } else if (spec.key === 'currency') {
+      if (orderRecord && orderFacts) {
+        trustedExpectedDisplay = orderFacts.currency;
+        trustedSourceId = orderRecord.sourceFile.replace('data/', '');
+        trustedMatchesInput = request.input.currency === orderFacts.currency;
+        trustedConstraintNote = trustedMatchesInput
+          ? `Matches original settlement currency (${orderFacts.currency}).`
+          : `Tool input currency ${request.input.currency} conflicts with order currency ${orderFacts.currency}.`;
+      } else {
+        trustedConstraintNote =
+          'Missing independent order fixture record; currency cannot be verified.';
+      }
+    } else if (spec.key === 'destination') {
+      if (orderRecord && orderFacts) {
+        trustedExpectedDisplay = orderFacts.originalDestinationLabel;
+        trustedSourceId = orderRecord.sourceFile.replace('data/', '');
+        const matchesOrderDestination =
+          request.input.destination === orderFacts.originalDestination;
+        const requiresPolicyCheck =
+          orderFacts.activeResolutionStatus !== 'REPLACEMENT_SHIPMENT_QUEUED';
+        const policyAllowsDestination = requiresPolicyCheck
+          ? Boolean(
+              policyFacts &&
+                (!policyFacts.requireOriginalPaymentDestination || matchesOrderDestination),
+            )
+          : true;
+        trustedMatchesInput = matchesOrderDestination && policyAllowsDestination;
+        if (!policyFacts && requiresPolicyCheck) {
+          trustedExpectedDisplay = 'MISSING POLICY FIXTURE';
+          trustedSourceId = 'FIXTURE: MISSING (refund-policy.fixture.json)';
+          trustedConstraintNote =
+            'Missing independent refund-policy fixture record; destination policy rules cannot be verified.';
+        } else if (trustedMatchesInput) {
+          trustedConstraintNote = 'Matches original payment instrument on file.';
+        } else {
+          trustedConstraintNote = `Tool input routes funds to external account ${request.input.destination} instead of original card ${orderFacts.originalDestination}.`;
+        }
+      } else {
+        trustedConstraintNote =
+          'Missing independent order fixture record; destination account cannot be verified.';
+      }
+    } else if (spec.key === 'reasonCode') {
+      if (orderRecord && orderFacts?.activeResolutionStatus === 'REPLACEMENT_SHIPMENT_QUEUED') {
+        trustedExpectedDisplay =
+          orderFacts.supersededReasonCode ?? 'replacement_part_dispatched';
+        trustedSourceId = `${orderRecord.sourceFile.replace('data/', '')}@turn-${request.conversation.latestTurnNumber}`;
+        trustedMatchesInput = false;
+        trustedConstraintNote = `Reason code ${request.input.reasonCode} was superseded when replacement shipment was queued.`;
+      } else if (policyRecord && policyFacts) {
+        trustedExpectedDisplay = policyFacts.allowedReasonCodes.includes(
+          request.claims.reasonCode,
+        )
+          ? request.claims.reasonCode
+          : policyFacts.allowedReasonCodes.join(' | ');
+        trustedSourceId = policyRecord.sourceFile.replace('data/', '');
+        trustedMatchesInput = policyFacts.allowedReasonCodes.includes(
+          request.input.reasonCode,
+        );
+        trustedConstraintNote = trustedMatchesInput
+          ? 'Permitted Tier-1 support reason code.'
+          : `Tool input uses privileged code ${request.input.reasonCode} instead of claimed ${request.claims.reasonCode}.`;
+      } else {
+        trustedExpectedDisplay = 'MISSING POLICY FIXTURE';
+        trustedSourceId = 'FIXTURE: MISSING (refund-policy.fixture.json)';
+        trustedConstraintNote =
+          'Missing independent refund-policy fixture record; allowed reason codes cannot be verified.';
+      }
+    } else if (spec.key === 'amountUsd') {
+      actualRaw = canonicalUsd;
+      actualDisplay = hasAmountRepresentationConflict
+        ? `${formatCentsUsd(canonicalCents, request.input.currency)} (raw amountUsd=${fmtUsd(request.input.amountUsd)})`
+        : formatFieldValue(spec.key, canonicalUsd);
+      const claimedCents = Math.round(Number(claimedRaw) * 100);
+      claimMatchesInput = !hasAmountRepresentationConflict && canonicalCents === claimedCents;
+
+      if (orderRecord && orderFacts?.activeResolutionStatus === 'REPLACEMENT_SHIPMENT_QUEUED') {
+        trustedExpectedDisplay = '$0.00 USD (Replacement shipment selected at turn #6)';
+        trustedSourceId = `${orderRecord.sourceFile.replace('data/', '')}@turn-${request.conversation.latestTurnNumber}`;
+        trustedMatchesInput = false;
+        trustedConstraintNote = `Stale amount: Customer opted for replacement lid shipment (REP-7740-A) at turn #6 instead of a ${formatCentsUsd(canonicalCents, request.input.currency)} refund.`;
+      } else if (orderRecord && orderFacts && policyRecord && policyFacts) {
+        const remainingOrderCents = Math.max(
+          0,
+          orderFacts.orderTotalCents - orderFacts.priorRefundsCents,
+        );
+        const allowedMaxCents = Math.min(
+          policyFacts.maxCourtesyRefundCents,
+          remainingOrderCents,
+        );
+        const capLabel = policyFacts.maxCourtesyLabel ? ` ${policyFacts.maxCourtesyLabel}` : '';
+        trustedExpectedDisplay = `<= ${formatCentsUsd(policyFacts.maxCourtesyRefundCents, orderFacts.currency)}${capLabel} (Order total ${formatCentsUsd(orderFacts.orderTotalCents, orderFacts.currency)})`;
+        trustedSourceId = policyFacts.maxCourtesyLabel
+          ? `FIXTURE: ${orderRecord.sourceFile.replace('data/', '').replace('FIXTURE: ', '')} & ${policyRecord.sourceFile.replace('data/', '').replace('FIXTURE: ', '')}`
+          : policyRecord.sourceFile.replace('data/', '');
+        trustedMatchesInput =
+          !hasAmountRepresentationConflict &&
+          canonicalCents > 0 &&
+          canonicalCents <= allowedMaxCents;
+
+        if (hasAmountRepresentationConflict) {
+          trustedConstraintNote = `Tool input internal representation conflict: amountCents executes ${canonicalCents} cents (${formatCentsUsd(canonicalCents, request.input.currency)}), which disagrees with input.amountUsd (${fmtUsd(request.input.amountUsd)}).`;
+        } else if (trustedMatchesInput) {
+          trustedConstraintNote = `${formatCentsUsd(canonicalCents, orderFacts.currency)} (${canonicalCents} cents) is within the ${formatCentsUsd(policyFacts.maxCourtesyRefundCents, orderFacts.currency)} Tier-1 courtesy cap.`;
+        } else {
+          trustedConstraintNote = `Tool input requests ${formatCentsUsd(canonicalCents, orderFacts.currency)} (${canonicalCents} cents), exceeding the ${formatCentsUsd(policyFacts.maxCourtesyRefundCents, orderFacts.currency)} policy cap and/or ${formatCentsUsd(orderFacts.orderTotalCents, orderFacts.currency)} order total.`;
+        }
+      } else {
+        trustedExpectedDisplay = 'MISSING ORDER/POLICY FIXTURE';
+        trustedSourceId = 'FIXTURE: MISSING (orders / refund-policy)';
+        trustedConstraintNote =
+          'Missing independent order or refund-policy fixture record; refund amount cannot be verified against policy cap.';
+      }
+    }
+
     const isMismatch = !claimMatchesInput || !trustedMatchesInput;
 
     let mismatchSummary: string | null = null;
     if (!claimMatchesInput && !trustedMatchesInput) {
-      mismatchSummary = `${spec.label}: Actual tool input is ${actualDisplay}, not the claimed ${claimedDisplay} (${spec.trustedConstraintNote})`;
+      mismatchSummary = `${spec.label}: Actual tool input is ${actualDisplay}, not the claimed ${claimedDisplay} (${trustedConstraintNote})`;
     } else if (!claimMatchesInput) {
       mismatchSummary = `${spec.label}: Actual tool input is ${actualDisplay}, not the claimed ${claimedDisplay}`;
     } else if (!trustedMatchesInput) {
-      mismatchSummary = `${spec.label}: Actual tool input is ${actualDisplay}, which conflicts with trusted fixture (${spec.trustedConstraintNote})`;
+      mismatchSummary = `${spec.label}: Actual tool input is ${actualDisplay}, which conflicts with trusted fixture (${trustedConstraintNote})`;
     }
 
     return {
@@ -691,13 +718,110 @@ export function evaluateApprovalRequest(
       actualInputDisplay: actualDisplay,
       claimedRaw,
       claimedDisplay,
-      trustedExpectedDisplay: spec.trustedExpectedDisplay,
-      trustedSourceId: spec.trustedSourceId,
-      trustedConstraintNote: spec.trustedConstraintNote,
+      trustedExpectedDisplay,
+      trustedSourceId,
+      trustedConstraintNote,
       claimMatchesInput,
       trustedMatchesInput,
       isMismatch,
       mismatchSummary,
+    };
+  });
+
+  // Compute Step 02 fact cards dynamically from orderFacts and policyFacts
+  const evaluatedTrustedRecords: EvaluatedTrustedRecord[] = request.trustedRecords.map((rec) => {
+    const facts: TrustedFixtureFact[] = [];
+    if (rec.orderFacts) {
+      const of = rec.orderFacts;
+      facts.push({
+        label: 'Customer ID',
+        value: of.customerId,
+        matchesProposedInput: request.input.orderId === of.orderId,
+      });
+      const withinOrderTotal =
+        !hasAmountRepresentationConflict &&
+        canonicalCents > 0 &&
+        canonicalCents <= Math.max(0, of.orderTotalCents - of.priorRefundsCents);
+      facts.push({
+        label: 'Order Total Paid',
+        value: withinOrderTotal
+          ? `${formatCentsUsd(of.orderTotalCents, of.currency)} (${of.orderTotalCents} cents)`
+          : `${formatCentsUsd(of.orderTotalCents, of.currency)} (${of.orderTotalCents} cents) — Tool requests ${formatCentsUsd(canonicalCents, request.input.currency)}!`,
+        matchesProposedInput: withinOrderTotal,
+      });
+      if (of.activeResolutionStatus === 'REPLACEMENT_SHIPMENT_QUEUED') {
+        facts.push({
+          label: 'Active Resolution Status',
+          value: `REPLACEMENT_SHIPMENT_QUEUED (${of.activeResolutionDetail ?? 'superseded'})`,
+          matchesProposedInput: false,
+        });
+        facts.push({
+          label: 'Approval Token Window',
+          value: isExpired
+            ? `Expired at ${request.expiresAt} (15m TTL)`
+            : `Superseded at turn #${request.conversation.latestTurnNumber} (expires ${request.expiresAt})`,
+          matchesProposedInput: false,
+        });
+      } else {
+        const destMatches = request.input.destination === of.originalDestination;
+        facts.push({
+          label: 'Original Payment Instrument',
+          value: destMatches
+            ? of.originalDestinationLabel
+            : `${of.originalDestinationLabel} — Tool targets ${request.input.destination}!`,
+          matchesProposedInput: destMatches,
+        });
+        if (of.untrustedContextWarning) {
+          facts.push({
+            label: 'Untrusted Context Warning',
+            value: of.untrustedContextWarning,
+            matchesProposedInput: false,
+          });
+        } else {
+          facts.push({
+            label: 'Prior Refunds Issued',
+            value: formatCentsUsd(of.priorRefundsCents, of.currency),
+            matchesProposedInput: withinOrderTotal,
+          });
+        }
+      }
+    }
+    if (rec.policyFacts) {
+      const pf = rec.policyFacts;
+      const withinPolicyCap =
+        !hasAmountRepresentationConflict &&
+        canonicalCents > 0 &&
+        canonicalCents <= pf.maxCourtesyRefundCents;
+      facts.push({
+        label: pf.maxCourtesyLabel ? 'Max Carrier Delay Courtesy' : 'Max Single Courtesy Refund',
+        value: `${formatCentsUsd(pf.maxCourtesyRefundCents, request.input.currency)} (${pf.maxCourtesyRefundCents} cents)`,
+        matchesProposedInput: withinPolicyCap,
+      });
+      const destMatchesPolicy =
+        !pf.requireOriginalPaymentDestination ||
+        (orderFacts ? request.input.destination === orderFacts.originalDestination : false);
+      facts.push({
+        label: destMatchesPolicy ? 'Allowed Destination' : 'External Wire Transfers',
+        value: destMatchesPolicy
+          ? 'Original payment card only (no external wires)'
+          : 'PROHIBITED (Must refund original card on file)',
+        matchesProposedInput: destMatchesPolicy,
+      });
+      const reasonMatchesPolicy = pf.allowedReasonCodes.includes(request.input.reasonCode);
+      facts.push({
+        label: reasonMatchesPolicy ? 'Allowed Reason Codes' : 'Override Reason Codes',
+        value: reasonMatchesPolicy
+          ? pf.allowedReasonCodes.join(', ')
+          : `${request.input.reasonCode} prohibited for support agents`,
+        matchesProposedInput: reasonMatchesPolicy,
+      });
+    }
+    return {
+      recordId: rec.recordId,
+      sourceFile: rec.sourceFile,
+      title: rec.title,
+      snapshotAt: rec.snapshotAt,
+      facts,
     };
   });
 
@@ -711,8 +835,10 @@ export function evaluateApprovalRequest(
 
   let requiredAcknowledgmentText: string | null = null;
   if (mismatches.length > 0) {
-    const clauses = mismatches.map(
-      (m) => `${m.label} in tool input is ${m.actualInputDisplay} (not ${m.claimedDisplay})`,
+    const clauses = mismatches.map((m) =>
+      !m.claimMatchesInput
+        ? `${m.label} in tool input is ${m.actualInputDisplay} (not ${m.claimedDisplay})`
+        : `${m.label} in tool input is ${m.actualInputDisplay} (conflicts with trusted fixture ${m.trustedExpectedDisplay})`,
     );
     requiredAcknowledgmentText = `I have checked that ${clauses.join('; ')}.`;
   }
@@ -745,6 +871,7 @@ export function evaluateApprovalRequest(
     isSuperseded,
     comparisons,
     mismatches,
+    evaluatedTrustedRecords,
     requiredAcknowledgmentText,
     canApproveOrReject,
     disableApproveReason,

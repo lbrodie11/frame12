@@ -2347,6 +2347,63 @@ try {
       return { noOverflow, pinVisible, sw, cw };
     });
 
+    // 8) Direct unit probes on evaluateApprovalRequest (computed trustedRecords verification, missing-evidence handling, and canonical amountCents consistency)
+    const { readFileSync } = await import('node:fs');
+    const { transformSync } = await import('esbuild');
+    const fixturesTs = readFileSync(
+      resolve(__dirname, '../app/experiments/agent-approval/fixtures.ts'),
+      'utf8',
+    );
+    const { code: fixturesEsm } = transformSync(fixturesTs, { loader: 'ts', format: 'esm' });
+    const fixturesMod = await import(
+      `data:text/javascript;base64,${Buffer.from(fixturesEsm).toString('base64')}`
+    );
+    const defaultClockMs = fixturesMod.SIMULATED_CLOCK_PRESETS[0].epochMs;
+
+    // Probe A: Claims and arguments agree ($2,500), but violate the $50 policy fixture in trustedRecords
+    const probePolicyViolation = structuredClone(fixturesMod.INITIAL_APPROVAL_REQUESTS[0]);
+    probePolicyViolation.claims.amountUsd = 2500;
+    probePolicyViolation.input.amountUsd = 2500;
+    probePolicyViolation.input.amountCents = 250000;
+    const evPolicyViolation = fixturesMod.evaluateApprovalRequest(
+      probePolicyViolation,
+      defaultClockMs,
+    );
+
+    // Probe B: Removing all supporting records (trustedRecords = []) flags all 5 fields as unverified mismatches
+    const probeMissingRecords = structuredClone(fixturesMod.INITIAL_APPROVAL_REQUESTS[0]);
+    probeMissingRecords.trustedRecords = [];
+    const evMissingRecords = fixturesMod.evaluateApprovalRequest(
+      probeMissingRecords,
+      defaultClockMs,
+    );
+
+    // Probe C: Inconsistent amountCents (250000) vs amountUsd (25) is flagged and canonical $2,500.00 is surfaced
+    const probeCentsMismatch = structuredClone(fixturesMod.INITIAL_APPROVAL_REQUESTS[0]);
+    probeCentsMismatch.input.amountCents = 250000;
+    const evCentsMismatch = fixturesMod.evaluateApprovalRequest(
+      probeCentsMismatch,
+      defaultClockMs,
+    );
+
+    const computedEvidenceProbesOk =
+      evPolicyViolation.mismatches.length === 1 &&
+      evPolicyViolation.mismatches[0]?.key === 'amountUsd' &&
+      evPolicyViolation.mismatches[0]?.claimMatchesInput === true &&
+      evPolicyViolation.mismatches[0]?.trustedMatchesInput === false &&
+      Boolean(
+        evPolicyViolation.requiredAcknowledgmentText?.includes('conflicts with trusted fixture'),
+      ) &&
+      evMissingRecords.mismatches.length === 5 &&
+      evMissingRecords.mismatches.every((m) => m.trustedMatchesInput === false) &&
+      Boolean(evMissingRecords.requiredAcknowledgmentText) &&
+      evCentsMismatch.mismatches.length === 1 &&
+      evCentsMismatch.mismatches[0]?.key === 'amountUsd' &&
+      evCentsMismatch.mismatches[0]?.claimMatchesInput === false &&
+      evCentsMismatch.mismatches[0]?.trustedMatchesInput === false &&
+      Boolean(evCentsMismatch.mismatches[0]?.actualInputDisplay.includes('$2,500.00 USD')) &&
+      Boolean(evCentsMismatch.requiredAcknowledgmentText);
+
     check(
       initialInspection.ok &&
         initialInspection.expBadgeOk &&
@@ -2375,8 +2432,9 @@ try {
         lateClockExpiredScenarioA &&
         simulatedTurnChangeBlocked &&
         narrowAndReducedMotion.noOverflow &&
-        narrowAndReducedMotion.pinVisible,
-      'site /experiments/agent-approval prototype: DOM & visual reading order (Tool Args -> Trusted Context -> Unverified Agent Description), pinned non-collapsible mismatch summary, inert long/injection string rendering, explicit mismatch acknowledgment recorded in history, Scenario A/B/C flows, injectable clock expiry, upstream turn-change block, and 320px/reduced-motion resilience',
+        narrowAndReducedMotion.pinVisible &&
+        computedEvidenceProbesOk,
+      'site /experiments/agent-approval prototype: DOM & visual reading order (Tool Args -> Trusted Context -> Unverified Agent Description), pinned non-collapsible mismatch summary, computed trustedRecords verification (policy violation, missing records, canonical amountCents consistency), inert long/injection string rendering, explicit mismatch acknowledgment recorded in history, Scenario A/B/C flows, injectable clock expiry, upstream turn-change block, and 320px/reduced-motion resilience',
       JSON.stringify({
         initialInspection,
         expandedMemoCheck,
@@ -2388,6 +2446,7 @@ try {
         lateClockExpiredScenarioA,
         simulatedTurnChangeBlocked,
         narrowAndReducedMotion,
+        computedEvidenceProbesOk,
       }),
     );
 
