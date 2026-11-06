@@ -12,7 +12,9 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
     { id: 'INC-403', name: 'AP-Northeast Fulfillment Sync', region: 'ap-northeast-1', metric: '99.82%', status: 'Mitigating' },
   ].filter(
     (r) =>
-      (!query || r.name.toLowerCase().includes(query.toLowerCase())) &&
+      (!query ||
+        r.name.toLowerCase().includes(query.toLowerCase()) ||
+        r.id.toLowerCase().includes(query.toLowerCase())) &&
       (channel === 'all' || r.region.startsWith(channel)),
   );
 

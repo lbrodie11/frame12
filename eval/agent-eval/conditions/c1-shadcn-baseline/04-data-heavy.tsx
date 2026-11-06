@@ -12,7 +12,9 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
     { id: 'SKU-8803', name: 'NRT-01 · Screentone Sheet B4', region: 'ap-northeast-1', metric: '94.2%', status: 'Low Stock (19)' },
   ].filter(
     (r) =>
-      (!query || r.name.toLowerCase().includes(query.toLowerCase())) &&
+      (!query ||
+        r.name.toLowerCase().includes(query.toLowerCase()) ||
+        r.id.toLowerCase().includes(query.toLowerCase())) &&
       (channel === 'all' || r.region.startsWith(channel)),
   );
 
@@ -43,7 +45,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
       <div className="b-grid-2">
         <section className="b-card" aria-label="Primary performance summary">
           <p className="b-kpi-label">Regional Units Fulfilled (04-data-heavy)</p>
-          <p className="b-kpi-val">{windowDays === '7d' ? '14.2m' : windowDays === '30d' ? '11.8m' : '9.4m'}</p>
+          <p className="b-kpi-val">{windowDays === '7d' ? '24,210 units' : windowDays === '30d' ? '92,770 units' : '239,050 units'}</p>
           <p className="b-sub">Compared against prior window baseline</p>
           <div className="b-table-wrap" style={{ marginTop: 16 }}>
             <table className="b-table">

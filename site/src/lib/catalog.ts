@@ -2805,7 +2805,7 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
       {
         "name": "defaultEnvironment",
         "type": "'prod-us-east-1' | 'staging-eu-central-1'",
-        "defaultValue": "'prod'",
+        "defaultValue": "'prod-us-east-1'",
         "description": "Initial control-plane target environment."
       },
       {
@@ -2888,7 +2888,7 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
     "knownLimitations": [
       "Key creation, rotation, revocation, and webhook replay actions mutate in-memory React state only and reset on full page reload unless wired to a persistence API."
     ],
-    "usageTemplate": "import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';\n\nexport default function ConsolePage() {\n  return (\n    <DeveloperConsole\n      defaultSection=\"overview\"\n      defaultEnvironment=\"prod\"\n      defaultTimeRange=\"24h\"\n      showSandboxControls={false}\n    />\n  );\n}"
+    "usageTemplate": "import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';\n\nexport default function ConsolePage() {\n  return (\n    <DeveloperConsole\n      defaultSection=\"overview\"\n      defaultEnvironment=\"prod-us-east-1\"\n      defaultTimeRange=\"24h\"\n      showSandboxControls={false}\n    />\n  );\n}"
   },
   {
     "slug": "workspace-settings",
@@ -2948,7 +2948,7 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
       {
         "name": "defaultWorkspaceId",
         "type": "'prod-atelier' | 'staging-atelier'",
-        "defaultValue": "'prod'",
+        "defaultValue": "'prod-atelier'",
         "description": "Initial workspace configuration target."
       },
       {
@@ -3031,7 +3031,7 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
     "knownLimitations": [
       "Client-side draft cache persists across in-app route transitions during the current browser session only; full page reload resets to initial fixtures unless backed by an API."
     ],
-    "usageTemplate": "import { WorkspaceSettings } from '@/components/frame12/blocks/workspace-settings';\n\nexport default function SettingsPage() {\n  return (\n    <WorkspaceSettings\n      defaultSection=\"profile\"\n      defaultWorkspaceId=\"prod\"\n      showSandboxControls={false}\n    />\n  );\n}"
+    "usageTemplate": "import { WorkspaceSettings } from '@/components/frame12/blocks/workspace-settings';\n\nexport default function SettingsPage() {\n  return (\n    <WorkspaceSettings\n      defaultSection=\"profile\"\n      defaultWorkspaceId=\"prod-atelier\"\n      showSandboxControls={false}\n    />\n  );\n}"
   },
   {
     "slug": "analytics-dashboard",

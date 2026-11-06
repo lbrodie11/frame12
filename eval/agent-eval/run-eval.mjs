@@ -244,6 +244,26 @@ async function verifyTaskWorkflow(page, conditionId, taskId) {
     const filterOk = initialCount === 3 && euCount === 1 && restoredCount === 3;
     if (!filterOk) return false;
 
+    if (taskId === '02-settings') {
+      await page.fill('#eval-org-name-02', 'Atelier Koma EU');
+      await page.click('#eval-settings-save');
+      const savedText = await page.locator('#eval-settings-save-status').innerText();
+      await page.click('#eval-settings-reset');
+      const resetText = await page.locator('#eval-settings-save-status').innerText();
+      return (
+        savedText.includes('Saved: Atelier Koma EU') &&
+        resetText.includes('Defaults restored: Atelier Koma Production')
+      );
+    }
+
+    if (taskId === '04-data-heavy') {
+      await page.fill('#c1-search-04-data-heavy', 'SKU-8801');
+      const skuCount = await page.locator('#c1-ledger-table-04-data-heavy tbody tr').count();
+      await page.fill('#c1-search-04-data-heavy', '');
+      const resetCount = await page.locator('#c1-ledger-table-04-data-heavy tbody tr').count();
+      return skuCount === 1 && resetCount === 3;
+    }
+
     if (taskId === '05-landing-page') {
       const hasPlanTable =
         (await page.locator('#eval-plan-comparison-table tbody tr').count()) === 4;
@@ -296,6 +316,26 @@ async function verifyTaskWorkflow(page, conditionId, taskId) {
     restoredFirstCell === page1FirstCell;
 
   if (!paginationSlicesOk) return false;
+
+  if (taskId === '02-settings') {
+    await page.fill('#eval-org-name-02', 'Atelier Koma EU');
+    await page.click('#eval-settings-save');
+    const savedText = await page.locator('#eval-settings-save-status').innerText();
+    await page.click('#eval-settings-reset');
+    const resetText = await page.locator('#eval-settings-save-status').innerText();
+    return (
+      savedText.includes('Saved: Atelier Koma EU') &&
+      resetText.includes('Defaults restored: Atelier Koma Production')
+    );
+  }
+
+  if (taskId === '04-data-heavy') {
+    await page.fill('#eval-search-04-data-heavy', 'SKU-8801');
+    const skuCount = await tableRows.count();
+    await page.fill('#eval-search-04-data-heavy', '');
+    const resetCount = await tableRows.count();
+    return skuCount === 1 && resetCount === 2;
+  }
 
   if (taskId === '05-landing-page') {
     const hasPlanTable = (await page.locator('#eval-plan-comparison-table tbody tr').count()) === 4;

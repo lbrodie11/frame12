@@ -173,6 +173,10 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [regionFilter, setRegionFilter] = React.useState('all');
   const [strictMode, setStrictMode] = React.useState(true);
   const [cadence, setCadence] = React.useState('realtime');
+  const [orgName, setOrgName] = React.useState('Atelier Koma Production');
+  const [saveStatus, setSaveStatus] = React.useState(
+    'Defaults active: Atelier Koma Production (realtime)',
+  );
   const [page, setPage] = React.useState(1);
 
   const changed = useChanged(`${range}-${selectedBar}`);
@@ -320,6 +324,16 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
                 <Notice status="info" title="Hardware WebAuthn passkeys enforced">
                   All privileged operators must authenticate with FIDO2 passkeys before modifying billing or retention rules.
                 </Notice>
+                <Input
+                  id="eval-org-name-02"
+                  label="Organization display name"
+                  density="compact"
+                  value={orgName}
+                  onChange={(e) => {
+                    setOrgName(e.target.value);
+                    setSaveStatus(`Unsaved draft: ${e.target.value} (${cadence})`);
+                  }}
+                />
                 <Switch
                   label="Enforce WebAuthn hardware passkeys for all organization admins"
                   density="compact"
@@ -366,6 +380,34 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
               </div>
             </TabsContent>
           </Tabs>
+          <div className="f12-row-between" style={{ marginTop: 'var(--f-gutter-pair)' }}>
+            <span id="eval-settings-save-status" className="f12-muted-copy" role="status" aria-live="polite">
+              {saveStatus}
+            </span>
+            <div className="f12-row-pair">
+              <Button
+                id="eval-settings-save"
+                variant="primary"
+                size="sm"
+                onClick={() => setSaveStatus(`Saved: ${orgName} (${cadence})`)}
+              >
+                Save Preferences
+              </Button>
+              <Button
+                id="eval-settings-reset"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setOrgName('Atelier Koma Production');
+                  setCadence('realtime');
+                  setStrictMode(true);
+                  setSaveStatus('Defaults restored: Atelier Koma Production (realtime)');
+                }}
+              >
+                Reset to Defaults
+              </Button>
+            </div>
+          </div>
         </Panel>
       </Scene>
 

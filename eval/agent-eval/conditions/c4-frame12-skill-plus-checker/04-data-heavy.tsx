@@ -365,6 +365,7 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
             <div className="f12-row-between">
               <div className="f12-row-pair">
                 <Input
+                  id="eval-search-04-data-heavy"
                   label="Search ledger"
                   density="compact"
                   value={search}

@@ -68,7 +68,7 @@ function loadCatalogModule() {
   return mod.exports;
 }
 
-function parseSourceFileContracts(filePath, codeOverride) {
+function parseSourceFileContracts(filePath, codeOverride, primaryInterfaceName) {
   const src = codeOverride ?? fs.readFileSync(filePath, 'utf8');
   const sf = ts.createSourceFile(
     filePath,
@@ -80,6 +80,134 @@ function parseSourceFileContracts(filePath, codeOverride) {
   const contracts = new Map();
   const typeAliases = new Map();
   const defaults = new Map();
+  const aliasDefaults = new Map();
+  const constValues = new Map();
+
+  for (const stmt of sf.statements) {
+    if (ts.isVariableStatement(stmt)) {
+      for (const decl of stmt.declarationList.declarations) {
+        if (ts.isIdentifier(decl.name) && decl.initializer) {
+          if (
+            ts.isStringLiteral(decl.initializer) ||
+            ts.isNumericLiteral(decl.initializer) ||
+            decl.initializer.kind === ts.SyntaxKind.TrueKeyword ||
+            decl.initializer.kind === ts.SyntaxKind.FalseKeyword ||
+            decl.initializer.kind === ts.SyntaxKind.NullKeyword
+          ) {
+            constValues.set(decl.name.text, decl.initializer.getText(sf).trim());
+          }
+        }
+      }
+    }
+  }
+
+  function resolveFallbackValue(node) {
+    if (!node) return null;
+    if (ts.isParenthesizedExpression(node)) return resolveFallbackValue(node.expression);
+    if (
+      ts.isStringLiteral(node) ||
+      ts.isNumericLiteral(node) ||
+      node.kind === ts.SyntaxKind.TrueKeyword ||
+      node.kind === ts.SyntaxKind.FalseKeyword ||
+      node.kind === ts.SyntaxKind.NullKeyword
+    ) {
+      return node.getText(sf).trim();
+    }
+    if (ts.isIdentifier(node) && constValues.has(node.text)) {
+      return constValues.get(node.text);
+    }
+    return null;
+  }
+
+  function extractDefaultsFromBindingAndBody(bindingPattern, bodyNode) {
+    const boundProps = new Map();
+    for (const el of bindingPattern.elements) {
+      const localName = el.name.getText(sf).replace(/^['"]|['"]$/g, '');
+      const propName = (el.propertyName || el.name)
+        .getText(sf)
+        .replace(/^['"]|['"]$/g, '');
+      if (ts.isIdentifier(el.name)) {
+        boundProps.set(localName, propName);
+      }
+      if (el.initializer && !defaults.has(propName)) {
+        const resolvedConst =
+          ts.isIdentifier(el.initializer) && constValues.has(el.initializer.text)
+            ? constValues.get(el.initializer.text)
+            : el.initializer.getText(sf).trim();
+        defaults.set(propName, resolvedConst);
+      }
+    }
+
+    if (!bodyNode) return;
+
+    function walkBody(n) {
+      if (
+        ts.isBinaryExpression(n) &&
+        n.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken &&
+        !(n.parent && ts.isTemplateSpan(n.parent)) &&
+        !(
+          n.parent &&
+          ts.isBinaryExpression(n.parent) &&
+          n.parent.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+        )
+      ) {
+        const chain = [];
+        let cur = n;
+        while (
+          ts.isBinaryExpression(cur) &&
+          cur.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+        ) {
+          chain.unshift(cur.right);
+          cur = cur.left;
+        }
+        chain.unshift(cur);
+
+        const first = chain[0];
+        const last = chain[chain.length - 1];
+        const fallbackVal = resolveFallbackValue(last);
+        if (
+          fallbackVal !== null &&
+          ts.isIdentifier(first) &&
+          boundProps.has(first.text) &&
+          chain.slice(0, -1).every((item) => ts.isIdentifier(item) && boundProps.has(item.text))
+        ) {
+          const primaryProp = boundProps.get(first.text);
+          const primaryContract = primaryInterfaceName ? contracts.get(primaryInterfaceName) : null;
+          const propMeta = primaryContract?.props?.get(primaryProp);
+          const isInitialAlias =
+            primaryProp.startsWith('initial') &&
+            primaryContract?.props?.has(`default${primaryProp.slice('initial'.length)}`);
+          const isStringLiteralFallback =
+            (fallbackVal.startsWith("'") && fallbackVal.endsWith("'")) ||
+            (fallbackVal.startsWith('"') && fallbackVal.endsWith('"'));
+          const fallbackIncompatibleWithLiteralUnion =
+            isStringLiteralFallback &&
+            propMeta &&
+            propMeta.type.includes("'") &&
+            !propMeta.type.includes('string') &&
+            !propMeta.type.includes(fallbackVal.replace(/^"|"$/g, "'"));
+
+          if (!fallbackIncompatibleWithLiteralUnion) {
+            if (isInitialAlias) {
+              if (!aliasDefaults.has(primaryProp)) {
+                aliasDefaults.set(primaryProp, fallbackVal);
+              }
+            } else if (!defaults.has(primaryProp)) {
+              defaults.set(primaryProp, fallbackVal);
+            }
+            for (let i = 1; i < chain.length - 1; i++) {
+              const aliasProp = boundProps.get(chain[i].text);
+              if (aliasProp && !aliasDefaults.has(aliasProp)) {
+                aliasDefaults.set(aliasProp, fallbackVal);
+              }
+            }
+          }
+        }
+      }
+      ts.forEachChild(n, walkBody);
+    }
+    walkBody(bodyNode);
+  }
 
   function visit(node) {
     if (ts.isTypeAliasDeclaration(node)) {
@@ -93,6 +221,7 @@ function parseSourceFileContracts(filePath, codeOverride) {
           name: node.name.text,
           kind: 'type',
           type: rawType,
+          heritage: '',
           props: new Map(),
         });
       }
@@ -101,6 +230,11 @@ function parseSourceFileContracts(filePath, codeOverride) {
         node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword),
       );
       if (isExported && node.name.text.endsWith('Props')) {
+        const heritage = node.heritageClauses
+          ? node.heritageClauses
+              .map((hc) => hc.getText(sf).replace(/\s+/g, ' ').trim())
+              .join(' ')
+          : '';
         const props = new Map();
         for (const m of node.members) {
           if (ts.isPropertySignature(m) && m.name) {
@@ -113,26 +247,37 @@ function parseSourceFileContracts(filePath, codeOverride) {
         contracts.set(node.name.text, {
           name: node.name.text,
           kind: 'interface',
+          heritage,
           props,
         });
       }
-    }
-    if (ts.isObjectBindingPattern(node)) {
-      for (const el of node.elements) {
-        if (el.initializer) {
-          const propName = (el.propertyName || el.name)
-            .getText(sf)
-            .replace(/^['"]|['"]$/g, '');
-          if (!defaults.has(propName)) {
-            defaults.set(propName, el.initializer.getText(sf).trim());
-          }
+    } else if (
+      (ts.isFunctionDeclaration(node) ||
+        ts.isFunctionExpression(node) ||
+        ts.isArrowFunction(node)) &&
+      node.parameters.length > 0
+    ) {
+      const firstParam = node.parameters[0];
+      if (ts.isObjectBindingPattern(firstParam.name)) {
+        const paramTypeText = firstParam.type ? firstParam.type.getText(sf).trim() : '';
+        const parentTypeArg =
+          node.parent && ts.isCallExpression(node.parent) && node.parent.typeArguments?.[1]
+            ? node.parent.typeArguments[1].getText(sf).trim()
+            : '';
+        const effectiveType = paramTypeText || parentTypeArg;
+        const matchesPrimary = primaryInterfaceName
+          ? effectiveType === primaryInterfaceName ||
+            effectiveType.startsWith(`${primaryInterfaceName}<`)
+          : true;
+        if (matchesPrimary) {
+          extractDefaultsFromBindingAndBody(firstParam.name, node.body);
         }
       }
     }
     ts.forEachChild(node, visit);
   }
   visit(sf);
-  return { contracts, typeAliases, defaults };
+  return { contracts, typeAliases, defaults, aliasDefaults };
 }
 
 function getAllowedTypesForProp(rawType, typeAliases) {
@@ -176,9 +321,13 @@ function validateCatalogEntryPropsAndSubcomponents(entry, labelPrefix) {
 
   const fullPath = path.join(process.cwd(), entry.sourceFile);
   if (!fs.existsSync(fullPath)) return;
-  const { contracts, typeAliases, defaults } = parseSourceFileContracts(fullPath);
-
   const primaryName = PRIMARY_INTERFACE_BY_SLUG[entry.slug];
+  const { contracts, typeAliases, defaults, aliasDefaults } = parseSourceFileContracts(
+    fullPath,
+    undefined,
+    primaryName,
+  );
+
   const primaryContract = contracts.get(primaryName);
   if (!primaryContract) {
     errors.push(
@@ -205,9 +354,18 @@ function validateCatalogEntryPropsAndSubcomponents(entry, labelPrefix) {
     }
     if (defaults.has(propName)) {
       const srcDefault = defaults.get(propName);
-      if (docProp.defaultValue !== srcDefault && !docProp.defaultValue.startsWith(srcDefault)) {
+      const baseDocDefault = docProp.defaultValue.split(/\s+(?:\(|·)/)[0].trim();
+      if (baseDocDefault !== srcDefault) {
         errors.push(
-          `${labelPrefix}[${entry.slug}].props["${propName}"] default mismatch: documented "${docProp.defaultValue}", source destructuring has "${srcDefault}"`,
+          `${labelPrefix}[${entry.slug}].props["${propName}"] default mismatch: documented "${docProp.defaultValue}", source default is "${srcDefault}"`,
+        );
+      }
+    } else if (aliasDefaults.has(propName)) {
+      const aliasFallback = aliasDefaults.get(propName);
+      const baseDocDefault = docProp.defaultValue.split(/\s+(?:\(|·)/)[0].trim();
+      if (baseDocDefault !== 'undefined' && baseDocDefault !== aliasFallback) {
+        errors.push(
+          `${labelPrefix}[${entry.slug}].props["${propName}"] alias default mismatch: documented "${docProp.defaultValue}", expected "undefined" or "${aliasFallback}"`,
         );
       }
     }
@@ -397,6 +555,11 @@ for (const relPath of allSourceFiles) {
       continue;
     }
     if (srcContract.kind === 'interface') {
+      if (srcContract.heritage !== docContract.heritage) {
+        errors.push(
+          `skills/frame12/references/components-and-adapters.md contract "${contractName}" heritage mismatch: expected "${srcContract.heritage || '(none)'}", got "${docContract.heritage || '(none)'}" (${relPath})`,
+        );
+      }
       for (const [propName, srcProp] of srcContract.props) {
         if (propName === 'children' || propName === 'className') continue;
         const docProp = docContract.props.get(propName);

@@ -495,7 +495,7 @@ export interface EmptyStateProps extends Omit<React.HTMLAttributes<HTMLDivElemen
   headingLevel?: EmptyStateHeadingLevel; // default: 'h3'
 }
 
-export interface EmptyStateTitleProps extends React.HTMLAttributes<HTMLElement> {
+export interface EmptyStateTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
   as?: EmptyStateHeadingLevel;           // default: 'h3'
 }
 
@@ -524,7 +524,7 @@ export interface BreadcrumbLinkProps extends React.AnchorHTMLAttributes<HTMLAnch
   asChild?: boolean;
 }
 
-export interface BreadcrumbPageProps extends React.HTMLAttributes<HTMLSpanElement> {
+export interface BreadcrumbPageProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'aria-current'> {
   'aria-current'?: React.AriaAttributes['aria-current'] | false; // default: 'page'
 }
 

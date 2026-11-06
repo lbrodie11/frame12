@@ -13,7 +13,9 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
     { id: 'POP-503', name: 'HND-01 · Tokyo Edge PoP', region: 'ap-northeast-1', metric: '99.98%', status: 'GA Tier-1' },
   ].filter(
     (r) =>
-      (!query || r.name.toLowerCase().includes(query.toLowerCase())) &&
+      (!query ||
+        r.name.toLowerCase().includes(query.toLowerCase()) ||
+        r.id.toLowerCase().includes(query.toLowerCase())) &&
       (channel === 'all' || r.region.startsWith(channel)),
   );
 

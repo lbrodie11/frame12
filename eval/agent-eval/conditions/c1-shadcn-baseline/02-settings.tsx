@@ -4,6 +4,9 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [windowDays, setWindowDays] = React.useState<'7d' | '30d' | '90d'>('30d');
   const [orgName, setOrgName] = React.useState('Atelier Koma Production');
   const [cadence, setCadence] = React.useState<'realtime' | 'daily' | 'weekly'>('daily');
+  const [saveStatus, setSaveStatus] = React.useState(
+    'Defaults active: Atelier Koma Production (daily)',
+  );
   const [query, setQuery] = React.useState('');
   const [channel, setChannel] = React.useState<'all' | 'us' | 'eu'>('all');
   const [enforced, setEnforced] = React.useState(true);
@@ -14,7 +17,9 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
     { id: 'AUD-203', name: 'APAC Spend Cap Alerting', region: 'ap-northeast-1', metric: '99.95%', status: '85% Cap' },
   ].filter(
     (r) =>
-      (!query || r.name.toLowerCase().includes(query.toLowerCase())) &&
+      (!query ||
+        r.name.toLowerCase().includes(query.toLowerCase()) ||
+        r.id.toLowerCase().includes(query.toLowerCase())) &&
       (channel === 'all' || r.region.startsWith(channel)),
   );
 
@@ -69,12 +74,15 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
         <section className="b-card" aria-label="Workspace security and billing form">
           <h2 style={{ fontSize: 18, marginTop: 0, color: 'var(--b-text)' }}>Security &amp; Billing Configuration</h2>
           <div className="b-field">
-            <label className="b-label" htmlFor="c1-org-name-02">Organization display name</label>
+            <label className="b-label" htmlFor="eval-org-name-02">Organization display name</label>
             <input
-              id="c1-org-name-02"
+              id="eval-org-name-02"
               className="b-input"
               value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
+              onChange={(e) => {
+                setOrgName(e.target.value);
+                setSaveStatus(`Unsaved draft: ${e.target.value} (${cadence})`);
+              }}
             />
           </div>
           <div className="b-field">
@@ -83,15 +91,41 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
               id="c1-cadence-02"
               className="b-select"
               value={cadence}
-              onChange={(e) => setCadence(e.target.value as 'realtime' | 'daily' | 'weekly')}
+              onChange={(e) => {
+                const next = e.target.value as 'realtime' | 'daily' | 'weekly';
+                setCadence(next);
+                setSaveStatus(`Unsaved draft: ${orgName} (${next})`);
+              }}
             >
               <option value="realtime">Real-time webhook</option>
               <option value="daily">Daily exposure digest</option>
               <option value="weekly">Weekly rollup</option>
             </select>
           </div>
+          <p id="eval-settings-save-status" className="b-sub" role="status" aria-live="polite">
+            {saveStatus}
+          </p>
           <div className="b-btn-row">
-            <button type="button" className="b-btn b-btn-primary">Save Preferences</button>
+            <button
+              id="eval-settings-save"
+              type="button"
+              className="b-btn b-btn-primary"
+              onClick={() => setSaveStatus(`Saved: ${orgName} (${cadence})`)}
+            >
+              Save Preferences
+            </button>
+            <button
+              id="eval-settings-reset"
+              type="button"
+              className="b-btn"
+              onClick={() => {
+                setOrgName('Atelier Koma Production');
+                setCadence('daily');
+                setSaveStatus('Defaults restored: Atelier Koma Production (daily)');
+              }}
+            >
+              Reset to Defaults
+            </button>
           </div>
         </section>
       </div>

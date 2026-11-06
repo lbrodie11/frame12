@@ -19,7 +19,9 @@ export function EvalScreen({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
     { id: 'REL-603', name: 'ap-northeast-1 · Canary Ring 2', region: 'ap-northeast-1', metric: '99.91%', status: 'Awaiting Signoff' },
   ].filter(
     (r) =>
-      (!query || r.name.toLowerCase().includes(query.toLowerCase())) &&
+      (!query ||
+        r.name.toLowerCase().includes(query.toLowerCase()) ||
+        r.id.toLowerCase().includes(query.toLowerCase())) &&
       (channel === 'all' || r.region.startsWith(channel)),
   );
 
