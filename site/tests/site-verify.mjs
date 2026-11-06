@@ -2135,8 +2135,50 @@ try {
       reducedMotion: 'no-preference',
     });
     const page = await ctx.newPage();
-    await page.goto(`${baseUrl}/experiments/agent-approval`, { waitUntil: 'networkidle' });
+    await page.goto(`${baseUrl}/agents`, { waitUntil: 'networkidle' });
     await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+
+    // 0) Verify /agents entry point to /experiments/agent-approval (heading, description, experimental label, keyboard focus, and navigation)
+    const agentsEntry = await page.evaluate(() => {
+      const entry = document.getElementById('agents-experiment-approval-entry');
+      const heading = document.getElementById('agents-experiment-approval-heading')?.textContent?.trim() || '';
+      const desc = document.getElementById('agents-experiment-approval-desc')?.textContent?.trim() || '';
+      const link = document.getElementById('agents-experiment-approval-link');
+      const entryText = entry?.textContent || '';
+      return {
+        hasEntry: Boolean(entry),
+        heading,
+        desc,
+        linkText: link?.textContent?.trim() || '',
+        linkHref: link?.getAttribute('href') || '',
+        hasExperimentalLabel:
+          entryText.includes('EXPERIMENTAL PROTOTYPE') &&
+          entryText.includes('SIMULATED LOCAL DATA') &&
+          entryText.includes('Not a production approval system'),
+      };
+    });
+    await page.focus('#agents-experiment-approval-link');
+    const linkFocusOk = await page.evaluate(
+      () => document.activeElement?.id === 'agents-experiment-approval-link',
+    );
+    await Promise.all([
+      page.waitForURL('**/experiments/agent-approval'),
+      page.click('#agents-experiment-approval-link'),
+    ]);
+    await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+    check(
+      agentsEntry.hasEntry &&
+        agentsEntry.heading === 'Agent Approval Inbox — Interactive Experiment' &&
+        agentsEntry.desc ===
+          "Explore how FRAME/12 helps reviewers compare an AI agent's explanation against its actual proposed actions and independent evidence." &&
+        agentsEntry.linkText === 'Explore Interactive Demo' &&
+        agentsEntry.linkHref === '/experiments/agent-approval' &&
+        agentsEntry.hasExperimentalLabel &&
+        linkFocusOk &&
+        page.url().endsWith('/experiments/agent-approval'),
+      'site /agents -> /experiments/agent-approval: clearly labeled "Agent Approval Inbox — Interactive Experiment" entry point with description, experimental/simulated-data label, keyboard-focusable "Explore Interactive Demo" link, and navigation',
+      JSON.stringify({ agentsEntry, linkFocusOk, url: page.url() }),
+    );
 
     // 1) Verify header experimental badge, DOM & visual reading order (Tool Args -> Trusted Context -> Unverified Agent Description), and Scenario B pinned mismatches
     const initialInspection = await page.evaluate(() => {

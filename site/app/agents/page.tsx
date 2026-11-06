@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   Sheet,
   Scene,
@@ -504,6 +505,37 @@ export default function AgentsPage() {
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
+        </Panel>
+      </Scene>
+
+      <Scene gutter="scene" layout="stack">
+        <Panel label="Agent Approval Inbox — Interactive Experiment">
+          <div className="f12-stack-pair" id="agents-experiment-approval-entry">
+            <div className="f12-row-pair">
+              <Tag status="warning">[!] EXPERIMENTAL PROTOTYPE · SIMULATED LOCAL DATA</Tag>
+              <Tag>Not a production approval system</Tag>
+            </div>
+            <h2 className="f12-section-title" id="agents-experiment-approval-heading">
+              Agent Approval Inbox — Interactive Experiment
+            </h2>
+            <p className="f12-body-copy" id="agents-experiment-approval-desc">
+              Explore how FRAME/12 helps reviewers compare an AI agent&apos;s explanation against
+              its actual proposed actions and independent evidence.
+            </p>
+            <p className="f12-muted-copy">
+              This interactive showcase runs entirely on deterministic simulated local data to
+              demonstrate human-in-the-loop verification—not a production approval system.
+            </p>
+            <div className="f12-row-pair">
+              <Link
+                href="/experiments/agent-approval"
+                id="agents-experiment-approval-link"
+                className="f12-btn primary"
+              >
+                Explore Interactive Demo
+              </Link>
+            </div>
           </div>
         </Panel>
       </Scene>
