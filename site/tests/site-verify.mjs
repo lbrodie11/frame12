@@ -753,12 +753,25 @@ try {
       const text = document.getElementById('dev-console-sheet')?.textContent || '';
       const hasZeroServiceTotal = text.includes('Total 0 requests');
       const hasZeroLogsTab = text.includes('04 · Request Logs (0)');
+      const hasEmptyChartCaption = text.includes(
+        'No throughput samples recorded in the selected',
+      );
+      const hasIdleFleetBadge = text.includes('0 SAMPLES · IDLE');
+      const hasNoSamplesServiceHealth = text.includes('(NO SAMPLES)');
+      const clearedServiceMarkers =
+        !text.includes('err (!)') &&
+        !text.includes('err (~1%)') &&
+        !document.getElementById('dev-console-focus-degraded-svc');
       return (
         hasEmptyBanner &&
         hasEmptyChart &&
         noChartSvg &&
         hasZeroServiceTotal &&
-        hasZeroLogsTab
+        hasZeroLogsTab &&
+        hasEmptyChartCaption &&
+        hasIdleFleetBadge &&
+        hasNoSamplesServiceHealth &&
+        clearedServiceMarkers
       );
     });
     await page.click('#dev-console-tab-request-logs');
@@ -793,37 +806,65 @@ try {
 
     // Overview: time range switching, SLO breach badge on 7d/30d vs 24h within budget, & ranked service selection
     const slo24hOk = await page.evaluate(() => {
+      const text = document.getElementById('dev-console-sheet')?.textContent || '';
       const tag = document.getElementById('dev-console-slo-status-tag');
       return (
-        Boolean(tag?.textContent?.includes('SLO WITHIN BUDGET')) &&
-        Boolean(tag?.classList.contains('f12-status-success'))
+        Boolean(tag?.textContent?.includes('GATEWAY SLO: HEALTHY')) &&
+        Boolean(tag?.classList.contains('f12-status-success')) &&
+        text.includes('5xx Upstream Faults') &&
+        text.includes('4xx Client & Throttled') &&
+        text.includes('248k (15:00 UTC)') &&
+        text.includes('99.58% · 1.48M') &&
+        text.includes('0.11% · 1,631') &&
+        text.includes('0.31% · 4,597') &&
+        text.includes('window 38 ms') &&
+        text.includes('peak 248k at 15:00 UTC')
       );
     });
+    // Keyboard activation of #dev-console-focus-degraded-svc must move focus to persistent #int-dev-console-svc-bar-svc-inventory-ledger
+    await page.focus('#dev-console-focus-degraded-svc');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(30);
+    const overlayKeyboardFocusOk = await page.evaluate(
+      () => document.activeElement?.id === 'int-dev-console-svc-bar-svc-inventory-ledger',
+    );
     await page.click('#dev-console-range-7d');
-    await page.click('#int-dev-console-svc-bar-svc-inventory-ledger');
     const overviewUpdated = await page.evaluate(() => {
-      const text = document.body.textContent || '';
+      const text = document.getElementById('dev-console-sheet')?.textContent || '';
       const tag = document.getElementById('dev-console-slo-status-tag');
       return (
         text.includes('9,840,200') &&
         text.includes('OVERLAY: SVC-03') &&
-        Boolean(tag?.textContent?.includes('SLO BUDGET BREACHED')) &&
+        text.includes('1,483k (Oct 31)') &&
+        text.includes('99.49% · 9.79M') &&
+        text.includes('0.14% · 13,776') &&
+        text.includes('0.37% · 36,409') &&
+        text.includes('window 41 ms') &&
+        text.includes('peak 1,483k on Oct 31') &&
+        Boolean(tag?.textContent?.includes('GATEWAY SLO: BREACHED')) &&
         Boolean(tag?.classList.contains('f12-status-warning'))
       );
     });
     await page.click('#dev-console-range-30d');
     const slo30dOk = await page.evaluate(() => {
+      const text = document.getElementById('dev-console-sheet')?.textContent || '';
       const tag = document.getElementById('dev-console-slo-status-tag');
       return (
-        Boolean(tag?.textContent?.includes('SLO BUDGET BREACHED')) &&
+        text.includes('4,415k (Oct 31)') &&
+        text.includes('99.42% · 39.18M') &&
+        text.includes('0.16% · 63,056') &&
+        text.includes('0.42% · 165,522') &&
+        text.includes('window 44 ms') &&
+        text.includes('peak 4,415k on Oct 31') &&
+        Boolean(tag?.textContent?.includes('GATEWAY SLO: BREACHED')) &&
         Boolean(tag?.classList.contains('f12-status-warning'))
       );
     });
     await page.click('#dev-console-range-24h');
     check(
-      slo24hOk && overviewUpdated && slo30dOk,
-      'site /blocks/developer-console Overview: 24h/7d/30d SLO status badge accuracy and ranked service overlay selection reconcile KPIs & chart',
-      JSON.stringify({ slo24hOk, overviewUpdated, slo30dOk }),
+      slo24hOk && overlayKeyboardFocusOk && overviewUpdated && slo30dOk,
+      'site /blocks/developer-console Overview: 24h/7d/30d SLO status badge accuracy, range-reconciled footers, keyboard overlay focus, and ranked service overlay selection',
+      JSON.stringify({ slo24hOk, overlayKeyboardFocusOk, overviewUpdated, slo30dOk }),
     );
 
     // Services & Endpoints: circuit-breaker switch, search empty state, and filter reset
@@ -951,19 +992,26 @@ try {
         0,
         ...serviceNames.map((el) => el.getClientRects().length),
       );
-      const expressivePanels = [
+      const overviewPanels = [
         ...document.querySelectorAll(
-          '#dev-console-sheet .f12-tabs-content:not([hidden]) .f12-panel:not(.f12-panel-quiet)',
+          '#dev-console-sheet .f12-console-overview-scene > .f12-panel',
         ),
       ];
       const heightDiff =
-        expressivePanels.length === 2
+        overviewPanels.length === 2
           ? Math.abs(
-              expressivePanels[0].getBoundingClientRect().height -
-                expressivePanels[1].getBoundingClientRect().height,
+              overviewPanels[0].getBoundingClientRect().height -
+                overviewPanels[1].getBoundingClientRect().height,
             )
           : 999;
-      return balloons === 1 && maxServiceLines <= 2 && heightDiff <= 120;
+      const text = document.getElementById('dev-console-sheet')?.textContent || '';
+      const hasTruthfulChartHeading = text.includes('Gateway Throughput & Selected Service');
+      return (
+        balloons === 1 &&
+        maxServiceLines <= 2 &&
+        heightDiff <= 120 &&
+        hasTruthfulChartHeading
+      );
     });
     await page.click('#dev-console-overview-goto-logs');
     await page.waitForTimeout(40);

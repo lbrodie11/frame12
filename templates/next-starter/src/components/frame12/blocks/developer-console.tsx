@@ -946,6 +946,57 @@ function DeveloperConsoleInner({
   const isEmptyDataset = datasetState === 'empty';
   const sloWithinBudget = snapshot.errorRateBasisPoints <= SLO_TARGET_MAX_ERROR_BPS;
 
+  const peakPoint = React.useMemo(
+    () =>
+      snapshot.series.reduce(
+        (best, pt) => (pt.value > best.value ? pt : best),
+        snapshot.series[0],
+      ),
+    [snapshot],
+  );
+
+  const rangeFooterMetrics = React.useMemo(() => {
+    const peakWindowValue =
+      snapshot.range === '24h'
+        ? `${fmtCompactNumber(peakPoint.value)}k (${peakPoint.label} UTC)`
+        : `${fmtCompactNumber(peakPoint.value)}k (${peakPoint.label})`;
+    const peakChartNote =
+      snapshot.range === '24h'
+        ? `peak ${fmtCompactNumber(peakPoint.value)}k at ${peakPoint.label} UTC`
+        : `peak ${fmtCompactNumber(peakPoint.value)}k on ${peakPoint.label}`;
+    const deliveredPct = ((10000 - snapshot.errorRateBasisPoints) / 100).toFixed(2);
+    const deliveredCount = snapshot.totalRequests - snapshot.errorCount;
+    const deliveredCountLabel =
+      deliveredCount >= 1_000_000
+        ? `${(deliveredCount / 1_000_000).toFixed(2)}M`
+        : `${(deliveredCount / 1_000).toFixed(1)}k`;
+    const deliveredValue = `${deliveredPct}% · ${deliveredCountLabel}`;
+
+    // Partition non-2xx responses into 5xx upstream faults and 4xx client/throttled (401/422/429)
+    const errorBreakdown =
+      snapshot.range === '24h'
+        ? {
+            upstream5xx: '0.11% · 1,631',
+            client4xx: '0.31% · 4,597',
+          }
+        : snapshot.range === '7d'
+          ? {
+              upstream5xx: '0.14% · 13,776',
+              client4xx: '0.37% · 36,409',
+            }
+          : {
+              upstream5xx: '0.16% · 63,056',
+              client4xx: '0.42% · 165,522',
+            };
+
+    return {
+      peakWindowValue,
+      peakChartNote,
+      deliveredValue,
+      ...errorBreakdown,
+    };
+  }, [snapshot, peakPoint]);
+
   const effectiveServices = React.useMemo<ConsoleServiceItem[]>(
     () =>
       CONSOLE_SERVICES.map((svc) =>
@@ -964,6 +1015,8 @@ function DeveloperConsoleInner({
 
   const selectedService =
     effectiveServices.find((s) => s.id === selectedServiceId) ?? effectiveServices[0];
+  const degradedServices = effectiveServices.filter((s) => s.status === 'degraded');
+  const primaryDegradedService = degradedServices[0] ?? effectiveServices[2];
 
   const chartData = React.useMemo<ToneAreaDatum[]>(() => {
     if (isEmptyDataset) return [];
@@ -978,13 +1031,19 @@ function DeveloperConsoleInner({
     () =>
       effectiveServices.map((svc) => ({
         id: svc.id,
-        name: svc.name,
+        name: `${svc.name} (${svc.code})`,
         value: svc.requests24h,
-        formattedValue: fmtCompactNumber(svc.requests24h),
+        formattedValue: isEmptyDataset
+          ? `${fmtCompactNumber(svc.requests24h)} · ${svc.errorRatePct} err`
+          : svc.status === 'degraded'
+            ? `${fmtCompactNumber(svc.requests24h)} · ${svc.errorRatePct} err (!)`
+            : svc.status === 'canary'
+              ? `${fmtCompactNumber(svc.requests24h)} · ${svc.errorRatePct} err (~1%)`
+              : `${fmtCompactNumber(svc.requests24h)} · ${svc.errorRatePct} err`,
         share: svc.share24h,
         pattern: svc.pattern,
       })),
-    [effectiveServices],
+    [effectiveServices, isEmptyDataset],
   );
 
   const effectiveEndpoints = React.useMemo<ConsoleEndpointItem[]>(
@@ -1288,6 +1347,7 @@ function DeveloperConsoleInner({
     logSearch,
     logStatusFilter,
     logServiceFilter,
+    selectedServiceId,
     resolvedIdPrefix,
   ]);
 
@@ -1333,16 +1393,16 @@ function DeveloperConsoleInner({
             ]}
           />
           <p className="f12-eyebrow">
-            <span>FERNWOOD RELAY · API &amp; WEBHOOK CONTROL PLANE</span>
-            <Tag>v2.4 · ON TWOS</Tag>
+            <span>API &amp; WEBHOOK CONTROL PLANE</span>
+            <Tag>v2.4</Tag>
             <Badge status="info" burst={false}>
-              SIMULATED SANDBOX · LOCAL FIXTURES
+              SIMULATED LOCAL FIXTURES
             </Badge>
           </p>
           <h1 className="f12-title">Developer Console</h1>
           <p className="f12-sub">
-            {snapshot.windowNote} · All credentials (f12_sim_*), circuit breakers, and replays
-            execute against deterministic in-memory fixtures and are never persisted remotely.
+            {snapshot.windowNote} · Simulated credentials (f12_sim_*), circuit breakers, and replays
+            execute against deterministic in-memory fixtures.
           </p>
         </div>
 
@@ -1354,7 +1414,7 @@ function DeveloperConsoleInner({
           >
             <Select
               id={`${resolvedIdPrefix}-env-select`}
-              label="Environment"
+              label="Simulated Environment"
               value={environment}
               onValueChange={(v) => setEnvironment(v as ConsoleEnvironment)}
             >
@@ -1414,7 +1474,12 @@ function DeveloperConsoleInner({
       {headerSlot}
 
       {/* Scene 1: Expressive Establishing Shot KPI Panels (C-01, C-02, C-03) */}
-      <Scene gutter="scene" layout="three" aria-busy={datasetState === 'loading'}>
+      <Scene
+        gutter="scene"
+        layout="three"
+        className="f12-console-kpi-scene"
+        aria-busy={datasetState === 'loading'}
+      >
         <Panel label="Gateway request volume">
           {datasetState === 'loading' ? (
             <div className="f12-stack-pair" data-testid="console-kpi-skeleton">
@@ -1423,10 +1488,10 @@ function DeveloperConsoleInner({
               <SkeletonText lines={2} />
             </div>
           ) : (
-            <div className="f12-stack-pair">
+            <div className="f12-console-kpi-card">
               <div className="f12-row-between">
-                <Tag>CUT · THROUGHPUT</Tag>
-                <span className="f12-mono-note">{snapshot.label}</span>
+                <Tag>THROUGHPUT</Tag>
+                <span className="f12-mono-note">{snapshot.windowNote}</span>
               </div>
               <Metric
                 big
@@ -1440,8 +1505,21 @@ function DeveloperConsoleInner({
                 comparisonLabel={
                   isEmptyDataset ? 'awaiting first dispatch' : snapshot.requestDeltaNote
                 }
-                note={snapshot.windowNote}
               />
+              <div className="f12-console-kv-list f12-console-kpi-foot">
+                <div className="f12-console-kv-item">
+                  <span className="f12-console-kv-label">Peak Interval</span>
+                  <span className="f12-console-kv-value">
+                    {isEmptyDataset ? '0 reqs' : rangeFooterMetrics.peakWindowValue}
+                  </span>
+                </div>
+                <div className="f12-console-kv-item">
+                  <span className="f12-console-kv-label">2xx Delivered</span>
+                  <span className="f12-console-kv-value">
+                    {isEmptyDataset ? '0.00% · 0' : rangeFooterMetrics.deliveredValue}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </Panel>
@@ -1454,7 +1532,7 @@ function DeveloperConsoleInner({
               <SkeletonText lines={2} />
             </div>
           ) : (
-            <div className="f12-stack-pair">
+            <div className="f12-console-kpi-card">
               <div className="f12-row-between">
                 <Tag
                   id={`${resolvedIdPrefix}-slo-status-tag`}
@@ -1473,12 +1551,13 @@ function DeveloperConsoleInner({
                     : isEmptyDataset
                       ? 'IDLE'
                       : sloWithinBudget
-                        ? 'SLO WITHIN BUDGET'
-                        : 'SLO BUDGET BREACHED'}
+                        ? 'GATEWAY SLO: HEALTHY'
+                        : 'GATEWAY SLO: BREACHED'}
                 </Tag>
-                <span className="f12-mono-note">99.50% SLO Target</span>
+                <span className="f12-mono-note">0.50% non-2xx limit</span>
               </div>
               <Metric
+                big
                 headingLevel="h2"
                 label="Error & Throttle Rate"
                 value={isEmptyDataset ? 0 : snapshot.errorRateBasisPoints}
@@ -1490,6 +1569,20 @@ function DeveloperConsoleInner({
                   isEmptyDataset ? 'no failed requests' : snapshot.errorDeltaNote
                 }
               />
+              <div className="f12-console-kv-list f12-console-kpi-foot">
+                <div className="f12-console-kv-item">
+                  <span className="f12-console-kv-label">5xx Upstream Faults</span>
+                  <span className="f12-console-kv-value">
+                    {isEmptyDataset ? '0 (0.00%)' : rangeFooterMetrics.upstream5xx}
+                  </span>
+                </div>
+                <div className="f12-console-kv-item">
+                  <span className="f12-console-kv-label">4xx Client &amp; Throttled</span>
+                  <span className="f12-console-kv-value">
+                    {isEmptyDataset ? '0 (0.00%)' : rangeFooterMetrics.client4xx}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </Panel>
@@ -1502,12 +1595,13 @@ function DeveloperConsoleInner({
               <Skeleton variant="block" height={74} />
             </div>
           ) : (
-            <div className="f12-stack-pair">
+            <div className="f12-console-kpi-card">
               <div className="f12-row-between">
                 <Tag status="info">EDGE P95</Tag>
                 <span className="f12-mono-note">Budget &lt; 65 ms</span>
               </div>
               <Metric
+                big
                 headingLevel="h2"
                 label="p95 Edge Latency"
                 value={isEmptyDataset ? 0 : snapshot.p95LatencyMs}
@@ -1520,12 +1614,14 @@ function DeveloperConsoleInner({
                 }
               />
               {datasetState === 'populated' && (
-                <ToneSpark
-                  values={snapshot.latencySpark}
-                  label={`${snapshot.label} p95 latency trend in milliseconds`}
-                  rangeKey={snapshot.range}
-                  motion={motion}
-                />
+                <div className="f12-console-kpi-spark">
+                  <ToneSpark
+                    values={snapshot.latencySpark}
+                    label={`${snapshot.label} p95 trend (window ${snapshot.p95LatencyMs} ms)`}
+                    rangeKey={snapshot.range}
+                    motion={motion}
+                  />
+                </div>
               )}
             </div>
           )}
@@ -1625,10 +1721,10 @@ function DeveloperConsoleInner({
         {/* =============================================================== TAB 1: OVERVIEW */}
         <TabsContent value="overview">
           <div className="f12-stack-scene">
-            <Scene gutter="scene" layout="equal">
+            <Scene gutter="scene" layout="equal" className="f12-console-overview-scene">
               <Panel
                 variant="expressive"
-                label="Primary request throughput and baseline comparison"
+                label="Primary request throughput and service overlay"
               >
                 {datasetState === 'loading' ? (
                   <div className="f12-stack-pair">
@@ -1638,23 +1734,33 @@ function DeveloperConsoleInner({
                   </div>
                 ) : (
                   <div className="f12-stack-pair">
-                    <div className="f12-stack-pair">
+                    <div className="f12-row-between">
                       <div className="f12-row-pair">
-                        <Tag>EXPOSURE CHART · REQUESTS (K)</Tag>
+                        <Tag>REQUEST TRAFFIC (K)</Tag>
                         <Badge status="neutral" burst={false}>
                           {`OVERLAY: ${selectedService.code}`}
                         </Badge>
                       </div>
-                      <h2 className="f12-section-title">
-                        Gateway Throughput vs. Prior Baseline
-                      </h2>
+                      <span className="f12-console-kbd-hint">
+                        <kbd>←</kbd> <kbd>→</kbd> Inspect intervals
+                      </span>
                     </div>
+                    <h2 className="f12-section-title">
+                      Gateway Throughput &amp; Selected Service
+                    </h2>
 
-                    <p className="f12-muted-copy">
-                      Solid 45° halftone area shows total gateway volume (thousands of requests);
-                      dashed line with hollow diamond registration markers overlays{' '}
-                      <strong>{selectedService.name}</strong>. Use Left/Right arrow keys on the
-                      chart to scrub individual intervals.
+                    <p className="f12-console-quiet-sub">
+                      {isEmptyDataset ? (
+                        <>
+                          {`No throughput samples recorded in the selected ${snapshot.label.toLowerCase()} window · Selected overlay = `}
+                          <strong>{selectedService.name}</strong> ({selectedService.code}).
+                        </>
+                      ) : (
+                        <>
+                          {`Shaded area = Total gateway traffic (${rangeFooterMetrics.peakChartNote}) · Dashed line = `}
+                          <strong>{selectedService.name}</strong> ({selectedService.code}).
+                        </>
+                      )}
                     </p>
 
                     {isEmptyDataset ? (
@@ -1673,7 +1779,7 @@ function DeveloperConsoleInner({
                           ariaLabel={`Gateway request throughput over ${snapshot.label} with ${selectedService.name} comparison series`}
                           tableSummary="View tabular throughput and service overlay data"
                           seriesLabel={`Total Gateway (${snapshot.label})`}
-                          compareLabel={selectedService.name}
+                          compareLabel={`${selectedService.name} (${selectedService.code})`}
                           formatValue={(v) => `${fmtCompactNumber(v)}k reqs`}
                         />
                         <div
@@ -1687,9 +1793,9 @@ function DeveloperConsoleInner({
                             </span>
                           </div>
                           <div className="f12-console-kv-item">
-                            <span className="f12-console-kv-label">Active Overlay Series</span>
+                            <span className="f12-console-kv-label">Overlay Series</span>
                             <span className="f12-console-kv-value">
-                              {`${selectedService.code} · ${Math.round(selectedService.share24h * 100)}% share`}
+                              {`${selectedService.code} · ${Math.round(selectedService.share24h * 100)}% share (${selectedService.errorRatePct} err)`}
                             </span>
                           </div>
                         </div>
@@ -1700,8 +1806,8 @@ function DeveloperConsoleInner({
               </Panel>
 
               <Panel
-                variant="expressive"
-                label="Ranked service volume and control-plane insights"
+                variant="quiet"
+                label="Ranked service traffic and error status"
               >
                 {datasetState === 'loading' ? (
                   <div className="f12-stack-pair">
@@ -1711,21 +1817,25 @@ function DeveloperConsoleInner({
                   </div>
                 ) : (
                   <div className="f12-stack-pair">
-                    <div className="f12-row-pair">
-                      <Tag>RANKED SERVICES · 24H SHARE</Tag>
-                      <Tag status={statusToTagStatus(selectedService.status)}>
-                        {statusToLabel(selectedService.status)}
-                      </Tag>
+                    <div className="f12-row-between">
+                      <span className="f12-console-quiet-title">
+                        SERVICE TRAFFIC &amp; HEALTH (1.00% LIMIT)
+                      </span>
+                      <Badge status={isEmptyDataset ? 'neutral' : 'warning'} burst={false}>
+                        {isEmptyDataset
+                          ? '0 SAMPLES · IDLE'
+                          : `${degradedServices.length} OF ${effectiveServices.length} DEGRADED · 1 NEAR LIMIT`}
+                      </Badge>
                     </div>
-                    <h2 className="f12-section-title">Service Volume Breakdown</h2>
-                    <p className="f12-muted-copy">
-                      Select a service row to overlay its traffic curve onto the primary exposure
-                      chart and inspect its 24-hour operational health.
+                    <p className="f12-console-quiet-sub">
+                      Select any service row to overlay its traffic on the gateway chart. Service
+                      error limit is 1.00% (vs. 0.50% gateway-wide limit).
                     </p>
 
                     <ToneBarList
                       idPrefix={`${resolvedIdPrefix}-svc-bar`}
-                      title="24h Request Share by Service"
+                      density="compact"
+                      title="24h Traffic & Error Rate by Service"
                       subtitle={
                         isEmptyDataset ? 'Total 0 requests' : 'Total 1,482,900 requests'
                       }
@@ -1739,17 +1849,66 @@ function DeveloperConsoleInner({
 
                     <div className="f12-console-kv-list" aria-label="Selected service telemetry">
                       <div className="f12-console-kv-item">
-                        <span className="f12-console-kv-label">Selected Service</span>
+                        <span className="f12-console-kv-label">{`Selected Service (${selectedService.code})`}</span>
                         <span className="f12-console-kv-value">{selectedService.name}</span>
                       </div>
                       <div className="f12-console-kv-item">
-                        <span className="f12-console-kv-label">p95 Latency / Error Rate</span>
+                        <span className="f12-console-kv-label">
+                          Service Health (1.00% Limit)
+                        </span>
                         <span className="f12-console-kv-value">
-                          {`${selectedService.p95Ms} ms · ${selectedService.errorRatePct}`}
+                          {isEmptyDataset
+                            ? `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (NO SAMPLES)`
+                            : selectedService.status === 'degraded'
+                              ? `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (DEGRADED > 1.0%)`
+                              : selectedService.status === 'canary'
+                                ? `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (NEAR LIMIT · CANARY)`
+                                : `${selectedService.p95Ms} ms · ${selectedService.errorRatePct} (HEALTHY)`}
                         </span>
                       </div>
                     </div>
-                    <p className="f12-mono-note">{selectedService.summary}</p>
+
+                    <div
+                      className="f12-console-investigate-bar"
+                      role="group"
+                      aria-label="Service investigation actions"
+                    >
+                      <p className="f12-mono-note">{selectedService.summary}</p>
+                      <div className="f12-row-pair">
+                        {!isEmptyDataset && selectedService.id !== primaryDegradedService.id && (
+                          <Button
+                            id={`${resolvedIdPrefix}-focus-degraded-svc`}
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              const targetId = `int-${resolvedIdPrefix}-svc-bar-${primaryDegradedService.id}`;
+                              document
+                                .getElementById(targetId)
+                                ?.focus({ preventScroll: true });
+                              pendingFocusTargetIdRef.current = targetId;
+                              setSelectedServiceId(primaryDegradedService.id);
+                            }}
+                          >
+                            {`Overlay ${primaryDegradedService.code} (${primaryDegradedService.errorRatePct} err)`}
+                          </Button>
+                        )}
+                        <Button
+                          id={`${resolvedIdPrefix}-investigate-svc-logs`}
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setLogServiceFilter(selectedService.id);
+                            setLogStatusFilter('all');
+                            setLogSearch('');
+                            setLogPage(1);
+                            pendingFocusTargetIdRef.current = `${resolvedIdPrefix}-log-search`;
+                            setActiveSection('request-logs');
+                          }}
+                        >
+                          {`Inspect ${selectedService.code} logs →`}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </Panel>
@@ -1761,9 +1920,11 @@ function DeveloperConsoleInner({
                 <div className="f12-row-between">
                   <div className="f12-row-pair">
                     <span className="f12-console-quiet-title">
-                      RECENT CONTROL-PLANE ACTIVITY (EXPOSURE LEDGER)
+                      RECENT CONTROL-PLANE AUDIT LOG
                     </span>
-                    <Tag status="neutral">QUIET LEDGER</Tag>
+                    <Badge status="neutral" burst={false}>
+                      LAST 4 EVENTS
+                    </Badge>
                   </div>
                   <Button
                     id={`${resolvedIdPrefix}-overview-goto-logs`}
