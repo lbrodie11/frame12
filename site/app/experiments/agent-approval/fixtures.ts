@@ -14,6 +14,7 @@ export type ApprovalLifecycleState =
   | 'approval-requested'
   | 'approved'
   | 'rejected'
+  | 'correction-requested'
   | 'expired'
   | 'superseded';
 
@@ -186,7 +187,12 @@ export interface SimulatedDecisionHistoryEntry {
   toolName: string;
   scenarioCode: string;
   conversationId: string;
-  decision: 'APPROVED' | 'REJECTED' | 'EXPIRED_BLOCKED' | 'SUPERSEDED_BLOCKED';
+  decision:
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'CORRECTION_REQUESTED'
+    | 'EXPIRED_BLOCKED'
+    | 'SUPERSEDED_BLOCKED';
   actor: string;
   summary: string;
   acknowledgmentRecorded: string | null;
@@ -850,6 +856,9 @@ export function evaluateApprovalRequest(
     disableApproveReason = 'Decision already recorded: Request was approved in local demonstration state.';
   } else if (effectiveStatus === 'rejected') {
     disableApproveReason = 'Decision already recorded: Request was rejected in local demonstration state.';
+  } else if (effectiveStatus === 'correction-requested') {
+    disableApproveReason =
+      'Decision already recorded: Operator requested correction from the agent in local demonstration state.';
   } else if (isExpired && isSuperseded) {
     disableApproveReason = `Approve disabled: Approval window expired at ${request.expiresAt.replace('T', ' ').replace('Z', ' UTC')} AND conversation ${request.conversation.conversationId} advanced from turn #${request.conversation.turnNumber} to turn #${request.conversation.latestTurnNumber} (${request.conversation.changeSummary ?? 'parameters changed'}).`;
   } else if (isExpired) {

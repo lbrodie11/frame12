@@ -675,7 +675,7 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
 
 /* Experimental Agent Approval Inbox (/experiments/agent-approval) */
 .f12-scene.f12-exp-approval-main-scene {
-  grid-template-columns: minmax(240px, 275px) minmax(0, 1fr);
+  grid-template-columns: minmax(270px, 290px) minmax(0, 1fr);
   align-items: start;
 }
 
@@ -731,7 +731,7 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
 
 .f12-exp-queue-meta {
   font-family: var(--font-f-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--f-ink-2);
   margin: 0;
@@ -777,15 +777,15 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   color: var(--f-marker-ink);
   border: 1.5px solid var(--f-rule);
   font-family: var(--font-f-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
 
 #exp-approval-comparison-table th,
 #exp-approval-comparison-table td {
-  padding: 7px 6px;
-  font-size: 11.5px;
+  padding: 8px 6px;
+  font-size: 12.5px;
 }
 
 .f12-exp-queue-top .f12-badge,
@@ -851,7 +851,7 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
 
 .f12-exp-kv-label {
   font-family: var(--font-f-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;

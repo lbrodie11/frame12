@@ -2215,6 +2215,11 @@ try {
       const compTableFitsAt1280 = Boolean(
         compWrap && compWrap.scrollWidth <= compWrap.clientWidth + 1,
       );
+      const saferPath = document.getElementById('exp-approval-recommended-safer-path');
+      const proseLimit = document.getElementById('exp-approval-prose-limitation-note');
+      const techDetails = document.getElementById('exp-approval-technical-details');
+      const overrideDetails = document.getElementById('exp-approval-unsafe-override-details');
+      const rejectBtn = document.getElementById('exp-approval-reject-btn');
 
       return {
         ok: true,
@@ -2223,6 +2228,27 @@ try {
         visualOrderOk,
         compTableFitsAt1280,
         unverifiedLabelOk: s3Heading.includes("Agent's description (unverified)"),
+        saferPathVisibleOnMismatch: Boolean(
+          saferPath &&
+            saferPath.textContent?.includes(
+              'Recommended Safer Decision: Reject Tool Call or Request Correction',
+            ),
+        ),
+        proseLimitationStated: Boolean(
+          proseLimit &&
+            proseLimit.textContent?.includes('does not verify whether free-form AI prose is truthful'),
+        ),
+        techDetailsCollapsedInitially:
+          techDetails instanceof HTMLDetailsElement && !techDetails.open,
+        overrideDetailsCollapsedInitially:
+          overrideDetails instanceof HTMLDetailsElement &&
+          !overrideDetails.open &&
+          Boolean(
+            rejectBtn &&
+              overrideDetails &&
+              (rejectBtn.compareDocumentPosition(overrideDetails) &
+                Node.DOCUMENT_POSITION_FOLLOWING),
+          ),
         pinnedHasAll3Mismatches:
           pinText.includes('[×] MISMATCH · Refund Amount (USD)') &&
           pinText.includes('$2,500.00 USD') &&
@@ -2254,7 +2280,8 @@ try {
     });
     await page.click('#exp-approval-toggle-long-arg');
 
-    // 3) Tick the explicit mismatch acknowledgment checkbox and approve Scenario B -> verify acknowledgment is recorded in simulated history & focus is preserved
+    // 3) Expand the unsafe-override disclosure, tick the explicit mismatch acknowledgment checkbox, and approve Scenario B -> verify acknowledgment is recorded in simulated history & focus is preserved
+    await page.click('#exp-approval-unsafe-override-summary');
     await page.click('#exp-approval-mismatch-ack');
     const approveEnabledAfterAck = await page.evaluate(
       () => !document.getElementById('exp-approval-approve-btn')?.hasAttribute('disabled'),
@@ -2330,6 +2357,38 @@ try {
       );
       const reason = document.getElementById('exp-approval-disabled-reason')?.textContent || '';
       return approveDisabled && reason.includes('advanced to turn #5');
+    });
+
+    // Test "Try the Misleading $2,500 Refund" CTA and "Request Correction" safer decision action, plus verify CTA does NOT reopen completed requests
+    await page.click('#exp-approval-try-misleading-btn');
+    await page.fill(
+      '#exp-approval-operator-note',
+      'Do not approve: external wire is prohibited.',
+    );
+    await page.click('#exp-approval-request-correction-btn');
+    await page.click('#exp-approval-try-misleading-btn');
+    const correctionRequestedOk = await page.evaluate(() => {
+      const disabledReason =
+        document.getElementById('exp-approval-disabled-reason')?.textContent || '';
+      const histText = document.getElementById('exp-approval-history-table')?.textContent || '';
+      const approveStillDisabled = Boolean(
+        document.getElementById('exp-approval-approve-btn')?.hasAttribute('disabled'),
+      );
+      const rejectStillDisabled = Boolean(
+        document.getElementById('exp-approval-reject-btn')?.hasAttribute('disabled'),
+      );
+      const correctionStillDisabled = Boolean(
+        document.getElementById('exp-approval-request-correction-btn')?.hasAttribute('disabled'),
+      );
+      return (
+        approveStillDisabled &&
+        rejectStillDisabled &&
+        correctionStillDisabled &&
+        disabledReason.includes('Operator requested correction from the agent') &&
+        histText.includes('CORRECTION_REQUESTED') &&
+        histText.includes('Requested correction on payments.issueRefund (ORD-9104)') &&
+        histText.includes('Do not approve: external wire is prohibited.')
+      );
     });
     await page.click('#exp-approval-reset-btn');
 
@@ -2411,6 +2470,10 @@ try {
         initialInspection.visualOrderOk &&
         initialInspection.compTableFitsAt1280 &&
         initialInspection.unverifiedLabelOk &&
+        initialInspection.saferPathVisibleOnMismatch &&
+        initialInspection.proseLimitationStated &&
+        initialInspection.techDetailsCollapsedInitially &&
+        initialInspection.overrideDetailsCollapsedInitially &&
         initialInspection.pinnedHasAll3Mismatches &&
         initialInspection.approveDisabledInitially &&
         initialInspection.ackUncheckedInitially &&
@@ -2431,6 +2494,7 @@ try {
         scenarioCCheck.reasonHasExpiryAndTurn &&
         lateClockExpiredScenarioA &&
         simulatedTurnChangeBlocked &&
+        correctionRequestedOk &&
         narrowAndReducedMotion.noOverflow &&
         narrowAndReducedMotion.pinVisible &&
         computedEvidenceProbesOk,
@@ -2445,6 +2509,7 @@ try {
         scenarioCCheck,
         lateClockExpiredScenarioA,
         simulatedTurnChangeBlocked,
+        correctionRequestedOk,
         narrowAndReducedMotion,
         computedEvidenceProbesOk,
       }),
