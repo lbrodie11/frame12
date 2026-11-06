@@ -16,7 +16,7 @@ import {
   TableCell,
   TableCaption,
 } from '@/components/frame12';
-import { CATALOG, type ComponentCategory } from '@/lib/catalog';
+import { CATALOG, BLOCK_CATALOG, type ComponentCategory } from '@/lib/catalog';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
 import { REGISTRY_BASE_URL } from '@/lib/config';
@@ -232,6 +232,59 @@ export default function ComponentsIndexPage() {
                         aria-label={`Inspect ${entry.title}`}
                       >
                         Inspect →
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Panel>
+      </Scene>
+
+      <Scene gutter="scene" layout="stack">
+        <Panel variant="quiet" label="Application blocks (registry:block)">
+          <div className="f12-stack-pair">
+            <div className="f12-row-pair">
+              <Tag status="info">05 · Application Blocks</Tag>
+              <span className="f12-mono-note">
+                DeveloperConsole · WorkspaceSettings · AnalyticsDashboard (registry:block)
+              </span>
+            </div>
+            <h2 className="f12-section-title">Installable full-screen application blocks</h2>
+            <Table>
+              <TableCaption>
+                Production-ready application blocks combining Expressive storyboard cuts with Quiet operational ledgers and deterministic fixtures.
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Block &amp; Registry</TableHead>
+                  <TableHead scope="col">Dependencies</TableHead>
+                  <TableHead scope="col">Summary</TableHead>
+                  <TableHead scope="col">Interactive Showcase</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {BLOCK_CATALOG.map((block) => (
+                  <TableRow key={block.slug}>
+                    <TableCell>
+                      <div className="f12-comp-cell">
+                        <strong>{block.title}</strong>
+                        <code className="f12-code-inline f12-nowrap">/r/{block.slug}.json</code>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Tag>{block.componentDependencies.length} items</Tag>
+                    </TableCell>
+                    <TableCell>{block.summary}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={block.route}
+                        id={`block-link-${block.slug}`}
+                        className="f12-link-btn f12-nowrap"
+                        aria-label={`Open ${block.title}`}
+                      >
+                        Open Block →
                       </Link>
                     </TableCell>
                   </TableRow>

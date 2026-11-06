@@ -130,7 +130,7 @@ export default function AgentsPage() {
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
-            AI Agent Skill · Static Rule Linter · Reproduction Eval
+            AI Agent Skill · Static Rule Linter · Guardrail Fixture Suite
             <Tag>skills/frame12/SKILL.md</Tag>
           </p>
           <h1 className="f12-title">FRAME/12 for coding agents</h1>
@@ -384,6 +384,116 @@ export default function AgentsPage() {
                   <TableCell>Pass</TableCell>
                   <TableCell>Pass</TableCell>
                   <TableCell>Pass</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </Panel>
+      </Scene>
+
+      <Scene gutter="scene" layout="stack">
+        <Panel variant="quiet" label="4-condition × 6-task guardrail and reference fixture suite">
+          <div className="f12-stack-pair" id="agents-four-condition-eval">
+            <div className="f12-row-pair">
+              <Tag status="info">eval/agent-eval/results/REPORT.md</Tag>
+              <span className="f12-mono-note">
+                4 conditions × 6 application tasks (24 fixture screens) · Universal Quality vs. FRAME/12 Grammar
+              </span>
+            </div>
+            <h2 className="f12-section-title">
+              4-condition × 6-task guardrail &amp; reference fixture suite
+            </h2>
+            <p className="f12-body-copy">
+              Regression-tests 6 application tasks (
+              <code className="f12-code-inline">01-dashboard</code>,{' '}
+              <code className="f12-code-inline">02-settings</code>,{' '}
+              <code className="f12-code-inline">03-developer-console</code>,{' '}
+              <code className="f12-code-inline">04-data-heavy</code>,{' '}
+              <code className="f12-code-inline">05-landing-page</code>,{' '}
+              <code className="f12-code-inline">06-multi-step-form</code>) across 4 committed
+              fixture conditions: a conventional shadcn/Tailwind baseline (Condition 1), a negative
+              fixture suite with planted linter &amp; runtime violations across all 6 static checker
+              rules (Condition 2), pre-checker reference fixtures with planted single-rule drift in
+              Tasks 02 and 04 (Condition 3), and checker-verified reference fixtures after
+              remediation (Condition 4). Universal UI quality metrics (esbuild compile,{' '}
+              <code className="f12-code-inline">tsc --noEmit</code>, axe WCAG AA, light/dark
+              contrast, keyboard reachability, interactive workflows, 1280px/390px overflow) are
+              measured separately from FRAME/12 grammar compliance so the conventional baseline
+              (Condition 1) is never penalized for FRAME/12-specific rules.
+            </p>
+            <CopyCommand
+              id="agents-copy-eval-runner"
+              label="Run 24-screen guardrail fixture suite"
+              command="node eval/agent-eval/run-eval.mjs"
+            />
+            <Table density="compact">
+              <TableCaption>
+                Deterministic fixture results from eval/agent-eval/results/summary.json (6 application tasks per condition; no live LLM calls)
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Condition</TableHead>
+                  <TableHead scope="col">Universal UI Quality</TableHead>
+                  <TableHead scope="col">Axe WCAG AA Violations</TableHead>
+                  <TableHead scope="col">Contrast Failures (L+D)</TableHead>
+                  <TableHead scope="col">FRAME/12 Grammar Pass</TableHead>
+                  <TableHead scope="col">Static Checker Violations</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>
+                    <strong>C1 · Conventional shadcn/Tailwind Baseline</strong>
+                  </TableCell>
+                  <TableCell>
+                    <Tag status="success">6 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>N/A (Baseline)</TableCell>
+                  <TableCell>N/A (Baseline)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>
+                    <strong>C2 · Negative Fixture Suite (Planted Violations)</strong>
+                  </TableCell>
+                  <TableCell>
+                    <Tag status="danger">0 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>7</TableCell>
+                  <TableCell>15 (planted low-contrast &amp; marker misuse)</TableCell>
+                  <TableCell>
+                    <Tag status="danger">0 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>58 (all 6 static rules exercised: 13, 11, 9, 4, 8, 13)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>
+                    <strong>C3 · Pre-Checker Reference Fixtures (Planted Drift)</strong>
+                  </TableCell>
+                  <TableCell>
+                    <Tag status="success">6 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>
+                    <Tag status="info">4 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>2 (explicit-cut-in-autocut in 02, 16px illegal-gutter in 04)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>
+                    <strong>C4 · Checker-Verified Reference Fixtures (Remediated)</strong>
+                  </TableCell>
+                  <TableCell>
+                    <Tag status="success">6 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>0</TableCell>
+                  <TableCell>
+                    <Tag status="success">6 / 6 Pass</Tag>
+                  </TableCell>
+                  <TableCell>0</TableCell>
                 </TableRow>
               </TableBody>
             </Table>

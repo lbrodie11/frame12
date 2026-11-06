@@ -117,6 +117,71 @@ export default function GetStartedPage() {
         />
       </header>
 
+      <Scene gutter="scene" layout="stack">
+        <Panel variant="quiet" label="1-minute onboarding summary">
+          <div className="f12-stack-pair" id="onboarding-one-minute-summary">
+            <div className="f12-row-between">
+              <div className="f12-row-pair">
+                <Tag status="info">60-Second Overview</Tag>
+                <span className="f12-mono-note">
+                  What · Why · What to Build · Install · Customize · Agent Skill · Grammar Enforcement
+                </span>
+              </div>
+              <div className="f12-row-pair">
+                <Link href="/blocks/developer-console" className="f12-link-btn">
+                  Developer Console →
+                </Link>
+                <Link href="/blocks/workspace-settings" className="f12-link-btn">
+                  Workspace Settings →
+                </Link>
+                <Link href="/blocks/analytics-dashboard" className="f12-link-btn">
+                  Analytics Dashboard →
+                </Link>
+              </div>
+            </div>
+            <h2 className="f12-section-title">Understand FRAME/12 in 1 minute</h2>
+            <div className="f12-console-kv-list">
+              <div className="f12-console-kv-item">
+                <span className="f12-console-kv-label">1. What FRAME/12 Is &amp; Why It Exists</span>
+                <span className="f12-console-kv-value">
+                  Page-Composition &amp; Cel-Animation Interface System (41 Registry Payloads)
+                </span>
+                <span className="f12-mono-note">
+                  Replaces generic SaaS cards, color gradients, and continuous micro-animations with
+                  2.5px mitered ink panels, 45° rotated SVG screentone fills, sequential C-01..C-0n
+                  cuts, 1px Quiet operational ledgers, and 12fps stepped motion (&quot;on twos&quot;).
+                </span>
+              </div>
+              <div className="f12-console-kv-item">
+                <span className="f12-console-kv-label">2. What You Can Build &amp; How to Install</span>
+                <span className="f12-console-kv-value">
+                  26 Core Components + 5 Primitive Adapters + 3 Full Application Blocks
+                </span>
+                <span className="f12-mono-note">
+                  Build analytics workstations, API control planes, dense settings ledgers, and
+                  product pages. Install via npx shadcn@latest add {REGISTRY_BASE_URL}/frame12.json or
+                  add developer-console.json, workspace-settings.json, or analytics-dashboard.json.
+                </span>
+              </div>
+              <div className="f12-console-kv-item">
+                <span className="f12-console-kv-label">
+                  3. How to Customize, Guide Agents &amp; Enforce Grammar
+                </span>
+                <span className="f12-console-kv-value">
+                  --f-* Token Overrides · Expressive/Quiet Hierarchy · SKILL.md + check-frame12.mjs
+                </span>
+                <span className="f12-mono-note">
+                  Override --f-* CSS variables in globals.css, mix Expressive hero panels with{' '}
+                  &lt;Panel variant=&quot;quiet&quot;&gt; and compact density, load skills/frame12/SKILL.md (or
+                  /llms-full.txt) into your AI coding agent, and run node scripts/check-frame12.mjs in
+                  CI.
+                </span>
+              </div>
+            </div>
+          </div>
+        </Panel>
+      </Scene>
+
       <Scene gutter="scene" layout="split">
         <Panel label="Step 1: Project setup and self-hosted fonts">
           <div className="f12-stack-scene">

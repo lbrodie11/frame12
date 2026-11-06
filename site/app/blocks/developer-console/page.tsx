@@ -6,6 +6,7 @@ import { Panel, Badge, Tag } from '@/components/frame12';
 import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
+import { BlockDocumentationSection } from '@/components/block-doc-footer';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 
 export default function DeveloperConsoleShowcasePage() {
@@ -102,6 +103,8 @@ export default function DeveloperConsoleShowcasePage() {
               </div>
             </div>
           </Panel>
+
+          <BlockDocumentationSection slug="developer-console" />
         </div>
       }
     />

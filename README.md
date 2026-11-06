@@ -190,21 +190,23 @@ FRAME/12 replaces subjective styling feedback with eight explicit rules—**five
 npm install
 npx playwright install --with-deps chromium firefox webkit # first time only, for automated cross-browser verification
 npm run build                     # builds lab, registry, eval, site, and templates/next-starter
+npm run doc:check                 # verifies canonical TypeScript API <-> documentation & skill sync
 npm run lint:frame12              # runs static design-grammar checker across all workspaces
-npm test                          # runs sync checks, static linter, and Playwright a11y/functional suites
+npm test                          # runs sync checks, doc checks, static linter, and Playwright a11y/functional suites
 ```
 
 - Run the documentation site locally: `npm --workspace=@frame12/site run dev`
 - Run the standalone Next.js starter template: `npm --prefix templates/next-starter run dev`
 - Verify registry JSON placement and React 18/19 type-checking: `node scripts/smoke-install.mjs`
+- Run the 4-condition × 6-task (`24`-screen) guardrail & reference fixture suite: `node eval/agent-eval/run-eval.mjs`
 
 | Workspace / Directory | Contents |
 | --- | --- |
-| [`registry/`](registry/) | Source for the 22 `shadcn`-compatible registry payloads (`registry/ui/`, `registry/hooks/use-on-twos.ts`, `registry/styles/frame12.css`), built into `site/public/r/*.json`. |
+| [`registry/`](registry/) | Source for the 41 `shadcn`-compatible registry payloads (`registry/ui/`, `registry/blocks/`, `registry/hooks/use-on-twos.ts`, `registry/styles/frame12.css`), built into `site/public/r/*.json`. |
 | [`skills/frame12/`](skills/frame12/) | Portable AI Agent Skill (`SKILL.md`, `references/components-and-adapters.md`, `references/examples-and-mistakes.md`) and ESLint flat config (`eslint.frame12.mjs`). |
 | [`site/`](site/) | Next.js App Router documentation and interactive showcase deployed at **[frame12.dev](https://frame12.dev)**. |
 | [`templates/next-starter/`](templates/next-starter/) | Standalone Next.js App Router + TypeScript starter template pre-configured with local WOFF2 fonts (`next/font/local`), `.claude/skills/frame12/SKILL.md`, and `scripts/check-frame12.mjs`. |
-| [`eval/`](eval/) | AI reproduction benchmark across 3 product archetypes (`01-settings`, `02-landing-hero`, `03-data-table`), static linter tests (`check-linter.mjs`), and Playwright WCAG AA + mobile verification ([`eval/RESULTS.md`](eval/RESULTS.md)). |
+| [`eval/`](eval/) | Reference screens across 3 product archetypes (`01-settings`, `02-landing-hero`, `03-data-table`), 4-condition × 6-task guardrail & reference fixture suite ([`eval/agent-eval/`](eval/agent-eval/)), static linter tests (`check-linter.mjs`), and Playwright WCAG AA + mobile verification ([`eval/RESULTS.md`](eval/RESULTS.md)). |
 | [`lab/`](lab/) | Phase 1 recovery dashboard prototype (`prototype.html`), interactive A/B comparison harness (`study.html`), and interactive style sheet (`style-sheet.html`). |
 
 ---

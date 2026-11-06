@@ -1,0 +1,79 @@
+{
+  "version": "0.2.0",
+  "tasks": [
+    {
+      "id": "01-dashboard",
+      "title": "Operational Incident & SLO Dashboard",
+      "category": "Dashboard",
+      "prompt": "Build an Operational Incident & SLO Dashboard with a 7D/30D/90D window switcher, primary Mean Time to Recovery (MTTR) KPI, 30-day error-budget burn rate time-series chart with accessible data table, paired P95 latency and SLO uptime KPIs, ranked service blast-radius breakdown, and an active incident responder table.",
+      "hasChart": true,
+      "targetHierarchy": "expressive-plus-quiet"
+    },
+    {
+      "id": "02-settings",
+      "title": "Organization Security & Billing Preferences",
+      "category": "Settings",
+      "prompt": "Build an Organization Security & Billing Preferences screen with a top security posture summary and quiet operational configuration sections for SSO & Passkey Enforcement, Invoice Routing & Spend Caps, and Audit Log Retention, including linked form fields, switches, radio group, validation notice, and save/reset actions.",
+      "hasChart": false,
+      "targetHierarchy": "quiet-led"
+    },
+    {
+      "id": "03-developer-console",
+      "title": "Webhook Delivery & Event Stream Console",
+      "category": "Developer Console",
+      "prompt": "Build a Webhook Delivery & Event Stream Console with environment toggle (PROD/STAGE), delivery success KPI, 24h webhook throughput & retry time-series chart, ranked destination endpoint breakdown, and a filterable, paginated event delivery log table with semantic status tags.",
+      "hasChart": true,
+      "targetHierarchy": "expressive-plus-quiet"
+    },
+    {
+      "id": "04-data-heavy",
+      "title": "Multi-Region Inventory & Fulfillment Ledger",
+      "category": "Data-Heavy View",
+      "prompt": "Build a Multi-Region Inventory & Fulfillment Ledger with regional fill-rate KPIs, backorder volume trend chart, fulfillment center performance list, and a high-density filterable SKU allocation table with search, region filter, pagination, and zero-match empty state.",
+      "hasChart": true,
+      "targetHierarchy": "expressive-plus-quiet"
+    },
+    {
+      "id": "05-landing-page",
+      "title": "Developer Platform Product Launch & Pricing Page",
+      "category": "Landing Page",
+      "prompt": "Build a Developer Platform Product Launch & Pricing Page with an establishing hero value proposition and live throughput benchmark chart, paired latency/reliability proof points, an annotated architecture callout, a plan comparison table, and an interactive seat/volume tier switcher.",
+      "hasChart": true,
+      "targetHierarchy": "expressive-led"
+    },
+    {
+      "id": "06-multi-step-form",
+      "title": "Production Deployment & Rollout Wizard",
+      "category": "Multi-Step Form",
+      "prompt": "Build a Production Deployment & Rollout Wizard with hierarchical breadcrumb navigation, 3-step rollout configuration (Target Artifact, Canary Traffic Policy, Pre-Flight Signoff), accessible form controls (Input, Select, RadioGroup, Checkbox, Switch, Textarea), readiness notice, and a modal deployment confirmation dialog.",
+      "hasChart": false,
+      "targetHierarchy": "quiet-led"
+    }
+  ],
+  "conditions": [
+    {
+      "id": "c1-shadcn-baseline",
+      "label": "Condition 1: Conventional shadcn/Tailwind Baseline",
+      "description": "Conventional React + CSS utility card/table/form baseline without FRAME/12 components. Evaluated strictly on universal UI quality metrics (build, TypeScript, axe WCAG AA, contrast, keyboard reachability, 1280px/390px overflow, interactive workflow) and marked N/A on FRAME/12-specific grammar rules.",
+      "evaluatesFrame12Grammar": false
+    },
+    {
+      "id": "c2-frame12-no-skill",
+      "label": "Condition 2: Negative Fixture Suite (Planted Linter & Runtime Violations)",
+      "description": "Negative guardrail fixtures exercising all 6 static check-frame12.mjs rules (color-literal, illegal-gutter, marker-misuse, cut-order, explicit-cut-in-autocut, raw-shadcn-import) and runtime DOM/contrast regressions across task-specific screens.",
+      "evaluatesFrame12Grammar": true
+    },
+    {
+      "id": "c3-frame12-with-skill",
+      "label": "Condition 3: Pre-Checker Reference Fixtures (Planted Single-Rule Drift)",
+      "description": "Reference screens structured per skills/frame12/SKILL.md with planted pre-checker static rule drift in Tasks 02 (explicit-cut-in-autocut) and 04 (illegal-gutter) to verify check-frame12.mjs detection.",
+      "evaluatesFrame12Grammar": true
+    },
+    {
+      "id": "c4-frame12-skill-plus-checker",
+      "label": "Condition 4: Checker-Verified Reference Fixtures (Post-Remediation)",
+      "description": "Canonical reference screens remediated with scripts/check-frame12.mjs and verified against all universal quality and FRAME/12 DOM grammar invariants.",
+      "evaluatesFrame12Grammar": true
+    }
+  ]
+}

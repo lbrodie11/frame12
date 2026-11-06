@@ -6,6 +6,7 @@ import { Panel, Badge, Tag } from '@/components/frame12';
 import { AnalyticsDashboard } from '@/components/frame12/blocks/analytics-dashboard';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
+import { BlockDocumentationSection } from '@/components/block-doc-footer';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 
 export default function AnalyticsDashboardShowcasePage() {
@@ -101,6 +102,8 @@ export default function AnalyticsDashboardShowcasePage() {
               </div>
             </div>
           </Panel>
+
+          <BlockDocumentationSection slug="analytics-dashboard" />
         </div>
       }
     />
