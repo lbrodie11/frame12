@@ -6,6 +6,11 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ### Added
 
+- **v0.2.0 Release-Readiness Audit (Work Package 10):**
+  - [`docs/roadmap/v0.2-release-readiness.md`](docs/roadmap/v0.2-release-readiness.md): the 20-area audit, Section 18 design rubric, draft v0.2.0 release notes, and migration guidance (none required). The recommendation is **Requires targeted fixes**: move the starter and site off end-of-life Next.js 14 (TF-1), and reduce cold-network webfont-swap CLS (TF-2).
+  - `scripts/check-api-compat.mjs`: compares exported symbols, `*Props` members, heritage clauses and defaults in `registry/ui` and `registry/hooks` against a git ref (default `v0.1.0`), and exits 1 on removed exports or props or newly-required props. Against `v0.1.0` it finds 0 breaking changes.
+  - `scripts/measure-perf-baseline.mjs` now also measures `/blocks/developer-console`, `/blocks/workspace-settings` and `/blocks/analytics-dashboard`.
+
 - **Project Governance:**
   - [`TRADEMARKS.md`](TRADEMARKS.md): a permissive policy for the FRAME/12 name, logo and `frame12.dev`. The code stays MIT. Forks are welcome under their own name and may say "based on FRAME/12", but may not present themselves as official. It also lists the official sources.
   - [`SECURITY.md`](SECURITY.md): private vulnerability reporting via GitHub, scope, and response expectations. Fictional `f12_sim_*` and `whsec_f12_*` demo fixtures are explicitly out of scope.
