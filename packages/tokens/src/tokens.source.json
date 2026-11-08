@@ -1,0 +1,164 @@
+{
+  "$schema": "https://tr.designtokens.org/format/",
+  "$description": "FRAME/12 canonical design tokens (Paper Light & Flashback Dark colors, font stacks, 12/20/32px gutters, 2.5px ink stroke, and 12fps on-twos motion).",
+  "color": {
+    "$type": "color",
+    "desk": {
+      "$value": {
+        "light": "#e2e3e5",
+        "dark": "#000000"
+      },
+      "$description": "Outer worktable background (--f-desk)."
+    },
+    "sheet": {
+      "$value": {
+        "light": "#ffffff",
+        "dark": "#050505"
+      },
+      "$description": "Storyboard sheet surface (--f-sheet)."
+    },
+    "panel": {
+      "$value": {
+        "light": "#ffffff",
+        "dark": "#19191a"
+      },
+      "$description": "Panel interior surface (--f-panel)."
+    },
+    "ink": {
+      "$value": {
+        "light": "#121212",
+        "dark": "#f1f0ea"
+      },
+      "$description": "Primary ink text and active fill (--f-ink)."
+    },
+    "ink-2": {
+      "$value": {
+        "light": "#4b4b4b",
+        "dark": "#b9b8b1"
+      },
+      "$description": "Secondary caption and metadata ink (--f-ink-2)."
+    },
+    "rule": {
+      "$value": {
+        "light": "#121212",
+        "dark": "#f1f0ea"
+      },
+      "$description": "2.5px panel border and structural rule ink (--f-rule)."
+    },
+    "tone": {
+      "$value": {
+        "light": "#121212",
+        "dark": "#f1f0ea"
+      },
+      "$description": "Screentone halftone dot ink (--f-tone)."
+    },
+    "grid": {
+      "$value": {
+        "light": "#e3e3e3",
+        "dark": "#2c2c2d"
+      },
+      "$description": "Hairline table and chart grid rule (--f-grid)."
+    },
+    "marker": {
+      "$value": {
+        "light": "#ffd60a",
+        "dark": "#ffd60a"
+      },
+      "$description": "Highlighter yellow background accent (--f-marker)."
+    },
+    "marker-ink": {
+      "$value": {
+        "light": "#121212",
+        "dark": "#121212"
+      },
+      "$description": "Ink on marker yellow (--f-marker-ink)."
+    },
+    "hole": {
+      "$value": {
+        "light": "#e2e3e5",
+        "dark": "#000000"
+      },
+      "$description": "Registration peg punch-hole fill (--f-hole)."
+    },
+    "backdrop": {
+      "$value": {
+        "light": "rgba(12, 12, 12, 0.78)",
+        "dark": "rgba(12, 12, 12, 0.78)"
+      },
+      "$extensions": {
+        "dev.frame12.scope": "root"
+      },
+      "$description": "Modal dialog backdrop overlay (--f-backdrop)."
+    },
+    "diff": {
+      "$value": {
+        "light": "#ffffff",
+        "dark": "#ffffff"
+      },
+      "$extensions": {
+        "dev.frame12.scope": "root"
+      },
+      "$description": "Exposure-sheet difference blend indicator fill (--f-diff)."
+    }
+  },
+  "font": {
+    "$type": "fontFamily",
+    "display": {
+      "$value": "var(--font-dela-gothic-one, \"Dela Gothic One\"), \"f12DisplayFallback\", \"f12DisplayFallbackDejaVu\", \"Arial Black\", \"Helvetica Neue\", sans-serif",
+      "$description": "Display headlines and hero metric numerals (--font-f-display)."
+    },
+    "body": {
+      "$value": "var(--font-zen-kaku-gothic-new, \"Zen Kaku Gothic New\"), \"f12BodyFallback\", \"f12BodyFallbackDejaVu\", \"Hiragino Sans\", \"Helvetica Neue\", Arial, sans-serif",
+      "$description": "Body copy, form controls, and descriptions (--font-f-body)."
+    },
+    "mono": {
+      "$value": "var(--font-m-plus-1-code, \"M PLUS 1 Code\"), \"f12MonoFallbackConsolas\", \"f12MonoFallback\", ui-monospace, \"SF Mono\", Menlo, monospace",
+      "$description": "Cut labels, eyebrows, tabular metrics, and code (--font-f-mono)."
+    }
+  },
+  "gutter": {
+    "$type": "dimension",
+    "pair": {
+      "$value": "12px",
+      "$description": "Paired panels and compact control groups (--f-gutter-pair)."
+    },
+    "scene": {
+      "$value": "20px",
+      "$description": "Panels and columns within the same scene (--f-gutter-scene)."
+    },
+    "change": {
+      "$value": "32px",
+      "$description": "Vertical separation between scenes on a Sheet (--f-gutter-change)."
+    }
+  },
+  "stroke": {
+    "$type": "dimension",
+    "ink": {
+      "$value": "2.5px",
+      "$description": "Expressive panel border and control stroke width (--f-stroke)."
+    }
+  },
+  "motion": {
+    "pose": {
+      "$type": "duration",
+      "$value": "83.33ms",
+      "$description": "Duration of a single pose held on twos at 12fps (--f-pose)."
+    },
+    "fps": {
+      "$type": "number",
+      "$value": 12,
+      "$description": "Stepped animation frame rate on twos (--f-fps)."
+    }
+  },
+  "shadow": {
+    "$type": "shadow",
+    "sheet": {
+      "$value": "0 1px 0 rgba(0, 0, 0, 0.05), 0 18px 40px -26px rgba(0, 0, 0, 0.5)",
+      "$description": "Storyboard sheet elevation shadow over the desk (--f-shadow-sheet)."
+    },
+    "peg": {
+      "$value": "inset 0 1px 2px rgba(0, 0, 0, 0.25)",
+      "$description": "Registration peg punch-hole inset shadow (--f-shadow-peg)."
+    }
+  }
+}
