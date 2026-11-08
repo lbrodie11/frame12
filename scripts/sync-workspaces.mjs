@@ -12,9 +12,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { checkTokenSync } from '../packages/tokens/scripts/build-tokens.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const checkOnly = process.argv.includes('--check');
+
+if (!checkOnly) {
+  execFileSync(process.execPath, [path.join(ROOT, 'packages/tokens/scripts/build-tokens.mjs')], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  });
+}
 
 const FILE_MAPPINGS = [];
 
@@ -49,12 +57,18 @@ FILE_MAPPINGS.push({
 });
 
 // 3. registry/styles/* -> templates/next-starter/src/styles/*
-for (const styleFile of ['frame12.css', 'frame12-tailwind.css']) {
+for (const styleFile of ['frame12.css', 'frame12-tokens.css', 'frame12-tailwind.css']) {
   FILE_MAPPINGS.push({
     src: path.join(ROOT, 'registry/styles', styleFile),
     dest: path.join(ROOT, 'templates/next-starter/src/styles', styleFile),
   });
 }
+
+// 3b. LICENSE -> packages/tokens/LICENSE
+FILE_MAPPINGS.push({
+  src: path.join(ROOT, 'LICENSE'),
+  dest: path.join(ROOT, 'packages/tokens/LICENSE'),
+});
 
 // 4. scripts/check-frame12.mjs -> templates/next-starter/scripts/check-frame12.mjs
 FILE_MAPPINGS.push({
@@ -99,7 +113,7 @@ if (fs.existsSync(path.join(ROOT, 'site/app/icon.svg'))) {
 const legacyDir = path.join(ROOT, 'templates/next-starter/src/registry');
 
 if (checkOnly) {
-  const drifts = [];
+  const drifts = [...checkTokenSync()];
 
   if (fs.existsSync(legacyDir)) {
     drifts.push('Legacy directory templates/next-starter/src/registry still exists.');

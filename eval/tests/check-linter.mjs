@@ -67,7 +67,14 @@ function check(ok, label, detail = '') {
   );
 
   const tokenRes = lintSource(`:root { --f-ink: #121212; }`, 'registry/styles/frame12.css');
-  check(tokenRes.length === 0, 'linter [color-literal]: exempts token file frame12.css');
+  const tokenStandaloneRes = lintSource(
+    `:root { --f-ink: #121212; }`,
+    'registry/styles/frame12-tokens.css',
+  );
+  check(
+    tokenRes.length === 0 && tokenStandaloneRes.length === 0,
+    'linter [color-literal]: exempts token files frame12.css and frame12-tokens.css',
+  );
 
   const urlThenHexCode = `const url = "https://example.com"; const bad = "#ff0000";`;
   const resUrlHex = lintSource(urlThenHexCode, 'eval/screens/url-hex.tsx');

@@ -14,7 +14,14 @@ import { resolve, relative, dirname, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css']);
-const TOKEN_BASENAMES = new Set(['frame12.css', 'frame12-tailwind.css', 'og-image.tsx', 'apple-icon.tsx']);
+const TOKEN_BASENAMES = new Set([
+  'frame12.css',
+  'frame12-tokens.css',
+  'tokens.css',
+  'frame12-tailwind.css',
+  'og-image.tsx',
+  'apple-icon.tsx',
+]);
 const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '.f12-run', 'test-results']);
 
 const LEGAL_GUTTER_NAMES = new Set(['pair', 'scene', 'change']);
