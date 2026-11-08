@@ -28,6 +28,19 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
   },
   ref,
 ) {
+  const innerRef = React.useRef<HTMLDivElement | null>(null);
+  const setRefs = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      innerRef.current = node;
+      if (typeof ref === 'function') {
+        ref(node);
+      } else if (ref) {
+        (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }
+    },
+    [ref],
+  );
+
   const clampedStrength =
     typeof strength === 'number' && Number.isFinite(strength)
       ? Math.max(0, Math.min(1, strength))
@@ -40,19 +53,55 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
   const [autoVertical, setAutoVertical] = React.useState<boolean>(false);
 
   React.useEffect(() => {
-    if (safeOrientation !== 'auto' || typeof window === 'undefined' || !window.matchMedia) {
+    if (safeOrientation !== 'auto' || typeof window === 'undefined') {
       setAutoVertical(false);
       return;
     }
-    const mql = window.matchMedia('(max-width: 519.98px)');
-    const update = () => setAutoVertical(mql.matches);
-    update();
-    if (mql.addEventListener) {
-      mql.addEventListener('change', update);
-      return () => mql.removeEventListener('change', update);
+    const el = innerRef.current;
+    const mql = window.matchMedia ? window.matchMedia('(max-width: 519.98px)') : null;
+    const evaluate = (inlineWidth?: number) => {
+      const measured =
+        typeof inlineWidth === 'number' && inlineWidth > 0
+          ? inlineWidth
+          : el && el.clientWidth > 0
+            ? el.clientWidth
+            : 0;
+      if (measured > 0) {
+        setAutoVertical(measured < 520);
+      } else if (mql) {
+        setAutoVertical(mql.matches);
+      }
+    };
+    evaluate();
+
+    let ro: ResizeObserver | null = null;
+    if (el && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver((entries) => {
+        const w = entries[0]?.contentRect?.width;
+        evaluate(w);
+      });
+      ro.observe(el);
     }
-    mql.addListener(update);
-    return () => mql.removeListener(update);
+
+    const onMqlChange = () => evaluate();
+    if (mql) {
+      if (mql.addEventListener) {
+        mql.addEventListener('change', onMqlChange);
+      } else {
+        mql.addListener(onMqlChange);
+      }
+    }
+
+    return () => {
+      if (ro) ro.disconnect();
+      if (mql) {
+        if (mql.removeEventListener) {
+          mql.removeEventListener('change', onMqlChange);
+        } else {
+          mql.removeListener(onMqlChange);
+        }
+      }
+    };
   }, [safeOrientation]);
 
   const resolvedOrientation: 'horizontal' | 'vertical' =
@@ -83,7 +132,7 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
   return (
     <div
       {...rest}
-      ref={ref}
+      ref={setRefs}
       role="group"
       aria-label={groupAriaLabel}
       className={`f12-ghost-wire f12-ghost-wire-${safeOrientation}${className ? ` ${className}` : ''}`}

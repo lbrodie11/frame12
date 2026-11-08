@@ -2,6 +2,10 @@
 
 import * as React from 'react';
 
+// Bundlers (Next.js, webpack, Vite) statically replace `process.env.NODE_ENV`. Declared locally so
+// consumers without @types/node (e.g. Vite's react-ts template) still type-check this file.
+declare const process: { env: { NODE_ENV?: string } };
+
 export type SceneGutter = 'pair' | 'scene' | 'change';
 export type SceneLayout = 'split' | 'stack' | 'equal' | 'three' | 'areas';
 
@@ -55,7 +59,7 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
     gutter = 'scene',
     layout = 'split',
     areas,
-    columns = 12,
+    columns,
     breakpoint = '860px',
     className = '',
     style,
@@ -64,6 +68,7 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
   },
   ref,
 ) {
+  const warnedAreasRef = React.useRef<string | null>(null);
   const safeGutter: SceneGutter =
     gutter === 'pair' || gutter === 'scene' || gutter === 'change' ? gutter : 'scene';
   const hasAreas = Array.isArray(areas) && areas.length > 0;
@@ -77,10 +82,35 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
       ? layout
       : 'split';
 
+  const cleanedRows = hasAreas
+    ? areas.map((row) => row.trim().replace(/^["']+|["']+$/g, '').trim())
+    : [];
+  const rowTokenCounts = cleanedRows.map((row) => (row ? row.split(/\s+/).length : 0));
+  const firstRowCount = rowTokenCounts[0] ?? 0;
+
+  const formattedAreas = hasAreas
+    ? cleanedRows.map((row) => `"${row}"`).join(' ')
+    : undefined;
+
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    hasAreas &&
+    rowTokenCounts.length > 1 &&
+    rowTokenCounts.some((count) => count !== firstRowCount) &&
+    warnedAreasRef.current !== formattedAreas
+  ) {
+    warnedAreasRef.current = formattedAreas ?? null;
+    console.warn(
+      `[FRAME/12 Scene] Mismatched column counts across areas rows (${rowTokenCounts.join(', ')}). Every row in areas should have ${firstRowCount} column token(s).`,
+    );
+  }
+
   const safeColumns =
     typeof columns === 'number' && Number.isFinite(columns) && columns > 0
       ? Math.floor(columns)
-      : 12;
+      : firstRowCount > 0
+        ? firstRowCount
+        : 12;
   const normalizedBreakpoint =
     typeof breakpoint === 'number'
       ? `${breakpoint}px`
@@ -108,10 +138,6 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
     mql.addListener(update);
     return () => mql.removeListener(update);
   }, [hasAreas, isCustomBreakpoint, normalizedBreakpoint]);
-
-  const formattedAreas = hasAreas
-    ? areas.map((row) => `"${row.trim().replace(/^["']+|["']+$/g, '')}"`).join(' ')
-    : undefined;
 
   const mergedStyle: React.CSSProperties | undefined = hasAreas
     ? ({

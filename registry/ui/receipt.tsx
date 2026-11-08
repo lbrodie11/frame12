@@ -14,7 +14,16 @@ export const RECEIPT_ORIGIN_META: Record<ReceiptOrigin, { glyph: string; srLabel
 function getSafeHttpHref(href: string | undefined): string | null {
   if (typeof href !== 'string') return null;
   const trimmed = href.trim();
-  if (!trimmed) return null;
+  if (!trimmed || /[\u0000-\u001F\u007F]/.test(trimmed)) return null;
+  if (trimmed.startsWith('#')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/')) {
+    if (trimmed.startsWith('//') || trimmed.startsWith('/\\')) {
+      return null;
+    }
+    return trimmed;
+  }
   try {
     const parsed = new URL(trimmed);
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
@@ -49,7 +58,11 @@ export const Receipt = React.forwardRef<HTMLSpanElement, ReceiptProps>(function 
   const safeOrigin: ReceiptOrigin | undefined =
     origin === 'human' || origin === 'agent' || origin === 'bot' ? origin : undefined;
   const rawValue = typeof value === 'string' ? value : '';
-  const displayValue = safeKind === 'commit' ? rawValue.trim().slice(0, 7) : rawValue;
+  const trimmedRaw = rawValue.trim();
+  const isCommit = safeKind === 'commit';
+  const displayValue = isCommit ? trimmedRaw.slice(0, 7) : rawValue;
+  const fullCommitTitle = isCommit && trimmedRaw ? trimmedRaw : undefined;
+  const hasTruncatedCommit = isCommit && trimmedRaw.length > displayValue.length;
   const safeHref = getSafeHttpHref(href);
   const originMeta = safeOrigin ? RECEIPT_ORIGIN_META[safeOrigin] : undefined;
 
@@ -70,12 +83,29 @@ export const Receipt = React.forwardRef<HTMLSpanElement, ReceiptProps>(function 
         </span>
       ) : null}
       {safeHref ? (
-        <a className="f12-receipt-value f12-receipt-link" href={safeHref}>
-          {displayValue}
+        <a
+          className="f12-receipt-value f12-receipt-link"
+          href={safeHref}
+          title={fullCommitTitle}
+        >
+          {isCommit ? (
+            <code className="f12-receipt-code" title={fullCommitTitle}>
+              {displayValue}
+            </code>
+          ) : (
+            displayValue
+          )}
         </a>
+      ) : isCommit ? (
+        <code className="f12-receipt-value f12-receipt-code" title={fullCommitTitle}>
+          {displayValue}
+        </code>
       ) : (
         <span className="f12-receipt-value">{displayValue}</span>
       )}
+      {hasTruncatedCommit ? (
+        <span className="f12-sr-only f12-receipt-sha-sr">{` (${trimmedRaw})`}</span>
+      ) : null}
       {title ? <span className="f12-receipt-title">{title}</span> : null}
       {date ? <span className="f12-receipt-date">{date}</span> : null}
     </span>

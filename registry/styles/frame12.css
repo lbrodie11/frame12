@@ -616,7 +616,7 @@
 /* ===================================================================== GhostWire & Receipt */
 .f12-ghost-wire {
   display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(48px, 1fr) minmax(0, max-content);
+  grid-template-columns: minmax(0, max-content) minmax(24px, 1fr) minmax(0, max-content);
   align-items: center;
   gap: var(--f-gutter-pair);
   min-width: 0;
@@ -624,9 +624,16 @@
   color: var(--f-ink);
   font-family: var(--font-f-mono);
 }
-.f12-ghost-wire.f12-ghost-wire-vertical {
+.f12-ghost-wire.f12-ghost-wire-vertical,
+.f12-ghost-wire[data-orientation="vertical"] {
   grid-template-columns: minmax(0, 1fr);
   justify-items: start;
+}
+@container (max-width: 519.98px) {
+  .f12-ghost-wire.f12-ghost-wire-auto {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
 }
 @media (max-width: 519.98px) {
   .f12-ghost-wire.f12-ghost-wire-auto {
@@ -664,15 +671,25 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  min-width: 48px;
+  min-width: 24px;
   width: 100%;
 }
-.f12-ghost-wire.f12-ghost-wire-vertical .f12-ghost-wire-connector {
+.f12-ghost-wire.f12-ghost-wire-vertical .f12-ghost-wire-connector,
+.f12-ghost-wire[data-orientation="vertical"] .f12-ghost-wire-connector {
   flex-direction: row;
   justify-content: flex-start;
   min-width: 0;
   width: auto;
   padding-inline-start: 14px;
+}
+@container (max-width: 519.98px) {
+  .f12-ghost-wire.f12-ghost-wire-auto .f12-ghost-wire-connector {
+    flex-direction: row;
+    justify-content: flex-start;
+    min-width: 0;
+    width: auto;
+    padding-inline-start: 14px;
+  }
 }
 @media (max-width: 519.98px) {
   .f12-ghost-wire.f12-ghost-wire-auto .f12-ghost-wire-connector {
@@ -690,9 +707,16 @@
   overflow: visible;
   flex-shrink: 0;
 }
-.f12-ghost-wire.f12-ghost-wire-vertical .f12-ghost-wire-svg {
+.f12-ghost-wire.f12-ghost-wire-vertical .f12-ghost-wire-svg,
+.f12-ghost-wire[data-orientation="vertical"] .f12-ghost-wire-svg {
   width: 12px;
   height: 28px;
+}
+@container (max-width: 519.98px) {
+  .f12-ghost-wire.f12-ghost-wire-auto .f12-ghost-wire-svg {
+    width: 12px;
+    height: 28px;
+  }
 }
 @media (max-width: 519.98px) {
   .f12-ghost-wire.f12-ghost-wire-auto .f12-ghost-wire-svg {
@@ -716,8 +740,14 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-.f12-ghost-wire.f12-ghost-wire-vertical .f12-ghost-wire-label {
+.f12-ghost-wire.f12-ghost-wire-vertical .f12-ghost-wire-label,
+.f12-ghost-wire[data-orientation="vertical"] .f12-ghost-wire-label {
   text-align: start;
+}
+@container (max-width: 519.98px) {
+  .f12-ghost-wire.f12-ghost-wire-auto .f12-ghost-wire-label {
+    text-align: start;
+  }
 }
 @media (max-width: 519.98px) {
   .f12-ghost-wire.f12-ghost-wire-auto .f12-ghost-wire-label {
@@ -776,6 +806,14 @@
   max-width: 100%;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+.f12-receipt-code {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  background: none;
+  padding: 0;
 }
 .f12-receipt-link {
   color: var(--f-ink);

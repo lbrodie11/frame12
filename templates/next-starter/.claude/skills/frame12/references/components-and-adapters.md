@@ -92,7 +92,7 @@ export interface SheetProps extends React.HTMLAttributes<HTMLDivElement> {
 ```
 
 ### `Scene` (`ui/scene.tsx`)
-Grid container enforcing the three legal gutter widths (`12px` `pair`, `20px` `scene`, `32px` `change`). Supports preset layouts (`split`, `stack`, `equal`, `three`) as well as named CSS Grid areas (`areas: string[]` over a `columns`-column grid, default `12` columns, activated at or above `breakpoint`, default `'860px'`). Below `breakpoint`, named-area scenes stack into a single column in DOM/reading/cut order with zero `grid-column` specificity traps.
+Grid container enforcing the three legal gutter widths (`12px` `pair`, `20px` `scene`, `32px` `change`). Supports preset layouts (`split`, `stack`, `equal`, `three`) as well as named CSS Grid areas (`areas: string[]` over a `columns`-column grid; when `columns` is omitted, it is derived from the number of area tokens in the first `areas` row, or defaults to `12`, activated at or above `breakpoint`, default `'860px'`). Below `breakpoint`, named-area scenes stack into a single column in DOM/reading/cut order with zero `grid-column` specificity traps. Note: the default `'860px'` breakpoint is pure CSS (`@media (min-width: 860px)`); custom `breakpoint` values evaluate via client-side `window.matchMedia` after hydration and may cause a one-frame layout shift at or above the custom breakpoint.
 
 ```tsx
 export type SceneGutter = 'pair' | 'scene' | 'change'; // 12px | 20px | 32px
@@ -103,7 +103,7 @@ export interface SceneProps extends React.HTMLAttributes<HTMLDivElement> {
   gutter?: SceneGutter; // default: 'scene' (20px)
   layout?: SceneLayout; // default: 'split' (2fr 1fr), or 'areas' when areas is provided
   areas?: string[];
-  columns?: number;             // default: 12
+  columns?: number;             // default: derived from first areas row token count (or 12)
   breakpoint?: number | string; // default: '860px'
   children?: React.ReactNode;
 }
@@ -748,8 +748,8 @@ export interface BalloonProps extends React.HTMLAttributes<HTMLDivElement> {
 ```
 
 ### `GhostWire` (`ui/ghost-wire.tsx`) & `Receipt` / `ReceiptList` (`ui/receipt.tsx`)
-- `GhostWire` (`GhostWireProps`): dashed co-change connector wire linking a solid `from` endpoint chip (changed) to a dashed `to` endpoint chip (untouched). Maps `strength` (`0..1`) to SVG stroke dash density (never color/opacity), uses `vector-effect: non-scaling-stroke`, switches `orientation="auto"` from horizontal at `>= 520px` to vertical below `520px`, wraps the wire in a single `role="group"` with an accessible `aria-label` built from `label` (while marking the SVG `aria-hidden="true"`), and steps its draw-on dash offset at `83.33ms` via `useOnTwos` (with zero animation frames under `prefers-reduced-motion: reduce`).
-- `Receipt` (`ReceiptProps`) & `ReceiptList` (`ReceiptListProps`): evidence chips for `commit` (7-char SHA in mono), `file` (repo path in mono, wrapping anywhere without overflow), or `link` (`http(s)`-validated URLs only; non-`http(s)` strings such as `javascript:` render as escaped plain text), with optional WP3 non-color `origin` (`'human' | 'agent' | 'bot'`) glyph + `.f12-sr-only` label.
+- `GhostWire` (`GhostWireProps`): dashed co-change connector wire linking a solid `from` endpoint chip (changed) to a dashed `to` endpoint chip (untouched). Maps `strength` (`0..1`) to SVG stroke dash density (never color/opacity), uses `vector-effect: non-scaling-stroke`, switches `orientation="auto"` from horizontal at `>= 520px` container/viewport width to vertical below `520px` (via `ResizeObserver`, `@container`, and `@media`), wraps the wire in a single `role="group"` with an accessible `aria-label` built from `label` (when `label` is omitted, the synthesized default `"<from> usually changes with <to>, which was not changed"` assumes the missed-companion use case; other uses should pass `label`), marks the SVG `aria-hidden="true"`, and steps its draw-on dash offset at `83.33ms` via `useOnTwos` (with zero animation frames under `prefers-reduced-motion: reduce`).
+- `Receipt` (`ReceiptProps`) & `ReceiptList` (`ReceiptListProps`): evidence chips for `commit` (7-char SHA in `<code>` with the full hash preserved in `title={rawValue}` and `.f12-sr-only`), `file` (repo path in mono, wrapping anywhere without overflow), or `link` (allows `http(s)`, same-origin root-relative `/…` excluding `//…`, and `#…` fragment URLs; rejects `javascript:`, `data:`, protocol-relative, and other schemes as escaped plain text), with optional WP3 non-color `origin` (`'human' | 'agent' | 'bot'`) glyph + `.f12-sr-only` label.
 
 ```tsx
 export type GhostWireOrientation = 'auto' | 'horizontal' | 'vertical';

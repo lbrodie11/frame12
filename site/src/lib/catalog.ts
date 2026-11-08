@@ -173,14 +173,14 @@ const RAW_CATALOG: CatalogEntry[] = [
       {
         "name": "columns",
         "type": "number",
-        "defaultValue": "12",
-        "description": "Number of grid columns when areas is provided."
+        "defaultValue": "12 (or derived from first areas row)",
+        "description": "Explicit number of grid columns when areas is provided; when omitted, derived from the number of area tokens in the first areas row (or 12 when areas is omitted)."
       },
       {
         "name": "breakpoint",
         "type": "number | string",
         "defaultValue": "'860px'",
-        "description": "Viewport min-width breakpoint at or above which named grid areas are active; below this breakpoint, children stack in a single column in DOM/reading/cut order."
+        "description": "Viewport min-width breakpoint at or above which named grid areas are active; below this breakpoint, children stack in a single column in DOM/reading/cut order. Non-default custom breakpoints evaluate via window.matchMedia after hydration."
       }
     ],
     "subcomponents": [
@@ -190,16 +190,16 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Wrapper element accepting area: string to place arbitrary children into a named grid area inside <Scene areas={...}>."
       }
     ],
-    "stateBehavior": "Stateless CSS Grid layout primitive driven by gutter (\"pair\" | \"scene\" | \"change\") and layout (\"split\" | \"stack\" | \"equal\" | \"three\").",
+    "stateBehavior": "Stateless CSS Grid layout primitive for gutter (\"pair\" | \"scene\" | \"change\") and layout (\"split\" | \"stack\" | \"equal\" | \"three\" | \"areas\") at the default \"860px\" breakpoint; when areas is combined with a custom breakpoint, tracks window.matchMedia('(min-width: ...)') after hydration to toggle data-areas-active / data-areas-collapsed (which may cause a one-frame hydration layout shift on viewports at or above a non-default custom breakpoint).",
     "a11yNotes": [
-      "Collapses multi-column grids to a single reading-order column below 760px container width.",
+      "Collapses split, equal, and three grids to a single reading-order column below 760px container width (@container (max-width: 760px)), and collapses named-area grids (layout=\"areas\") to a single DOM/reading/cut-order column below the 860px viewport breakpoint (or custom breakpoint).",
       "Preserves DOM order and keyboard tab sequence across desktop and mobile viewports."
     ],
     "keyboardNotes": [
       "Maintains strict visual-to-DOM reading order: left-to-right across columns on desktop and top-to-bottom when stacked on mobile."
     ],
     "themeBehavior": "Transparent structural grid container; exposes --f-desk or --f-sheet through legal gutter gaps between framed panels.",
-    "responsiveBehavior": "Uses CSS container queries (@container (max-width: 760px)) and media queries to collapse split, equal, and three layouts into a single 1fr column on narrow viewports.",
+    "responsiveBehavior": "Uses CSS container queries (@container (max-width: 760px)) to collapse split, equal, and three layouts into a single 1fr column, and @media (min-width: 860px) (or client-side matchMedia for custom breakpoint values) to activate named grid areas.",
     "grammarNotes": [
       "Arbitrary gaps (8px, 16px, 24px) are forbidden by check-frame12.mjs; always use Scene gutter props.",
       "Use layout=\"split\" (2fr 1fr) when pairing an establishing C-01 panel with a PanelPair."
@@ -2362,7 +2362,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "label",
         "type": "string",
         "defaultValue": "undefined",
-        "description": "Accessible relationship summary and visible caption (e.g. 'a.ts usually changes with schema.sql, which was not changed')."
+        "description": "Accessible relationship summary and visible caption (e.g. 'a.ts usually changes with schema.sql, which was not changed'). When omitted, the default aria-label ('<from> usually changes with <to>, which was not changed') assumes the missed-companion use case; other relationship uses should pass label."
       },
       {
         "name": "strength",
@@ -2374,7 +2374,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "orientation",
         "type": "'auto' | 'horizontal' | 'vertical'",
         "defaultValue": "'auto'",
-        "description": "Connector layout axis: 'auto' renders horizontally at >= 520px and vertically below 520px."
+        "description": "Connector layout axis: 'auto' renders horizontally at >= 520px container/viewport width and vertically below 520px."
       },
       {
         "name": "motion",
@@ -2383,16 +2383,16 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Motion timing mode: 'stepped' (12fps on twos draw-on), 'smooth', or 'cut' (0ms instant)."
       }
     ],
-    "stateBehavior": "Stateless co-change connector that steps its SVG stroke-dashoffset on twos (83.33ms per pose) via useOnTwos and skips animation frames under prefers-reduced-motion: reduce.",
+    "stateBehavior": "Co-change connector that steps its SVG stroke-dashoffset on twos (83.33ms per pose) via useOnTwos, observes its own inline width via ResizeObserver when orientation=\"auto\", and skips animation frames under prefers-reduced-motion: reduce.",
     "a11yNotes": [
-      "Wraps the entire wire in a single role=\"group\" container with an accessible aria-label built from label (or derived from the endpoints).",
+      "Wraps the entire wire in a single role=\"group\" container with an accessible aria-label built from label. When label is omitted, the synthesized default ('<from> usually changes with <to>, which was not changed') assumes the missed-companion use case; pass an explicit label for other relationships.",
       "Marks the SVG connector aria-hidden=\"true\" so assistive technologies announce the group relationship cleanly."
     ],
     "keyboardNotes": [
       "Non-interactive semantic group unless interactive elements are passed inside the from or to slots."
     ],
     "themeBehavior": "Uses --f-panel and solid 2px --f-rule for the changed from chip, --f-sheet and dashed 2px --f-rule for the untouched to chip, and --f-rule for the non-scaling-stroke SVG line in both themes.",
-    "responsiveBehavior": "With orientation=\"auto\" (default), switches from a 3-column horizontal wire at >= 520px to a stacked vertical connector below 520px while wrapping long file paths without overflow.",
+    "responsiveBehavior": "With orientation=\"auto\" (default), switches from a 3-column horizontal wire at >= 520px container/viewport width to a stacked vertical connector below 520px (via ResizeObserver, @container (max-width: 519.98px), and @media (max-width: 519.98px)) while wrapping long file paths without overflow.",
     "grammarNotes": [
       "Encodes coupling strength (0..1) strictly through SVG stroke dash density, never color or opacity.",
       "Uses vector-effect: non-scaling-stroke on the SVG connector line."
@@ -2422,7 +2422,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "kind",
         "type": "'commit' | 'file' | 'link'",
         "defaultValue": "required",
-        "description": "Evidence category: 'commit' formats value to a 7-char monospace SHA; 'file' and 'link' wrap long paths anywhere without overflow."
+        "description": "Evidence category: 'commit' renders a 7-char monospace SHA in <code> while keeping the full hash in title and .f12-sr-only; 'file' and 'link' wrap long paths anywhere without overflow."
       },
       {
         "name": "value",
@@ -2434,7 +2434,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "href",
         "type": "string",
         "defaultValue": "undefined",
-        "description": "Optional URL; rendered as an <a> link only when it begins with http:// or https://, otherwise rendered as plain text."
+        "description": "Optional URL; rendered as an <a> link when it is http://, https://, a same-origin root-relative path (/… but not //…), or a fragment (#…); otherwise rendered as plain text."
       },
       {
         "name": "title",
@@ -2462,10 +2462,11 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Unordered list container (<ul className=\"f12-receipt-list\">) that wraps multiple <Receipt> items with 12px pair gutters."
       }
     ],
-    "stateBehavior": "Stateless evidence chip that truncates commit SHAs to 7 characters in monospace and validates href against http(s) URLs before rendering an anchor.",
+    "stateBehavior": "Stateless evidence chip that renders 7-character commit SHAs inside <code> (preserving the full hash in title and .f12-sr-only) and validates href against http(s), root-relative (/…), and fragment (#…) URLs before rendering an anchor.",
     "a11yNotes": [
       "Origin indicators pair a visual glyph ([H], [A], [B]) marked aria-hidden=\"true\" with a .f12-sr-only prefix ('Origin: human:', 'Origin: agent:', 'Origin: bot:').",
-      "Rejects non-http(s) protocols such as javascript: or data: URLs, rendering plain text instead of an anchor."
+      "For kind=\"commit\", the truncated 7-character SHA is rendered inside <code> while the full commit hash remains accessible via title={rawValue} and .f12-sr-only.",
+      "Allows http(s), same-origin root-relative (/… excluding //…), and fragment (#…) links while rejecting javascript:, data:, protocol-relative, and other unsafe schemes."
     ],
     "keyboardNotes": [
       "When href is a valid http(s) URL, the value renders as a native <a> link with a 3px solid --f-ink focus-visible outline; otherwise it is non-interactive plain text."

@@ -2543,9 +2543,75 @@ function Wp5UnitFixtures() {
               data-link-page={String(linkPage)}
               data-link-calls={String(linkPageCalls)}
             />
+
+            {/* 7. F12-03 unit fixtures: relative Receipt hrefs, narrow container GhostWire */}
+            <div style={{ width: '360px', maxWidth: '100%' }}>
+              <GhostWire
+                id="fixture-ghost-wire-narrow-container"
+                from="src/api/routes.ts"
+                to="src/api/schema.ts"
+                orientation="auto"
+              />
+            </div>
+            <ReceiptList id="fixture-receipt-href-matrix" ariaLabel="Receipt href safety matrix">
+              <Receipt
+                id="fixture-receipt-rel-slash"
+                kind="file"
+                value="src/ui/receipt.tsx"
+                href="/blob/main/registry/ui/receipt.tsx"
+              />
+              <Receipt
+                id="fixture-receipt-rel-hash"
+                kind="link"
+                value="Jump to Cut C-02"
+                href="#cut-c-02"
+              />
+              <Receipt
+                id="fixture-receipt-proto-rel"
+                kind="link"
+                value="Protocol-relative blocked"
+                href="//evil.example/payload"
+              />
+              <Receipt
+                id="fixture-receipt-data"
+                kind="link"
+                value="Data URI blocked"
+                href="data:text/html,<script>alert(1)</script>"
+              />
+              <Receipt
+                id="fixture-receipt-commit-unlinked"
+                kind="commit"
+                value="deadbeefcafe1234567890"
+              />
+            </ReceiptList>
           </div>
         </Panel>
       </Scene>
+      <div style={{ width: '1000px', maxWidth: '100%' }}>
+        <Scene id="fixture-areas-2col" gutter="scene" areas={['nav main']}>
+          <Panel id="fixture-areas-2col-nav" area="nav" cut={false} label="2-col nav">
+            Nav
+          </Panel>
+          <Panel id="fixture-areas-2col-main" area="main" cut={false} label="2-col main">
+            Main
+          </Panel>
+        </Scene>
+        <Scene
+          id="fixture-areas-3col"
+          gutter="scene"
+          areas={['hero hero sideTop', 'hero hero sideBot']}
+        >
+          <Panel id="fixture-areas-3col-hero" area="hero" cut={false} label="3-col hero">
+            Hero (2 of 3 cols)
+          </Panel>
+          <Panel id="fixture-areas-3col-top" area="sideTop" cut={false} label="3-col side top">
+            Side top (1 of 3 cols)
+          </Panel>
+          <Panel id="fixture-areas-3col-bot" area="sideBot" cut={false} label="3-col side bot">
+            Side bot (1 of 3 cols)
+          </Panel>
+        </Scene>
+      </div>
     </Sheet>
   );
 }
@@ -2611,6 +2677,44 @@ if (rootEl) {
       root.render(<WarnFixture tick={1} />);
       await new Promise((r) => setTimeout(r, 40));
       root.render(<WarnFixture tick={2} />);
+      await new Promise((r) => setTimeout(r, 40));
+      return warnings;
+    } finally {
+      root.unmount?.();
+      host.remove();
+      console.warn = origWarn;
+      win.__F12_NODE_ENV__ = prevEnv;
+    }
+  };
+  (
+    window as unknown as {
+      __testAreasRowMismatchWarning?: (envMode: 'development' | 'production') => Promise<string[]>;
+    }
+  ).__testAreasRowMismatchWarning = async (envMode: 'development' | 'production') => {
+    const win = window as unknown as { __F12_NODE_ENV__?: string };
+    const prevEnv = win.__F12_NODE_ENV__;
+    win.__F12_NODE_ENV__ = envMode;
+    const warnings: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(String).join(' '));
+    };
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = RD.createRoot(host);
+    try {
+      function MismatchFixture({ tick }: { tick: number }) {
+        return (
+          <Scene areas={['nav main', 'left center right']} data-tick={tick}>
+            <Panel area="nav" cut={false} label="Nav">
+              Nav
+            </Panel>
+          </Scene>
+        );
+      }
+      root.render(<MismatchFixture tick={1} />);
+      await new Promise((r) => setTimeout(r, 40));
+      root.render(<MismatchFixture tick={2} />);
       await new Promise((r) => setTimeout(r, 40));
       return warnings;
     } finally {
