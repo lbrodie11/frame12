@@ -4,6 +4,14 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`@frame12/tokens` Design Tokens Package (`packages/tokens/`):**
+  - Added a zero-dependency workspace package `@frame12/tokens` driven by a single W3C DTCG source (`packages/tokens/src/tokens.source.json`) and deterministic generator (`packages/tokens/scripts/build-tokens.mjs`) emitting `dist/tokens.css`, resolved DTCG `dist/tokens.json`, and `dist/index.js` + `dist/index.d.ts` (`tokens` and `cssText`).
+  - Generated the `/* @tokens:start */` … `/* @tokens:end */` token block in `registry/styles/frame12.css` and standalone `registry/styles/frame12-tokens.css` from the same source, with drift verified by `npm run sync:check`.
+  - Added the `frame12-tokens` (`type: "registry:style"`) item to `registry/registry.json`, exempted `frame12-tokens.css` in `scripts/check-frame12.mjs` (`TOKEN_BASENAMES`), and added WCAG contrast gate, determinism, registry token coverage, and `npm pack --dry-run` tests (`packages/tokens/tests/tokens.test.mjs`).
+
+
 ## [0.2.0] - 2026-11-06
 
 ### Added
