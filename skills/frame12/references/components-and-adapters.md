@@ -29,8 +29,8 @@ Canonical tokens live in `packages/tokens/src/tokens.source.json` and generate `
 
 /* Stroke, Motion & Shadow Tokens */
 --f-stroke: 2.5px;       /* Expressive panel & control stroke width */
---f-pose: 83.33ms;       /* Single pose duration held on twos (12fps) */
---f-fps: 12;             /* Stepped frame rate on twos */
+--f-pose: 83.33ms;       /* Reference token: single pose duration held on twos (12fps) */
+--f-fps: 12;             /* Reference token: stepped frame rate on twos */
 --f-shadow-sheet         /* Storyboard sheet elevation shadow */
 --f-shadow-peg           /* Registration peg punch-hole inset shadow */
 
@@ -40,7 +40,7 @@ Canonical tokens live in `packages/tokens/src/tokens.source.json` and generate `
 --font-f-mono    /* Cut labels, eyebrows, table headers, controls */
 ```
 
-For non-React consumers (static HTML pages, SVG cards, emails, VS Code webviews), import `tokens` and `cssText` from `@frame12/tokens` (or install `@frame12/frame12-tokens`):
+For non-React consumers (static HTML pages, SVG cards, emails, VS Code webviews), install `@frame12/frame12-tokens` via `npx shadcn@latest add @frame12/frame12-tokens` or import `tokens` and `cssText` from `@frame12/tokens` (`packages/tokens/`, prepared for npm publication under `@frame12`):
 
 ```ts
 import { tokens, cssText } from '@frame12/tokens';

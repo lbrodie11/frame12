@@ -25,7 +25,7 @@
   "scripts": {
     "build": "node scripts/build-tokens.mjs",
     "check": "node scripts/build-tokens.mjs --check",
-    "test": "npm run build && node tests/tokens.test.mjs"
+    "test": "node scripts/build-tokens.mjs --check && node tests/tokens.test.mjs"
   },
   "repository": {
     "type": "git",

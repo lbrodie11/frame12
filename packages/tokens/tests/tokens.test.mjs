@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// Unit, determinism, registry-coverage, WCAG contrast gate, and packaging tests for @frame12/tokens.
+// Unit, W3C DTCG 2025.10 validation, determinism, registry-coverage, WCAG contrast gate, and packaging tests for @frame12/tokens.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -20,6 +21,183 @@ let failures = 0;
 function check(ok, label, detail = '') {
   if (!ok) failures++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  ' + detail : ''}`);
+}
+
+/**
+ * Validates a W3C DTCG 2025.10 document tree (`https://www.designtokens.org/tr/2025.10/format/`).
+ * Returns an array of validation error strings (empty when valid).
+ */
+export function validateDtcgDocument(doc) {
+  const errors = [];
+
+  if (doc && typeof doc === 'object' && '$schema' in doc) {
+    if (
+      typeof doc.$schema !== 'string' ||
+      (!doc.$schema.endsWith('.json') && !doc.$schema.includes('schema'))
+    ) {
+      errors.push(`Invalid $schema "${doc.$schema}": must be a JSON Schema URI, not a spec web page`);
+    }
+  }
+
+  function isValidColorValue(val, tokenPath) {
+    if (!val || typeof val !== 'object' || Array.isArray(val)) {
+      errors.push(`${tokenPath}: color $value must be an object, got ${typeof val}`);
+      return;
+    }
+    if ('light' in val || 'dark' in val) {
+      errors.push(`${tokenPath}: color $value must not be a { light, dark } mode map`);
+      return;
+    }
+    if (val.colorSpace !== 'srgb') {
+      errors.push(`${tokenPath}: color.colorSpace must be "srgb", got "${val.colorSpace}"`);
+    }
+    if (
+      !Array.isArray(val.components) ||
+      val.components.length !== 3 ||
+      !val.components.every((c) => typeof c === 'number' && Number.isFinite(c) && c >= 0 && c <= 1)
+    ) {
+      errors.push(`${tokenPath}: color.components must be 3 numbers in [0, 1]`);
+    }
+    if (
+      val.alpha !== undefined &&
+      (typeof val.alpha !== 'number' || !Number.isFinite(val.alpha) || val.alpha < 0 || val.alpha > 1)
+    ) {
+      errors.push(`${tokenPath}: color.alpha must be a number in [0, 1]`);
+    }
+    if (val.hex !== undefined) {
+      if (typeof val.hex !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(val.hex)) {
+        errors.push(`${tokenPath}: color.hex must be a 6-digit #rrggbb string`);
+      }
+      if (val.alpha !== undefined && val.alpha !== 1) {
+        errors.push(`${tokenPath}: color.hex must be omitted when alpha < 1`);
+      }
+    }
+  }
+
+  function isValidDimensionValue(val, tokenPath) {
+    if (!val || typeof val !== 'object' || Array.isArray(val)) {
+      errors.push(
+        `${tokenPath}: dimension $value must be a { value, unit } object, got ${JSON.stringify(val)}`,
+      );
+      return;
+    }
+    if (typeof val.value !== 'number' || !Number.isFinite(val.value)) {
+      errors.push(`${tokenPath}: dimension.value must be a finite number`);
+    }
+    if (val.unit !== 'px' && val.unit !== 'rem') {
+      errors.push(`${tokenPath}: dimension.unit must be "px" or "rem", got "${val.unit}"`);
+    }
+  }
+
+  function isValidDurationValue(val, tokenPath) {
+    if (!val || typeof val !== 'object' || Array.isArray(val)) {
+      errors.push(
+        `${tokenPath}: duration $value must be a { value, unit } object, got ${JSON.stringify(val)}`,
+      );
+      return;
+    }
+    if (typeof val.value !== 'number' || !Number.isFinite(val.value)) {
+      errors.push(`${tokenPath}: duration.value must be a finite number`);
+    }
+    if (val.unit !== 'ms' && val.unit !== 's') {
+      errors.push(`${tokenPath}: duration.unit must be "ms" or "s", got "${val.unit}"`);
+    }
+  }
+
+  function isValidFontFamilyValue(val, tokenPath) {
+    const ok =
+      (typeof val === 'string' && val.length > 0) ||
+      (Array.isArray(val) &&
+        val.length > 0 &&
+        val.every((item) => typeof item === 'string' && item.length > 0));
+    if (!ok) {
+      errors.push(`${tokenPath}: fontFamily $value must be a non-empty string or string[]`);
+    }
+  }
+
+  function isValidShadowLayer(layer, tokenPath) {
+    if (!layer || typeof layer !== 'object' || Array.isArray(layer)) {
+      errors.push(`${tokenPath}: shadow layer must be an object, got ${JSON.stringify(layer)}`);
+      return;
+    }
+    isValidColorValue(layer.color, `${tokenPath}.color`);
+    isValidDimensionValue(layer.offsetX, `${tokenPath}.offsetX`);
+    isValidDimensionValue(layer.offsetY, `${tokenPath}.offsetY`);
+    isValidDimensionValue(layer.blur, `${tokenPath}.blur`);
+    isValidDimensionValue(layer.spread, `${tokenPath}.spread`);
+    if (layer.inset !== undefined && typeof layer.inset !== 'boolean') {
+      errors.push(`${tokenPath}.inset: must be a boolean when present`);
+    }
+  }
+
+  function isValidShadowValue(val, tokenPath) {
+    if (Array.isArray(val)) {
+      if (val.length === 0) {
+        errors.push(`${tokenPath}: shadow array $value must not be empty`);
+      }
+      val.forEach((layer, idx) => isValidShadowLayer(layer, `${tokenPath}[${idx}]`));
+    } else {
+      isValidShadowLayer(val, tokenPath);
+    }
+  }
+
+  function walkGroup(node, inheritedType, currentPath) {
+    if (!node || typeof node !== 'object' || Array.isArray(node)) {
+      errors.push(`${currentPath || '<root>'}: group/token must be an object`);
+      return;
+    }
+    const effectiveType = node.$type || inheritedType;
+
+    if ('$value' in node) {
+      if (!effectiveType) {
+        errors.push(`${currentPath}: token is missing $type (directly or inherited from group)`);
+        return;
+      }
+      switch (effectiveType) {
+        case 'color': {
+          isValidColorValue(node.$value, currentPath);
+          const modes = node.$extensions?.['dev.frame12.modes'];
+          if (modes !== undefined) {
+            if (!modes || typeof modes !== 'object' || !modes.light || !modes.dark) {
+              errors.push(`${currentPath}: $extensions["dev.frame12.modes"] must define light and dark`);
+            } else {
+              isValidColorValue(modes.light, `${currentPath}.$extensions.modes.light`);
+              isValidColorValue(modes.dark, `${currentPath}.$extensions.modes.dark`);
+            }
+          }
+          break;
+        }
+        case 'dimension':
+          isValidDimensionValue(node.$value, currentPath);
+          break;
+        case 'duration':
+          isValidDurationValue(node.$value, currentPath);
+          break;
+        case 'number':
+          if (typeof node.$value !== 'number' || !Number.isFinite(node.$value)) {
+            errors.push(`${currentPath}: number $value must be a finite number`);
+          }
+          break;
+        case 'fontFamily':
+          isValidFontFamilyValue(node.$value, currentPath);
+          break;
+        case 'shadow':
+          isValidShadowValue(node.$value, currentPath);
+          break;
+        default:
+          errors.push(`${currentPath}: unsupported DTCG $type "${effectiveType}"`);
+      }
+      return;
+    }
+
+    for (const [k, v] of Object.entries(node)) {
+      if (k.startsWith('$')) continue;
+      walkGroup(v, effectiveType, currentPath ? `${currentPath}.${k}` : k);
+    }
+  }
+
+  walkGroup(doc, undefined, '');
+  return errors;
 }
 
 // 1. Byte comparison: dist/tokens.css equals registry/styles/frame12.css token region and registry/styles/frame12-tokens.css
@@ -40,46 +218,78 @@ function check(ok, label, detail = '') {
   );
 }
 
-// 2. Build determinism: running build twice produces identical bytes across all outputs
+// 2. Build determinism (into temp directories — never rewrites repo files)
 {
-  const firstRun = {
-    css: fs.readFileSync(path.join(PKG_ROOT, 'dist/tokens.css')),
-    json: fs.readFileSync(path.join(PKG_ROOT, 'dist/tokens.json')),
-    js: fs.readFileSync(path.join(PKG_ROOT, 'dist/index.js')),
-    dts: fs.readFileSync(path.join(PKG_ROOT, 'dist/index.d.ts')),
-  };
+  const tmpDirA = fs.mkdtempSync(path.join(os.tmpdir(), 'f12-tokens-det-a-'));
+  const tmpDirB = fs.mkdtempSync(path.join(os.tmpdir(), 'f12-tokens-det-b-'));
+  try {
+    execFileSync(
+      process.execPath,
+      [path.join(PKG_ROOT, 'scripts/build-tokens.mjs'), '--out-dir', tmpDirA],
+      { cwd: PKG_ROOT, stdio: 'pipe' },
+    );
+    execFileSync(
+      process.execPath,
+      [path.join(PKG_ROOT, 'scripts/build-tokens.mjs'), '--out-dir', tmpDirB],
+      { cwd: PKG_ROOT, stdio: 'pipe' },
+    );
 
-  execFileSync(process.execPath, [path.join(PKG_ROOT, 'scripts/build-tokens.mjs')], {
-    cwd: PKG_ROOT,
-    stdio: 'pipe',
-  });
+    const firstRun = {
+      css: fs.readFileSync(path.join(tmpDirA, 'tokens.css')),
+      json: fs.readFileSync(path.join(tmpDirA, 'tokens.json')),
+      js: fs.readFileSync(path.join(tmpDirA, 'index.js')),
+      dts: fs.readFileSync(path.join(tmpDirA, 'index.d.ts')),
+    };
+    const secondRun = {
+      css: fs.readFileSync(path.join(tmpDirB, 'tokens.css')),
+      json: fs.readFileSync(path.join(tmpDirB, 'tokens.json')),
+      js: fs.readFileSync(path.join(tmpDirB, 'index.js')),
+      dts: fs.readFileSync(path.join(tmpDirB, 'index.d.ts')),
+    };
 
-  const secondRun = {
-    css: fs.readFileSync(path.join(PKG_ROOT, 'dist/tokens.css')),
-    json: fs.readFileSync(path.join(PKG_ROOT, 'dist/tokens.json')),
-    js: fs.readFileSync(path.join(PKG_ROOT, 'dist/index.js')),
-    dts: fs.readFileSync(path.join(PKG_ROOT, 'dist/index.d.ts')),
-  };
+    const buildMemA = buildTokenArtifacts();
+    const buildMemB = buildTokenArtifacts();
 
-  const buildMemA = buildTokenArtifacts();
-  const buildMemB = buildTokenArtifacts();
-
-  check(
-    firstRun.css.equals(secondRun.css) &&
-      firstRun.json.equals(secondRun.json) &&
-      firstRun.js.equals(secondRun.js) &&
-      firstRun.dts.equals(secondRun.dts) &&
-      buildMemA.tokensCss === buildMemB.tokensCss &&
-      buildMemA.tokensJson === buildMemB.tokensJson &&
-      buildMemA.indexJs === buildMemB.indexJs &&
-      buildMemA.indexDts === buildMemB.indexDts,
-    'build-tokens.mjs is 100% deterministic across repeated runs',
-  );
+    check(
+      firstRun.css.equals(secondRun.css) &&
+        firstRun.json.equals(secondRun.json) &&
+        firstRun.js.equals(secondRun.js) &&
+        firstRun.dts.equals(secondRun.dts) &&
+        buildMemA.tokensCss === buildMemB.tokensCss &&
+        buildMemA.tokensJson === buildMemB.tokensJson &&
+        buildMemA.indexJs === buildMemB.indexJs &&
+        buildMemA.indexDts === buildMemB.indexDts,
+      'build-tokens.mjs is 100% deterministic across repeated runs without modifying repo files',
+    );
+  } finally {
+    fs.rmSync(tmpDirA, { recursive: true, force: true });
+    fs.rmSync(tmpDirB, { recursive: true, force: true });
+  }
 }
 
-// 3. Exported TS/JS module contract & DTCG JSON resolution check
+// 3. Exported TS/JS module contract & W3C DTCG 2025.10 schema validation
 {
-  const dtcg = JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'dist/tokens.json'), 'utf8'));
+  const sourceDtcg = JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'src/tokens.source.json'), 'utf8'));
+  const distDtcg = JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'dist/tokens.json'), 'utf8'));
+  const sourceErrors = validateDtcgDocument(sourceDtcg);
+  const distErrors = validateDtcgDocument(distDtcg);
+
+  // Verify the validator rejects non-compliant DTCG shapes (mode map in $value, string dimension, CSS string shadow, spec page $schema)
+  const invalidFixtureErrors = validateDtcgDocument({
+    $schema: 'https://www.designtokens.org/tr/2025.10/format/',
+    color: { $type: 'color', ink: { $value: { light: '#121212', dark: '#f1f0ea' } } },
+    gutter: { $type: 'dimension', pair: { $value: '12px' } },
+    shadow: { $type: 'shadow', sheet: { $value: '0 1px 0 rgba(0,0,0,0.05)' } },
+  });
+
+  check(
+    sourceErrors.length === 0 &&
+      distErrors.length === 0 &&
+      invalidFixtureErrors.length === 4,
+    'src/tokens.source.json and dist/tokens.json pass strict W3C DTCG 2025.10 validation (and validator rejects invalid shapes)',
+    sourceErrors.concat(distErrors).join('; '),
+  );
+
   check(
     tokens.light === light &&
       tokens.dark === dark &&
@@ -102,17 +312,23 @@ function check(ok, label, detail = '') {
       tokens.dark.ink === '#f1f0ea' &&
       tokens.dark.sheet === '#050505' &&
       tokens.dark.panel === '#19191a' &&
-      dtcg.color.ink.$value.light === '#121212' &&
-      dtcg.color.ink.$value.dark === '#f1f0ea' &&
-      dtcg.gutter.pair.$value === '12px' &&
-      dtcg.stroke.ink.$value === '2.5px' &&
-      dtcg.motion.pose.$value === '83.33ms' &&
-      dtcg.motion.fps.$value === 12 &&
-      Boolean(dtcg.shadow.sheet.$value) &&
+      distDtcg.color.ink.$value.hex === '#121212' &&
+      distDtcg.color.ink.$extensions['dev.frame12.modes'].light.hex === '#121212' &&
+      distDtcg.color.ink.$extensions['dev.frame12.modes'].dark.hex === '#f1f0ea' &&
+      distDtcg.gutter.pair.$value.value === 12 &&
+      distDtcg.gutter.pair.$value.unit === 'px' &&
+      distDtcg.stroke.ink.$value.value === 2.5 &&
+      distDtcg.stroke.ink.$value.unit === 'px' &&
+      distDtcg.motion.pose.$value.value === 83.33 &&
+      distDtcg.motion.pose.$value.unit === 'ms' &&
+      distDtcg.motion.fps.$value === 12 &&
+      Array.isArray(distDtcg.shadow.sheet.$value) &&
+      distDtcg.shadow.sheet.$value.length === 2 &&
+      distDtcg.shadow.peg.$value.inset === true &&
       Object.isFrozen(tokens) &&
       Object.isFrozen(tokens.light) &&
       Object.isFrozen(tokens.dark),
-    'tokens JS/TS exports (deep-frozen at runtime) and resolved DTCG tokens.json match canonical values',
+    'tokens JS/TS exports (deep-frozen at runtime) and resolved DTCG 2025.10 tokens.json match canonical values',
   );
 }
 
@@ -145,9 +361,13 @@ function check(ok, label, detail = '') {
   }
 
   const missingVars = [...usedTokenVars].filter((v) => !definedTokenVars.has(v));
+  const referenceOnlyVars = [...definedTokenVars].filter((v) => !usedTokenVars.has(v)).sort();
   check(
-    usedTokenVars.size > 0 && missingVars.length === 0,
-    `every --f-* and --font-f-* custom property used in registry/ (${usedTokenVars.size} used across ${registryFiles.length} files, ${definedTokenVars.size} defined) is defined in @frame12/tokens`,
+    usedTokenVars.size > 0 &&
+      missingVars.length === 0 &&
+      usedTokenVars.has('--f-stroke') &&
+      JSON.stringify(referenceOnlyVars) === JSON.stringify(['--f-fps', '--f-pose']),
+    `every --f-* and --font-f-* custom property used in registry/ (${usedTokenVars.size} used across ${registryFiles.length} files, ${definedTokenVars.size} defined; reference-only motion tokens: ${referenceOnlyVars.join(', ')}) is defined in @frame12/tokens`,
     missingVars.length > 0 ? `missing: ${missingVars.join(', ')}` : [...usedTokenVars].sort().join(', '),
   );
 }
@@ -245,26 +465,26 @@ function check(ok, label, detail = '') {
   );
 }
 
-// 7. Drift detection: checkTokenSync() passes when clean and catches drift in registry/styles/frame12.css
+// 7. Drift detection: checkTokenSync() passes when clean and catches drift in a temp copy without modifying repo files
 {
   const regCssPath = path.join(REPO_ROOT, 'registry/styles/frame12.css');
   const origCss = fs.readFileSync(regCssPath, 'utf8');
   const cleanDrifts = checkTokenSync();
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'f12-tokens-drift-'));
   let drifted = [];
   try {
-    fs.writeFileSync(regCssPath, origCss.replace('--f-ink: #121212;', '--f-ink: #000000;'));
-    drifted = checkTokenSync();
+    const tmpRegCssPath = path.join(tmpDir, 'frame12.css');
+    fs.writeFileSync(tmpRegCssPath, origCss.replace('--f-ink: #121212;', '--f-ink: #000000;'));
+    drifted = checkTokenSync({ registryCssPath: tmpRegCssPath });
   } finally {
-    fs.writeFileSync(regCssPath, origCss);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
-  const restoredDrifts = checkTokenSync();
 
   check(
     cleanDrifts.length === 0 &&
       drifted.length === 1 &&
-      drifted[0].includes('registry/styles/frame12.css') &&
-      restoredDrifts.length === 0,
-    'checkTokenSync() catches drift in registry/styles/frame12.css token block',
+      drifted[0].includes('Token region drift'),
+    'checkTokenSync() catches drift in registry token block without modifying repo files',
     drifted[0] || '',
   );
 }

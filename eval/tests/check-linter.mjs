@@ -71,9 +71,21 @@ function check(ok, label, detail = '') {
     `:root { --f-ink: #121212; }`,
     'registry/styles/frame12-tokens.css',
   );
+  const pkgDistTokensRes = lintSource(
+    `:root { --f-ink: #121212; }`,
+    'packages/tokens/dist/tokens.css',
+  );
+  const arbitraryTokensCssRes = lintSource(
+    `:root { --f-ink: #121212; }`,
+    'app/tokens.css',
+  );
   check(
-    tokenRes.length === 0 && tokenStandaloneRes.length === 0,
-    'linter [color-literal]: exempts token files frame12.css and frame12-tokens.css',
+    tokenRes.length === 0 &&
+      tokenStandaloneRes.length === 0 &&
+      pkgDistTokensRes.length === 0 &&
+      arbitraryTokensCssRes.length === 1 &&
+      arbitraryTokensCssRes[0].rule === 'color-literal',
+    'linter [color-literal]: exempts frame12.css, registry/styles/frame12-tokens.css, and packages/tokens/dist/tokens.css while flagging arbitrary tokens.css',
   );
 
   const urlThenHexCode = `const url = "https://example.com"; const bad = "#ff0000";`;

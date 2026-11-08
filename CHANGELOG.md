@@ -7,9 +7,15 @@ All notable changes to **FRAME/12** are documented in this file.
 ### Added
 
 - **`@frame12/tokens` Design Tokens Package (`packages/tokens/`):**
-  - Added a zero-dependency workspace package `@frame12/tokens` driven by a single W3C DTCG source (`packages/tokens/src/tokens.source.json`) and deterministic generator (`packages/tokens/scripts/build-tokens.mjs`) emitting `dist/tokens.css`, resolved DTCG `dist/tokens.json`, and `dist/index.js` + `dist/index.d.ts` (`tokens` and `cssText`).
+  - Added a zero-dependency workspace package `@frame12/tokens` driven by a single W3C DTCG 2025.10 source (`packages/tokens/src/tokens.source.json`) and deterministic generator (`packages/tokens/scripts/build-tokens.mjs`) emitting `dist/tokens.css`, resolved W3C DTCG 2025.10 `dist/tokens.json` (with typed `color`, `dimension`, `duration`, `number`, `fontFamily`, and `shadow` `$value` objects plus `light`/`dark` mode maps under `$extensions["dev.frame12.modes"]`), and `dist/index.js` + `dist/index.d.ts` (`tokens` and `cssText`).
   - Generated the `/* @tokens:start */` … `/* @tokens:end */` token block in `registry/styles/frame12.css` and standalone `registry/styles/frame12-tokens.css` from the same source, with drift verified by `npm run sync:check`.
-  - Added the `frame12-tokens` (`type: "registry:style"`) item to `registry/registry.json`, exempted `frame12-tokens.css` in `scripts/check-frame12.mjs` (`TOKEN_BASENAMES`), and added WCAG contrast gate, determinism, registry token coverage, and `npm pack --dry-run` tests (`packages/tokens/tests/tokens.test.mjs`).
+  - Added the `frame12-tokens` (`type: "registry:style"`) item to `registry/registry.json`, exempted `registry/styles/frame12-tokens.css` and `packages/tokens/dist/tokens.css` in `scripts/check-frame12.mjs`, and added W3C DTCG 2025.10 validation, WCAG contrast gate, determinism, registry token coverage, and `npm pack --dry-run` tests (`packages/tokens/tests/tokens.test.mjs`).
+
+### Changed
+
+- **Token Consumption & Internal Motion Custom Property Namespace (`registry/styles/frame12.css`):**
+  - Replaced `2.5px` stroke/border literals across `registry/styles/frame12.css` with `var(--f-stroke)` (while `--f-pose` and `--f-fps` remain reference-only CSS custom properties on `:root`).
+  - Renamed the 6 internal `.f12-m-*` transition/animation helper variables in `registry/styles/frame12.css` from `--f-*` to `--f12-*` (`--f-rng-ind-transition` → `--f12-rng-ind-transition`, `--f-switch-thumb-transition` → `--f12-switch-thumb-transition`, `--f-skeleton-animation` → `--f12-skeleton-animation`, `--f-enter-animation` → `--f12-enter-animation`, `--f-pop-animation` → `--f12-pop-animation`, `--f-burst-animation` → `--f12-burst-animation`), aligning with `--f12-autocut-display` and `--f12-m-chars` so the `--f-*` prefix is reserved exclusively for public design tokens.
 
 
 ## [0.2.0] - 2026-11-06

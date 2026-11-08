@@ -1,109 +1,123 @@
 # `@frame12/tokens`
 
-Zero-dependency design tokens for **FRAME/12** — generated from a single W3C Design Tokens (`src/tokens.source.json`) source into CSS custom properties (`tokens.css`), resolved DTCG JSON (`tokens.json`), and TypeScript/JavaScript exports (`tokens`, `cssText`).
+Single source of truth for **FRAME/12** design tokens — Paper Light and Flashback Dark color palettes, typography font stacks, legal gutters (`12px`, `20px`, `32px`), `2.5px` mitered ink stroke, and `12fps` "on twos" pose timing (`83.33ms` per pose).
 
-Use `@frame12/tokens` whenever rendering FRAME/12 outside React or without the full component stylesheet (for example in standalone HTML reports, SVG cards, emails, or VS Code webviews).
+Zero runtime dependencies. Generated deterministically from [`src/tokens.source.json`](src/tokens.source.json) by [`scripts/build-tokens.mjs`](scripts/build-tokens.mjs).
 
 ---
 
 ## Install
 
+Install the standalone token stylesheet today via the `shadcn` registry:
+
 ```bash
-npm install @frame12/tokens
+npx shadcn@latest add https://frame12.dev/r/frame12-tokens.json
+# or with the @frame12 namespace configured in components.json:
+npx shadcn@latest add @frame12/frame12-tokens
 ```
 
-Or install the standalone CSS token file via the `shadcn` CLI:
+Within the `frame12` monorepo (or once `@frame12/tokens` is published to the public npm registry under the `@frame12` scope):
 
 ```bash
-npx shadcn@latest add @frame12/frame12-tokens
-# or via full manifest URL:
-npx shadcn@latest add https://frame12.dev/r/frame12-tokens.json
+# Monorepo workspace dependency (npm publish pending initial @frame12 release)
+npm install @frame12/tokens
 ```
 
 ---
 
-## The Three Outputs
+## The Three Generated Outputs
 
-### 1. CSS Custom Properties (`@frame12/tokens/tokens.css`)
+### 1. CSS Custom Properties (`@frame12/tokens/tokens.css` / `styles/frame12-tokens.css`)
 
-```ts
-import '@frame12/tokens/tokens.css';
+Self-contained CSS custom properties (`--f-*` and `--font-f-*`) with automatic `@media (prefers-color-scheme: dark)` switching and explicit `:root[data-theme="light"]` / `:root[data-theme="dark"]` (plus `.f12-theme-light` / `.f12-theme-dark`) overrides:
+
+```css
+@import "@frame12/tokens/tokens.css";
 ```
 
-Defines:
-- `:where(:root)` typography (`--font-f-display`, `--font-f-body`, `--font-f-mono`), gutters (`--f-gutter-pair: 12px`, `--f-gutter-scene: 20px`, `--f-gutter-change: 32px`), ink stroke (`--f-stroke: 2.5px`), motion on twos (`--f-pose: 83.33ms`, `--f-fps: 12`), and sheet/peg shadows (`--f-shadow-sheet`, `--f-shadow-peg`).
-- Paper Light (`:where(:root), :root[data-theme="light"], .f12-theme-light`) and Flashback Dark (`@media (prefers-color-scheme: dark)` and `:root[data-theme="dark"], .f12-theme-dark`) surface and ink variables (`--f-desk`, `--f-sheet`, `--f-panel`, `--f-ink`, `--f-ink-2`, `--f-rule`, `--f-tone`, `--f-grid`, `--f-marker`, `--f-marker-ink`, `--f-hole`).
+> **Font fallback note:** The `--font-f-display`, `--font-f-body`, and `--font-f-mono` stacks include metric-adjusted fallback `@font-face` names (`"f12DisplayFallback"`, `"f12DisplayFallbackDejaVu"`, `"f12BodyFallback"`, `"f12BodyFallbackDejaVu"`, `"f12MonoFallbackConsolas"`, `"f12MonoFallback"`) whose `@font-face` rules are defined only in full `frame12.css`. When `tokens.css` / `frame12-tokens.css` is used standalone without `frame12.css`, browsers ignore those synthetic `@font-face` names and fall through directly to the system fallback fonts (`"Arial Black"`, `"Hiragino Sans"`, `ui-monospace`, etc.).
+>
+> **Motion token note:** `--f-stroke` (`2.5px`) is consumed via `var(--f-stroke)` across `frame12.css`, whereas `--f-pose` (`83.33ms`) and `--f-fps` (`12`) are reference-only CSS custom properties exposed on `:root` for external consumers (`useOnTwos` computes `FRAME_MS = 1000 / 12` in JS, and `.f12-m-stepped` uses integer multi-pose `250ms` / `333ms` keyframe durations).
 
-### 2. TypeScript / JavaScript Module (`@frame12/tokens`)
+### 2. W3C DTCG 2025.10 Design Tokens JSON (`@frame12/tokens/tokens.json`)
+
+Resolved [W3C Design Tokens Community Group (2025.10)](https://www.designtokens.org/tr/2025.10/format/) JSON with typed `$value` objects (`color` with `colorSpace: "srgb"`, `components`, `alpha`, and `hex`; `dimension` and `duration` with `{ value, unit }`; `fontFamily` string arrays; and structured `shadow` objects), plus mode maps under `$extensions["dev.frame12.modes"]` and CSS custom property names under `$extensions["dev.frame12.cssVar"]`:
+
+```json
+{
+  "color": {
+    "$type": "color",
+    "ink": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.0706, 0.0706, 0.0706],
+        "alpha": 1,
+        "hex": "#121212"
+      },
+      "$extensions": {
+        "dev.frame12.scope": "themed",
+        "dev.frame12.cssVar": "--f-ink",
+        "dev.frame12.modes": {
+          "light": {
+            "colorSpace": "srgb",
+            "components": [0.0706, 0.0706, 0.0706],
+            "alpha": 1,
+            "hex": "#121212"
+          },
+          "dark": {
+            "colorSpace": "srgb",
+            "components": [0.9451, 0.9412, 0.9176],
+            "alpha": 1,
+            "hex": "#f1f0ea"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### 3. TypeScript / JavaScript Module (`@frame12/tokens`)
+
+Exports deeply frozen `tokens` (`{ light, dark, gutters, stroke, motion, fonts, shadow }`) and `cssText` (`string`) so static HTML generators, SVG card renderers, emails, and VS Code webviews can inline the exact token stylesheet without filesystem I/O:
 
 ```ts
 import { tokens, cssText } from '@frame12/tokens';
 
-// Palette by mode ('light' | 'dark')
-const panelBg = tokens.light.panel;        // '#ffffff'
-const darkInk = tokens.dark.ink;           // '#f1f0ea'
-const mutedInk = tokens.light['ink-2'];    // '#4b4b4b' (also available as tokens.light.ink2)
-const markerInk = tokens.light.markerInk;  // '#121212' (also available as tokens.light['marker-ink'])
+// Use typed token values in SVG / Canvas / JS renderers:
+const strokeWidth = tokens.stroke.ink;       // "2.5px"
+const poseMs = tokens.motion.pose;           // "83.33ms"
+const fps = tokens.motion.fps;               // 12
+const pairGutter = tokens.gutters.pair;      // "12px"
+const lightInk = tokens.light.ink;           // "#121212"
+const darkPanel = tokens.dark.panel;         // "#19191a"
 
-// Structural & motion tokens
-const sceneGutter = tokens.gutters.scene;  // '20px'
-const inkStroke = tokens.stroke.ink;       // '2.5px'
-const poseDuration = tokens.motion.pose;   // '83.33ms'
-const fps = tokens.motion.fps;             // 12
-const monoFont = tokens.fonts.mono;
-```
-
-### 3. W3C Design Tokens JSON (`@frame12/tokens/tokens.json`)
-
-```ts
-import dtcgTokens from '@frame12/tokens/tokens.json' with { type: 'json' };
-```
-
-Provides the resolved W3C DTCG token tree (`$type`, `$value`, `$description`, and `dev.frame12.cssVar` extensions) for design tools and style pipelines.
-
----
-
-## Inlining `cssText` in a Static HTML Page or Webview
-
-String renderers (such as static HTML generators, CLI report exporters, or VS Code webviews) can inline `cssText` directly into a `<style>` tag without filesystem reads:
-
-```ts
-import { cssText, tokens } from '@frame12/tokens';
-
-export function renderStaticPage(title: string, bodyHtml: string): string {
+// Inline cssText directly into a static HTML page or webview without fs.readFileSync:
+export function renderStaticPage(bodyHtml: string): string {
   return `<!doctype html>
 <html lang="en" data-theme="light">
-<head>
-  <meta charset="utf-8" />
-  <title>${title}</title>
-  <style>${cssText}</style>
-  <style>
-    body {
-      margin: 0;
-      padding: var(--f-gutter-change);
-      background: var(--f-desk);
-      color: var(--f-ink);
-      font-family: var(--font-f-body);
-    }
-    .card {
-      background: var(--f-panel);
-      border: var(--f-stroke) solid var(--f-rule);
-      padding: var(--f-gutter-scene);
-      box-shadow: var(--f-shadow-sheet);
-    }
-  </style>
-</head>
-<body>
-  <main class="card" data-pose-ms="${tokens.motion.pose}">
+  <head>
+    <meta charset="utf-8" />
+    <style>${cssText}</style>
+  </head>
+  <body style="background: var(--f-sheet); color: var(--f-ink); font-family: var(--font-f-body);">
     ${bodyHtml}
-  </main>
-</body>
+  </body>
 </html>`;
 }
 ```
 
 ---
 
-## License
+## WCAG Contrast Gate
 
-MIT
+Verified on every test run (`packages/tokens/tests/tokens.test.mjs`):
+
+| Pair | Requirement | Paper Light (`light`) | Flashback Dark (`dark`) |
+| --- | --- | --- | --- |
+| `ink` / `sheet` | `>= 4.5:1` (body) | `18.73:1` (`#121212` on `#ffffff`) | `17.85:1` (`#f1f0ea` on `#050505`) |
+| `ink` / `panel` | `>= 4.5:1` (body) | `18.73:1` (`#121212` on `#ffffff`) | `15.39:1` (`#f1f0ea` on `#19191a`) |
+| `ink-2` / `panel` | `>= 4.5:1` (body) | `8.72:1` (`#4b4b4b` on `#ffffff`) | `8.83:1` (`#b9b8b1` on `#19191a`) |
+| `marker-ink` / `marker` | `>= 4.5:1` (body) | `13.27:1` (`#121212` on `#ffd60a`) | `13.27:1` (`#121212` on `#ffd60a`) |
+| `rule` / `panel` | `>= 3.0:1` (non-text) | `18.73:1` (`#121212` on `#ffffff`) | `15.39:1` (`#f1f0ea` on `#19191a`) |

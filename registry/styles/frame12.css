@@ -403,7 +403,7 @@
 .f12-panel-frame polygon {
   fill: var(--f-panel);
   stroke: var(--f-rule);
-  stroke-width: 2.5;
+  stroke-width: var(--f-stroke);
   stroke-linejoin: miter;
 }
 .f12-panel-body {
@@ -578,7 +578,7 @@
   display: inline-flex;
   flex: none;
   isolation: isolate;
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   background: var(--f-panel);
 }
 .f12-rng-ind {
@@ -638,7 +638,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   background: var(--f-panel);
   color: var(--f-ink);
   padding: 8px 16px;
@@ -713,7 +713,7 @@
   line-height: 1.4;
   color: var(--f-ink);
   background: var(--f-panel);
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   border-radius: 0;
 }
 .f12-input::placeholder {
@@ -746,7 +746,7 @@
   line-height: 1.45;
   color: var(--f-ink);
   background: var(--f-panel);
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   border-radius: 0;
   resize: vertical;
 }
@@ -845,7 +845,7 @@
   width: 24px;
   height: 24px;
   background: var(--f-panel);
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   cursor: pointer;
   display: block;
 }
@@ -960,7 +960,7 @@
   width: 100%;
   height: 100%;
   background: var(--f-panel);
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   border-radius: 0;
   cursor: pointer;
   display: block;
@@ -990,7 +990,7 @@
   align-items: center;
   overflow: hidden;
   background: var(--f-panel);
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   box-sizing: border-box;
 }
 .f12-switch-input.f12-switch-input-compact + .f12-switch-track {
@@ -1085,7 +1085,7 @@
 .f12-tabs-list {
   display: flex;
   flex-wrap: wrap;
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   background: var(--f-panel);
   width: fit-content;
   max-width: 100%;
@@ -2029,7 +2029,7 @@ button.f12-breadcrumb-link {
 }
 .f12-sw-total {
   border-color: var(--f-ink);
-  border-top-width: 2.5px;
+  border-top-width: var(--f-stroke);
 }
 .f12-sw-focus {
   border-color: var(--f-ink);
@@ -2072,7 +2072,7 @@ button.f12-breadcrumb-link {
 }
 .f12-l-total {
   stroke: var(--f-ink);
-  stroke-width: 2.5;
+  stroke-width: var(--f-stroke);
   stroke-linejoin: round;
   stroke-linecap: round;
 }
@@ -2354,7 +2354,7 @@ dialog.f12-dialog {
   margin: auto;
   background: var(--f-panel);
   color: var(--f-ink);
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   box-shadow: 6px 6px 0 var(--f-rule);
   padding: 34px 22px 22px;
   max-width: 480px;
@@ -2422,7 +2422,7 @@ dialog.f12-dialog > .f12-cut {
   padding: 8px 12px;
   background: var(--f-panel);
   color: var(--f-ink);
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   font-family: var(--font-f-mono);
   font-size: 12px;
   font-weight: 500;
@@ -2458,7 +2458,7 @@ dialog.f12-dialog > .f12-cut {
   overflow-y: auto;
   background: var(--f-panel);
   color: var(--f-ink);
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   box-shadow: 4px 4px 0 var(--f-rule);
   list-style: none;
   margin: 0;
@@ -2563,7 +2563,7 @@ dialog.f12-dialog > .f12-cut {
   min-width: 180px;
   background: var(--f-panel);
   color: var(--f-ink);
-  border: 2.5px solid var(--f-rule);
+  border: var(--f-stroke) solid var(--f-rule);
   box-shadow: 4px 4px 0 var(--f-rule);
   padding: 4px 0;
 }
@@ -2650,7 +2650,7 @@ dialog.f12-dialog > .f12-cut {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--f-ink-2);
-  border-bottom: 2.5px solid var(--f-rule);
+  border-bottom: var(--f-stroke) solid var(--f-rule);
 }
 .f12-table tfoot td,
 .f12-table tfoot th {

@@ -17,11 +17,14 @@ const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css']);
 const TOKEN_BASENAMES = new Set([
   'frame12.css',
   'frame12-tokens.css',
-  'tokens.css',
   'frame12-tailwind.css',
   'og-image.tsx',
   'apple-icon.tsx',
 ]);
+const TOKEN_EXEMPT_PATHS = [
+  'registry/styles/frame12-tokens.css',
+  'packages/tokens/dist/tokens.css',
+];
 const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '.f12-run', 'test-results']);
 
 const LEGAL_GUTTER_NAMES = new Set(['pair', 'scene', 'change']);
@@ -1299,8 +1302,12 @@ export function lintSource(content, filePath = 'input.tsx') {
   const ext = extname(filePath);
   if (!CODE_EXTENSIONS.has(ext)) return violations;
 
-  const isTokenFile = TOKEN_BASENAMES.has(base);
   const normalizedPath = filePath.replace(/\\/g, '/');
+  const isTokenFile =
+    TOKEN_BASENAMES.has(base) ||
+    TOKEN_EXEMPT_PATHS.some(
+      (p) => normalizedPath === p || normalizedPath.endsWith(`/${p}`),
+    );
   const isRegistryImplementation =
     normalizedPath.includes('/registry/ui/') ||
     normalizedPath.startsWith('registry/ui/') ||
