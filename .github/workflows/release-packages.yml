@@ -1,0 +1,206 @@
+name: Release Packages
+
+on:
+  push:
+    tags:
+      - '*@*.*.*'
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package directory name under packages/ (e.g. tokens) or "all" (dry_run only)'
+        required: false
+        default: 'all'
+        type: string
+      tag:
+        description: 'Optional tag to validate (e.g. tokens@0.2.0); defaults to <pkg>@<package.json version>'
+        required: false
+        default: ''
+        type: string
+      dry_run:
+        description: 'Run full pipeline with npm publish --dry-run and upload tarballs as artifacts'
+        required: false
+        default: true
+        type: boolean
+
+# Serialize tag-triggered and manual non-dry-run release runs so two releases cannot race on
+# upstream npm dependency checks or GitHub Release creation.
+concurrency:
+  group: release-packages-${{ (github.event_name == 'push' || inputs.dry_run == false) && 'release' || github.run_id }}
+  cancel-in-progress: false
+
+# Least privilege by default: top-level and `verify` job have read-only access.
+# `id-token: write` and `contents: write` are granted ONLY to the `publish` job.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Install, Build, Test & Pack Verified Tarballs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --user 1001 --ipc=host
+    outputs:
+      dry_run: ${{ steps.meta.outputs.dry_run }}
+      tag: ${{ steps.meta.outputs.tag }}
+      package: ${{ steps.meta.outputs.package }}
+      pkg_name: ${{ steps.meta.outputs.pkg_name }}
+      pkg_dir: ${{ steps.meta.outputs.pkg_dir }}
+      version: ${{ steps.meta.outputs.version }}
+      tarball: ${{ steps.meta.outputs.tarball }}
+      notes_file: ${{ steps.meta.outputs.notes_file }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      release_title: ${{ steps.meta.outputs.release_title }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Resolve release target(s) and validate tag against package.json and commit SHA
+        id: meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          EXPECTED_SHA: ${{ github.sha }}
+          INPUT_PACKAGE: ${{ inputs.package }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          node scripts/release-packages.mjs --resolve \
+            --event "$EVENT_NAME" \
+            --ref-name "$REF_NAME" \
+            --sha "$EXPECTED_SHA" \
+            --input-package "${INPUT_PACKAGE:-all}" \
+            --input-tag "${INPUT_TAG:-}" \
+            --input-dry-run "${INPUT_DRY_RUN:-true}"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Playwright image matches locked playwright version
+        run: node scripts/check-playwright-image.mjs
+
+      - name: Verify workspace file synchronization
+        run: npm run sync:check
+
+      - name: Build all workspaces
+        run: npm run build
+
+      - name: Run full verification, cross-browser, and package consistency checks
+        run: npm test
+
+      - name: Run standalone package tarball smoke-install verification
+        run: node scripts/smoke-install.mjs --packages-only
+
+      - name: Pack verified release tarballs and manifest (npm publish --dry-run + npm pack)
+        env:
+          TARGET_PACKAGE: ${{ steps.meta.outputs.package }}
+          TARGET_TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          node scripts/release-packages.mjs --dry-run \
+            --out-dir /tmp/frame12-release-artifacts \
+            --package "${TARGET_PACKAGE:-all}" \
+            --tag "${TARGET_TAG:-}"
+
+      - name: Upload verified package tarballs and manifest as artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frame12-package-tarballs
+          path: /tmp/frame12-release-artifacts/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish Verified Tarball to npm (Trusted Publishing) & GitHub Release
+    needs: verify
+    if: ${{ needs.verify.outputs.dry_run != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: release-packages-publish
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout repository (no persisted git credentials)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 24 for npm OIDC Trusted Publishing
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify Node >= 22.14.0 and npm >= 11.5.1 for OIDC trusted publishing
+        run: node scripts/release-packages.mjs --check-env
+
+      - name: Download verified package tarball and manifest from verify job
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: frame12-package-tarballs
+          path: /tmp/frame12-release-artifacts
+
+      - name: Verify tag matches package.json & commit SHA, verified tarball SHA-256, and upstream npm dependencies
+        env:
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          node scripts/release-packages.mjs --verify-publish \
+            --tag "$RELEASE_TAG" \
+            --sha "$EXPECTED_SHA" \
+            --artifact-dir /tmp/frame12-release-artifacts \
+            --notes-out /tmp/release-notes.md
+
+      - name: Publish verified tarball to npm with OIDC provenance
+        env:
+          PKG_NAME: ${{ needs.verify.outputs.pkg_name }}
+          PKG_VERSION: ${{ needs.verify.outputs.version }}
+          TARBALL_NAME: ${{ needs.verify.outputs.tarball }}
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          TARBALL_PATH="/tmp/frame12-release-artifacts/${TARBALL_NAME}"
+          if [ ! -f "$TARBALL_PATH" ]; then
+            echo "Error: verified tarball not found at $TARBALL_PATH" >&2
+            exit 1
+          fi
+          if npm view "${PKG_NAME}@${PKG_VERSION}" version >/dev/null 2>&1; then
+            echo "${PKG_NAME}@${PKG_VERSION} is already published on npm; skipping publish step."
+            exit 0
+          fi
+          if [ "$PRERELEASE" = "true" ]; then
+            npm publish "$TARBALL_PATH" --provenance --access public --tag next --ignore-scripts
+          else
+            npm publish "$TARBALL_PATH" --provenance --access public --ignore-scripts
+          fi
+
+      - name: Create GitHub Release with package changelog section
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          TITLE: ${{ needs.verify.outputs.release_title }}
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          EXTRA_ARGS=()
+          if [ "$PRERELEASE" = "true" ]; then
+            EXTRA_ARGS+=(--prerelease)
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TITLE" --notes-file /tmp/release-notes.md "${EXTRA_ARGS[@]}"
+          else
+            gh release create "$TAG" --verify-tag --title "$TITLE" --notes-file /tmp/release-notes.md "${EXTRA_ARGS[@]}"
+          fi
