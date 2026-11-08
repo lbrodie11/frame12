@@ -82,13 +82,13 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
 
   return (
     <div
+      {...rest}
       ref={ref}
       role="group"
       aria-label={groupAriaLabel}
       className={`f12-ghost-wire f12-ghost-wire-${safeOrientation}${className ? ` ${className}` : ''}`}
       data-orientation={resolvedOrientation}
       data-strength={clampedStrength.toFixed(2)}
-      {...rest}
     >
       <span className="f12-ghost-wire-endpoint f12-ghost-wire-from" data-endpoint="from">
         {from}

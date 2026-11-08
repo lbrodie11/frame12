@@ -88,10 +88,10 @@ export const ReceiptList = React.forwardRef<HTMLUListElement, ReceiptListProps>(
 
     return (
       <ul
+        {...rest}
         ref={ref}
         className={`f12-receipt-list${className ? ` ${className}` : ''}`}
         aria-label={ariaLabel ?? rest['aria-label'] ?? 'Evidence receipts'}
-        {...rest}
       >
         {items.map((child, idx) => {
           if (React.isValidElement(child) && child.type === 'li') {

@@ -804,7 +804,10 @@
   font-family: var(--font-f-mono);
   font-size: 11px;
   color: var(--f-ink-2);
-  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .f12-burst {
   position: absolute;

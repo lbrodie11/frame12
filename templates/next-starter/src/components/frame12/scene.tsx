@@ -29,16 +29,19 @@ export const SceneArea = React.forwardRef<HTMLDivElement, SceneAreaProps>(functi
   { area, className = '', style, children, ...rest },
   ref,
 ) {
-  const mergedStyle = {
-    '--f12-area': area,
-    ...style,
-  } as React.CSSProperties;
+  const safeArea = typeof area === 'string' && area.trim() ? area.trim() : undefined;
+  const mergedStyle: React.CSSProperties | undefined = safeArea
+    ? ({
+        '--f12-area': safeArea,
+        ...style,
+      } as React.CSSProperties)
+    : style;
 
   return (
     <div
       ref={ref}
       className={`f12-scene-area${className ? ` ${className}` : ''}`}
-      data-area={area}
+      data-area={safeArea}
       style={mergedStyle}
       {...rest}
     >
@@ -82,7 +85,9 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
     typeof breakpoint === 'number'
       ? `${breakpoint}px`
       : typeof breakpoint === 'string' && breakpoint.trim()
-        ? breakpoint.trim()
+        ? /^\d+(\.\d+)?$/.test(breakpoint.trim())
+          ? `${breakpoint.trim()}px`
+          : breakpoint.trim()
         : '860px';
   const isCustomBreakpoint = normalizedBreakpoint !== '860px';
 

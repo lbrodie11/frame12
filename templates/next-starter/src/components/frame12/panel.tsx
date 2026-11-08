@@ -90,9 +90,10 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
         : '0.35,0.35 99.65,0.35 99.65,99.65 0.35,99.65';
 
   const variantClass = isQuiet ? ' f12-panel-quiet' : '';
-  const mergedStyle: React.CSSProperties | undefined = area
+  const safeArea = typeof area === 'string' && area.trim() ? area.trim() : undefined;
+  const mergedStyle: React.CSSProperties | undefined = safeArea
     ? ({
-        '--f12-area': area,
+        '--f12-area': safeArea,
         ...style,
       } as React.CSSProperties)
     : style;
@@ -102,7 +103,7 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
       ref={setRefs}
       className={`f12-panel f12-${shape}${variantClass}${className ? ` ${className}` : ''}`}
       data-variant={isQuiet ? 'quiet' : undefined}
-      data-area={area}
+      data-area={safeArea}
       aria-label={label}
       style={mergedStyle}
       {...rest}

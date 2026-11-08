@@ -39,9 +39,10 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
   const inheritedVariant = usePanelVariantContext();
   const effectivePairVariant: PanelVariant = variant ?? inheritedVariant ?? 'expressive';
   const classes = `f12-pair${className ? ` ${className}` : ''}`;
-  const mergedStyle: React.CSSProperties | undefined = area
+  const safeArea = typeof area === 'string' && area.trim() ? area.trim() : undefined;
+  const mergedStyle: React.CSSProperties | undefined = safeArea
     ? ({
-        '--f12-area': area,
+        '--f12-area': safeArea,
         ...style,
       } as React.CSSProperties)
     : style;
@@ -50,7 +51,7 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
     const topVariant = top.variant ?? effectivePairVariant;
     const bottomVariant = bottom.variant ?? effectivePairVariant;
     return (
-      <div ref={ref} className={classes} data-area={area} style={mergedStyle} {...rest}>
+      <div ref={ref} className={classes} data-area={safeArea} style={mergedStyle} {...rest}>
         <Panel
           {...top}
           cut={top.cut ?? topCut}
@@ -108,7 +109,7 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
   };
 
   return (
-    <div ref={ref} className={classes} data-area={area} style={mergedStyle} {...rest}>
+    <div ref={ref} className={classes} data-area={safeArea} style={mergedStyle} {...rest}>
       {first !== undefined && renderSlot(first, 'slant-bottom', topCut, topLabel)}
       {second !== undefined && renderSlot(second, 'slant-top', bottomCut, bottomLabel)}
     </div>
