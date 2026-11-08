@@ -213,7 +213,17 @@ export function buildTokenArtifacts(source = JSON.parse(fs.readFileSync(SOURCE_P
 
   const indexJs = [
     GENERATED_HEADER,
-    `export const tokens = ${JSON.stringify(tsTokensObj, null, 2)};`,
+    'const deepFreeze = (obj) => {',
+    '  Object.freeze(obj);',
+    '  for (const val of Object.values(obj)) {',
+    '    if (val && typeof val === "object" && !Object.isFrozen(val)) {',
+    '      deepFreeze(val);',
+    '    }',
+    '  }',
+    '  return obj;',
+    '};',
+    '',
+    `export const tokens = deepFreeze(${JSON.stringify(tsTokensObj, null, 2)});`,
     '',
     'export const { light, dark, gutters, stroke, motion, fonts, shadow } = tokens;',
     '',

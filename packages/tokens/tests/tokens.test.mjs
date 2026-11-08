@@ -108,8 +108,11 @@ function check(ok, label, detail = '') {
       dtcg.stroke.ink.$value === '2.5px' &&
       dtcg.motion.pose.$value === '83.33ms' &&
       dtcg.motion.fps.$value === 12 &&
-      Boolean(dtcg.shadow.sheet.$value),
-    'tokens JS/TS exports and resolved DTCG tokens.json match canonical values',
+      Boolean(dtcg.shadow.sheet.$value) &&
+      Object.isFrozen(tokens) &&
+      Object.isFrozen(tokens.light) &&
+      Object.isFrozen(tokens.dark),
+    'tokens JS/TS exports (deep-frozen at runtime) and resolved DTCG tokens.json match canonical values',
   );
 }
 
