@@ -1,0 +1,256 @@
+<!--
+  Regression fixture from lbrodie11/gutter docs/example/gutter.html (commit b169e12,
+  prior to GU-12). Contains illegal gutters (gap: 4px/6px/8px/10px/14px/18px),
+  marker-misuse on outline, and non-C-NN cut numbers (data-cut="0".."5").
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Gutter · feat(serve-static): add cacheControl option</title>
+<style id="f12-tokens">
+:root {
+  --font-f-display: "Dela Gothic One", "Arial Black", "Helvetica Neue", sans-serif;
+  --font-f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-f-mono: "M PLUS 1 Code", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --f-gutter-pair: 12px;
+  --f-gutter-scene: 20px;
+  --f-gutter-change: 32px;
+  --f-stroke: 2.5px;
+  --f-pose: 83.33ms;
+  --f-shadow-sheet: 0 1px 0 rgba(0, 0, 0, 0.05), 0 18px 40px -26px rgba(0, 0, 0, 0.5);
+  --f-desk: #e2e3e5;
+  --f-sheet: #ffffff;
+  --f-panel: #ffffff;
+  --f-ink: #121212;
+  --f-ink-2: #4b4b4b;
+  --f-rule: #121212;
+  --f-tone: #121212;
+  --f-grid: #e3e3e3;
+  --f-marker: #ffd60a;
+  --f-marker-ink: #121212;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --f-desk: #000000;
+    --f-sheet: #050505;
+    --f-panel: #19191a;
+    --f-ink: #f1f0ea;
+    --f-ink-2: #b9b8b1;
+    --f-rule: #f1f0ea;
+    --f-tone: #f1f0ea;
+    --f-grid: #2c2c2d;
+    --f-marker: #ffd60a;
+    --f-marker-ink: #121212;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --f-desk: #000000;
+  --f-sheet: #050505;
+  --f-panel: #19191a;
+  --f-ink: #f1f0ea;
+  --f-ink-2: #b9b8b1;
+  --f-rule: #f1f0ea;
+  --f-tone: #f1f0ea;
+  --f-grid: #2c2c2d;
+  --f-marker: #ffd60a;
+  --f-marker-ink: #121212;
+  color-scheme: dark;
+}
+</style>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--f-desk)}
+body{margin:0;background:var(--f-desk);color:var(--f-ink);font-family:var(--font-f-body);font-size:15px;line-height:1.5}
+.defs{position:absolute}
+.dot{fill:var(--f-tone)}
+a{color:inherit;text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible,.panel:focus-visible{outline:var(--f-stroke) solid var(--f-marker);outline-offset:2px}
+.desk{padding:var(--f-gutter-change) 16px}
+.sheet{max-width:1120px;margin:0 auto;background:var(--f-sheet);padding:var(--f-gutter-scene);box-shadow:var(--f-shadow-sheet)}
+.masthead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:var(--f-gutter-pair);border-bottom:calc(var(--f-stroke) * 2) solid var(--f-rule);padding-bottom:var(--f-gutter-pair);margin-bottom:var(--f-gutter-scene)}
+.wordmark{margin:0;font-family:var(--font-f-display);font-size:34px;letter-spacing:.02em;line-height:1}
+.slash{color:var(--f-ink-2);margin:0 6px}
+.kicker{font-family:var(--font-f-mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;vertical-align:middle}
+.issue{margin:0;font-family:var(--font-f-mono);font-size:12px;color:var(--f-ink-2)}
+.quiet-banner{border:var(--f-stroke) solid var(--f-rule);padding:8px 12px;margin:0 0 var(--f-gutter-scene);font-family:var(--font-f-mono);font-size:13px}
+.page{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--f-gutter-scene)}
+.panel{grid-column:span 12;position:relative;background:var(--f-panel);border:var(--f-stroke) solid var(--f-rule);padding:0 16px 16px;min-width:0}
+.page.quiet .panel{grid-column:span 12}
+@media (min-width:860px){
+.page:not(.quiet){grid-template-areas:"intent intent intent intent intent intent intent changed changed changed changed changed" "touches touches touches touches touches forgotten forgotten forgotten forgotten forgotten forgotten forgotten" "tests tests tests tests tests forgotten forgotten forgotten forgotten forgotten forgotten forgotten" "checks checks checks checks checks checks checks checks checks checks checks checks"}
+.area-intent{grid-area:intent}.area-changed{grid-area:changed}.area-touches{grid-area:touches}.area-forgotten{grid-area:forgotten}.area-tests{grid-area:tests}.area-checks{grid-area:checks}
+.page.quiet .area-intent{grid-column:span 7}.page.quiet .area-changed{grid-column:span 5}
+}
+.cap{display:inline-flex;align-items:center;gap:8px;margin:0 0 14px -16px;padding:5px 12px 5px 0;background:var(--f-ink);color:var(--f-sheet);font-family:var(--font-f-display);font-size:14px;font-weight:400;letter-spacing:.04em;text-transform:uppercase}
+.cap .num{display:inline-block;min-width:28px;text-align:center;border-right:1px solid currentColor;padding:0 6px}
+.cap.marker{background:var(--f-marker);color:var(--f-marker-ink)}
+.hero{border-width:calc(var(--f-stroke) * 1.6)}
+.balloon{position:relative;border:var(--f-stroke) solid var(--f-rule);border-radius:22px;padding:12px 16px;margin:4px 0 18px;background:var(--f-panel)}
+.balloon::after{content:"";position:absolute;left:28px;bottom:-12px;width:18px;height:18px;background:var(--f-panel);border-right:var(--f-stroke) solid var(--f-rule);border-bottom:var(--f-stroke) solid var(--f-rule);transform:skewX(32deg) rotate(45deg)}
+.balloon.thought{border-style:dashed}
+.balloon.thought::after{display:none}
+.said{margin:0;font-family:var(--font-f-display);font-size:19px;line-height:1.25;overflow-wrap:anywhere}
+.aside{margin:8px 0 0;color:var(--f-ink-2);font-size:14px;white-space:pre-line;overflow-wrap:anywhere}
+.commits,.receipts{margin:0;padding-left:20px;font-size:13px}
+.commits li,.receipts li{overflow-wrap:anywhere}
+.sha{font-family:var(--font-f-mono);font-size:12px}
+.stat{margin:0 0 10px;font-family:var(--font-f-mono);font-size:13px}
+.modules{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.modules li{display:grid;grid-template-columns:minmax(0,9em) minmax(0,1fr) auto;align-items:center;gap:10px}
+.mod{font-family:var(--font-f-mono);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{width:100%;height:14px;display:block}
+.bar-ink{fill:none;stroke:var(--f-rule);stroke-width:1.2;vector-effect:non-scaling-stroke}
+.num-sm{font-family:var(--font-f-mono);font-size:11px;color:var(--f-ink-2);white-space:nowrap}
+.path{font-family:var(--font-f-mono);font-size:12px;padding:1px 5px;-webkit-box-decoration-break:clone;box-decoration-break:clone;line-height:1.9;border:1px solid var(--f-rule);background:var(--f-panel);overflow-wrap:anywhere}
+.path.dashed{border-style:dashed}
+.path.solid{border-width:2px}
+.deps{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.deps li{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.importers{display:flex;flex-wrap:wrap;gap:4px}
+.stamp{font-family:var(--font-f-display);font-size:10px;letter-spacing:.06em;text-transform:uppercase;border:1.5px solid var(--f-rule);padding:0 5px;transform:rotate(-3deg);display:inline-block}
+.small{font-size:12px;color:var(--f-ink-2);margin:4px 0 0}
+.quiet-line{margin:0;color:var(--f-ink-2)}
+.wires{list-style:none;margin:0;padding:0;display:grid;gap:18px}
+.wire-row+.wire-row{border-top:1px solid var(--f-grid);padding-top:14px}
+.wire{display:grid;grid-template-columns:auto minmax(28px,1fr) auto;align-items:center;gap:8px}
+.wire > a,.wire > code{min-width:0}
+.ghost{width:100%;height:12px}
+.ghost line{stroke:var(--f-ink);stroke-width:2.5;stroke-dasharray:6 5;vector-effect:non-scaling-stroke}
+.evidence-line{margin:8px 0 2px;font-family:var(--font-f-mono);font-size:13px}
+.why{margin-bottom:6px}
+.family{margin-top:14px;padding-top:10px;border-top:1px solid var(--f-grid)}
+.family p{margin:0 0 4px}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--f-gutter-pair);margin:0 0 12px}
+.metrics div{border:1.5px solid var(--f-rule);padding:6px 8px}
+.metrics dt{font-family:var(--font-f-mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--f-ink-2)}
+.metrics dd{margin:0;font-family:var(--font-f-display);font-size:28px;line-height:1.1}
+.checks{margin:0;padding-left:22px;display:grid;gap:14px}
+@media (min-width:860px){.checks{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--f-gutter-change)}}
+.checks p{margin:0}
+.jump{font-size:12px}
+.colophon{margin-top:var(--f-gutter-scene);border-top:var(--f-stroke) solid var(--f-rule);padding-top:var(--f-gutter-pair);display:grid;gap:6px}
+.cal p{margin:0 0 6px;font-size:13px}
+.gauge{width:min(320px,100%);height:10px;display:block}
+@media (max-width:520px){.sheet{padding:var(--f-gutter-pair)}.wordmark{font-size:26px}.wire{grid-template-columns:1fr}.ghost{transform:rotate(90deg);height:12px;width:28px;justify-self:start}}
+@media print{.desk{padding:0}.sheet{box-shadow:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" class="defs" aria-hidden="true" focusable="false"><defs>
+  <pattern id="tone-1" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="2" cy="2" r="0.6" class="dot"/></pattern>
+  <pattern id="tone-2" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="2" cy="2" r="1.0" class="dot"/></pattern>
+  <pattern id="tone-3" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="2" cy="2" r="1.45" class="dot"/></pattern>
+</defs></svg>
+<main class="desk">
+<article class="sheet">
+  <header class="masthead">
+    <p class="wordmark">GUTTER<span class="slash">/</span><span class="kicker">change briefing</span></p>
+    <p class="issue">main → feat/serve-static-cache-control · eb754bd · 2026-11-07</p>
+  </header>
+  
+  <div class="page">
+<section class="panel area-intent" data-cut="0" aria-labelledby="p1">
+  <h2 id="p1" class="cap"><span class="num">1</span> Intent</h2>
+  
+  <div class="balloon"><p class="said">feat(serve-static): add cacheControl option</p><p class="aside">Adds a cacheControl option so static responses can set Cache-Control without custom middleware.</p></div>
+  <ol class="commits" aria-label="Commits in this change"><li><span class="sha">local-s</span> feat(serve-static): add cacheControl option</li></ol>
+</section>
+<section class="panel area-changed" data-cut="1" aria-labelledby="p2">
+  <h2 id="p2" class="cap"><span class="num">2</span> What changed</h2>
+  
+  <p class="stat"><b>2</b> files · <b>2</b> modules · <b>+10</b>/<b>−0</b></p>
+  <ul class="modules" aria-label="Churn by module, darker tone means more lines changed"><li><span class="mod">src/middleware</span>
+      <svg class="bar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="0" width="100" height="10" fill="url(#tone-3)"/><rect x="0.6" y="0.6" width="98.8" height="8.8" class="bar-ink"/></svg>
+      <span class="num-sm">1f · +8/−0</span></li><li><span class="mod">src/adapter</span>
+      <svg class="bar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="0" width="25" height="10" fill="url(#tone-1)"/><rect x="0.6" y="0.6" width="23.8" height="8.8" class="bar-ink"/></svg>
+      <span class="num-sm">1f · +2/−0</span></li></ul>
+  
+</section>
+<section class="panel area-touches" data-cut="2" aria-labelledby="p3">
+  <h2 id="p3" class="cap"><span class="num">3</span> What it touches</h2>
+  <ul class="deps"><li id="deps:src/middleware/serve-static/index.ts"><a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/middleware/serve-static/index.ts"><code class="path">src/middleware/serve-static/index.ts</code></a>
+        <span class="small">imported by 3 untouched files</span>
+        <span class="importers"><a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/cloudflare-workers/serve-static.ts"><code class="path">src/adapter/cloudflare-workers/serve-static.ts</code></a> <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/deno/serve-static.ts"><code class="path">src/adapter/deno/serve-static.ts</code></a> <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/middleware/serve-static/index.test.ts"><code class="path">src/middleware/serve-static/index.test.ts</code></a></span></li><li id="deps:src/adapter/bun/serve-static.ts"><a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/bun/serve-static.ts"><code class="path">src/adapter/bun/serve-static.ts</code></a>
+        <span class="small">imported by 1 untouched file</span>
+        <span class="importers"><a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/bun/index.ts"><code class="path">src/adapter/bun/index.ts</code></a></span></li></ul>
+</section>
+<section class="panel area-forgotten hero" data-cut="3" aria-labelledby="p4">
+  <h2 id="p4" class="cap marker"><span class="num">4</span> Likely forgotten</h2>
+  <ul class="wires"><li class="wire-row" id="forgotten:0">
+      <div class="wire">
+        <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/middleware/serve-static/index.ts"><code class="path solid">src/middleware/serve-static/index.ts</code></a>
+        <svg class="ghost" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="6" x2="100" y2="6"/></svg>
+        <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/middleware/serve-static/index.test.ts"><code class="path dashed">src/middleware/serve-static/index.test.ts</code></a>
+      </div>
+      <p class="evidence-line"><b>17 of 20</b> commits together · 95% CI 64%–95% · last 2026-10-16</p>
+      <p class="small why">a test and the code it covers</p>
+      <ol class="receipts" aria-label="Commits where these files changed together"><li><a class="sha" href="https://github.com/honojs/hono/commit/d54720da80134a180f5fe2dd98a7676cfc8f08b4">d54720d</a> <span class="small">2026-10-16</span> fix(serve-static): respect q-values in Accept-Encoding for precompressed files (#5436)</li><li><a class="sha" href="https://github.com/honojs/hono/commit/588ec13fa68ea44fed1b5e1b503341db2bf09d70">588ec13</a> <span class="small">2026-10-13</span> fix(serve-static): only serve GET and HEAD requests (#5514)</li><li><a class="sha" href="https://github.com/honojs/hono/commit/8b05c774ef1555c70f5ba5e2991b7e77cc3635cc">8b05c77</a> <span class="small">2026-09-29</span> Merge commit from fork</li></ol>
+    </li><li class="wire-row" id="forgotten:1">
+      <div class="wire">
+        <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/bun/serve-static.ts"><code class="path solid">src/adapter/bun/serve-static.ts</code></a>
+        <svg class="ghost" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="6" x2="100" y2="6"/></svg>
+        <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/deno/serve-static.ts"><code class="path dashed">src/adapter/deno/serve-static.ts</code></a>
+      </div>
+      <p class="evidence-line"><b>9 of 11</b> commits together · 95% CI 52%–95% · last 2026-05-16</p>
+      <p class="small why">possible parallel implementations: serve-static.ts appears in sibling folders</p>
+      <ol class="receipts" aria-label="Commits where these files changed together"><li><a class="sha" href="https://github.com/honojs/hono/commit/26f8c33f23e6151873d165107f2dbcadf1204d15">26f8c33</a> <span class="small">2026-05-16</span> fix(serveStatic): make options parameter optional in all adapters (#4934)</li><li><a class="sha" href="https://github.com/honojs/hono/commit/1196f14b94e589e2ac44fa7f1c8785d70c1cf83e">1196f14</a> <span class="small">2025-08-07</span> feat(serve-static): use `join` to correct path resolution (#4291)</li><li><a class="sha" href="https://github.com/honojs/hono/commit/246a06aa1d35aa206dcf11186b3aa90badb2de72">246a06a</a> <span class="small">2024-09-24</span> feat(serve-static): support absolute root (#3420)</li></ol>
+    </li><li class="wire-row" id="forgotten:2">
+      <div class="wire">
+        <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/bun/serve-static.ts"><code class="path solid">src/adapter/bun/serve-static.ts</code></a>
+        <svg class="ghost" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="6" x2="100" y2="6"/></svg>
+        <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/cloudflare-workers/serve-static.ts"><code class="path dashed">src/adapter/cloudflare-workers/serve-static.ts</code></a>
+      </div>
+      <p class="evidence-line"><b>6 of 11</b> commits together · 95% CI 28%–79% · last 2026-05-16</p>
+      <p class="small why">possible parallel implementations: serve-static.ts appears in sibling folders</p>
+      <ol class="receipts" aria-label="Commits where these files changed together"><li><a class="sha" href="https://github.com/honojs/hono/commit/26f8c33f23e6151873d165107f2dbcadf1204d15">26f8c33</a> <span class="small">2026-05-16</span> fix(serveStatic): make options parameter optional in all adapters (#4934)</li><li><a class="sha" href="https://github.com/honojs/hono/commit/f8371ab356f79fcf762c66aa372448a8018bcfc7">f8371ab</a> <span class="small">2024-02-24</span> fix(serve-static): support extensionless files and refactor (#2260)</li><li><a class="sha" href="https://github.com/honojs/hono/commit/d74d95d11c8d06ff7588a3a2e899e3843c4a7d1e">d74d95d</a> <span class="small">2024-01-29</span> feat(serve-static): `mimes` option for serve-static (#2094)</li></ol>
+    </li></ul><div class="family" id="family:0"><p><b>Parallel implementations</b> · serve-static.ts across src/adapter/*</p>
+     <p class="small">Changed: <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/bun/serve-static.ts"><code class="path">src/adapter/bun/serve-static.ts</code></a></p>
+     <p class="small">Untouched: <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/cloudflare-workers/serve-static.ts"><code class="path dashed">src/adapter/cloudflare-workers/serve-static.ts</code></a> <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/deno/serve-static.ts"><code class="path dashed">src/adapter/deno/serve-static.ts</code></a></p></div><p class="small">3 weaker matches not shown.</p>
+</section>
+<section class="panel area-tests" data-cut="4" aria-labelledby="p5">
+  <h2 id="p5" class="cap"><span class="num">5</span> Tests</h2>
+  
+  <dl class="metrics">
+    <div><dt>updated</dt><dd>0</dd></div>
+    <div><dt>untouched</dt><dd>1</dd></div>
+    <div><dt>none found</dt><dd>1</dd></div>
+  </dl>
+  <ul class="deps"><li id="tests:src/middleware/serve-static/index.ts"><a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/middleware/serve-static/index.ts"><code class="path">src/middleware/serve-static/index.ts</code></a> <span class="small">→</span> <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/middleware/serve-static/index.test.ts"><code class="path dashed">src/middleware/serve-static/index.test.ts</code></a></li></ul>
+</section>
+<section class="panel area-checks" data-cut="5" aria-labelledby="p6">
+  <h2 id="p6" class="cap"><span class="num">6</span> Check these</h2>
+  <ol class="checks"><li><p><code class="path">src/middleware/serve-static/index.test.ts</code> changed alongside <code class="path">src/middleware/serve-static/index.ts</code> in 17 of its 20 commits (95% CI 64%–95%) but is untouched here. Does it need a matching change?</p><p class="small"><a class="sha" href="https://github.com/honojs/hono/commit/d54720da80134a180f5fe2dd98a7676cfc8f08b4">d54720d</a> <a class="sha" href="https://github.com/honojs/hono/commit/588ec13fa68ea44fed1b5e1b503341db2bf09d70">588ec13</a> <a class="jump" href="#forgotten:0">see evidence</a></p></li><li><p><code class="path">src/adapter/deno/serve-static.ts</code> changed alongside <code class="path">src/adapter/bun/serve-static.ts</code> in 9 of its 11 commits (95% CI 52%–95%) but is untouched here. Does it need a matching change?</p><p class="small"><a class="sha" href="https://github.com/honojs/hono/commit/26f8c33f23e6151873d165107f2dbcadf1204d15">26f8c33</a> <a class="sha" href="https://github.com/honojs/hono/commit/1196f14b94e589e2ac44fa7f1c8785d70c1cf83e">1196f14</a> <a class="jump" href="#forgotten:1">see evidence</a></p></li><li><p>This changes 1 of 3 parallel implementations (serve-static.ts across src/adapter/*). Should <code class="path">src/adapter/cloudflare-workers/serve-static.ts</code> (+1 more) follow?</p><p class="small"><a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/cloudflare-workers/serve-static.ts"><code class="path">src/adapter/cloudflare-workers/serve-static.ts</code></a> <a href="https://github.com/honojs/hono/blob/eb754bd5ef22c63f1634a4c374a86be086f85710/src/adapter/deno/serve-static.ts"><code class="path">src/adapter/deno/serve-static.ts</code></a> <a class="jump" href="#family:0">see evidence</a></p></li></ol>
+</section>
+  </div>
+  <footer class="colophon">
+    <div class="cal"><p><b>How much to trust the history panel here:</b> Replayed on the last 375 commits: when it flagged files, at least one really did change 73% of the time (6.8× better than guessing busy files), and 57% of all flagged files did.</p><svg class="gauge" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="Measured precision 57%"><rect x="0" y="0" width="57" height="8" fill="url(#tone-2)"/><rect x="0.6" y="0.6" width="98.8" height="6.8" class="bar-ink"/></svg></div>
+    <p class="small">No AI wrote this page: every line comes from git history and the code. gutter 0.1.0 + repo-archaeology 0.3.0.</p>
+  </footer>
+</article>
+</main>
+<script>(function(){
+  try { if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) { return; }
+  var cuts = Array.prototype.slice.call(document.querySelectorAll('[data-cut]'));
+  var POSE = 1000 / 12, POSES = 5, LAG = 2, start = null;
+  cuts.forEach(function (el) { el.style.opacity = '0'; el.style.transform = 'translateY(12px)'; });
+  function frame(ts) {
+    if (start === null) start = ts;
+    var pose = Math.floor((ts - start) / POSE), done = true;
+    cuts.forEach(function (el, i) {
+      var p = Math.min(Math.max((pose - i * LAG) / POSES, 0), 1);
+      var e = 1 - Math.pow(1 - p, 3);
+      el.style.opacity = String(e);
+      el.style.transform = p < 1 ? 'translateY(' + (12 * (1 - e)).toFixed(1) + 'px)' : '';
+      if (p < 1) done = false;
+    });
+    if (!done) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();</script>
+</body>
+</html>

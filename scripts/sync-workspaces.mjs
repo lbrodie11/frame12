@@ -13,12 +13,17 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { checkTokenSync } from '../packages/tokens/scripts/build-tokens.mjs';
+import { checkLintSync } from '../packages/lint/scripts/build-lint.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const checkOnly = process.argv.includes('--check');
 
 if (!checkOnly) {
   execFileSync(process.execPath, [path.join(ROOT, 'packages/tokens/scripts/build-tokens.mjs')], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  });
+  execFileSync(process.execPath, [path.join(ROOT, 'packages/lint/scripts/build-lint.mjs')], {
     cwd: ROOT,
     stdio: 'inherit',
   });
@@ -78,9 +83,9 @@ for (const wsEntry of rootPkgJson.workspaces || []) {
   }
 }
 
-// 4. scripts/check-frame12.mjs -> templates/next-starter/scripts/check-frame12.mjs
+// 4. packages/lint/dist/index.js -> templates/next-starter/scripts/check-frame12.mjs
 FILE_MAPPINGS.push({
-  src: path.join(ROOT, 'scripts/check-frame12.mjs'),
+  src: path.join(ROOT, 'packages/lint/dist/index.js'),
   dest: path.join(ROOT, 'templates/next-starter/scripts/check-frame12.mjs'),
 });
 
@@ -121,7 +126,7 @@ if (fs.existsSync(path.join(ROOT, 'site/app/icon.svg'))) {
 const legacyDir = path.join(ROOT, 'templates/next-starter/src/registry');
 
 if (checkOnly) {
-  const drifts = [...checkTokenSync()];
+  const drifts = [...checkTokenSync(), ...checkLintSync()];
 
   if (fs.existsSync(legacyDir)) {
     drifts.push('Legacy directory templates/next-starter/src/registry still exists.');

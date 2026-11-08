@@ -5,7 +5,7 @@ FRAME/12 distributes its React component kit (`registry/`) through the `shadcn` 
 | Package | Directory | Status | Purpose | Internal Dependencies |
 | --- | --- | --- | --- | --- |
 | `@frame12/tokens` | `packages/tokens` | In tree | Zero-dependency design tokens (`dist/tokens.css`, W3C DTCG 2025.10 `dist/tokens.json`, and TypeScript/JS `tokens` + `cssText`) | None |
-| `@frame12/lint` | `packages/lint` | Joining in F12-02 | Programmatic design-grammar linter (`lintSource`, `lintHtml`, `lintFiles`, `lintDirectory`) and CLI (`frame12-lint`) with an optional `typescript` peer | None |
+| `@frame12/lint` | `packages/lint` | In tree | Programmatic design-grammar linter (`lintSource`, `lintHtml`, `lintFiles`, `lintDirectory`) and CLI (`frame12-lint`) with an optional `typescript` peer | None |
 | `@frame12/static` | `packages/static` | Joining in F12-06 | Non-React HTML (`document`, `panel`, `metric`, `badge`, `tag`, `stamp`, `receipt`, `ghostWire`, `toneBarList`) and deterministic SVG/PNG social-card renderer (`renderCard`) | `@frame12/tokens` (exact version) |
 
 > **Note:** The release pipeline never hard-codes package names. Both [`scripts/check-packages.mjs`](../scripts/check-packages.mjs) and [`scripts/release-packages.mjs`](../scripts/release-packages.mjs) discover publishable packages dynamically from `workspaces` entries in the root [`package.json`](../package.json) that live under `packages/` and do not set `"private": true`, then sort them in topological dependency order (`tokens` → `lint` → `static`). When `@frame12/lint` (F12-02) and `@frame12/static` (F12-06) land under `packages/`, they join the pipeline automatically.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Automated design-grammar checker for FRAME/12.
+// @frame12/lint — Automated design-grammar checker for FRAME/12.
 // Enforces:
 //   1. color-literal           — No hard-coded hex/rgb/hsl colors, CSS gradients, or font stacks outside token files
 //   2. illegal-gutter          — Only 12px (pair), 20px (scene), and 32px (change) gutters
@@ -7,13 +7,31 @@
 //   4. cut-order               — Sequential C-01, C-02, C-03... in DOM/reading order without gaps or duplicates
 //   5. explicit-cut-in-autocut — No explicit cut/topCut/bottomCut on Panel/PanelPair inside <Sheet autoCut>
 //   6. raw-shadcn-import       — No raw @/components/ui/*, @radix-ui/*, or external chart/animation imports
+//   7. unsafe-html             — No external scripts/resources, iframes/embeds, inline on*= handlers, or javascript: URLs in HTML
 
-import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, realpathSync, statSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { resolve, relative, dirname, basename, extname } from 'node:path';
+import { resolve, relative, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css']);
+export const RULES = Object.freeze({
+  'color-literal':
+    'Forbid hard-coded color literals (#hex, rgb/hsl/oklch, CSS gradients, font names) outside token definitions; use var(--f-*) tokens.',
+  'illegal-gutter':
+    'Permit only 0, 12px (--f-gutter-pair), 20px (--f-gutter-scene), or 32px (--f-gutter-change) gutters on gap, grid-gap, row-gap, and column-gap.',
+  'marker-misuse':
+    'Permit --f-marker (#ffd60a) only as a surface background paired with color: var(--f-marker-ink) in the same rule; never on text, borders, outlines, shadows, or SVG strokes/fills.',
+  'cut-order':
+    'Require panel cut labels (C-01, C-02, …) to use two-digit formatting and appear in strict sequential reading order starting at C-01 without gaps or duplicates.',
+  'explicit-cut-in-autocut':
+    'Forbid explicit cut props on Panel/PanelPair inside <Sheet autoCut> where cuts are numbered automatically.',
+  'raw-shadcn-import':
+    'Forbid raw @/components/ui/*, @radix-ui/*, or third-party chart/motion imports where a FRAME/12 component or adapter exists.',
+  'unsafe-html':
+    'Forbid external resource loads (<script src>, <link href>, <img src>, CSS @import/url()), embedded frames (<iframe>, <object>, <embed>, srcdoc), <meta http-equiv="refresh">, <base href>, inline on*= handlers, and javascript: URLs in generated HTML.',
+});
+
+const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css', '.html', '.htm']);
 const TOKEN_BASENAMES = new Set([
   'frame12.css',
   'frame12-tokens.css',
@@ -22,7 +40,14 @@ const TOKEN_BASENAMES = new Set([
   'apple-icon.tsx',
 ]);
 const TOKEN_EXEMPT_PATHS = ['packages/tokens/dist/tokens.css'];
-const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '.f12-run', 'test-results']);
+const IGNORED_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  '.next',
+  '.f12-run',
+  'test-results',
+]);
 
 const LEGAL_GUTTER_NAMES = new Set(['pair', 'scene', 'change']);
 const LEGAL_GUTTER_TOKENS = new Set([
@@ -54,7 +79,7 @@ const LEGAL_TAILWIND_GAP_CLASSES = new Set([
   'gap-[var(--f-gutter-change)]',
 ]);
 
-const FORBIDDEN_SHADCN_MODULES = new Set([
+export const FORBIDDEN_SHADCN_MODULES = new Set([
   'button',
   'input',
   'textarea',
@@ -84,7 +109,7 @@ const FORBIDDEN_SHADCN_MODULES = new Set([
   'panel',
 ]);
 
-const FORBIDDEN_EXTERNAL_PACKAGES = new Set([
+export const FORBIDDEN_EXTERNAL_PACKAGES = new Set([
   'recharts',
   'chart.js',
   'react-chartjs-2',
@@ -96,18 +121,40 @@ const FORBIDDEN_EXTERNAL_PACKAGES = new Set([
 const CUT_PROP_NAMES = new Set(['cut', 'topCut', 'bottomCut']);
 const CUT_OWNER_TAGS = new Set(['Panel', 'PanelPair', 'DialogContent']);
 
+const HTML_VOID_ELEMENTS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+]);
+
+const FORBIDDEN_EMBED_TAGS = new Set(['iframe', 'object', 'embed']);
+const EXTERNAL_SUBRESOURCE_TAGS = new Set(['link', 'img', 'source', 'video', 'audio', 'track', 'image']);
+const EXTERNAL_SUBRESOURCE_ATTRS = new Set(['src', 'srcset', 'href', 'xlink:href', 'poster']);
+
 let cachedTs = undefined;
+let warnedTypeScriptFallback = false;
+
+try {
+  const tsMod = await import('typescript');
+  cachedTs = tsMod.default ?? tsMod;
+} catch {
+  cachedTs = undefined;
+}
 
 function loadTypeScript() {
   if (cachedTs !== undefined) return cachedTs;
-  const __dir = dirname(fileURLToPath(import.meta.url));
-  const searchAnchors = [
-    import.meta.url,
-    resolve(process.cwd(), 'package.json'),
-    resolve(__dir, '../package.json'),
-    resolve(__dir, '../site/package.json'),
-    resolve(__dir, '../templates/next-starter/package.json'),
-  ];
+  const searchAnchors = [import.meta.url, resolve(process.cwd(), 'package.json')];
   for (const anchor of searchAnchors) {
     try {
       const req = createRequire(anchor);
@@ -226,12 +273,86 @@ function stripCommentsPreservingLines(src) {
   return out;
 }
 
+/**
+ * Replaces CSS block comments (`/* ... * /`) with spaces while preserving newlines
+ * without treating `//` inside URLs or selectors as line comments.
+ */
+function stripCssCommentsPreservingLines(src) {
+  let out = '';
+  let i = 0;
+  const len = src.length;
+  let state = 'code'; // 'code' | 'single' | 'double' | 'block-comment'
+
+  while (i < len) {
+    const ch = src[i];
+    const next = i + 1 < len ? src[i + 1] : '';
+
+    if (state === 'code') {
+      if (ch === '/' && next === '*') {
+        state = 'block-comment';
+        out += '  ';
+        i += 2;
+        continue;
+      }
+      if (ch === "'") {
+        state = 'single';
+        out += ch;
+        i++;
+        continue;
+      }
+      if (ch === '"') {
+        state = 'double';
+        out += ch;
+        i++;
+        continue;
+      }
+      out += ch;
+      i++;
+    } else if (state === 'single') {
+      if (ch === '\\' && i + 1 < len) {
+        out += ch + next;
+        i += 2;
+        continue;
+      }
+      if (ch === "'" || ch === '\n') state = 'code';
+      out += ch;
+      i++;
+    } else if (state === 'double') {
+      if (ch === '\\' && i + 1 < len) {
+        out += ch + next;
+        i += 2;
+        continue;
+      }
+      if (ch === '"' || ch === '\n') state = 'code';
+      out += ch;
+      i++;
+    } else if (state === 'block-comment') {
+      if (ch === '*' && next === '/') {
+        state = 'code';
+        out += '  ';
+        i += 2;
+        continue;
+      }
+      out += ch === '\n' ? '\n' : ' ';
+      i++;
+    }
+  }
+
+  return out;
+}
+
 function lineNumberAt(src, index) {
   let line = 1;
   for (let i = 0; i < index && i < src.length; i++) {
     if (src.charCodeAt(i) === 10) line++;
   }
   return line;
+}
+
+function columnNumberAt(src, index) {
+  const clamped = Math.max(0, Math.min(index, src.length));
+  const lastNl = src.lastIndexOf('\n', clamped - 1);
+  return clamped - lastNl;
 }
 
 function isLegalGapValue(rawVal) {
@@ -266,6 +387,50 @@ function extractBalancedBraces(src, openIdx) {
     }
   }
   return src.slice(openIdx + 1);
+}
+
+/**
+ * Validates sequential C-01, C-02, ... cut matches and appends any violations.
+ */
+function validateCutSequence(cutMatches, filePath, violations) {
+  if (cutMatches.length === 0) return;
+  const seen = new Set();
+  for (let i = 0; i < cutMatches.length; i++) {
+    const cur = cutMatches[i];
+    const expectedNum = i + 1;
+    const expectedLabel = `C-${String(expectedNum).padStart(2, '0')}`;
+
+    if (i === 0 && cur.num !== 1) {
+      violations.push({
+        rule: 'cut-order',
+        file: filePath,
+        line: cur.line,
+        column: cur.column,
+        message: `First cut in file is "${cur.raw}", but cuts must start at "C-01".`,
+        snippet: cur.snippet,
+      });
+    } else if (seen.has(cur.num)) {
+      violations.push({
+        rule: 'cut-order',
+        file: filePath,
+        line: cur.line,
+        column: cur.column,
+        message: `Duplicate cut number "${cur.raw}". Expected "${expectedLabel}" in reading/DOM order.`,
+        snippet: cur.snippet,
+      });
+    } else if (cur.num !== expectedNum) {
+      const prevLabel = i > 0 ? cutMatches[i - 1].raw : 'start';
+      violations.push({
+        rule: 'cut-order',
+        file: filePath,
+        line: cur.line,
+        column: cur.column,
+        message: `Out-of-order or skipped cut "${cur.raw}" after "${prevLabel}". Expected sequential "${expectedLabel}".`,
+        snippet: cur.snippet,
+      });
+    }
+    seen.add(cur.num);
+  }
 }
 
 /**
@@ -645,7 +810,9 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
   function recordCut(rawCut, node, ownerTag, inAutoCut, isQuiet = false) {
     const start = node.getStart(sourceFile);
-    const line = sourceFile.getLineAndCharacterOfPosition(start).line + 1;
+    const pos = sourceFile.getLineAndCharacterOfPosition(start);
+    const line = pos.line + 1;
+    const column = pos.character + 1;
     const snippet = node.getText(sourceFile);
     const isDialogContentCut = ownerTag === 'DialogContent';
 
@@ -654,6 +821,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
         rule: 'explicit-cut-in-autocut',
         file: filePath,
         line,
+        column,
         message: 'Cut numbers are automatic inside <Sheet autoCut>; remove the cut prop.',
         snippet,
       });
@@ -665,6 +833,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
         rule: 'cut-order',
         file: filePath,
         line,
+        column,
         message:
           'Quiet panels (<Panel variant="quiet">) are subordinate operational groups and should not carry storyboard cut numbers; remove the cut prop or use variant="expressive".',
         snippet,
@@ -678,6 +847,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
         rule: 'cut-order',
         file: filePath,
         line,
+        column,
         message: `Malformed cut label "${rawCut}". Cut numbers must use two-digit format "C-01", "C-02", etc.`,
         snippet,
       });
@@ -686,6 +856,7 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
         raw: rawCut,
         num: parseInt(parsed[1], 10),
         line,
+        column,
         snippet,
       });
     }
@@ -1251,52 +1422,108 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
     }
   }
 
-  if (cutMatches.length > 0) {
-    const seen = new Set();
-    for (let i = 0; i < cutMatches.length; i++) {
-      const cur = cutMatches[i];
-      const expectedNum = i + 1;
-      const expectedLabel = `C-${String(expectedNum).padStart(2, '0')}`;
+  validateCutSequence(cutMatches, filePath, violations);
+}
 
-      if (i === 0 && cur.num !== 1) {
+/**
+ * Regex fallback for `cut-order` and `explicit-cut-in-autocut` when the optional
+ * `typescript` peer dependency is not installed.
+ */
+function lintCutsFallback(stripped, rawContent, filePath, violations) {
+  const autoCutRanges = [];
+  const autoCutSheetRe =
+    /<Sheet\b[^>]*?\bautoCut(?:\s*=\s*(?:\{\s*true\s*\}|["']true["']))?(?![\w-])[^>]*>([\s\S]*?)<\/Sheet>/g;
+  let m;
+  while ((m = autoCutSheetRe.exec(stripped)) !== null) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    autoCutRanges.push([start, end]);
+  }
+
+  const isInsideAutoCut = (idx) =>
+    autoCutRanges.some(([start, end]) => idx > start && idx < end);
+
+  const cutMatches = [];
+  const tagRe = /<(Panel|PanelPair|DialogContent)\b([^>]*?)\/?>/g;
+  while ((m = tagRe.exec(stripped)) !== null) {
+    const ownerTag = m[1];
+    const attrs = m[2];
+    const attrsStart = m.index + 1 + ownerTag.length;
+    const inAutoCut = isInsideAutoCut(m.index);
+    const isQuiet = /\bvariant\s*=\s*(?:['"]quiet['"]|\{\s*['"`]quiet['"`]\s*\})/.test(attrs);
+    const propRe =
+      /\b(cut|topCut|bottomCut)\s*=\s*(?:(['"])([^'"]*)\2|\{\s*(['"`])([^'"`]*)\4\s*\})/g;
+    let pm;
+    while ((pm = propRe.exec(attrs)) !== null) {
+      const rawCut = pm[3] ?? pm[5] ?? '';
+      if (rawCut === '') continue;
+      const absIdx = attrsStart + pm.index;
+      const line = lineNumberAt(rawContent, absIdx);
+      const column = columnNumberAt(rawContent, absIdx);
+      const snippet = pm[0];
+      const isDialogContentCut = ownerTag === 'DialogContent';
+
+      if (inAutoCut && !isDialogContentCut) {
         violations.push({
-          rule: 'cut-order',
+          rule: 'explicit-cut-in-autocut',
           file: filePath,
-          line: cur.line,
-          message: `First cut in file is "${cur.raw}", but cuts must start at "C-01".`,
-          snippet: cur.snippet,
+          line,
+          column,
+          message: 'Cut numbers are automatic inside <Sheet autoCut>; remove the cut prop.',
+          snippet,
         });
-      } else if (seen.has(cur.num)) {
+        continue;
+      }
+
+      if (isQuiet && !isDialogContentCut) {
         violations.push({
           rule: 'cut-order',
           file: filePath,
-          line: cur.line,
-          message: `Duplicate cut number "${cur.raw}". Expected "${expectedLabel}" in reading/DOM order.`,
-          snippet: cur.snippet,
+          line,
+          column,
+          message:
+            'Quiet panels (<Panel variant="quiet">) are subordinate operational groups and should not carry storyboard cut numbers; remove the cut prop or use variant="expressive".',
+          snippet,
         });
-      } else if (cur.num !== expectedNum) {
-        const prevLabel = i > 0 ? cutMatches[i - 1].raw : 'start';
+        continue;
+      }
+
+      const parsed = rawCut.match(/^C-(\d{2,})$/);
+      if (!parsed) {
         violations.push({
           rule: 'cut-order',
           file: filePath,
-          line: cur.line,
-          message: `Out-of-order or skipped cut "${cur.raw}" after "${prevLabel}". Expected sequential "${expectedLabel}".`,
-          snippet: cur.snippet,
+          line,
+          column,
+          message: `Malformed cut label "${rawCut}". Cut numbers must use two-digit format "C-01", "C-02", etc.`,
+          snippet,
+        });
+      } else if (!inAutoCut) {
+        cutMatches.push({
+          raw: rawCut,
+          num: parseInt(parsed[1], 10),
+          line,
+          column,
+          snippet,
         });
       }
-      seen.add(cur.num);
     }
   }
+
+  validateCutSequence(cutMatches, filePath, violations);
 }
 
 /**
  * Lints a single source string and returns an array of violation objects:
- * { rule, file, line, message, snippet }
+ * { rule, file, line, column, message, snippet }
  */
-export function lintSource(content, filePath = 'input.tsx') {
+export function lintSource(content, filePath = 'input.tsx', opts = {}) {
   const violations = [];
   const base = basename(filePath);
   const ext = extname(filePath);
+  if (ext === '.html' || ext === '.htm') {
+    return lintHtml(content, { file: filePath });
+  }
   if (!CODE_EXTENSIONS.has(ext)) return violations;
 
   const normalizedPath = filePath.replace(/\\/g, '/');
@@ -1335,6 +1562,7 @@ export function lintSource(content, filePath = 'input.tsx') {
         rule: 'color-literal',
         file: filePath,
         line: lineNumberAt(content, m.index),
+        column: columnNumberAt(content, m.index),
         message: `Hard-coded hex color "${hex}" is forbidden outside token files. Use a var(--f-*) token.`,
         snippet: hex,
       });
@@ -1347,6 +1575,7 @@ export function lintSource(content, filePath = 'input.tsx') {
         rule: 'color-literal',
         file: filePath,
         line: lineNumberAt(content, m.index),
+        column: columnNumberAt(content, m.index),
         message: `Hard-coded color function "${m[0]}" is forbidden outside token files. Use a var(--f-*) token.`,
         snippet: m[0],
       });
@@ -1363,6 +1592,7 @@ export function lintSource(content, filePath = 'input.tsx') {
         rule: 'color-literal',
         file: filePath,
         line: lineNumberAt(content, m.index),
+        column: columnNumberAt(content, m.index),
         message: `CSS gradient "${grad}" is forbidden in FRAME/12. Use 45° SVG screentone patterns or flat var(--f-*) surfaces.`,
         snippet: grad,
       });
@@ -1375,6 +1605,7 @@ export function lintSource(content, filePath = 'input.tsx') {
         rule: 'color-literal',
         file: filePath,
         line: lineNumberAt(content, m.index),
+        column: columnNumberAt(content, m.index),
         message: `Hard-coded font family "${m[0]}" is forbidden outside token files. Use var(--font-f-*).`,
         snippet: m[0],
       });
@@ -1388,7 +1619,8 @@ export function lintSource(content, filePath = 'input.tsx') {
     let m;
 
     // 2a. <Scene gutter="..." /> prop check
-    const sceneGutterStrRegex = /<Scene\b[^>]*?\bgutter\s*=\s*(?:['"]([^'"]*)['"]|\{\s*['"`]([^'"`]*)['"`]\s*\})/g;
+    const sceneGutterStrRegex =
+      /<Scene\b[^>]*?\bgutter\s*=\s*(?:['"]([^'"]*)['"]|\{\s*['"`]([^'"`]*)['"`]\s*\})/g;
     while ((m = sceneGutterStrRegex.exec(stripped)) !== null) {
       const val = m[1] ?? m[2] ?? '';
       if (!LEGAL_GUTTER_NAMES.has(val)) {
@@ -1396,6 +1628,7 @@ export function lintSource(content, filePath = 'input.tsx') {
           rule: 'illegal-gutter',
           file: filePath,
           line: lineNumberAt(content, m.index),
+          column: columnNumberAt(content, m.index),
           message: `Invalid Scene gutter "${val}". Must be "pair" (12px), "scene" (20px), or "change" (32px).`,
           snippet: m[0],
         });
@@ -1409,6 +1642,7 @@ export function lintSource(content, filePath = 'input.tsx') {
         rule: 'illegal-gutter',
         file: filePath,
         line: lineNumberAt(content, m.index),
+        column: columnNumberAt(content, m.index),
         message: `Invalid numeric Scene gutter "{${m[1]}}". Must be "pair" (12px), "scene" (20px), or "change" (32px).`,
         snippet: m[0],
       });
@@ -1416,7 +1650,7 @@ export function lintSource(content, filePath = 'input.tsx') {
 
     // 2b. Inline style object or CSS gap / rowGap / columnGap / gridGap
     if (ext === '.css') {
-      const cssGapRegex = /\b(?:gap|grid-gap|row-gap|column-gap)\s*:\s*([^;}\n]+)/gi;
+      const cssGapRegex = /(?<![-\w])(?:gap|grid-gap|row-gap|column-gap)\s*:\s*([^;}\n]+)/gi;
       while ((m = cssGapRegex.exec(stripped)) !== null) {
         const val = m[1].trim();
         if (!isLegalGapValue(val)) {
@@ -1424,6 +1658,7 @@ export function lintSource(content, filePath = 'input.tsx') {
             rule: 'illegal-gutter',
             file: filePath,
             line: lineNumberAt(content, m.index),
+            column: columnNumberAt(content, m.index),
             message: `Illegal CSS gutter "${m[0].trim()}". Only 12px (pair), 20px (scene), or 32px (change) are allowed.`,
             snippet: m[0].trim(),
           });
@@ -1431,7 +1666,8 @@ export function lintSource(content, filePath = 'input.tsx') {
       }
     } else {
       // JSX inline style object: gap: '16px', gap: 16, rowGap: '24px', columnGap: 8
-      const jsxGapRegex = /\b(?:gap|gridGap|rowGap|columnGap)\s*:\s*(?:(['"`])([^'"`]*)\1|(-?\d+(?:\.\d+)?)\b)/g;
+      const jsxGapRegex =
+        /\b(?:gap|gridGap|rowGap|columnGap)\s*:\s*(?:(['"`])([^'"`]*)\1|(-?\d+(?:\.\d+)?)\b)/g;
       while ((m = jsxGapRegex.exec(stripped)) !== null) {
         const raw = m[2] !== undefined ? m[2] : m[3];
         if (!isLegalGapValue(raw)) {
@@ -1439,6 +1675,7 @@ export function lintSource(content, filePath = 'input.tsx') {
             rule: 'illegal-gutter',
             file: filePath,
             line: lineNumberAt(content, m.index),
+            column: columnNumberAt(content, m.index),
             message: `Illegal inline gutter "${m[0].trim()}". Use 12px (var(--f-gutter-pair)), 20px (var(--f-gutter-scene)), or 32px (var(--f-gutter-change)).`,
             snippet: m[0].trim(),
           });
@@ -1476,6 +1713,7 @@ export function lintSource(content, filePath = 'input.tsx') {
                 rule: 'illegal-gutter',
                 file: filePath,
                 line: lineNumberAt(content, m.index),
+                column: columnNumberAt(content, m.index),
                 message: `Illegal Tailwind gutter class "${tok}". Use Scene gutter="pair|scene|change" or 12px/20px/32px tokens.`,
                 snippet: tok,
               });
@@ -1499,25 +1737,32 @@ export function lintSource(content, filePath = 'input.tsx') {
       const prop = m[1];
       const val = m[2].trim();
       // Make sure we didn't match --f-marker-ink on color
-      if (/--f-marker-ink\b/.test(val) && !/--f-marker(?!-ink)\b/i.test(val) && !/#ffd60a\b/i.test(val)) {
+      if (
+        /--f-marker-ink\b/.test(val) &&
+        !/--f-marker(?!-ink)\b/i.test(val) &&
+        !/#ffd60a\b/i.test(val)
+      ) {
         continue;
       }
       violations.push({
         rule: 'marker-misuse',
         file: filePath,
         line: lineNumberAt(content, m.index),
+        column: columnNumberAt(content, m.index),
         message: `Marker yellow (--f-marker / #ffd60a) cannot be used on "${prop}". It may only be a background under --f-marker-ink text.`,
         snippet: m[0].trim(),
       });
     }
 
     // 3b. SVG JSX attributes stroke="var(--f-marker)" or fill="var(--f-marker)"
-    const svgMarkerAttrRegex = /\b(stroke|fill|color)\s*=\s*['"][^'"]*(?:--f-marker(?!-ink)|#ffd60a)[^'"]*['"]/gi;
+    const svgMarkerAttrRegex =
+      /\b(stroke|fill|color)\s*=\s*['"][^'"]*(?:--f-marker(?!-ink)|#ffd60a)[^'"]*['"]/gi;
     while ((m = svgMarkerAttrRegex.exec(stripped)) !== null) {
       violations.push({
         rule: 'marker-misuse',
         file: filePath,
         line: lineNumberAt(content, m.index),
+        column: columnNumberAt(content, m.index),
         message: `Marker yellow cannot be used as an SVG/JSX "${m[1]}" attribute. Use <Tag>, <Badge>, or <Balloon>.`,
         snippet: m[0],
       });
@@ -1531,6 +1776,7 @@ export function lintSource(content, filePath = 'input.tsx') {
         rule: 'marker-misuse',
         file: filePath,
         line: lineNumberAt(content, m.index),
+        column: columnNumberAt(content, m.index),
         message: `Marker yellow utility "${m[0]}" is forbidden. Marker yellow may only be used as a background paired with --f-marker-ink text.`,
         snippet: m[0],
       });
@@ -1551,6 +1797,7 @@ export function lintSource(content, filePath = 'input.tsx') {
             rule: 'marker-misuse',
             file: filePath,
             line: lineNumberAt(content, m.index),
+            column: columnNumberAt(content, m.index),
             message:
               'Marker yellow background in inline style must be paired with color: "var(--f-marker-ink)".',
             snippet: m[0].replace(/\s+/g, ' ').trim(),
@@ -1572,6 +1819,7 @@ export function lintSource(content, filePath = 'input.tsx') {
               rule: 'marker-misuse',
               file: filePath,
               line: lineNumberAt(content, m.index),
+              column: columnNumberAt(content, m.index),
               message:
                 'Marker yellow background in CSS rule must be paired with color: var(--f-marker-ink).',
               snippet: body.replace(/\s+/g, ' ').trim(),
@@ -1583,19 +1831,18 @@ export function lintSource(content, filePath = 'input.tsx') {
   }
 
   // =========================================================================
-  // 4. cut-order & explicit-cut-in-autocut (via TypeScript TSX AST)
+  // 4. cut-order & explicit-cut-in-autocut (via TypeScript TSX AST or fallback)
   // =========================================================================
   if (ext !== '.css') {
-    const ts = loadTypeScript();
+    const ts = opts?.disableTypeScript ? null : loadTypeScript();
     if (!ts) {
-      violations.push({
-        rule: 'cut-order',
-        file: filePath,
-        line: 1,
-        message:
-          'TypeScript ("typescript") is required to parse JSX/TSX for cut-order and explicit-cut-in-autocut checks. Install it with `npm install -D typescript`.',
-        snippet: '',
-      });
+      if (!warnedTypeScriptFallback && !opts?.quietFallbackWarning) {
+        warnedTypeScriptFallback = true;
+        console.warn(
+          'WARN  [@frame12/lint] Optional peer dependency "typescript" is not installed; falling back to regex cut-order checks for JSX/TSX files.',
+        );
+      }
+      lintCutsFallback(stripped, content, filePath, violations);
     } else {
       lintCutsWithTypeScript(ts, content, filePath, violations);
     }
@@ -1605,17 +1852,20 @@ export function lintSource(content, filePath = 'input.tsx') {
   // 5. raw-shadcn-import (Forbidden raw @/components/ui/*, @radix-ui/*, or charting libs)
   // =========================================================================
   if (ext !== '.css' && !isRegistryImplementation) {
-    const importRegex = /\b(?:import|export)\b[\s\S]*?\bfrom\s*['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+    const importRegex =
+      /\b(?:import|export)\b[\s\S]*?\bfrom\s*['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
     let m;
     while ((m = importRegex.exec(stripped)) !== null) {
       const spec = m[1] ?? m[2] ?? '';
       const line = lineNumberAt(content, m.index);
+      const column = columnNumberAt(content, m.index);
 
       if (spec.startsWith('@radix-ui/')) {
         violations.push({
           rule: 'raw-shadcn-import',
           file: filePath,
           line,
+          column,
           message: `Raw Radix primitive import "${spec}" is forbidden. Import the FRAME/12 adapter from "@/components/frame12".`,
           snippet: m[0].trim(),
         });
@@ -1627,6 +1877,7 @@ export function lintSource(content, filePath = 'input.tsx') {
           rule: 'raw-shadcn-import',
           file: filePath,
           line,
+          column,
           message: `External library "${spec}" is forbidden in FRAME/12. Use ToneAreaChart, ToneBarList, ToneSpark from "@/components/frame12" and useOnTwos from "@/hooks/use-on-twos".`,
           snippet: m[0].trim(),
         });
@@ -1641,6 +1892,7 @@ export function lintSource(content, filePath = 'input.tsx') {
             rule: 'raw-shadcn-import',
             file: filePath,
             line,
+            column,
             message: `Raw shadcn import "${spec}" is forbidden where a FRAME/12 component or adapter exists. Import from "@/components/frame12".`,
             snippet: m[0].trim(),
           });
@@ -1648,6 +1900,770 @@ export function lintSource(content, filePath = 'input.tsx') {
       }
     }
   }
+
+  return violations;
+}
+
+/**
+ * Lints a CSS text fragment (from a `<style>` element or an inline `style="..."` attribute)
+ * and maps all violations back to 1-based line and column positions in `fullHtml`.
+ */
+function lintCssInHtml(cssText, baseOffset, fullHtml, filePath, violations, isInlineAttr) {
+  const clean = stripCssCommentsPreservingLines(cssText);
+  let m;
+
+  // unsafe-html in CSS: @import and external url(https://...) / url(//...)
+  const cssImportRegex = /@import\b[^;\n]*/gi;
+  while ((m = cssImportRegex.exec(clean)) !== null) {
+    const absIdx = baseOffset + m.index;
+    violations.push({
+      rule: 'unsafe-html',
+      file: filePath,
+      line: lineNumberAt(fullHtml, absIdx),
+      column: columnNumberAt(fullHtml, absIdx),
+      message: 'CSS "@import" is forbidden in self-contained generated HTML.',
+      snippet: m[0].trim(),
+    });
+  }
+
+  const externalCssUrlRegex = /\burl\(\s*(['"]?)\s*((?:https?:)?\/\/[^)'"\s]+)\s*\1\s*\)/gi;
+  while ((m = externalCssUrlRegex.exec(clean)) !== null) {
+    const absIdx = baseOffset + m.index;
+    violations.push({
+      rule: 'unsafe-html',
+      file: filePath,
+      line: lineNumberAt(fullHtml, absIdx),
+      column: columnNumberAt(fullHtml, absIdx),
+      message: `External CSS url("${m[2]}") is forbidden in self-contained generated HTML.`,
+      snippet: m[0].trim(),
+    });
+  }
+
+  // 1a. Hex colors (#rgb, #rgba, #rrggbb, #rrggbbaa)
+  const hexRegex = /#[0-9a-fA-F]{3,8}\b/g;
+  while ((m = hexRegex.exec(clean)) !== null) {
+    const hex = m[0];
+    if (![4, 5, 7, 9].includes(hex.length)) continue;
+    const before = clean.slice(Math.max(0, m.index - 12), m.index);
+    if (/url\(\s*['"]?$/i.test(before) || /href\s*=\s*['"]$/i.test(before)) continue;
+    const absIdx = baseOffset + m.index;
+    violations.push({
+      rule: 'color-literal',
+      file: filePath,
+      line: lineNumberAt(fullHtml, absIdx),
+      column: columnNumberAt(fullHtml, absIdx),
+      message: `Hard-coded hex color "${hex}" is forbidden outside token files. Use a var(--f-*) token.`,
+      snippet: hex,
+    });
+  }
+
+  // 1b. Color functions
+  const fnColorRegex = /\b(?:rgb|rgba|hsl|hsla|oklch|oklab)\s*\([^)]*\)/gi;
+  while ((m = fnColorRegex.exec(clean)) !== null) {
+    const absIdx = baseOffset + m.index;
+    violations.push({
+      rule: 'color-literal',
+      file: filePath,
+      line: lineNumberAt(fullHtml, absIdx),
+      column: columnNumberAt(fullHtml, absIdx),
+      message: `Hard-coded color function "${m[0]}" is forbidden outside token files. Use a var(--f-*) token.`,
+      snippet: m[0],
+    });
+  }
+
+  // 1c. CSS gradients
+  const gradientRegex =
+    /\b(?:repeating-)?(?:linear|radial|conic)-gradient\s*\([^;}\n)]*\)/gi;
+  while ((m = gradientRegex.exec(clean)) !== null) {
+    const grad = m[0];
+    if (/^radial-gradient\(\s*circle\s*,\s*var\(--f-tone\)/i.test(grad)) continue;
+    const absIdx = baseOffset + m.index;
+    violations.push({
+      rule: 'color-literal',
+      file: filePath,
+      line: lineNumberAt(fullHtml, absIdx),
+      column: columnNumberAt(fullHtml, absIdx),
+      message: `CSS gradient "${grad}" is forbidden in FRAME/12. Use 45° SVG screentone patterns or flat var(--f-*) surfaces.`,
+      snippet: grad,
+    });
+  }
+
+  // 1d. Hard-coded font names
+  const fontRegex = /\b(?:Dela Gothic One|Zen Kaku Gothic New|M PLUS 1 Code)\b/g;
+  while ((m = fontRegex.exec(clean)) !== null) {
+    const absIdx = baseOffset + m.index;
+    violations.push({
+      rule: 'color-literal',
+      file: filePath,
+      line: lineNumberAt(fullHtml, absIdx),
+      column: columnNumberAt(fullHtml, absIdx),
+      message: `Hard-coded font family "${m[0]}" is forbidden outside token files. Use var(--font-f-*).`,
+      snippet: m[0],
+    });
+  }
+
+  // 2. illegal-gutter
+  const cssGapRegex = /(?<![-\w])(?:gap|grid-gap|row-gap|column-gap)\s*:\s*([^;}\n]+)/gi;
+  while ((m = cssGapRegex.exec(clean)) !== null) {
+    const val = m[1].trim();
+    if (!isLegalGapValue(val)) {
+      const absIdx = baseOffset + m.index;
+      violations.push({
+        rule: 'illegal-gutter',
+        file: filePath,
+        line: lineNumberAt(fullHtml, absIdx),
+        column: columnNumberAt(fullHtml, absIdx),
+        message: `Illegal CSS gutter "${m[0].trim()}". Only 12px (pair), 20px (scene), or 32px (change) are allowed.`,
+        snippet: m[0].trim(),
+      });
+    }
+  }
+
+  // 3a. marker-misuse on forbidden CSS properties
+  const forbiddenMarkerPropRegex =
+    /(?<![-\w])(color|stroke|fill|border|border-color|border-top|border-bottom|border-left|border-right|border-top-color|border-bottom-color|border-left-color|border-right-color|outline|outline-color|text-decoration-color|box-shadow)\s*:\s*([^;,\n}]*(?:--f-marker\b|#ffd60a\b)[^;,\n}]*)/gi;
+  while ((m = forbiddenMarkerPropRegex.exec(clean)) !== null) {
+    const prop = m[1];
+    const val = m[2].trim();
+    if (
+      /--f-marker-ink\b/.test(val) &&
+      !/--f-marker(?!-ink)\b/i.test(val) &&
+      !/#ffd60a\b/i.test(val)
+    ) {
+      continue;
+    }
+    const absIdx = baseOffset + m.index;
+    violations.push({
+      rule: 'marker-misuse',
+      file: filePath,
+      line: lineNumberAt(fullHtml, absIdx),
+      column: columnNumberAt(fullHtml, absIdx),
+      message: `Marker yellow (--f-marker / #ffd60a) cannot be used on "${prop}". It may only be a background under --f-marker-ink text.`,
+      snippet: m[0].trim(),
+    });
+  }
+
+  // 3b. marker-misuse on background without --f-marker-ink
+  if (isInlineAttr) {
+    const bgMatch =
+      /(?<![-\w])background(?:-color)?\s*:\s*[^;]*(?:--f-marker(?!-ink)|#ffd60a)/i.exec(clean);
+    if (bgMatch) {
+      const hasMarkerInkColor = /(?<![-\w])color\s*:\s*[^;]*--f-marker-ink\b/i.test(clean);
+      if (!hasMarkerInkColor) {
+        const absIdx = baseOffset + bgMatch.index;
+        violations.push({
+          rule: 'marker-misuse',
+          file: filePath,
+          line: lineNumberAt(fullHtml, absIdx),
+          column: columnNumberAt(fullHtml, absIdx),
+          message:
+            'Marker yellow background in inline style must be paired with color: "var(--f-marker-ink)".',
+          snippet: clean.replace(/\s+/g, ' ').trim(),
+        });
+      }
+    }
+  } else {
+    const cssBlockRegex = /\{([^{}]*)\}/g;
+    while ((m = cssBlockRegex.exec(clean)) !== null) {
+      const body = m[1];
+      const bgMatch =
+        /(?<![-\w])background(?:-color)?\s*:\s*[^;]*(?:--f-marker(?!-ink)|#ffd60a)/i.exec(body);
+      if (bgMatch) {
+        const hasMarkerInkColor = /(?<![-\w])color\s*:\s*[^;]*--f-marker-ink\b/i.test(body);
+        if (!hasMarkerInkColor) {
+          const absIdx = baseOffset + m.index + 1 + bgMatch.index;
+          violations.push({
+            rule: 'marker-misuse',
+            file: filePath,
+            line: lineNumberAt(fullHtml, absIdx),
+            column: columnNumberAt(fullHtml, absIdx),
+            message:
+              'Marker yellow background in CSS rule must be paired with color: var(--f-marker-ink).',
+            snippet: body.replace(/\s+/g, ' ').trim(),
+          });
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Decodes basic numeric/named HTML character references and strips control characters/whitespace
+ * to detect obfuscated `javascript:` or external URLs in attribute values.
+ */
+function normalizeUrlValueForSchemeCheck(rawVal) {
+  const decoded = rawVal
+    .replace(/&#x([0-9a-fA-F]+);?/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);?/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&colon;/gi, ':')
+    .replace(/&tab;/gi, '\t')
+    .replace(/&newline;/gi, '\n');
+  // Strip ASCII whitespace and control characters
+  return decoded.replace(/[\x00-\x20]+/g, '');
+}
+
+/**
+ * Parses attributes of an opening HTML tag starting at `startIdx` (right after `<tagName`).
+ * Returns `{ attrs, endIdx, selfClosing }`.
+ */
+function parseHtmlTagAttributes(html, startIdx) {
+  const attrs = [];
+  const len = html.length;
+  let pos = startIdx;
+  let selfClosing = false;
+
+  while (pos < len) {
+    while (pos < len && /\s/.test(html[pos])) pos++;
+    if (pos >= len) break;
+
+    if (html[pos] === '>') {
+      pos++;
+      break;
+    }
+    if (html[pos] === '/' && html[pos + 1] === '>') {
+      selfClosing = true;
+      pos += 2;
+      break;
+    }
+    if (html[pos] === '/') {
+      pos++;
+      continue;
+    }
+
+    const nameOffset = pos;
+    while (pos < len && !/[\s=/>"'<]/.test(html[pos])) pos++;
+    if (pos === nameOffset) {
+      pos++;
+      continue;
+    }
+    const name = html.slice(nameOffset, pos);
+    const lowerName = name.toLowerCase();
+
+    let afterName = pos;
+    while (afterName < len && /\s/.test(html[afterName])) afterName++;
+
+    let hasValue = false;
+    let value = '';
+    let valueOffset = afterName;
+
+    if (html[afterName] === '=') {
+      hasValue = true;
+      pos = afterName + 1;
+      while (pos < len && /\s/.test(html[pos])) pos++;
+      const ch = html[pos];
+      if (ch === '"' || ch === "'") {
+        const quote = ch;
+        pos++;
+        valueOffset = pos;
+        const closeQuote = html.indexOf(quote, pos);
+        if (closeQuote === -1) {
+          value = html.slice(pos);
+          pos = len;
+        } else {
+          value = html.slice(pos, closeQuote);
+          pos = closeQuote + 1;
+        }
+      } else {
+        valueOffset = pos;
+        while (pos < len && !/[\s>]/.test(html[pos]) && !(html[pos] === '/' && html[pos + 1] === '>')) {
+          pos++;
+        }
+        value = html.slice(valueOffset, pos);
+      }
+    }
+
+    const raw = html.slice(nameOffset, pos);
+    attrs.push({
+      name,
+      lowerName,
+      hasValue,
+      value,
+      nameOffset,
+      valueOffset,
+      raw,
+    });
+  }
+
+  return { attrs, endIdx: pos, selfClosing };
+}
+
+/**
+ * Lints an HTML document or fragment against FRAME/12 design-grammar rules:
+ * - `color-literal`, `illegal-gutter`, `marker-misuse` inside `<style>` elements
+ *   (excluding `<style data-f12-tokens>` and `opts.tokenStyleIds`), `style="..."`
+ *   attributes, `class="..."` attributes, and SVG presentation attributes.
+ * - `cut-order` on `[data-cut]` and `.f12-cut` elements in DOM reading order.
+ * - `unsafe-html` on external `<script src="...">`, external subresource loads
+ *   (`<link href>`, `<img src>`, CSS `@import`/`url()`), embedded frames
+ *   (`<iframe>`, `<object>`, `<embed>`, `srcdoc`), `<meta http-equiv="refresh">`,
+ *   `<base href>`, `on*=` attributes, and `javascript:` URLs.
+ */
+export function lintHtml(html, opts = {}) {
+  const filePath = opts.file ?? 'input.html';
+  const tokenStyleIds = new Set(opts.tokenStyleIds ?? []);
+  const violations = [];
+  const pendingCuts = [];
+  const openStack = [];
+
+  const len = html.length;
+  let i = 0;
+
+  const appendTextToOpenBadges = (text) => {
+    if (!text) return;
+    for (const entry of openStack) {
+      if (entry.isCutBadge) {
+        entry.textBuffer += text;
+      }
+    }
+  };
+
+  const finalizeElementOnClose = (entry, closeEndIdx) => {
+    if (!entry.isCutBadge || !entry.cutRecord) return;
+    const trimmed = entry.textBuffer.trim();
+    if (!trimmed || trimmed.toLowerCase() === 'auto') {
+      entry.cutRecord.ignore = true;
+      return;
+    }
+    if (
+      entry.ancestorWithDataCut &&
+      !entry.ancestorWithDataCut.consumedChildCut &&
+      entry.ancestorWithDataCut.explicitDataCut === trimmed
+    ) {
+      entry.ancestorWithDataCut.consumedChildCut = true;
+      entry.cutRecord.ignore = true;
+      return;
+    }
+    entry.cutRecord.raw = trimmed;
+    if (closeEndIdx !== undefined) {
+      entry.cutRecord.snippet = html.slice(entry.tagStartOffset, closeEndIdx);
+    }
+  };
+
+  while (i < len) {
+    if (html[i] !== '<') {
+      const nextLt = html.indexOf('<', i);
+      const chunk = nextLt === -1 ? html.slice(i) : html.slice(i, nextLt);
+      appendTextToOpenBadges(chunk);
+      i = nextLt === -1 ? len : nextLt;
+      continue;
+    }
+
+    // 1. HTML comment <!-- ... -->
+    if (html.startsWith('<!--', i)) {
+      const endComment = html.indexOf('-->', i + 4);
+      i = endComment === -1 ? len : endComment + 3;
+      continue;
+    }
+
+    // 2. CDATA <![CDATA[ ... ]]>
+    if (html.slice(i, i + 9).toUpperCase() === '<![CDATA[') {
+      const endCdata = html.indexOf(']]>', i + 9);
+      if (endCdata === -1) {
+        appendTextToOpenBadges(html.slice(i + 9));
+        break;
+      }
+      appendTextToOpenBadges(html.slice(i + 9, endCdata));
+      i = endCdata + 3;
+      continue;
+    }
+
+    // 3. Declaration <!DOCTYPE ...> or processing instruction <? ... ?>
+    if (html[i + 1] === '!' || html[i + 1] === '?') {
+      const endDecl = html.indexOf('>', i + 2);
+      i = endDecl === -1 ? len : endDecl + 1;
+      continue;
+    }
+
+    // 4. Closing tag </tagName ...>
+    if (html[i + 1] === '/') {
+      const closeMatch = /^<\/\s*([A-Za-z][A-Za-z0-9:_-]*)[^>]*>/.exec(html.slice(i));
+      if (closeMatch) {
+        const closeTag = closeMatch[1].toLowerCase();
+        const closeEndIdx = i + closeMatch[0].length;
+        for (let s = openStack.length - 1; s >= 0; s--) {
+          if (openStack[s].tagName === closeTag) {
+            while (openStack.length > s) {
+              const popped = openStack.pop();
+              finalizeElementOnClose(popped, closeEndIdx);
+            }
+            break;
+          }
+        }
+        i = closeEndIdx;
+        continue;
+      }
+    }
+
+    // 5. Opening tag <tagName ...>
+    const tagMatch = /^<([A-Za-z][A-Za-z0-9:_-]*)/.exec(html.slice(i));
+    if (!tagMatch) {
+      appendTextToOpenBadges('<');
+      i++;
+      continue;
+    }
+
+    const tagStartOffset = i;
+    const rawTagName = tagMatch[1];
+    const lowerTag = rawTagName.toLowerCase();
+    const { attrs, endIdx: tagEndOffset, selfClosing } = parseHtmlTagAttributes(
+      html,
+      i + tagMatch[0].length,
+    );
+
+    // unsafe-html: forbidden embedded frame/object tags (<iframe>, <object>, <embed>)
+    if (FORBIDDEN_EMBED_TAGS.has(lowerTag)) {
+      violations.push({
+        rule: 'unsafe-html',
+        file: filePath,
+        line: lineNumberAt(html, tagStartOffset),
+        column: columnNumberAt(html, tagStartOffset),
+        message: `Embedded <${lowerTag}> element is forbidden in self-contained generated HTML.`,
+        snippet: html.slice(tagStartOffset, tagEndOffset),
+      });
+    }
+
+    // Check attributes on this element
+    let idAttr = null;
+    let hasDataF12Tokens = false;
+    let dataCutAttr = null;
+    let hasDataAutocut = false;
+    let classAttr = null;
+
+    for (const attr of attrs) {
+      if (attr.lowerName === 'id') idAttr = attr;
+      if (attr.lowerName === 'data-f12-tokens' && attr.value.toLowerCase() !== 'false') {
+        hasDataF12Tokens = true;
+      }
+      if (attr.lowerName === 'data-cut') dataCutAttr = attr;
+      if (attr.lowerName === 'data-autocut' && attr.value.toLowerCase() !== 'false') {
+        hasDataAutocut = true;
+      }
+      if (attr.lowerName === 'class') classAttr = attr;
+
+      // unsafe-html: inline event handlers (on*=)
+      if (/^on[a-z]+$/i.test(attr.lowerName)) {
+        violations.push({
+          rule: 'unsafe-html',
+          file: filePath,
+          line: lineNumberAt(html, attr.nameOffset),
+          column: columnNumberAt(html, attr.nameOffset),
+          message: `Inline event handler attribute "${attr.name}" is forbidden in generated HTML.`,
+          snippet: attr.raw,
+        });
+      }
+
+      // unsafe-html: srcdoc attribute
+      if (attr.lowerName === 'srcdoc') {
+        violations.push({
+          rule: 'unsafe-html',
+          file: filePath,
+          line: lineNumberAt(html, attr.nameOffset),
+          column: columnNumberAt(html, attr.nameOffset),
+          message: 'Inline "srcdoc" attribute is forbidden in generated HTML.',
+          snippet: attr.raw,
+        });
+      }
+
+      // unsafe-html: <meta http-equiv="refresh">
+      if (
+        lowerTag === 'meta' &&
+        attr.lowerName === 'http-equiv' &&
+        attr.value.trim().toLowerCase() === 'refresh'
+      ) {
+        violations.push({
+          rule: 'unsafe-html',
+          file: filePath,
+          line: lineNumberAt(html, attr.nameOffset),
+          column: columnNumberAt(html, attr.nameOffset),
+          message: '<meta http-equiv="refresh"> redirect is forbidden in generated HTML.',
+          snippet: attr.raw,
+        });
+      }
+
+      // unsafe-html: <base href="...">
+      if (lowerTag === 'base' && attr.lowerName === 'href') {
+        violations.push({
+          rule: 'unsafe-html',
+          file: filePath,
+          line: lineNumberAt(html, attr.nameOffset),
+          column: columnNumberAt(html, attr.nameOffset),
+          message: '<base href="…"> is forbidden in self-contained generated HTML.',
+          snippet: attr.raw,
+        });
+      }
+
+      // unsafe-html: javascript: URLs and external subresource loads
+      if (attr.hasValue && attr.value) {
+        const normalizedUrl = normalizeUrlValueForSchemeCheck(attr.value);
+        if (/^(?:javascript|vbscript):/i.test(normalizedUrl)) {
+          violations.push({
+            rule: 'unsafe-html',
+            file: filePath,
+            line: lineNumberAt(html, attr.nameOffset),
+            column: columnNumberAt(html, attr.nameOffset),
+            message: `Unsafe "javascript:" URL in "${attr.name}" attribute is forbidden in generated HTML.`,
+            snippet: attr.raw,
+          });
+        } else if (
+          EXTERNAL_SUBRESOURCE_TAGS.has(lowerTag) &&
+          EXTERNAL_SUBRESOURCE_ATTRS.has(attr.lowerName)
+        ) {
+          const hasExternalOrigin =
+            /^(?:https?:)?\/\//i.test(normalizedUrl) ||
+            (attr.lowerName === 'srcset' && /(?:^|[\s,])(?:https?:)?\/\//i.test(attr.value));
+          const isExternalStylesheetLink =
+            lowerTag === 'link' &&
+            attrs.some(
+              (a) =>
+                a.lowerName === 'rel' &&
+                a.value.toLowerCase().split(/\s+/).includes('stylesheet'),
+            );
+          if (hasExternalOrigin || isExternalStylesheetLink) {
+            violations.push({
+              rule: 'unsafe-html',
+              file: filePath,
+              line: lineNumberAt(html, attr.nameOffset),
+              column: columnNumberAt(html, attr.nameOffset),
+              message: `External resource load <${lowerTag} ${attr.name}="${attr.value}"> is forbidden in self-contained generated HTML.`,
+              snippet: attr.raw,
+            });
+          }
+        }
+      }
+
+      // Inline style="..." attribute
+      if (attr.lowerName === 'style' && attr.hasValue) {
+        lintCssInHtml(attr.value, attr.valueOffset, html, filePath, violations, true);
+      }
+
+      // Presentation attributes stroke / fill / color
+      if (
+        (attr.lowerName === 'stroke' ||
+          attr.lowerName === 'fill' ||
+          attr.lowerName === 'color') &&
+        attr.hasValue
+      ) {
+        if (/(?:--f-marker(?!-ink)|#ffd60a)/i.test(attr.value)) {
+          violations.push({
+            rule: 'marker-misuse',
+            file: filePath,
+            line: lineNumberAt(html, attr.nameOffset),
+            column: columnNumberAt(html, attr.nameOffset),
+            message: `Marker yellow cannot be used as an SVG/HTML "${attr.name}" attribute. Use <Tag>, <Badge>, or <Balloon>.`,
+            snippet: attr.raw,
+          });
+        }
+        const hexRe = /#[0-9a-fA-F]{3,8}\b/g;
+        let hm;
+        while ((hm = hexRe.exec(attr.value)) !== null) {
+          const hex = hm[0];
+          if (![4, 5, 7, 9].includes(hex.length)) continue;
+          const before = attr.value.slice(Math.max(0, hm.index - 12), hm.index);
+          if (/url\(\s*['"]?$/i.test(before)) continue;
+          const absIdx = attr.valueOffset + hm.index;
+          violations.push({
+            rule: 'color-literal',
+            file: filePath,
+            line: lineNumberAt(html, absIdx),
+            column: columnNumberAt(html, absIdx),
+            message: `Hard-coded hex color "${hex}" is forbidden outside token files. Use a var(--f-*) token.`,
+            snippet: hex,
+          });
+        }
+        const fnRe = /\b(?:rgb|rgba|hsl|hsla|oklch|oklab)\s*\([^)]*\)/gi;
+        while ((hm = fnRe.exec(attr.value)) !== null) {
+          const absIdx = attr.valueOffset + hm.index;
+          violations.push({
+            rule: 'color-literal',
+            file: filePath,
+            line: lineNumberAt(html, absIdx),
+            column: columnNumberAt(html, absIdx),
+            message: `Hard-coded color function "${hm[0]}" is forbidden outside token files. Use a var(--f-*) token.`,
+            snippet: hm[0],
+          });
+        }
+      }
+    }
+
+    // Check class="..." attribute for Tailwind illegal-gutter or marker-misuse utilities
+    let classTokens = [];
+    if (classAttr && classAttr.hasValue) {
+      classTokens = classAttr.value.split(/\s+/).filter(Boolean);
+      for (const tok of classTokens) {
+        if (/^gap-(?:x-|y-)?/.test(tok) && !LEGAL_TAILWIND_GAP_CLASSES.has(tok)) {
+          const tokIdx = classAttr.value.indexOf(tok);
+          const absIdx = classAttr.valueOffset + (tokIdx >= 0 ? tokIdx : 0);
+          violations.push({
+            rule: 'illegal-gutter',
+            file: filePath,
+            line: lineNumberAt(html, absIdx),
+            column: columnNumberAt(html, absIdx),
+            message: `Illegal Tailwind gutter class "${tok}". Use Scene gutter="pair|scene|change" or 12px/20px/32px tokens.`,
+            snippet: tok,
+          });
+        }
+        if (
+          /^(?:text|border|stroke|fill|ring|outline)-(?:f-marker\b|\[[^\]]*(?:--f-marker(?!-ink)|#ffd60a)[^\]]*\])/.test(
+            tok,
+          )
+        ) {
+          const tokIdx = classAttr.value.indexOf(tok);
+          const absIdx = classAttr.valueOffset + (tokIdx >= 0 ? tokIdx : 0);
+          violations.push({
+            rule: 'marker-misuse',
+            file: filePath,
+            line: lineNumberAt(html, absIdx),
+            column: columnNumberAt(html, absIdx),
+            message: `Marker yellow utility "${tok}" is forbidden. Marker yellow may only be used as a background paired with --f-marker-ink text.`,
+            snippet: tok,
+          });
+        }
+      }
+    }
+
+    // Handle <script> tags
+    if (lowerTag === 'script') {
+      const srcAttr = attrs.find((a) => a.lowerName === 'src');
+      if (srcAttr) {
+        violations.push({
+          rule: 'unsafe-html',
+          file: filePath,
+          line: lineNumberAt(html, srcAttr.nameOffset),
+          column: columnNumberAt(html, srcAttr.nameOffset),
+          message: `External <script src="${srcAttr.value}"> is forbidden in generated HTML. Only inline <script> without src is allowed.`,
+          snippet: srcAttr.raw,
+        });
+      }
+      if (!selfClosing) {
+        const closeScriptRe = /<\/\s*script\s*>/gi;
+        closeScriptRe.lastIndex = tagEndOffset;
+        const closeMatch = closeScriptRe.exec(html);
+        i = closeMatch ? closeMatch.index + closeMatch[0].length : len;
+      } else {
+        i = tagEndOffset;
+      }
+      continue;
+    }
+
+    // Handle <style> tags
+    if (lowerTag === 'style') {
+      let styleContent = '';
+      const contentStartOffset = tagEndOffset;
+      if (!selfClosing) {
+        const closeStyleRe = /<\/\s*style\s*>/gi;
+        closeStyleRe.lastIndex = tagEndOffset;
+        const closeMatch = closeStyleRe.exec(html);
+        if (closeMatch) {
+          styleContent = html.slice(contentStartOffset, closeMatch.index);
+          i = closeMatch.index + closeMatch[0].length;
+        } else {
+          styleContent = html.slice(contentStartOffset);
+          i = len;
+        }
+      } else {
+        i = tagEndOffset;
+      }
+
+      const isExemptTokenStyle =
+        hasDataF12Tokens || (idAttr && idAttr.hasValue && tokenStyleIds.has(idAttr.value));
+      if (!isExemptTokenStyle && styleContent) {
+        lintCssInHtml(styleContent, contentStartOffset, html, filePath, violations, false);
+      }
+      continue;
+    }
+
+    // Track data-cut and .f12-cut in DOM reading order
+    let explicitDataCut = null;
+    if (dataCutAttr && dataCutAttr.hasValue) {
+      const val = dataCutAttr.value.trim();
+      if (val !== '' && val.toLowerCase() !== 'auto') {
+        explicitDataCut = val;
+        pendingCuts.push({
+          raw: val,
+          line: lineNumberAt(html, dataCutAttr.nameOffset),
+          column: columnNumberAt(html, dataCutAttr.nameOffset),
+          snippet: dataCutAttr.raw,
+          ignore: false,
+        });
+      }
+    }
+
+    const isCutBadge =
+      !dataCutAttr && !hasDataAutocut && classTokens.includes('f12-cut');
+
+    let ancestorWithDataCut = null;
+    if (isCutBadge) {
+      for (let s = openStack.length - 1; s >= 0; s--) {
+        if (openStack[s].explicitDataCut) {
+          ancestorWithDataCut = openStack[s];
+          break;
+        }
+      }
+    }
+
+    let cutRecord = null;
+    if (isCutBadge) {
+      cutRecord = {
+        raw: '',
+        line: lineNumberAt(html, tagStartOffset),
+        column: columnNumberAt(html, tagStartOffset),
+        snippet: html.slice(tagStartOffset, tagEndOffset),
+        ignore: false,
+      };
+      pendingCuts.push(cutRecord);
+    }
+
+    const isVoid = selfClosing || HTML_VOID_ELEMENTS.has(lowerTag);
+    if (!isVoid) {
+      openStack.push({
+        tagName: lowerTag,
+        tagStartOffset,
+        explicitDataCut,
+        consumedChildCut: false,
+        isCutBadge,
+        textBuffer: '',
+        cutRecord,
+        ancestorWithDataCut,
+      });
+    } else if (isCutBadge && cutRecord) {
+      cutRecord.ignore = true;
+    }
+
+    i = tagEndOffset;
+  }
+
+  // Finalize any unclosed tags at EOF
+  while (openStack.length > 0) {
+    const popped = openStack.pop();
+    finalizeElementOnClose(popped, len);
+  }
+
+  // Validate collected cut entries
+  const validCutMatches = [];
+  for (const c of pendingCuts) {
+    if (c.ignore) continue;
+    const parsed = /^C-(\d{2,})$/.exec(c.raw);
+    if (!parsed) {
+      violations.push({
+        rule: 'cut-order',
+        file: filePath,
+        line: c.line,
+        column: c.column,
+        message: `Malformed cut label "${c.raw}". Cut numbers must use two-digit format "C-01", "C-02", etc.`,
+        snippet: c.snippet,
+      });
+    } else {
+      validCutMatches.push({
+        raw: c.raw,
+        num: parseInt(parsed[1], 10),
+        line: c.line,
+        column: c.column,
+        snippet: c.snippet,
+      });
+    }
+  }
+
+  validateCutSequence(validCutMatches, filePath, violations);
 
   return violations;
 }
@@ -1687,32 +2703,66 @@ export function lintFiles(targetPaths) {
   return { files, violations: allViolations };
 }
 
-// CLI execution when invoked directly
-const isMain =
-  process.argv[1] && resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1]);
+export const lintDirectory = lintFiles;
 
-if (isMain) {
-  const cwd = process.cwd();
-  const cliArgs = process.argv.slice(2);
-  const defaultTargets = ['registry/ui', 'registry/hooks', 'eval/screens', 'site/src', 'site/app'].filter((p) =>
-    existsSync(resolve(cwd, p)),
-  );
-  const targets = cliArgs.length > 0 ? cliArgs : defaultTargets;
+/**
+ * Runs the CLI checker and returns the exit code (0 on pass, 1 on violations or missing files).
+ */
+export function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
+  const defaultTargets = [
+    'registry/ui',
+    'registry/hooks',
+    'eval/screens',
+    'site/src',
+    'site/app',
+  ].filter((p) => existsSync(resolve(cwd, p)));
+  const rawTargets = argv.length > 0 ? argv : defaultTargets;
+  const targets = rawTargets.map((p) => resolve(cwd, p));
+
+  if (targets.length === 0) {
+    console.error(
+      'FAIL  check-frame12: No lintable files (.tsx, .ts, .jsx, .js, .css, .html) found. Pass one or more files or directories to check.',
+    );
+    return 1;
+  }
 
   const { files, violations } = lintFiles(targets);
 
+  if (files.length === 0) {
+    console.error(
+      'FAIL  check-frame12: No lintable files (.tsx, .ts, .jsx, .js, .css, .html) found. Pass one or more files or directories to check.',
+    );
+    return 1;
+  }
+
   if (violations.length === 0) {
     console.log(`PASS  check-frame12: ${files.length} file(s) checked, 0 violations.`);
-    process.exit(0);
-  } else {
-    for (const v of violations) {
-      const rel = relative(cwd, v.file) || v.file;
-      console.error(`FAIL  [${v.rule}] ${rel}:${v.line} — ${v.message}`);
-      if (v.snippet) {
-        console.error(`      > ${v.snippet}`);
-      }
-    }
-    console.error(`\n${violations.length} FRAME/12 violation(s) found across ${files.length} file(s).`);
-    process.exit(1);
+    return 0;
   }
+
+  for (const v of violations) {
+    const rel = relative(cwd, v.file) || v.file;
+    console.error(`FAIL  [${v.rule}] ${rel}:${v.line} — ${v.message}`);
+    if (v.snippet) {
+      console.error(`      > ${v.snippet}`);
+    }
+  }
+  console.error(`\n${violations.length} FRAME/12 violation(s) found across ${files.length} file(s).`);
+  return 1;
+}
+
+function safeRealpath(p) {
+  try {
+    return realpathSync(p);
+  } catch {
+    return resolve(p);
+  }
+}
+
+const isMain =
+  process.argv[1] &&
+  safeRealpath(fileURLToPath(import.meta.url)) === safeRealpath(process.argv[1]);
+
+if (isMain) {
+  process.exit(runCli());
 }

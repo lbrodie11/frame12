@@ -183,7 +183,7 @@ In addition to the `shadcn` component registry, FRAME/12 ships standalone packag
 | Package | Status | Purpose |
 | --- | --- | --- |
 | [`@frame12/tokens`](packages/tokens/) | In tree (`0.2.0`) | Zero-dependency design tokens: standalone `tokens.css` (light/dark `--f-*` custom properties and metric-matched `@font-face` fallbacks), resolved W3C DTCG 2025.10 `tokens.json`, and TypeScript/JS `tokens` + `cssText` exports. |
-| `@frame12/lint` | Joining in F12-02 | Programmatic design-grammar checker (`lintSource`, `lintHtml`, `lintFiles`, `lintDirectory`) and CLI (`frame12-lint`) enforcing the FRAME/12 design rules across `.tsx`, `.jsx`, `.css`, and static `.html` files (optional `typescript` peer for TSX AST rules). |
+| [`@frame12/lint`](packages/lint/) | In tree (`0.2.0`) | Programmatic design-grammar checker (`lintSource`, `lintHtml`, `lintFiles`, `lintDirectory`) and CLI (`frame12-lint`) enforcing the FRAME/12 design rules across `.tsx`, `.jsx`, `.css`, and static `.html` files (optional `typescript` peer for TSX AST rules). |
 | `@frame12/static` | Joining in F12-06 | Non-React HTML (`document`, `panel`, `metric`, `badge`, `tag`, `stamp`, `receipt`, `ghostWire`, `toneBarList`) and deterministic `1200×630` SVG/PNG social-card renderer (`renderCard`), built on `@frame12/tokens`. |
 
 Each package has independent SemVer versioning, its own `CHANGELOG.md`, and tag-driven npm OIDC trusted-publishing releases (`<pkg>@<version>`). See [`docs/RELEASING-PACKAGES.md`](docs/RELEASING-PACKAGES.md) for the release order (`tokens` → `lint` → `static`), dry-run mode, and verification gates.
@@ -248,6 +248,7 @@ npm test                          # runs sync checks, doc checks, static linter,
 | Workspace / Directory | Contents |
 | --- | --- |
 | [`packages/tokens/`](packages/tokens/) | Zero-dependency `@frame12/tokens` package generating `dist/tokens.css`, W3C DTCG `dist/tokens.json`, and TypeScript/JS `dist/index.js` + `dist/index.d.ts` (`tokens`, `cssText`) plus the token region of `registry/styles/frame12.css` from `src/tokens.source.json`. |
+| [`packages/lint/`](packages/lint/) | Zero-dependency `@frame12/lint` package (`lintSource`, `lintFiles`, `collectFiles`, `lintHtml`, `RULES`, and `frame12-lint` CLI) enforcing FRAME/12 design grammar across TSX/JSX/TS/JS, CSS, and generated HTML. |
 | [`registry/`](registry/) | Source for the 42 `shadcn`-compatible registry payloads (`registry/ui/`, `registry/blocks/`, `registry/hooks/use-on-twos.ts`, `registry/styles/frame12.css`, `registry/styles/frame12-tokens.css`), built into `site/public/r/*.json`. |
 | [`skills/frame12/`](skills/frame12/) | Portable AI Agent Skill (`SKILL.md`, `references/components-and-adapters.md`, `references/examples-and-mistakes.md`) and ESLint flat config (`eslint.frame12.mjs`). |
 | [`site/`](site/) | Next.js App Router documentation and interactive showcase deployed at **[frame12.dev](https://frame12.dev)**. |
