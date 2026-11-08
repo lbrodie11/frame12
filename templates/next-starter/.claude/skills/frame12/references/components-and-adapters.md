@@ -92,22 +92,30 @@ export interface SheetProps extends React.HTMLAttributes<HTMLDivElement> {
 ```
 
 ### `Scene` (`ui/scene.tsx`)
-Grid container enforcing the three legal gutter widths. Collapses to a single column below `760px` container width.
+Grid container enforcing the three legal gutter widths (`12px` `pair`, `20px` `scene`, `32px` `change`). Supports preset layouts (`split`, `stack`, `equal`, `three`) as well as named CSS Grid areas (`areas: string[]` over a `columns`-column grid, default `12` columns, activated at or above `breakpoint`, default `'860px'`). Below `breakpoint`, named-area scenes stack into a single column in DOM/reading/cut order with zero `grid-column` specificity traps.
 
 ```tsx
 export type SceneGutter = 'pair' | 'scene' | 'change'; // 12px | 20px | 32px
-export type SceneLayout = 'split' | 'stack' | 'equal' | 'three';
-// 'split' = 2fr 1fr, 'stack' = 1fr, 'equal' = 1fr 1fr, 'three' = 1fr 1fr 1fr
+export type SceneLayout = 'split' | 'stack' | 'equal' | 'three' | 'areas';
+// 'split' = 2fr 1fr, 'stack' = 1fr, 'equal' = 1fr 1fr, 'three' = 1fr 1fr 1fr, 'areas' = named grid-template-areas
 
 export interface SceneProps extends React.HTMLAttributes<HTMLDivElement> {
   gutter?: SceneGutter; // default: 'scene' (20px)
-  layout?: SceneLayout; // default: 'split' (2fr 1fr)
+  layout?: SceneLayout; // default: 'split' (2fr 1fr), or 'areas' when areas is provided
+  areas?: string[];
+  columns?: number;             // default: 12
+  breakpoint?: number | string; // default: '860px'
+  children?: React.ReactNode;
+}
+
+export interface SceneAreaProps extends React.HTMLAttributes<HTMLDivElement> {
+  area: string;
   children?: React.ReactNode;
 }
 ```
 
 ### `Panel` (`ui/panel.tsx`)
-Ink-framed `<section>` drawn with a measured SVG `<polygon>` (`2.5px` mitered stroke) and a top-edge cut label in `'expressive'` mode, or a crisp `1px solid var(--f-rule)` unnumbered exposure-sheet frame in `'quiet'` mode.
+Ink-framed `<section>` drawn with a measured SVG `<polygon>` (`2.5px` mitered stroke) and a top-edge cut label in `'expressive'` mode, or a crisp `1px solid var(--f-rule)` unnumbered exposure-sheet frame in `'quiet'` mode. Accepts `area?: string` to place the panel into a named grid area inside `<Scene areas={...}>`.
 
 ```tsx
 export type PanelShape = 'rect' | 'slant-bottom' | 'slant-top';
@@ -118,22 +126,24 @@ export interface PanelProps extends React.HTMLAttributes<HTMLElement> {
   shape?: PanelShape;     // default: 'rect'
   variant?: PanelVariant; // default: 'expressive'
   label?: string;         // sets aria-label on the <section>
+  area?: string;          // named CSS Grid area when placed inside <Scene areas={...}>
   children?: React.ReactNode;
 }
 ```
 
 ### `PanelPair` (`ui/panel-pair.tsx`)
-Stacks two related panels across a `12px` (`pair`) gutter (`slant-bottom` over `slant-top` with `16px` diagonal rise in `'expressive'` mode, or `rect` over `rect` in `'quiet'` mode). Accepts either `top` + `bottom` panel prop objects or two child nodes/panels.
+Stacks two related panels across a `12px` (`pair`) gutter (`slant-bottom` over `slant-top` with `16px` diagonal rise in `'expressive'` mode, or `rect` over `rect` in `'quiet'` mode). Accepts either `top` + `bottom` panel prop objects or two child nodes/panels, plus optional `area?: string` for named-area scenes.
 
 ```tsx
 export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: PanelVariant; // default: 'expressive'
+  area?: string;
   top?: Omit<PanelProps, 'shape'>;
   bottom?: Omit<PanelProps, 'shape'>;
   topCut?: string | false;
   bottomCut?: string | false;
   topLabel?: string;
   bottomLabel?: string;
-  variant?: PanelVariant; // default: 'expressive'
   children?: React.ReactNode;
 }
 ```
@@ -350,14 +360,15 @@ export interface TabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 ```
 
-### `Badge` (`ui/badge.tsx`) & `Tag` (`ui/tag.tsx`)
+### `Badge` (`ui/badge.tsx`) & `Tag` / `Stamp` (`ui/tag.tsx`)
 Both render `--f-marker` yellow backgrounds with `--f-marker-ink` text by default, and support non-color semantic states (`status?: 'neutral' | 'info' | 'success' | 'warning' | 'danger'`) with orthographic glyph prefixes (`[i]`, `[+]`, `[!]`, `[×]`, or custom/suppressed via `glyph?: string | false`) and screen-reader status announcements (`.f12-sr-only`, customizable or suppressible via `srLabel?: string | false`).
 - `Badge`: bordered (`2px solid var(--f-rule)`), supports `pop?: boolean`, `burst?: boolean` (14-ray SVG impact burst; defaults to `true` when `status` is omitted and `false` when `status` is set), `status?: BadgeStatus`, `glyph?: string | false`, and `srLabel?: string | false`.
-- `Tag`: flat inline marker strip (`<Tag>Production</Tag>` or `<Tag status="warning">Degraded</Tag>`).
+- `Tag`: flat inline marker strip (`<Tag>Production</Tag>` or `<Tag status="warning">Degraded</Tag>`), or rotated ink stamp (`<Tag variant="stamp">removed</Tag>` / `<Stamp>bot</Stamp>`) with `-3deg` rotation, `--font-f-display`, uppercase text, and `2px solid var(--f-rule)` border.
 
 ```tsx
 export type SemanticStatus = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 export type BadgeStatus = SemanticStatus;
+export type TagVariant = 'default' | 'stamp';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   status?: BadgeStatus;
@@ -369,9 +380,14 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
+  variant?: TagVariant; // default: 'default'
   status?: SemanticStatus;
   glyph?: string | false;
   srLabel?: string | false;
+  children?: React.ReactNode;
+}
+
+export interface StampProps extends Omit<TagProps, 'variant'> {
   children?: React.ReactNode;
 }
 ```
@@ -727,6 +743,40 @@ export interface ToneSparkProps {
 export interface BalloonProps extends React.HTMLAttributes<HTMLDivElement> {
   tailOffset?: number; // default: 0 (-36 to +36)
   showDot?: boolean;   // default: true
+  children?: React.ReactNode;
+}
+```
+
+### `GhostWire` (`ui/ghost-wire.tsx`) & `Receipt` / `ReceiptList` (`ui/receipt.tsx`)
+- `GhostWire` (`GhostWireProps`): dashed co-change connector wire linking a solid `from` endpoint chip (changed) to a dashed `to` endpoint chip (untouched). Maps `strength` (`0..1`) to SVG stroke dash density (never color/opacity), uses `vector-effect: non-scaling-stroke`, switches `orientation="auto"` from horizontal at `>= 520px` to vertical below `520px`, wraps the wire in a single `role="group"` with an accessible `aria-label` built from `label` (while marking the SVG `aria-hidden="true"`), and steps its draw-on dash offset at `83.33ms` via `useOnTwos` (with zero animation frames under `prefers-reduced-motion: reduce`).
+- `Receipt` (`ReceiptProps`) & `ReceiptList` (`ReceiptListProps`): evidence chips for `commit` (7-char SHA in mono), `file` (repo path in mono, wrapping anywhere without overflow), or `link` (`http(s)`-validated URLs only; non-`http(s)` strings such as `javascript:` render as escaped plain text), with optional WP3 non-color `origin` (`'human' | 'agent' | 'bot'`) glyph + `.f12-sr-only` label.
+
+```tsx
+export type GhostWireOrientation = 'auto' | 'horizontal' | 'vertical';
+
+export interface GhostWireProps extends React.HTMLAttributes<HTMLDivElement> {
+  from: React.ReactNode;
+  to: React.ReactNode;
+  label?: string;
+  strength?: number;                   // default: 0.5 (maps to stroke dash density, never color)
+  orientation?: GhostWireOrientation;  // default: 'auto' (horizontal >= 520px, vertical < 520px)
+  motion?: MotionMode;                 // default: 'stepped'
+}
+
+export type ReceiptKind = 'commit' | 'file' | 'link';
+export type ReceiptOrigin = 'human' | 'agent' | 'bot';
+
+export interface ReceiptProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'title'> {
+  kind: ReceiptKind;
+  value: string;
+  href?: string;
+  title?: string;
+  date?: string;
+  origin?: ReceiptOrigin;
+}
+
+export interface ReceiptListProps extends React.HTMLAttributes<HTMLUListElement> {
+  ariaLabel?: string;
   children?: React.ReactNode;
 }
 ```

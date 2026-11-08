@@ -121,9 +121,9 @@ When you installed the full kit (`frame12.json`) or started from `templates/next
 | UI Need | FRAME/12 Component | Forbidden Raw Alternative |
 | --- | --- | --- |
 | Page shell & registration pegs | `Sheet` (`autoCut`) | Custom wrapper divs with hard-coded padding |
-| Multi-column / stacked grid | `Scene` (`gutter="pair" \| "scene" \| "change"`, `layout="split" \| "equal" \| "three" \| "stack"`) | Arbitrary CSS grid or Tailwind `gap-4` / `gap-6` |
-| Framed section / card | `Panel` (`label="..."`, `cut={false}` if unnumbered) | shadcn `Card`, bordered `<div>` |
-| Vertically paired KPIs / panels | `PanelPair` (`top`, `bottom`, 12px slanted gutter) | Two stacked cards with `gap-4` |
+| Multi-column / stacked / named-area grid | `Scene` (`gutter="pair" \| "scene" \| "change"`, `layout="split" \| "equal" \| "three" \| "stack" \| "areas"`, `areas={string[]}`) | Arbitrary CSS grid or Tailwind `gap-4` / `gap-6` |
+| Framed section / card | `Panel` (`label="..."`, `area="..."`, `cut={false}` if unnumbered) | shadcn `Card`, bordered `<div>` |
+| Vertically paired KPIs / panels | `PanelPair` (`top`, `bottom`, `area="..."`, 12px slanted gutter) | Two stacked cards with `gap-4` |
 | Mode, range, or view switcher (same content) | `SegmentedControl` | Radio button pills |
 | Sectioned content panels (distinct views) | `Tabs` (`TabsList`, `TabsTrigger`, `TabsContent`) | Unstyled tab buttons or raw `@/components/ui/tabs` |
 | Action button | `Button` (`variant="primary" \| "secondary" \| "marker"`) | Raw `<button>` or unadapted `@/components/ui/button` |
@@ -134,7 +134,9 @@ When you installed the full kit (`frame12.json`) or started from `templates/next
 | Mutually exclusive option set | `RadioGroup` & `RadioGroupItem` | Unstyled radios or raw `@/components/ui/radio-group` |
 | Binary on/off toggle | `Switch` (`label`, `onLabel`, `offLabel`, `onCheckedChange`) | Custom toggle `<button>` or raw `@/components/ui/switch` |
 | Highlight callout with impact burst | `Badge` (`pop`, `burst`) | Colored status pills (green/red/blue badges) |
-| Compact metadata marker | `Tag` | Colored chips |
+| Compact metadata marker / rotated ink stamp | `Tag` (`variant="default" \| "stamp"`) / `Stamp` | Colored chips or low-contrast rotated text |
+| Co-change / untouched dependency wire | `GhostWire` (`from`, `to`, `label`, `strength`, `orientation`) | Color-coded or low-opacity SVG lines |
+| Evidence chip / commit & file reference | `Receipt` & `ReceiptList` (`kind="commit" \| "file" \| "link"`, `value`, `href`, `origin`) | Unescaped links or color-only author badges |
 | Inline status banner / static notice | `Alert` & `Notice` (`status="neutral" \| "info" \| "success" \| "warning" \| "danger"`, `live="off" \| "polite" \| "assertive"`) | Raw `@/components/ui/alert` or colored banners |
 | Ephemeral notification stack | `ToastProvider`, `useToast`, `Toast` (`maxVisible={3}`, hover/focus timer pause, `Escape` dismissal) | `sonner`, `react-hot-toast`, or raw `@/components/ui/toast` |
 | Zero-CLS loading placeholder | `Skeleton` & `SkeletonText` (`variant="block" \| "line" \| "circle" \| "metric" \| "panel"`) | Blurred shimmer gradients or raw `@/components/ui/skeleton` |
