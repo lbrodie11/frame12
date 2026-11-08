@@ -55,6 +55,17 @@ jobs:
       - name: Run shadcn registry smoke-install verification (single-component & full kit)
         run: node scripts/smoke-install.mjs
 
+      - name: Run publishable package dry-run release (npm publish --dry-run + npm pack)
+        run: node scripts/release-packages.mjs --dry-run --out-dir /tmp/frame12-release-artifacts
+
+      - name: Upload dry-run package tarballs and manifest as artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frame12-package-tarballs
+          path: /tmp/frame12-release-artifacts/*
+          if-no-files-found: error
+          retention-days: 7
+
   real-install:
     name: Fresh Next.js + shadcn init -d + next build
     runs-on: ubuntu-latest

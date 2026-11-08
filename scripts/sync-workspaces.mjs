@@ -64,11 +64,19 @@ for (const styleFile of ['frame12.css', 'frame12-tokens.css', 'frame12-tailwind.
   });
 }
 
-// 3b. LICENSE -> packages/tokens/LICENSE
-FILE_MAPPINGS.push({
-  src: path.join(ROOT, 'LICENSE'),
-  dest: path.join(ROOT, 'packages/tokens/LICENSE'),
-});
+// 3b. LICENSE -> packages/<pkg>/LICENSE for all publishable packages in workspaces
+const rootPkgJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+for (const wsEntry of rootPkgJson.workspaces || []) {
+  if (typeof wsEntry === 'string' && wsEntry.startsWith('packages/')) {
+    const pkgDir = path.join(ROOT, wsEntry);
+    if (fs.existsSync(path.join(pkgDir, 'package.json'))) {
+      FILE_MAPPINGS.push({
+        src: path.join(ROOT, 'LICENSE'),
+        dest: path.join(pkgDir, 'LICENSE'),
+      });
+    }
+  }
+}
 
 // 4. scripts/check-frame12.mjs -> templates/next-starter/scripts/check-frame12.mjs
 FILE_MAPPINGS.push({
