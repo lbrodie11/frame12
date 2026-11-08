@@ -2,7 +2,7 @@
 
 [![Release: v0.2.0](https://img.shields.io/badge/Release-v0.2.0_·_Experimental-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://github.com/lbrodie11/frame12/releases/tag/v0.2.0)
 [![React 18 & 19](https://img.shields.io/badge/React-18_%26_19_·_TypeScript-121212?style=flat-square&labelColor=121212&color=ffffff)](registry/)
-[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-31_Components_·_41_Registry_Items-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
+[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-31_Components_·_42_Registry_Items-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
 [![License: MIT](https://img.shields.io/badge/License-MIT-121212?style=flat-square&labelColor=121212&color=ffffff)](LICENSE)
 
 **A React design system that makes interfaces look like comic pages and move like hand-drawn animation.**
@@ -86,7 +86,7 @@ npx shadcn@latest add https://frame12.dev/r/panel.json
 
 > **Upgrading & Customizing Tokens:** Do not edit `styles/frame12.css` directly—put custom `--f-*` token overrides in your own stylesheet (such as `app/globals.css`). When upgrading or adding components after a FRAME/12 update (or in non-interactive CI/agent shells where `shadcn add -y` will skip installing if `styles/frame12.css` differs and still exit `0`), pass `--overwrite` and verify that `components/frame12/<name>.tsx` exists on disk.
 
-Browse all 31 components and 41 registry items at **[frame12.dev/components](https://frame12.dev/components)**, or explore the **[Developer Console Block](https://frame12.dev/blocks/developer-console)**, **[Workspace Settings Block](https://frame12.dev/blocks/workspace-settings)**, and **[Analytics Block](https://frame12.dev/blocks/analytics-dashboard)**.
+Browse all 31 components and 42 registry items at **[frame12.dev/components](https://frame12.dev/components)**, or explore the **[Developer Console Block](https://frame12.dev/blocks/developer-console)**, **[Workspace Settings Block](https://frame12.dev/blocks/workspace-settings)**, and **[Analytics Block](https://frame12.dev/blocks/analytics-dashboard)**. For non-React consumers (static HTML, SVG cards, email, VS Code webviews), install the standalone token stylesheet via `npx shadcn@latest add @frame12/frame12-tokens` or use the [`@frame12/tokens`](packages/tokens/) workspace package (`tokens.css` with metric-matched `@font-face` fallbacks, W3C DTCG 2025.10 `tokens.json`, and TypeScript `tokens` + `cssText`; prepared for npm publication under `@frame12`).
 </details>
 
 ### 2. Import the stylesheet and fonts (`app/layout.tsx`)
@@ -233,7 +233,8 @@ npm test                          # runs sync checks, doc checks, static linter,
 
 | Workspace / Directory | Contents |
 | --- | --- |
-| [`registry/`](registry/) | Source for the 41 `shadcn`-compatible registry payloads (`registry/ui/`, `registry/blocks/`, `registry/hooks/use-on-twos.ts`, `registry/styles/frame12.css`), built into `site/public/r/*.json`. |
+| [`packages/tokens/`](packages/tokens/) | Zero-dependency `@frame12/tokens` package generating `dist/tokens.css`, W3C DTCG `dist/tokens.json`, and TypeScript/JS `dist/index.js` + `dist/index.d.ts` (`tokens`, `cssText`) plus the token region of `registry/styles/frame12.css` from `src/tokens.source.json`. |
+| [`registry/`](registry/) | Source for the 42 `shadcn`-compatible registry payloads (`registry/ui/`, `registry/blocks/`, `registry/hooks/use-on-twos.ts`, `registry/styles/frame12.css`, `registry/styles/frame12-tokens.css`), built into `site/public/r/*.json`. |
 | [`skills/frame12/`](skills/frame12/) | Portable AI Agent Skill (`SKILL.md`, `references/components-and-adapters.md`, `references/examples-and-mistakes.md`) and ESLint flat config (`eslint.frame12.mjs`). |
 | [`site/`](site/) | Next.js App Router documentation and interactive showcase deployed at **[frame12.dev](https://frame12.dev)**. |
 | [`templates/next-starter/`](templates/next-starter/) | Standalone Next.js App Router + TypeScript starter template pre-configured with local WOFF2 fonts (`next/font/local`), `.claude/skills/frame12/SKILL.md`, and `scripts/check-frame12.mjs`. |

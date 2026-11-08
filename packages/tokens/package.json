@@ -1,0 +1,39 @@
+{
+  "name": "@frame12/tokens",
+  "version": "0.2.0",
+  "description": "FRAME/12 design tokens: CSS custom properties, W3C DTCG JSON, and TypeScript/JavaScript exports.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./tokens.css": "./dist/tokens.css",
+    "./frame12-tokens.css": "./dist/tokens.css",
+    "./tokens.json": "./dist/tokens.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node scripts/build-tokens.mjs",
+    "check": "node scripts/build-tokens.mjs --check",
+    "test": "node scripts/build-tokens.mjs --check && node tests/tokens.test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lbrodie11/frame12.git",
+    "directory": "packages/tokens"
+  },
+  "homepage": "https://frame12.dev/style-sheet",
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -89,10 +89,21 @@ import {
     const hasDirectStyles = item.files.some(
       (f) => f.path === 'styles/frame12.css' && f.target === 'styles/frame12.css',
     );
+    const hasDirectTokens = item.files.some(
+      (f) => f.path === 'styles/frame12-tokens.css' && f.target === 'styles/frame12-tokens.css',
+    );
     const hasDepStyles =
       Array.isArray(item.registryDependencies) &&
       item.registryDependencies.includes('https://frame12.dev/r/frame12-styles.json');
-    if (item.name !== 'use-on-twos' && !hasDirectStyles && !hasDepStyles) {
+    if (item.name === 'frame12-tokens' && (!hasDirectTokens || item.type !== 'registry:ui')) {
+      manifestIssues.push(`${item.name}: must be registry:ui with styles/frame12-tokens.css`);
+    }
+    if (
+      item.name !== 'use-on-twos' &&
+      item.name !== 'frame12-tokens' &&
+      !hasDirectStyles &&
+      !hasDepStyles
+    ) {
       manifestIssues.push(`${item.name}: missing styles/frame12.css (direct or registryDependencies)`);
     }
     if (

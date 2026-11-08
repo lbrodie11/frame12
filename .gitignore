@@ -1,5 +1,6 @@
 node_modules/
 dist/
+!packages/tokens/dist/
 lab/dist/
 registry/dist/
 eval/dist/

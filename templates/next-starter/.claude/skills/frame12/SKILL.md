@@ -27,6 +27,7 @@ npx shadcn@latest add @frame12/analytics-dashboard
 
 # Or individual registry items via @frame12/<name>
 npx shadcn@latest add @frame12/frame12-styles
+npx shadcn@latest add @frame12/frame12-tokens
 npx shadcn@latest add @frame12/sheet
 npx shadcn@latest add @frame12/scene
 npx shadcn@latest add @frame12/panel

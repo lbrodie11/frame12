@@ -4,6 +4,19 @@
   "homepage": "https://github.com/lbrodie11/frame12",
   "items": [
     {
+      "name": "frame12-tokens",
+      "type": "registry:ui",
+      "title": "FRAME/12 Design Tokens",
+      "description": "Standalone FRAME/12 CSS custom properties for Paper Light and Flashback Dark colors, font stacks, 12/20/32px gutters, 2.5px ink stroke, and 12fps (83.33ms) pose timing.",
+      "files": [
+        {
+          "path": "styles/frame12-tokens.css",
+          "type": "registry:file",
+          "target": "styles/frame12-tokens.css"
+        }
+      ]
+    },
+    {
       "name": "frame12-styles",
       "type": "registry:ui",
       "title": "FRAME/12 Styles & Tokens",

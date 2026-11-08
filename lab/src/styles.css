@@ -32,38 +32,20 @@
   --cv-grad-a: rgba(79, 70, 229, 0.22);
   --cv-grad-b: rgba(79, 70, 229, 0);
 
-  /* FRAME/12 */
-  --f-desk: #e2e3e5;
-  --f-sheet: #ffffff;
-  --f-panel: #ffffff;
-  --f-ink: #121212;
-  --f-ink-2: #4b4b4b;
-  --f-rule: #121212;
-  --f-tone: #121212;
-  --f-grid: #e3e3e3;
-  --f-marker: #ffd60a;
-  --f-marker-ink: #121212;
-  --f-hole: #e2e3e5;
-
   --font-shell: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-cv: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-cv-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --font-f-display: "Dela Gothic One", "Arial Black", "Helvetica Neue", sans-serif;
-  --font-f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-f-mono: "M PLUS 1 Code", ui-monospace, "SF Mono", Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --s-bg: #0d0e11; --s-surface: #17191e; --s-ink: #eceef2; --s-muted: #a2a9b4; --s-line: #2c3038; --s-hi: #22252c; --s-focus: #7aa7ff; --s-ok: #4ccf8a; --s-bad: #ff8a80; --s-warn: #f2b84b;
     --cv-bg: #0c0e13; --cv-card: #141821; --cv-border: #262c38; --cv-text: #e7eaf0; --cv-muted: #9aa3b4; --cv-accent: #8b93ff; --cv-accent-soft: #1d2142; --cv-accent-ink: #c7cbff; --cv-focus-line: #f7b955; --cv-grid: #1e2330; --cv-pos: #4bd08e; --cv-neg: #ff8a7a; --cv-track: #1c212c; --cv-thumb: #2a3141; --cv-grad-a: rgba(139, 147, 255, 0.28); --cv-grad-b: rgba(139, 147, 255, 0);
-    --f-desk: #000000; --f-sheet: #050505; --f-panel: #19191a; --f-ink: #f1f0ea; --f-ink-2: #b9b8b1; --f-rule: #f1f0ea; --f-tone: #f1f0ea; --f-grid: #2c2c2d; --f-marker: #ffd60a; --f-marker-ink: #121212; --f-hole: #000000;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --s-bg: #0d0e11; --s-surface: #17191e; --s-ink: #eceef2; --s-muted: #a2a9b4; --s-line: #2c3038; --s-hi: #22252c; --s-focus: #7aa7ff; --s-ok: #4ccf8a; --s-bad: #ff8a80; --s-warn: #f2b84b;
   --cv-bg: #0c0e13; --cv-card: #141821; --cv-border: #262c38; --cv-text: #e7eaf0; --cv-muted: #9aa3b4; --cv-accent: #8b93ff; --cv-accent-soft: #1d2142; --cv-accent-ink: #c7cbff; --cv-focus-line: #f7b955; --cv-grid: #1e2330; --cv-pos: #4bd08e; --cv-neg: #ff8a7a; --cv-track: #1c212c; --cv-thumb: #2a3141; --cv-grad-a: rgba(139, 147, 255, 0.28); --cv-grad-b: rgba(139, 147, 255, 0);
-  --f-desk: #000000; --f-sheet: #050505; --f-panel: #19191a; --f-ink: #f1f0ea; --f-ink-2: #b9b8b1; --f-rule: #f1f0ea; --f-tone: #f1f0ea; --f-grid: #2c2c2d; --f-marker: #ffd60a; --f-marker-ink: #121212; --f-hole: #000000;
   color-scheme: dark;
 }
 
@@ -353,14 +335,4 @@ button { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   .dash *, .dash *::before, .dash *::after, .prog span { animation: none !important; transition: none !important; }
-}
-
-/* Scoped theme overrides, so one page can show FRAME/12 light and dark side by side. */
-.theme-light {
-  --f-desk: #e2e3e5; --f-sheet: #ffffff; --f-panel: #ffffff; --f-ink: #121212; --f-ink-2: #4b4b4b; --f-rule: #121212; --f-tone: #121212; --f-grid: #e3e3e3; --f-marker: #ffd60a; --f-marker-ink: #121212; --f-hole: #e2e3e5;
-  color-scheme: light;
-}
-.theme-dark {
-  --f-desk: #000000; --f-sheet: #050505; --f-panel: #19191a; --f-ink: #f1f0ea; --f-ink-2: #b9b8b1; --f-rule: #f1f0ea; --f-tone: #f1f0ea; --f-grid: #2c2c2d; --f-marker: #ffd60a; --f-marker-ink: #121212; --f-hole: #000000;
-  color-scheme: dark;
 }

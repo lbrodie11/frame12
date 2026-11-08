@@ -4,7 +4,9 @@ Complete API reference for `@/components/frame12` and `@/hooks/use-on-twos`.
 
 ---
 
-## 1. CSS Custom Properties (`styles/frame12.css`)
+## 1. Design Tokens (`@frame12/tokens` & `styles/frame12.css`)
+
+Canonical tokens live in `packages/tokens/src/tokens.source.json` and generate `@frame12/tokens` (`dist/tokens.css`, `dist/tokens.json`, `dist/index.js`, `dist/index.d.ts`), `registry/styles/frame12-tokens.css` (`@frame12/frame12-tokens`), and the `/* @tokens:start */` … `/* @tokens:end */` region of `registry/styles/frame12.css`.
 
 ```css
 /* Color Tokens (automatically switch in .f12-theme-dark / [data-theme="dark"] / prefers-color-scheme: dark) */
@@ -25,10 +27,23 @@ Complete API reference for `@/components/frame12` and `@/hooks/use-on-twos`.
 --f-gutter-scene: 20px;  /* Same-scene panel grid gap */
 --f-gutter-change: 32px; /* Scene-change vertical separation */
 
+/* Stroke, Motion & Shadow Tokens */
+--f-stroke: 2.5px;       /* Expressive panel & control stroke width */
+--f-pose: 83.33ms;       /* Reference token: single pose duration held on twos (12fps) */
+--f-fps: 12;             /* Reference token: stepped frame rate on twos */
+--f-shadow-sheet         /* Storyboard sheet elevation shadow */
+--f-shadow-peg           /* Registration peg punch-hole inset shadow */
+
 /* Typography Tokens */
 --font-f-display /* Display headlines & metric numerals */
 --font-f-body    /* Body copy, table cells, descriptions */
 --font-f-mono    /* Cut labels, eyebrows, table headers, controls */
+```
+
+For non-React consumers (static HTML pages, SVG cards, emails, VS Code webviews), install `@frame12/frame12-tokens` via `npx shadcn@latest add @frame12/frame12-tokens` or import `tokens` and `cssText` from `@frame12/tokens` (`packages/tokens/`, prepared for npm publication under `@frame12`):
+
+```ts
+import { tokens, cssText } from '@frame12/tokens';
 ```
 
 ---
