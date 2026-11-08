@@ -5,6 +5,7 @@ import { useOnTwos, useReducedMotion, type MotionMode } from '@/hooks/use-on-two
 import { extractTextContent } from './tag';
 
 const useIsoLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+let ghostWireMaskCounter = 0;
 
 export type GhostWireOrientation = 'auto' | 'horizontal' | 'vertical';
 
@@ -52,9 +53,29 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
       ? orientation
       : 'auto';
 
+  const fromText = extractTextContent(from).trim() || 'source';
+  const toText = extractTextContent(to).trim() || 'target';
   const reactId = React.useId();
-  const maskId = `f12-gw-mask-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const baseSlug = (rest.id || `${fromText}-${toText}`)
+    .replace(/[^a-zA-Z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 32);
+  const baseMaskId = `f12-gw-mask-${baseSlug ? `${baseSlug}-` : ''}${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const [maskSuffix, setMaskSuffix] = React.useState<string>('');
+  const maskId = `${baseMaskId}${maskSuffix}`;
   const [autoVertical, setAutoVertical] = React.useState<boolean>(false);
+
+  useIsoLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!el || typeof document === 'undefined') return;
+    const ownMask = el.querySelector('mask');
+    const matching = document.querySelectorAll(`mask[id="${baseMaskId}"]`);
+    if (matching.length > 1 && matching[0] !== ownMask) {
+      ghostWireMaskCounter += 1;
+      setMaskSuffix(`-r${ghostWireMaskCounter}`);
+    }
+  }, [baseMaskId]);
 
   useIsoLayoutEffect(() => {
     if (safeOrientation !== 'auto' || typeof window === 'undefined') {
@@ -111,8 +132,6 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
   const resolvedOrientation: 'horizontal' | 'vertical' =
     safeOrientation === 'auto' ? (autoVertical ? 'vertical' : 'horizontal') : safeOrientation;
 
-  const fromText = extractTextContent(from).trim() || 'source';
-  const toText = extractTextContent(to).trim() || 'target';
   const defaultAccessibleLabel = `${fromText} usually changes with ${toText}, which was not changed`;
   const groupAriaLabel =
     rest['aria-label'] ?? (label && label.trim() ? label.trim() : defaultAccessibleLabel);

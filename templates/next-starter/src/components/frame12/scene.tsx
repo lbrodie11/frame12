@@ -77,9 +77,9 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
   ref,
 ) {
   const reactId = React.useId();
-  const bpScope = `bp-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const warnedAreasRef = React.useRef<string | null>(null);
   const warnedColsRef = React.useRef<string | null>(null);
+  const warnedBpRef = React.useRef<string | null>(null);
   const safeGutter: SceneGutter =
     gutter === 'pair' || gutter === 'scene' || gutter === 'change' ? gutter : 'scene';
   const hasAreas = Array.isArray(areas) && areas.length > 0;
@@ -136,6 +136,9 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
 
   const safeColumns = firstRowCount > 0 ? firstRowCount : (explicitCols ?? 12);
 
+  const hasExplicitBreakpoint =
+    breakpoint !== undefined &&
+    (typeof breakpoint !== 'string' || breakpoint.trim().length > 0);
   const rawBp =
     typeof breakpoint === 'number' && Number.isFinite(breakpoint) && breakpoint > 0
       ? `${breakpoint}px`
@@ -144,8 +147,28 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
           ? `${breakpoint.trim()}px`
           : breakpoint.trim()
         : '860px';
-  const normalizedBreakpoint = /^\d+(\.\d+)?(px|rem|em)$/i.test(rawBp) ? rawBp : '860px';
+  const isValidBreakpoint =
+    !hasExplicitBreakpoint ||
+    (typeof breakpoint === 'number'
+      ? Number.isFinite(breakpoint) && breakpoint > 0
+      : /^\d+(\.\d+)?(px|rem|em)$/i.test(rawBp));
+
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    hasExplicitBreakpoint &&
+    !isValidBreakpoint &&
+    warnedBpRef.current !== String(breakpoint)
+  ) {
+    warnedBpRef.current = String(breakpoint);
+    console.warn(
+      `[FRAME/12 Scene] Invalid breakpoint "${String(breakpoint)}". Expected a positive number or px/rem/em length (e.g. "960px", "60rem"). Falling back to 860px.`,
+    );
+  }
+
+  const normalizedBreakpoint = isValidBreakpoint ? rawBp : '860px';
   const isCustomBreakpoint = normalizedBreakpoint !== '860px';
+  const bpSlug = normalizedBreakpoint.replace(/[^a-zA-Z0-9_-]/g, '-');
+  const bpScope = `bp-${bpSlug}-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
   const mergedStyle: React.CSSProperties | undefined = hasAreas
     ? ({

@@ -2617,15 +2617,18 @@ await page.waitForSelector('#unit-test-fixtures');
       f1203Desktop.areas3ColOk &&
       f1203Desktop.customBreakpointOk &&
       f1203Desktop.gwNarrowContainerVertical &&
-      areasMismatchWarnings.dev.warnings.length === 2 &&
+      areasMismatchWarnings.dev.warnings.length === 3 &&
       areasMismatchWarnings.dev.warnings.some((w) => w.includes('Mismatched column counts')) &&
       areasMismatchWarnings.dev.warnings.some((w) =>
         w.includes('Explicit columns (12) does not match'),
       ) &&
+      areasMismatchWarnings.dev.warnings.some((w) => w.includes('Invalid breakpoint "calc(50vw)"')) &&
       areasMismatchWarnings.dev.derivedCols === '2' &&
+      areasMismatchWarnings.dev.fallbackBp === '860px' &&
       areasMismatchWarnings.prod.warnings.length === 0 &&
       gwMountPose.firstFrameOffset > 0 &&
       gwMountPose.finalOffset === 0 &&
+      gwMountPose.multiRootDistinctMasks &&
       f1203Desktop.ghostWireOk &&
       f1203Desktop.receiptsOk &&
       f1203Desktop.stampsOk &&

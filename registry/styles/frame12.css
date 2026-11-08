@@ -3366,7 +3366,7 @@ dialog.f12-dialog > .f12-cut {
   .f12-scene.f12-scene-split,
   .f12-scene.f12-scene-equal,
   .f12-scene.f12-scene-three,
-  .f12-scene.f12-scene-areas:not([data-areas-active="true"]),
+  .f12-scene.f12-scene-areas:not([data-scene-bp]),
   .f12-console-filters,
   .f12-console-grid-2,
   .f12-console-kv-list,
@@ -3374,10 +3374,10 @@ dialog.f12-dialog > .f12-cut {
   .f12-settings .f12-settings-posture-panel .f12-console-kv-list {
     grid-template-columns: minmax(0, 1fr);
   }
-  .f12-scene.f12-scene-areas:not([data-areas-active="true"]) {
+  .f12-scene.f12-scene-areas:not([data-scene-bp]) {
     grid-template-areas: none;
   }
-  .f12-scene.f12-scene-areas:not([data-areas-active="true"]) > [data-area] {
+  .f12-scene.f12-scene-areas:not([data-scene-bp]) > [data-area] {
     grid-area: auto;
   }
   .f12-rng-btn {

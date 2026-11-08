@@ -2770,6 +2770,7 @@ if (rootEl) {
             <Scene
               id="fixture-cols-mismatch-scene"
               columns={12}
+              breakpoint="calc(50vw)"
               areas={['nav main']}
               data-tick={tick}
             >
@@ -2787,9 +2788,10 @@ if (rootEl) {
       await new Promise((r) => setTimeout(r, 40));
       root.render(<MismatchFixture tick={2} />);
       await new Promise((r) => setTimeout(r, 40));
-      const derivedCols =
-        host.querySelector('#fixture-cols-mismatch-scene')?.getAttribute('data-columns') ?? null;
-      return { warnings, derivedCols };
+      const sceneEl = host.querySelector('#fixture-cols-mismatch-scene');
+      const derivedCols = sceneEl?.getAttribute('data-columns') ?? null;
+      const fallbackBp = sceneEl?.getAttribute('data-breakpoint') ?? null;
+      return { warnings, derivedCols, fallbackBp };
     } finally {
       root.unmount?.();
       host.remove();
@@ -2802,27 +2804,41 @@ if (rootEl) {
       __testGhostWireInitialMountPose?: () => Promise<{
         firstFrameOffset: number;
         finalOffset: number;
+        multiRootDistinctMasks: boolean;
       }>;
     }
   ).__testGhostWireInitialMountPose = async () => {
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-    const root = RD.createRoot(host);
+    const hostA = document.createElement('div');
+    const hostB = document.createElement('div');
+    document.body.appendChild(hostA);
+    document.body.appendChild(hostB);
+    const rootA = RD.createRoot(hostA);
+    const rootB = RD.createRoot(hostB);
     try {
-      root.render(
+      rootA.render(
+        <Sheet pegs={false} motion="stepped">
+          <GhostWire id="fixture-gw-mount" from="src/a.ts" to="src/b.ts" />
+        </Sheet>,
+      );
+      rootB.render(
         <Sheet pegs={false} motion="stepped">
           <GhostWire id="fixture-gw-mount" from="src/a.ts" to="src/b.ts" />
         </Sheet>,
       );
       await new Promise((r) => requestAnimationFrame(r));
-      const revealLine = host.querySelector('#fixture-gw-mount line.f12-ghost-wire-reveal');
+      const revealLine = hostA.querySelector('#fixture-gw-mount line.f12-ghost-wire-reveal');
       const firstFrameOffset = Number(revealLine?.getAttribute('stroke-dashoffset') ?? '0');
+      const maskA = hostA.querySelector('mask')?.getAttribute('id') ?? '';
+      const maskB = hostB.querySelector('mask')?.getAttribute('id') ?? '';
+      const multiRootDistinctMasks = Boolean(maskA && maskB && maskA !== maskB);
       await new Promise((r) => setTimeout(r, 480));
       const finalOffset = Number(revealLine?.getAttribute('stroke-dashoffset') ?? '-1');
-      return { firstFrameOffset, finalOffset };
+      return { firstFrameOffset, finalOffset, multiRootDistinctMasks };
     } finally {
-      root.unmount?.();
-      host.remove();
+      rootA.unmount?.();
+      rootB.unmount?.();
+      hostA.remove();
+      hostB.remove();
     }
   };
 }
