@@ -16,6 +16,7 @@
 import http from 'node:http';
 import { chromium } from 'playwright';
 import { getRenderedCuts } from '../registry/tests/lib.mjs';
+import { runStandalonePackageSmokeTest } from './check-packages.mjs';
 import {
   mkdtempSync,
   mkdirSync,
@@ -39,6 +40,23 @@ let failures = 0;
 function check(ok, label, detail = '') {
   if (!ok) failures++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  ' + detail : ''}`);
+}
+
+if (process.argv.includes('--packages-only')) {
+  try {
+    const pkgRes = runStandalonePackageSmokeTest(REPO_ROOT, { silent: true });
+    check(
+      pkgRes.verified.length >= 1,
+      `Standalone npm package tarball install (${pkgRes.verified.join(', ')}): npm pack -> zero-dep consumer install -> verified exports`,
+      JSON.stringify(pkgRes.results),
+    );
+  } catch (err) {
+    check(false, 'Standalone npm package tarball install', err.message);
+  }
+  console.log(
+    failures ? `\n${failures} smoke check(s) failed` : '\nAll standalone package smoke-install checks passed',
+  );
+  process.exit(failures ? 1 : 0);
 }
 
 const CANONICAL_REGISTRY_PATH = resolve(REPO_ROOT, 'registry/registry.json');
@@ -1242,6 +1260,20 @@ export default {
     // F12_SMOKE_KEEP=1 keeps the React 18 consumer on disk for debugging.
     if (process.env.F12_SMOKE_KEEP) console.log(`(kept React 18 consumer at ${r18Dir})`);
     else rmSync(r18Dir, { recursive: true, force: true });
+  }
+
+  // 9. Standalone publishable npm packages (packages/*): npm pack -> install tarballs into a
+  // temp project with NO other dependencies -> verify cssText, lintHtml, document(), renderCard()
+  // for whichever packages are present.
+  try {
+    const pkgSmokeRes = runStandalonePackageSmokeTest(REPO_ROOT, { silent: true });
+    check(
+      pkgSmokeRes.verified.length >= 1 && Boolean(pkgSmokeRes.results.tokens),
+      `Standalone npm package tarball install (${pkgSmokeRes.verified.join(', ')}): npm pack -> zero-dep consumer install -> verified exports`,
+      JSON.stringify(pkgSmokeRes.results),
+    );
+  } catch (err) {
+    check(false, 'Standalone npm package tarball install', err.message);
   }
 } finally {
   server.close();
