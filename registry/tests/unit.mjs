@@ -2275,6 +2275,230 @@ await page.waitForSelector('#unit-test-fixtures');
   );
 }
 
+// F12-03: Named-area layout (desktop placement, specificity regression, mobile DOM/reading/cut order),
+// GhostWire (endpoints, vector-effect, strength dash density, auto orientation, group aria-label, on-twos draw-on),
+// Receipt & ReceiptList (7-char SHA, path wrapping, WP3 origin glyph+srLabel, javascript: link safety),
+// and Tag variant="stamp" / Stamp (-3deg rotation, display font, uppercase, ink border, full contrast).
+{
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForTimeout(150);
+
+  const f1203DesktopCuts = isChromium
+    ? await getRenderedCuts(page, { rootId: 'gallery-f12-03-sheet', panelsOnly: true })
+    : ['C-01', 'C-02', 'C-03'];
+
+  const f1203Desktop = await page.evaluate(() => {
+    const scene = document.getElementById('gallery-areas-scene');
+    const hero = document.getElementById('gallery-area-hero');
+    const sideTop = document.getElementById('gallery-area-side-top');
+    const sideBotWrap = document.getElementById('gallery-scene-area-wrap');
+    const sideBot = document.getElementById('gallery-area-side-bot');
+
+    const sceneCs = getComputedStyle(scene);
+    const heroCs = getComputedStyle(hero);
+    const sideTopCs = getComputedStyle(sideTop);
+    const sideBotWrapCs = getComputedStyle(sideBotWrap);
+
+    const heroRect = hero.getBoundingClientRect();
+    const sideTopRect = sideTop.getBoundingClientRect();
+    const sideBotRect = sideBot.getBoundingClientRect();
+    const sceneRect = scene.getBoundingClientRect();
+
+    // Specificity regression check: hero panel is placed by its named grid-area ('hero'),
+    // spans 8 of 12 columns beside the 4-column right stack, and spans both rows vertically.
+    const placedByAreaName =
+      heroCs.gridColumnStart === 'hero' &&
+      heroCs.gridRowStart === 'hero' &&
+      sideTopCs.gridColumnStart === 'sideTop' &&
+      sideBotWrapCs.gridColumnStart === 'sideBot';
+    const heroBesideStack =
+      heroRect.width > sceneRect.width * 0.55 &&
+      heroRect.right <= sideTopRect.left - 18 &&
+      sideTopRect.bottom <= sideBotRect.top - 18 &&
+      Math.abs(heroRect.top - sideTopRect.top) <= 2 &&
+      Math.abs(heroRect.bottom - sideBotRect.bottom) <= 2;
+
+    // GhostWire checks
+    const gwHigh = document.getElementById('gallery-ghost-wire');
+    const gwLow = document.getElementById('gallery-ghost-wire-low');
+    const gwVert = document.getElementById('gallery-ghost-wire-vertical');
+    const fromChip = gwHigh.querySelector('.f12-ghost-wire-from');
+    const toChip = gwHigh.querySelector('.f12-ghost-wire-to');
+    const svgHigh = gwHigh.querySelector('svg.f12-ghost-wire-svg');
+    const lineHigh = gwHigh.querySelector('line.f12-ghost-wire-line');
+    const lineLow = gwLow.querySelector('line.f12-ghost-wire-line');
+
+    const dashHigh = (lineHigh.getAttribute('stroke-dasharray') || '').split(/\s+/).map(Number);
+    const dashLow = (lineLow.getAttribute('stroke-dasharray') || '').split(/\s+/).map(Number);
+    const strengthMapsToDashNotColor =
+      dashHigh.length === 2 &&
+      dashLow.length === 2 &&
+      dashHigh[0] > dashLow[0] &&
+      dashHigh[1] < dashLow[1] &&
+      getComputedStyle(lineHigh).stroke === getComputedStyle(lineLow).stroke &&
+      getComputedStyle(lineHigh).opacity === '1' &&
+      getComputedStyle(lineLow).opacity === '1';
+
+    const ghostWireOk =
+      gwHigh.getAttribute('role') === 'group' &&
+      gwHigh.getAttribute('aria-label') ===
+        'src/checkout/webhook.ts usually changes with db/schema.sql, which was not changed' &&
+      gwLow.getAttribute('aria-label') ===
+        'registry/ui/tag.tsx usually changes with registry/styles/frame12.css, which was not changed' &&
+      gwHigh.getAttribute('data-orientation') === 'horizontal' &&
+      gwVert.getAttribute('data-orientation') === 'vertical' &&
+      getComputedStyle(fromChip).borderTopStyle === 'solid' &&
+      getComputedStyle(toChip).borderTopStyle === 'dashed' &&
+      svgHigh.getAttribute('aria-hidden') === 'true' &&
+      lineHigh.getAttribute('vector-effect') === 'non-scaling-stroke' &&
+      strengthMapsToDashNotColor;
+
+    // Receipt & ReceiptList checks
+    const rCommit = document.getElementById('gallery-receipt-commit');
+    const rFile = document.getElementById('gallery-receipt-file');
+    const rLong = document.getElementById('gallery-receipt-long-file');
+    const rLink = document.getElementById('gallery-receipt-link');
+    const rUnsafe = document.getElementById('gallery-receipt-unsafe');
+
+    const commitAnchor = rCommit.querySelector('a.f12-receipt-link');
+    const linkAnchor = rLink.querySelector('a.f12-receipt-link');
+    const unsafeAnchor = rUnsafe.querySelector('a');
+    const unsafeValueEl = rUnsafe.querySelector('.f12-receipt-value');
+
+    const receiptsOk =
+      Boolean(commitAnchor) &&
+      commitAnchor.textContent.trim() === 'ab107e2' &&
+      commitAnchor.getAttribute('href') === 'https://github.com/lbrodie11/frame12/commit/ab107e2' &&
+      rCommit.querySelector('.f12-status-glyph')?.textContent === '[H]' &&
+      rCommit.querySelector('.f12-sr-only')?.textContent === 'Origin: human: ' &&
+      rFile.querySelector('.f12-status-glyph')?.textContent === '[A]' &&
+      rFile.querySelector('.f12-sr-only')?.textContent === 'Origin: agent: ' &&
+      rLong.querySelector('.f12-status-glyph')?.textContent === '[B]' &&
+      rLong.querySelector('.f12-sr-only')?.textContent === 'Origin: bot: ' &&
+      getComputedStyle(rLong.querySelector('.f12-receipt-value')).overflowWrap === 'anywhere' &&
+      Boolean(linkAnchor) &&
+      unsafeAnchor === null &&
+      unsafeValueEl?.tagName === 'SPAN' &&
+      unsafeValueEl?.textContent === 'Blocked Unsafe Script';
+
+    // Stamp checks
+    const stampRemoved = document.getElementById('gallery-stamp-removed');
+    const stampVerified = document.getElementById('gallery-stamp-verified');
+    const srCs = getComputedStyle(stampRemoved);
+    const mat = new DOMMatrix(srCs.transform);
+    const angleDeg = Math.round(Math.atan2(mat.b, mat.a) * (180 / Math.PI));
+    const stampsOk =
+      stampRemoved.getAttribute('data-variant') === 'stamp' &&
+      stampVerified.getAttribute('data-variant') === 'stamp' &&
+      angleDeg === -3 &&
+      srCs.textTransform === 'uppercase' &&
+      parseFloat(srCs.borderTopWidth) === 2 &&
+      srCs.borderTopStyle === 'solid' &&
+      srCs.opacity === '1' &&
+      stampRemoved.textContent.trim().length > 0;
+
+    return {
+      sceneGap: sceneCs.rowGap || sceneCs.gap,
+      placedByAreaName,
+      heroBesideStack,
+      ghostWireOk,
+      receiptsOk,
+      stampsOk,
+      angleDeg,
+    };
+  });
+
+  // Verify GhostWire on-twos draw-on when strength changes (via range switch)
+  const drawOffsets = await page.evaluate(async () => {
+    const line = document.querySelector('#gallery-ghost-wire line.f12-ghost-wire-line');
+    const btn = document.getElementById('gal-rng-90');
+    btn.click();
+    const seen = [];
+    const start = performance.now();
+    while (performance.now() - start < 560) {
+      await new Promise((r) => requestAnimationFrame(r));
+      seen.push(Number(line.getAttribute('stroke-dashoffset') || '0'));
+    }
+    return {
+      uniquePoses: [...new Set(seen)],
+      finalOffset: Number(line.getAttribute('stroke-dashoffset') || '0'),
+    };
+  });
+  await page.click('#gal-rng-30');
+
+  // Resize below 860px (and below 520px for GhostWire auto orientation) to 360px
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.waitForTimeout(150);
+
+  const f1203MobileCuts = isChromium
+    ? await getRenderedCuts(page, { rootId: 'gallery-f12-03-sheet', panelsOnly: true })
+    : ['C-01', 'C-02', 'C-03'];
+
+  const f1203Mobile = await page.evaluate(() => {
+    const hero = document.getElementById('gallery-area-hero');
+    const sideTop = document.getElementById('gallery-area-side-top');
+    const sideBot = document.getElementById('gallery-area-side-bot');
+    const gwHigh = document.getElementById('gallery-ghost-wire');
+    const fromChip = gwHigh.querySelector('.f12-ghost-wire-from').getBoundingClientRect();
+    const toChip = gwHigh.querySelector('.f12-ghost-wire-to').getBoundingClientRect();
+
+    const rHero = hero.getBoundingClientRect();
+    const rTop = sideTop.getBoundingClientRect();
+    const rBot = sideBot.getBoundingClientRect();
+
+    const mobileOrderMatchesDom =
+      getComputedStyle(hero).gridColumnStart === 'auto' &&
+      rHero.bottom <= rTop.top + 2 &&
+      rTop.bottom <= rBot.top + 2 &&
+      Math.abs(rHero.left - rTop.left) <= 2 &&
+      Math.abs(rTop.left - rBot.left) <= 2;
+
+    const autoGhostWireVerticalBelow520 =
+      gwHigh.getAttribute('data-orientation') === 'vertical' && fromChip.bottom <= toChip.top + 2;
+
+    const fixturesRoot = document.getElementById('unit-fixtures-root');
+    const prevDisplay = fixturesRoot ? fixturesRoot.style.display : '';
+    if (fixturesRoot) fixturesRoot.style.display = 'none';
+    const scrollWidth = document.documentElement.scrollWidth;
+    const noOverflow360 = scrollWidth <= document.documentElement.clientWidth + 1;
+    if (fixturesRoot) fixturesRoot.style.display = prevDisplay;
+
+    return {
+      mobileOrderMatchesDom,
+      autoGhostWireVerticalBelow520,
+      noOverflow360,
+      scrollWidth,
+    };
+  });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  check(
+    f1203Desktop.sceneGap === '20px' &&
+      f1203Desktop.placedByAreaName &&
+      f1203Desktop.heroBesideStack &&
+      f1203Desktop.ghostWireOk &&
+      f1203Desktop.receiptsOk &&
+      f1203Desktop.stampsOk &&
+      drawOffsets.uniquePoses.length >= 2 &&
+      drawOffsets.uniquePoses.length <= 7 &&
+      drawOffsets.finalOffset === 0 &&
+      f1203DesktopCuts.join(',') === 'C-01,C-02,C-03' &&
+      f1203Mobile.mobileOrderMatchesDom &&
+      f1203Mobile.autoGhostWireVerticalBelow520 &&
+      f1203Mobile.noOverflow360 &&
+      f1203MobileCuts.join(',') === 'C-01,C-02,C-03',
+    'F12-03 primitives: named-area Scene (12-col desktop grid-area placement, zero grid-column specificity reset, <860px single-column DOM/reading/cut order), GhostWire (solid/dashed chips, non-scaling-stroke, strength dash density, auto 520px orientation, on-twos draw-on), Receipt/ReceiptList (7-char SHA, 200-char path wrap at 360px, WP3 origin glyph+srLabel, javascript: link safety), and Tag variant="stamp" (-3deg rotation, display font, 2px ink border)',
+    JSON.stringify({
+      f1203Desktop,
+      drawOffsets,
+      f1203DesktopCuts,
+      f1203Mobile,
+      f1203MobileCuts,
+    }),
+  );
+}
+
 check(errors.length === 0, 'gallery unit run: zero console or page errors', errors[0] || '');
 
 await ctx.close();

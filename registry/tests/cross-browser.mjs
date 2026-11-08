@@ -2,7 +2,12 @@
 // Covers viewports (1280px desktop, 768px container-query transition, 390px mobile),
 // themes (light, dark), preferences (reduced-motion, forced-colors), and all 19 components.
 
-import { launch, openGallery, getRenderedCuts, check, finish } from './lib.mjs';
+import { mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { launch, openGallery, getRenderedCuts, check, finish, REPO_ROOT } from './lib.mjs';
+
+const docsImagesDir = resolve(REPO_ROOT, 'docs/images');
+mkdirSync(docsImagesDir, { recursive: true });
 
 const BROWSER_NAMES = (process.env.BROWSERS || 'chromium,firefox,webkit')
   .split(',')
@@ -634,6 +639,59 @@ for (const browserName of BROWSER_NAMES) {
           errors.length === 0,
         `[${browserName} 390px & 320px dark + reduced-motion] Dark tokens (#050505), transition: 0s, single-column stack, bounded 320×640 ToastViewport, long-token Alert wrap, Table overflow containment, and zero overflow/errors`,
         errors.length ? errors.join('; ') : JSON.stringify({ ...mobileState, mobile320State }),
+      );
+
+      await ctx.close();
+    }
+
+    // 3b. F12-03 360px Cross-Browser Screenshot & 200-char Spaceless File Path Overflow Check
+    {
+      const { ctx, page, errors } = await openGallery(browser, {
+        w: 360,
+        h: 800,
+        scheme: 'light',
+      });
+      await page.waitForTimeout(100);
+
+      const f1203At360 = await page.evaluate(() => {
+        const longReceiptVal = document.querySelector(
+          '#gallery-receipt-long-file .f12-receipt-value',
+        );
+        const pathText = (longReceiptVal?.textContent || '').trim();
+        const hero = document.getElementById('gallery-area-hero')?.getBoundingClientRect();
+        const sideTop = document.getElementById('gallery-area-side-top')?.getBoundingClientRect();
+        const sideBot = document.getElementById('gallery-area-side-bot')?.getBoundingClientRect();
+        const gw = document.getElementById('gallery-ghost-wire');
+        const sw = document.documentElement.scrollWidth;
+        const cw = document.documentElement.clientWidth;
+
+        return {
+          pathLength: pathText.length,
+          hasNoSpaces: !/\s/.test(pathText),
+          noOverflowAt360: sw <= 360 && sw <= cw + 1,
+          scrollWidth: sw,
+          areasDomOrder:
+            Boolean(hero && sideTop && sideBot) &&
+            hero.bottom <= sideTop.top + 2 &&
+            sideTop.bottom <= sideBot.top + 2,
+          gwVertical: gw?.getAttribute('data-orientation') === 'vertical',
+        };
+      });
+
+      const f1203Sheet = page.locator('#gallery-f12-03-sheet');
+      await f1203Sheet.screenshot({
+        path: resolve(docsImagesDir, `gallery-f12-03-360-${browserName}.png`),
+      });
+
+      check(
+        f1203At360.pathLength >= 200 &&
+          f1203At360.hasNoSpaces &&
+          f1203At360.noOverflowAt360 &&
+          f1203At360.areasDomOrder &&
+          f1203At360.gwVertical &&
+          errors.length === 0,
+        `[${browserName} 360px] F12-03: 200+ char spaceless Receipt file path wraps with zero horizontal overflow (scrollWidth=${f1203At360.scrollWidth}px <= 360px), named-area Scene stacks in DOM order, and GhostWire switches to vertical`,
+        errors.length ? errors.join('; ') : JSON.stringify(f1203At360),
       );
 
       await ctx.close();
