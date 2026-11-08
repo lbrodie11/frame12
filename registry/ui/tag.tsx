@@ -135,5 +135,5 @@ export const Tag = React.forwardRef<HTMLSpanElement, TagProps>(function Tag(
 });
 
 export const Stamp = React.forwardRef<HTMLSpanElement, StampProps>(function Stamp(props, ref) {
-  return <Tag ref={ref} variant="stamp" {...props} />;
+  return <Tag ref={ref} {...props} variant="stamp" />;
 });

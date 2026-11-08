@@ -29,10 +29,10 @@ export interface SceneAreaProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
 }
 
-export const SceneArea = React.forwardRef<HTMLDivElement, SceneAreaProps>(function SceneArea(
-  { area, className = '', style, children, ...rest },
-  ref,
-) {
+export function resolveAreaProps(
+  area: string | undefined,
+  style: React.CSSProperties | undefined,
+): { 'data-area': string | undefined; style: React.CSSProperties | undefined } {
   const safeArea = typeof area === 'string' && area.trim() ? area.trim() : undefined;
   const mergedStyle: React.CSSProperties | undefined = safeArea
     ? ({
@@ -40,13 +40,21 @@ export const SceneArea = React.forwardRef<HTMLDivElement, SceneAreaProps>(functi
         ...style,
       } as React.CSSProperties)
     : style;
+  return { 'data-area': safeArea, style: mergedStyle };
+}
+
+export const SceneArea = React.forwardRef<HTMLDivElement, SceneAreaProps>(function SceneArea(
+  { area, className = '', style, children, ...rest },
+  ref,
+) {
+  const areaProps = resolveAreaProps(area, style);
 
   return (
     <div
       ref={ref}
       className={`f12-scene-area${className ? ` ${className}` : ''}`}
-      data-area={safeArea}
-      style={mergedStyle}
+      data-area={areaProps['data-area']}
+      style={areaProps.style}
       {...rest}
     >
       {children}
@@ -68,7 +76,10 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
   },
   ref,
 ) {
+  const reactId = React.useId();
+  const bpScope = `bp-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const warnedAreasRef = React.useRef<string | null>(null);
+  const warnedColsRef = React.useRef<string | null>(null);
   const safeGutter: SceneGutter =
     gutter === 'pair' || gutter === 'scene' || gutter === 'change' ? gutter : 'scene';
   const hasAreas = Array.isArray(areas) && areas.length > 0;
@@ -105,39 +116,36 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
     );
   }
 
-  const safeColumns =
+  const explicitCols =
     typeof columns === 'number' && Number.isFinite(columns) && columns > 0
       ? Math.floor(columns)
-      : firstRowCount > 0
-        ? firstRowCount
-        : 12;
-  const normalizedBreakpoint =
-    typeof breakpoint === 'number'
+      : undefined;
+
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    hasAreas &&
+    explicitCols !== undefined &&
+    explicitCols !== firstRowCount &&
+    warnedColsRef.current !== `${explicitCols}:${firstRowCount}`
+  ) {
+    warnedColsRef.current = `${explicitCols}:${firstRowCount}`;
+    console.warn(
+      `[FRAME/12 Scene] Explicit columns (${explicitCols}) does not match the areas row token count (${firstRowCount}). Deriving ${firstRowCount} column(s) from areas.`,
+    );
+  }
+
+  const safeColumns = firstRowCount > 0 ? firstRowCount : (explicitCols ?? 12);
+
+  const rawBp =
+    typeof breakpoint === 'number' && Number.isFinite(breakpoint) && breakpoint > 0
       ? `${breakpoint}px`
       : typeof breakpoint === 'string' && breakpoint.trim()
         ? /^\d+(\.\d+)?$/.test(breakpoint.trim())
           ? `${breakpoint.trim()}px`
           : breakpoint.trim()
         : '860px';
+  const normalizedBreakpoint = /^\d+(\.\d+)?(px|rem|em)$/i.test(rawBp) ? rawBp : '860px';
   const isCustomBreakpoint = normalizedBreakpoint !== '860px';
-
-  const [customBpActive, setCustomBpActive] = React.useState<boolean | null>(null);
-
-  React.useEffect(() => {
-    if (!hasAreas || !isCustomBreakpoint || typeof window === 'undefined' || !window.matchMedia) {
-      setCustomBpActive(null);
-      return;
-    }
-    const mql = window.matchMedia(`(min-width: ${normalizedBreakpoint})`);
-    const update = () => setCustomBpActive(mql.matches);
-    update();
-    if (mql.addEventListener) {
-      mql.addEventListener('change', update);
-      return () => mql.removeEventListener('change', update);
-    }
-    mql.addListener(update);
-    return () => mql.removeListener(update);
-  }, [hasAreas, isCustomBreakpoint, normalizedBreakpoint]);
 
   const mergedStyle: React.CSSProperties | undefined = hasAreas
     ? ({
@@ -157,11 +165,13 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
       data-layout={safeLayout}
       data-columns={hasAreas ? safeColumns : undefined}
       data-breakpoint={hasAreas ? normalizedBreakpoint : undefined}
-      data-areas-active={hasAreas && customBpActive === true ? 'true' : undefined}
-      data-areas-collapsed={hasAreas && customBpActive === false ? 'true' : undefined}
+      data-scene-bp={hasAreas && isCustomBreakpoint ? bpScope : undefined}
       style={mergedStyle}
       {...rest}
     >
+      {hasAreas && isCustomBreakpoint ? (
+        <style>{`@media (min-width: ${normalizedBreakpoint}) { .f12-scene.f12-scene-areas[data-scene-bp="${bpScope}"] { grid-template-columns: repeat(var(--f12-scene-cols, 12), minmax(0, 1fr)); grid-template-areas: var(--f12-scene-areas); } .f12-scene.f12-scene-areas[data-scene-bp="${bpScope}"] > [data-area] { grid-area: var(--f12-area); } } @container (max-width: 760px) { .f12-scene.f12-scene-areas[data-scene-bp="${bpScope}"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; } .f12-scene.f12-scene-areas[data-scene-bp="${bpScope}"] > [data-area] { grid-area: auto; } }`}</style>
+      ) : null}
       {children}
     </div>
   );

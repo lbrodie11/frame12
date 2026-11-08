@@ -186,7 +186,8 @@
       "description": "Ink-framed panel with SVG mitered polygon border, optional slanted gutter edge, and automatic or explicit cut number in reading order.",
       "registryDependencies": [
         "https://frame12.dev/r/frame12-styles.json",
-        "https://frame12.dev/r/use-on-twos.json"
+        "https://frame12.dev/r/use-on-twos.json",
+        "https://frame12.dev/r/scene.json"
       ],
       "files": [
         {
@@ -204,6 +205,7 @@
       "registryDependencies": [
         "https://frame12.dev/r/frame12-styles.json",
         "https://frame12.dev/r/use-on-twos.json",
+        "https://frame12.dev/r/scene.json",
         "https://frame12.dev/r/panel.json"
       ],
       "files": [

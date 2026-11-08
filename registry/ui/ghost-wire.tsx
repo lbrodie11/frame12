@@ -4,6 +4,8 @@ import * as React from 'react';
 import { useOnTwos, useReducedMotion, type MotionMode } from '@/hooks/use-on-twos';
 import { extractTextContent } from './tag';
 
+const useIsoLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
 export type GhostWireOrientation = 'auto' | 'horizontal' | 'vertical';
 
 export interface GhostWireProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -50,9 +52,11 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
       ? orientation
       : 'auto';
 
+  const reactId = React.useId();
+  const maskId = `f12-gw-mask-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const [autoVertical, setAutoVertical] = React.useState<boolean>(false);
 
-  React.useEffect(() => {
+  useIsoLayoutEffect(() => {
     if (safeOrientation !== 'auto' || typeof window === 'undefined') {
       setAutoVertical(false);
       return;
@@ -117,7 +121,7 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
   const targetKey = `${fromText}|${toText}|${label ?? ''}|${clampedStrength.toFixed(3)}`;
   const [hydratedKey, setHydratedKey] = React.useState<string>('ssr');
 
-  React.useEffect(() => {
+  useIsoLayoutEffect(() => {
     if (!reduced && motion !== 'cut') {
       setHydratedKey(targetKey);
     }
@@ -127,7 +131,8 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
   const dash = Math.round(3 + clampedStrength * 9);
   const gap = Math.round(10 - clampedStrength * 7);
   const dashArray = `${dash} ${gap}`;
-  const dashOffset = progress >= 1 ? 0 : Number(((1 - progress) * 48).toFixed(2));
+  const dashOffset = progress >= 1 ? 0 : Number(((1 - progress) * 100).toFixed(2));
+  const isVertical = resolvedOrientation === 'vertical';
 
   return (
     <div
@@ -145,20 +150,40 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
       <span className="f12-ghost-wire-connector">
         <svg
           className="f12-ghost-wire-svg"
-          viewBox={resolvedOrientation === 'vertical' ? '0 0 12 100' : '0 0 100 12'}
+          viewBox={isVertical ? '0 0 12 100' : '0 0 100 12'}
           preserveAspectRatio="none"
           aria-hidden="true"
           focusable="false"
         >
+          <defs>
+            <mask
+              id={maskId}
+              maskUnits="userSpaceOnUse"
+              x="0"
+              y="0"
+              width={isVertical ? 12 : 100}
+              height={isVertical ? 100 : 12}
+            >
+              <line
+                className="f12-ghost-wire-reveal"
+                x1={isVertical ? 6 : 0}
+                y1={isVertical ? 0 : 6}
+                x2={isVertical ? 6 : 100}
+                y2={isVertical ? 100 : 6}
+                strokeDasharray="100 100"
+                strokeDashoffset={dashOffset}
+              />
+            </mask>
+          </defs>
           <line
             className="f12-ghost-wire-line"
-            x1={resolvedOrientation === 'vertical' ? 6 : 0}
-            y1={resolvedOrientation === 'vertical' ? 0 : 6}
-            x2={resolvedOrientation === 'vertical' ? 6 : 100}
-            y2={resolvedOrientation === 'vertical' ? 100 : 6}
+            x1={isVertical ? 6 : 0}
+            y1={isVertical ? 0 : 6}
+            x2={isVertical ? 6 : 100}
+            y2={isVertical ? 100 : 6}
             vectorEffect="non-scaling-stroke"
             strokeDasharray={dashArray}
-            strokeDashoffset={dashOffset}
+            mask={`url(#${maskId})`}
           />
         </svg>
         {label ? <span className="f12-ghost-wire-label">{label}</span> : null}

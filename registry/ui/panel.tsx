@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useSize } from '@/hooks/use-on-twos';
+import { resolveAreaProps } from './scene';
 
 // Bundlers (Next.js, webpack, Vite) statically replace `process.env.NODE_ENV`. Declared locally so
 // consumers without @types/node (e.g. Vite's react-ts template) still type-check this file.
@@ -90,22 +91,16 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
         : '0.35,0.35 99.65,0.35 99.65,99.65 0.35,99.65';
 
   const variantClass = isQuiet ? ' f12-panel-quiet' : '';
-  const safeArea = typeof area === 'string' && area.trim() ? area.trim() : undefined;
-  const mergedStyle: React.CSSProperties | undefined = safeArea
-    ? ({
-        '--f12-area': safeArea,
-        ...style,
-      } as React.CSSProperties)
-    : style;
+  const areaProps = resolveAreaProps(area, style);
 
   return (
     <section
       ref={setRefs}
       className={`f12-panel f12-${shape}${variantClass}${className ? ` ${className}` : ''}`}
       data-variant={isQuiet ? 'quiet' : undefined}
-      data-area={safeArea}
+      data-area={areaProps['data-area']}
       aria-label={label}
-      style={mergedStyle}
+      style={areaProps.style}
       {...rest}
     >
       {showSvgFrame &&

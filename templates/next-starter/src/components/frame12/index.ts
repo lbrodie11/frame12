@@ -2,6 +2,7 @@ export { Sheet, Pegs, type SheetProps } from './sheet';
 export {
   Scene,
   SceneArea,
+  resolveAreaProps,
   GUTTERS,
   type SceneGutter,
   type SceneLayout,

@@ -60,10 +60,14 @@ export const Receipt = React.forwardRef<HTMLSpanElement, ReceiptProps>(function 
   const rawValue = typeof value === 'string' ? value : '';
   const trimmedRaw = rawValue.trim();
   const isCommit = safeKind === 'commit';
-  const displayValue = isCommit ? trimmedRaw.slice(0, 7) : rawValue;
+  const rawDisplayValue = isCommit ? trimmedRaw.slice(0, 7) : trimmedRaw ? rawValue : '';
   const fullCommitTitle = isCommit && trimmedRaw ? trimmedRaw : undefined;
-  const hasTruncatedCommit = isCommit && trimmedRaw.length > displayValue.length;
+  const hasTruncatedCommit = isCommit && trimmedRaw.length > rawDisplayValue.length;
   const safeHref = getSafeHttpHref(href);
+  const trimmedTitle = typeof title === 'string' && title.trim() ? title.trim() : undefined;
+  const displayValue =
+    rawDisplayValue || (safeHref ? (trimmedTitle ?? safeHref) : (trimmedTitle ?? ''));
+  const showTitleChip = Boolean(title && (rawDisplayValue || displayValue !== trimmedTitle));
   const originMeta = safeOrigin ? RECEIPT_ORIGIN_META[safeOrigin] : undefined;
 
   return (
@@ -82,7 +86,7 @@ export const Receipt = React.forwardRef<HTMLSpanElement, ReceiptProps>(function 
           <span className="f12-sr-only">{`${originMeta.srLabel}: `}</span>
         </span>
       ) : null}
-      {safeHref ? (
+      {safeHref && displayValue ? (
         <a
           className="f12-receipt-value f12-receipt-link"
           href={safeHref}
@@ -106,7 +110,7 @@ export const Receipt = React.forwardRef<HTMLSpanElement, ReceiptProps>(function 
       {hasTruncatedCommit ? (
         <span className="f12-sr-only f12-receipt-sha-sr">{` (${trimmedRaw})`}</span>
       ) : null}
-      {title ? <span className="f12-receipt-title">{title}</span> : null}
+      {showTitleChip ? <span className="f12-receipt-title">{title}</span> : null}
       {date ? <span className="f12-receipt-date">{date}</span> : null}
     </span>
   );
@@ -118,6 +122,7 @@ export const ReceiptList = React.forwardRef<HTMLUListElement, ReceiptListProps>(
 
     return (
       <ul
+        role="list"
         {...rest}
         ref={ref}
         className={`f12-receipt-list${className ? ` ${className}` : ''}`}

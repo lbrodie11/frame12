@@ -2326,6 +2326,7 @@ await page.waitForSelector('#unit-test-fixtures');
     const toChip = gwHigh.querySelector('.f12-ghost-wire-to');
     const svgHigh = gwHigh.querySelector('svg.f12-ghost-wire-svg');
     const lineHigh = gwHigh.querySelector('line.f12-ghost-wire-line');
+    const revealHigh = gwHigh.querySelector('mask line.f12-ghost-wire-reveal');
     const lineLow = gwLow.querySelector('line.f12-ghost-wire-line');
 
     const dashHigh = (lineHigh.getAttribute('stroke-dasharray') || '').split(/\s+/).map(Number);
@@ -2347,13 +2348,19 @@ await page.waitForSelector('#unit-test-fixtures');
         'registry/ui/tag.tsx usually changes with registry/styles/frame12.css, which was not changed' &&
       gwHigh.getAttribute('data-orientation') === 'horizontal' &&
       gwVert.getAttribute('data-orientation') === 'vertical' &&
+      svgHigh.getAttribute('viewBox') === '0 0 100 12' &&
       getComputedStyle(fromChip).borderTopStyle === 'solid' &&
       getComputedStyle(toChip).borderTopStyle === 'dashed' &&
       svgHigh.getAttribute('aria-hidden') === 'true' &&
       lineHigh.getAttribute('vector-effect') === 'non-scaling-stroke' &&
+      (lineHigh.getAttribute('mask') || '').startsWith('url(#') &&
+      lineHigh.getAttribute('stroke-dashoffset') === null &&
+      Boolean(revealHigh) &&
+      revealHigh.getAttribute('stroke-dasharray') === '100 100' &&
       strengthMapsToDashNotColor;
 
     // Receipt & ReceiptList checks
+    const rList = document.getElementById('gallery-receipt-list');
     const rCommit = document.getElementById('gallery-receipt-commit');
     const rFile = document.getElementById('gallery-receipt-file');
     const rLong = document.getElementById('gallery-receipt-long-file');
@@ -2367,12 +2374,15 @@ await page.waitForSelector('#unit-test-fixtures');
     const unsafeAnchor = rUnsafe.querySelector('a');
     const unsafeValueEl = rUnsafe.querySelector('.f12-receipt-value');
 
-    // Relative & scheme safety matrix from unit fixtures
+    // Relative & scheme safety matrix + empty value fallbacks from unit fixtures
+    const rMatrixList = document.getElementById('fixture-receipt-href-matrix');
     const rRelSlash = document.getElementById('fixture-receipt-rel-slash');
     const rRelHash = document.getElementById('fixture-receipt-rel-hash');
     const rProtoRel = document.getElementById('fixture-receipt-proto-rel');
     const rData = document.getElementById('fixture-receipt-data');
     const rCommitUnlinked = document.getElementById('fixture-receipt-commit-unlinked');
+    const rEmptyValTitle = document.getElementById('fixture-receipt-empty-val-title');
+    const rEmptyValHref = document.getElementById('fixture-receipt-empty-val-href');
 
     const relSlashAnchor = rRelSlash?.querySelector('a.f12-receipt-link');
     const relHashAnchor = rRelHash?.querySelector('a.f12-receipt-link');
@@ -2380,6 +2390,19 @@ await page.waitForSelector('#unit-test-fixtures');
     const dataAnchor = rData?.querySelector('a');
     const unlinkedCode = rCommitUnlinked?.querySelector('code.f12-receipt-value.f12-receipt-code');
     const unlinkedShaSr = rCommitUnlinked?.querySelector('.f12-receipt-sha-sr');
+    const emptyTitleAnchor = rEmptyValTitle?.querySelector('a.f12-receipt-link');
+    const emptyTitleDuplicate = rEmptyValTitle?.querySelector('.f12-receipt-title');
+    const emptyHrefAnchor = rEmptyValHref?.querySelector('a.f12-receipt-link');
+
+    // Narrow .f12-dash (640px) container collapse for areas Scene on 1280px desktop
+    const narrowLeft = document.getElementById('fixture-narrow-dash-left');
+    const narrowRight = document.getElementById('fixture-narrow-dash-right');
+    const narrowLeftRect = narrowLeft?.getBoundingClientRect();
+    const narrowRightRect = narrowRight?.getBoundingClientRect();
+    const narrowDashAreasCollapsed =
+      Boolean(narrowLeftRect && narrowRightRect) &&
+      narrowLeftRect.bottom <= narrowRightRect.top + 2 &&
+      Math.abs(narrowLeftRect.left - narrowRightRect.left) <= 2;
 
     // 2-column and 3-column derived areas layouts
     const scene2Col = document.getElementById('fixture-areas-2col');
@@ -2411,12 +2434,38 @@ await page.waitForSelector('#unit-test-fixtures');
       hero3Rect.right <= top3Rect.left + 24 &&
       top3Rect.bottom <= bot3Rect.top + 24;
 
+    // Custom breakpoint via scoped <style>
+    const sceneBp1600 = document.getElementById('fixture-areas-bp-1600');
+    const bp1600A = document.getElementById('fixture-areas-bp-1600-a')?.getBoundingClientRect();
+    const bp1600B = document.getElementById('fixture-areas-bp-1600-b')?.getBoundingClientRect();
+    const sceneBp800 = document.getElementById('fixture-areas-bp-800');
+    const bp800A = document.getElementById('fixture-areas-bp-800-a')?.getBoundingClientRect();
+    const bp800B = document.getElementById('fixture-areas-bp-800-b')?.getBoundingClientRect();
+    const customBreakpointOk =
+      Boolean(sceneBp1600?.getAttribute('data-scene-bp')) &&
+      (sceneBp1600?.querySelector('style')?.textContent || '').includes(
+        '@media (min-width: 1600px)',
+      ) &&
+      Boolean(bp1600A && bp1600B) &&
+      bp1600A.bottom <= bp1600B.top + 2 &&
+      Boolean(sceneBp800?.getAttribute('data-scene-bp')) &&
+      (sceneBp800?.querySelector('style')?.textContent || '').includes(
+        '@media (min-width: 800px)',
+      ) &&
+      Boolean(bp800A && bp800B) &&
+      bp800A.right <= bp800B.left + 24 &&
+      Math.abs(bp800A.top - bp800B.top) <= 2;
+
     // Narrow container (360px) GhostWire auto orientation on 1280px desktop viewport
     const gwNarrowContainer = document.getElementById('fixture-ghost-wire-narrow-container');
     const gwNarrowContainerVertical =
-      gwNarrowContainer?.getAttribute('data-orientation') === 'vertical';
+      gwNarrowContainer?.getAttribute('data-orientation') === 'vertical' &&
+      gwNarrowContainer?.querySelector('svg.f12-ghost-wire-svg')?.getAttribute('viewBox') ===
+        '0 0 12 100';
 
     const receiptsOk =
+      rList?.getAttribute('role') === 'list' &&
+      rMatrixList?.getAttribute('role') === 'list' &&
       Boolean(commitAnchor) &&
       Boolean(commitCode) &&
       commitCode.tagName === 'CODE' &&
@@ -2443,17 +2492,22 @@ await page.waitForSelector('#unit-test-fixtures');
       Boolean(unlinkedCode) &&
       unlinkedCode.textContent.trim() === 'deadbee' &&
       unlinkedCode.getAttribute('title') === 'deadbeefcafe1234567890' &&
-      unlinkedShaSr?.textContent?.includes('deadbeefcafe1234567890');
+      unlinkedShaSr?.textContent?.includes('deadbeefcafe1234567890') &&
+      emptyTitleAnchor?.textContent?.trim() === 'Fallback title link' &&
+      emptyTitleDuplicate === null &&
+      emptyHrefAnchor?.textContent?.trim() === 'https://frame12.dev/raw';
 
     // Stamp checks
     const stampRemoved = document.getElementById('gallery-stamp-removed');
     const stampVerified = document.getElementById('gallery-stamp-verified');
+    const stampLocked = document.getElementById('fixture-stamp-locked');
     const srCs = getComputedStyle(stampRemoved);
     const mat = new DOMMatrix(srCs.transform);
     const angleDeg = Math.round(Math.atan2(mat.b, mat.a) * (180 / Math.PI));
     const stampsOk =
       stampRemoved.getAttribute('data-variant') === 'stamp' &&
       stampVerified.getAttribute('data-variant') === 'stamp' &&
+      stampLocked?.getAttribute('data-variant') === 'stamp' &&
       angleDeg === -3 &&
       srCs.textTransform === 'uppercase' &&
       parseFloat(srCs.borderTopWidth) === 2 &&
@@ -2465,8 +2519,10 @@ await page.waitForSelector('#unit-test-fixtures');
       sceneGap: sceneCs.rowGap || sceneCs.gap,
       placedByAreaName,
       heroBesideStack,
+      narrowDashAreasCollapsed,
       areas2ColOk,
       areas3ColOk,
+      customBreakpointOk,
       gwNarrowContainerVertical,
       ghostWireOk,
       receiptsOk,
@@ -2481,9 +2537,13 @@ await page.waitForSelector('#unit-test-fixtures');
     return { dev, prod };
   });
 
-  // Verify GhostWire on-twos draw-on when strength changes (via range switch)
+  const gwMountPose = await page.evaluate(async () => {
+    return window.__testGhostWireInitialMountPose();
+  });
+
+  // Verify GhostWire on-twos draw-on mask reveal when strength changes (via range switch)
   const drawOffsets = await page.evaluate(async () => {
-    const line = document.querySelector('#gallery-ghost-wire line.f12-ghost-wire-line');
+    const line = document.querySelector('#gallery-ghost-wire line.f12-ghost-wire-reveal');
     const btn = document.getElementById('gal-rng-90');
     btn.click();
     const seen = [];
@@ -2527,7 +2587,9 @@ await page.waitForSelector('#unit-test-fixtures');
       Math.abs(rTop.left - rBot.left) <= 2;
 
     const autoGhostWireVerticalBelow520 =
-      gwHigh.getAttribute('data-orientation') === 'vertical' && fromChip.bottom <= toChip.top + 2;
+      gwHigh.getAttribute('data-orientation') === 'vertical' &&
+      gwHigh.querySelector('svg.f12-ghost-wire-svg')?.getAttribute('viewBox') === '0 0 12 100' &&
+      fromChip.bottom <= toChip.top + 2;
 
     const fixturesRoot = document.getElementById('unit-fixtures-root');
     const prevDisplay = fixturesRoot ? fixturesRoot.style.display : '';
@@ -2550,12 +2612,20 @@ await page.waitForSelector('#unit-test-fixtures');
     f1203Desktop.sceneGap === '20px' &&
       f1203Desktop.placedByAreaName &&
       f1203Desktop.heroBesideStack &&
+      f1203Desktop.narrowDashAreasCollapsed &&
       f1203Desktop.areas2ColOk &&
       f1203Desktop.areas3ColOk &&
+      f1203Desktop.customBreakpointOk &&
       f1203Desktop.gwNarrowContainerVertical &&
-      areasMismatchWarnings.dev.length === 1 &&
-      areasMismatchWarnings.dev[0].includes('Mismatched column counts') &&
-      areasMismatchWarnings.prod.length === 0 &&
+      areasMismatchWarnings.dev.warnings.length === 2 &&
+      areasMismatchWarnings.dev.warnings.some((w) => w.includes('Mismatched column counts')) &&
+      areasMismatchWarnings.dev.warnings.some((w) =>
+        w.includes('Explicit columns (12) does not match'),
+      ) &&
+      areasMismatchWarnings.dev.derivedCols === '2' &&
+      areasMismatchWarnings.prod.warnings.length === 0 &&
+      gwMountPose.firstFrameOffset > 0 &&
+      gwMountPose.finalOffset === 0 &&
       f1203Desktop.ghostWireOk &&
       f1203Desktop.receiptsOk &&
       f1203Desktop.stampsOk &&
@@ -2567,10 +2637,11 @@ await page.waitForSelector('#unit-test-fixtures');
       f1203Mobile.autoGhostWireVerticalBelow520 &&
       f1203Mobile.noOverflow360 &&
       f1203MobileCuts.join(',') === 'C-01,C-02,C-03',
-    'F12-03 primitives: named-area Scene (2/3/12-col derived & explicit areas, dev row-mismatch warning, zero grid-column specificity reset, <860px single-column DOM/reading/cut order), GhostWire (solid/dashed chips, non-scaling-stroke, strength dash density, auto 520px container/viewport orientation, on-twos draw-on), Receipt/ReceiptList (<code> 7-char SHA + full hash title/sr-only, 200-char path wrap at 360px, WP3 origin glyph+srLabel, relative/hash/http(s) vs javascript:/data:/protocol-relative link safety), and Tag variant="stamp" (-3deg rotation, display font, 2px ink border)',
+    'F12-03 primitives: named-area Scene (2/3/12-col derived areas, explicit columns override + dev warnings, scoped <style> breakpoint, narrow .f12-dash @container collapse, <860px single-column DOM/reading/cut order), GhostWire (solid/dashed chips, non-scaling-stroke, strength dash density, single data-orientation source of truth at <520px, on-twos SVG mask reveal without initial full-line flash), Receipt/ReceiptList (role="list", <code> 7-char SHA + full hash title/sr-only, empty-value accessible fallback, 200-char path wrap at 360px, WP3 origin glyph+srLabel, relative/hash/http(s) vs javascript:/data:/protocol-relative link safety), and Tag variant="stamp" (-3deg rotation, display font, 2px ink border, locked variant)',
     JSON.stringify({
       f1203Desktop,
       areasMismatchWarnings,
+      gwMountPose,
       drawOffsets,
       f1203DesktopCuts,
       f1203Mobile,

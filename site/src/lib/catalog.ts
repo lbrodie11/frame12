@@ -174,13 +174,13 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "columns",
         "type": "number",
         "defaultValue": "12 (or derived from first areas row)",
-        "description": "Explicit number of grid columns when areas is provided; when omitted, derived from the number of area tokens in the first areas row (or 12 when areas is omitted)."
+        "description": "Grid column count when layout=\"areas\" is used without areas; when areas is provided, the column count is derived from the number of area tokens in the first areas row (warning in development if an explicit columns prop disagrees)."
       },
       {
         "name": "breakpoint",
         "type": "number | string",
         "defaultValue": "'860px'",
-        "description": "Viewport min-width breakpoint at or above which named grid areas are active; below this breakpoint, children stack in a single column in DOM/reading/cut order. Non-default custom breakpoints evaluate via window.matchMedia after hydration."
+        "description": "Viewport min-width breakpoint at or above which named grid areas are active; below this breakpoint (or inside a .f12-dash container <= 760px), children stack in a single column in DOM/reading/cut order. Custom breakpoints emit a scoped <style> tag so SSR and first paint match with zero layout shift."
       }
     ],
     "subcomponents": [
@@ -190,16 +190,16 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Wrapper element accepting area: string to place arbitrary children into a named grid area inside <Scene areas={...}>."
       }
     ],
-    "stateBehavior": "Stateless CSS Grid layout primitive for gutter (\"pair\" | \"scene\" | \"change\") and layout (\"split\" | \"stack\" | \"equal\" | \"three\" | \"areas\") at the default \"860px\" breakpoint; when areas is combined with a custom breakpoint, tracks window.matchMedia('(min-width: ...)') after hydration to toggle data-areas-active / data-areas-collapsed (which may cause a one-frame hydration layout shift on viewports at or above a non-default custom breakpoint).",
+    "stateBehavior": "Stateless CSS Grid layout primitive for gutter (\"pair\" | \"scene\" | \"change\") and layout (\"split\" | \"stack\" | \"equal\" | \"three\" | \"areas\"). Derives column count from the first areas row when areas is provided, uses @media (min-width: 860px) by default, emits a scoped <style> rule for custom breakpoint values (SSR-safe with zero hydration layout shift), and collapses inside narrow .f12-dash containers (@container (max-width: 760px)).",
     "a11yNotes": [
-      "Collapses split, equal, and three grids to a single reading-order column below 760px container width (@container (max-width: 760px)), and collapses named-area grids (layout=\"areas\") to a single DOM/reading/cut-order column below the 860px viewport breakpoint (or custom breakpoint).",
+      "Collapses split, equal, three, and areas grids to a single reading-order column below 760px container width (@container (max-width: 760px)), and collapses named-area grids (layout=\"areas\") below the 860px viewport breakpoint (or custom breakpoint via scoped <style>).",
       "Preserves DOM order and keyboard tab sequence across desktop and mobile viewports."
     ],
     "keyboardNotes": [
       "Maintains strict visual-to-DOM reading order: left-to-right across columns on desktop and top-to-bottom when stacked on mobile."
     ],
     "themeBehavior": "Transparent structural grid container; exposes --f-desk or --f-sheet through legal gutter gaps between framed panels.",
-    "responsiveBehavior": "Uses CSS container queries (@container (max-width: 760px)) to collapse split, equal, and three layouts into a single 1fr column, and @media (min-width: 860px) (or client-side matchMedia for custom breakpoint values) to activate named grid areas.",
+    "responsiveBehavior": "Uses CSS container queries (@container (max-width: 760px)) to collapse split, equal, three, and areas layouts into a single 1fr column, and @media (min-width: 860px) (or a scoped <style> @media rule for custom breakpoint values) to activate named grid areas.",
     "grammarNotes": [
       "Arbitrary gaps (8px, 16px, 24px) are forbidden by check-frame12.mjs; always use Scene gutter props.",
       "Use layout=\"split\" (2fr 1fr) when pairing an establishing C-01 panel with a PanelPair."
@@ -2383,7 +2383,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "Motion timing mode: 'stepped' (12fps on twos draw-on), 'smooth', or 'cut' (0ms instant)."
       }
     ],
-    "stateBehavior": "Co-change connector that steps its SVG stroke-dashoffset on twos (83.33ms per pose) via useOnTwos, observes its own inline width via ResizeObserver when orientation=\"auto\", and skips animation frames under prefers-reduced-motion: reduce.",
+    "stateBehavior": "Co-change connector that reveals its stationary dashed SVG line via an on-twos SVG mask line (stroke-dasharray: 100 100, stroke-dashoffset: 100→0 at 83.33ms per pose via useOnTwos, initialized in a layout effect so there is no full-line flash on mount), drives orientation=\"auto\" from a single data-orientation source of truth measured via ResizeObserver / matchMedia in a layout effect, and skips animation frames under prefers-reduced-motion: reduce.",
     "a11yNotes": [
       "Wraps the entire wire in a single role=\"group\" container with an accessible aria-label built from label. When label is omitted, the synthesized default ('<from> usually changes with <to>, which was not changed') assumes the missed-companion use case; pass an explicit label for other relationships.",
       "Marks the SVG connector aria-hidden=\"true\" so assistive technologies announce the group relationship cleanly."
@@ -2392,7 +2392,7 @@ const RAW_CATALOG: CatalogEntry[] = [
       "Non-interactive semantic group unless interactive elements are passed inside the from or to slots."
     ],
     "themeBehavior": "Uses --f-panel and solid 2px --f-rule for the changed from chip, --f-sheet and dashed 2px --f-rule for the untouched to chip, and --f-rule for the non-scaling-stroke SVG line in both themes.",
-    "responsiveBehavior": "With orientation=\"auto\" (default), switches from a 3-column horizontal wire at >= 520px container/viewport width to a stacked vertical connector below 520px (via ResizeObserver, @container (max-width: 519.98px), and @media (max-width: 519.98px)) while wrapping long file paths without overflow.",
+    "responsiveBehavior": "With orientation=\"auto\" (default), switches data-orientation between a 3-column horizontal wire at >= 520px inline width and a stacked vertical connector below 520px (measured synchronously in useLayoutEffect + ResizeObserver) while wrapping long file paths without overflow.",
     "grammarNotes": [
       "Encodes coupling strength (0..1) strictly through SVG stroke dash density, never color or opacity.",
       "Uses vector-effect: non-scaling-stroke on the SVG connector line."
@@ -2459,10 +2459,10 @@ const RAW_CATALOG: CatalogEntry[] = [
       {
         "name": "ReceiptList",
         "propsType": "ReceiptListProps",
-        "description": "Unordered list container (<ul className=\"f12-receipt-list\">) that wraps multiple <Receipt> items with 12px pair gutters."
+        "description": "Unordered list container (<ul role=\"list\" className=\"f12-receipt-list\">) that wraps multiple <Receipt> items with 12px pair gutters."
       }
     ],
-    "stateBehavior": "Stateless evidence chip that renders 7-character commit SHAs inside <code> (preserving the full hash in title and .f12-sr-only) and validates href against http(s), root-relative (/…), and fragment (#…) URLs before rendering an anchor.",
+    "stateBehavior": "Stateless evidence chip that renders 7-character commit SHAs inside <code> (preserving the full hash in title and .f12-sr-only), falls back to title or href when value is empty on a linked receipt so <a> always has an accessible name, and validates href against http(s), root-relative (/…), and fragment (#…) URLs before rendering an anchor.",
     "a11yNotes": [
       "Origin indicators pair a visual glyph ([H], [A], [B]) marked aria-hidden=\"true\" with a .f12-sr-only prefix ('Origin: human:', 'Origin: agent:', 'Origin: bot:').",
       "For kind=\"commit\", the truncated 7-character SHA is rendered inside <code> while the full commit hash remains accessible via title={rawValue} and .f12-sr-only.",

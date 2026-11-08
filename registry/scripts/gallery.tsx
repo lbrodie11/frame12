@@ -2583,10 +2583,48 @@ function Wp5UnitFixtures() {
                 kind="commit"
                 value="deadbeefcafe1234567890"
               />
+              <Receipt
+                id="fixture-receipt-empty-val-title"
+                kind="link"
+                value=""
+                href="https://frame12.dev/audit"
+                title="Fallback title link"
+              />
+              <Receipt
+                id="fixture-receipt-empty-val-href"
+                kind="link"
+                value=""
+                href="https://frame12.dev/raw"
+              />
             </ReceiptList>
+            <div>
+              <Stamp
+                id="fixture-stamp-locked"
+                {...({ variant: undefined } as unknown as Record<string, unknown>)}
+              >
+                locked
+              </Stamp>
+            </div>
           </div>
         </Panel>
       </Scene>
+      <div style={{ width: '640px', maxWidth: '100%' }}>
+        <Sheet pegs={false} id="fixture-narrow-dash-sheet">
+          <Scene id="fixture-narrow-dash-areas" gutter="scene" areas={['left right']}>
+            <Panel id="fixture-narrow-dash-left" area="left" cut={false} label="Narrow dash left">
+              Left
+            </Panel>
+            <Panel
+              id="fixture-narrow-dash-right"
+              area="right"
+              cut={false}
+              label="Narrow dash right"
+            >
+              Right
+            </Panel>
+          </Scene>
+        </Sheet>
+      </div>
       <div style={{ width: '1000px', maxWidth: '100%' }}>
         <Scene id="fixture-areas-2col" gutter="scene" areas={['nav main']}>
           <Panel id="fixture-areas-2col-nav" area="nav" cut={false} label="2-col nav">
@@ -2609,6 +2647,22 @@ function Wp5UnitFixtures() {
           </Panel>
           <Panel id="fixture-areas-3col-bot" area="sideBot" cut={false} label="3-col side bot">
             Side bot (1 of 3 cols)
+          </Panel>
+        </Scene>
+        <Scene id="fixture-areas-bp-1600" gutter="scene" breakpoint={1600} areas={['a b']}>
+          <Panel id="fixture-areas-bp-1600-a" area="a" cut={false} label="BP 1600 A">
+            A
+          </Panel>
+          <Panel id="fixture-areas-bp-1600-b" area="b" cut={false} label="BP 1600 B">
+            B
+          </Panel>
+        </Scene>
+        <Scene id="fixture-areas-bp-800" gutter="scene" breakpoint="800px" areas={['a b']}>
+          <Panel id="fixture-areas-bp-800-a" area="a" cut={false} label="BP 800 A">
+            A
+          </Panel>
+          <Panel id="fixture-areas-bp-800-b" area="b" cut={false} label="BP 800 B">
+            B
           </Panel>
         </Scene>
       </div>
@@ -2688,7 +2742,9 @@ if (rootEl) {
   };
   (
     window as unknown as {
-      __testAreasRowMismatchWarning?: (envMode: 'development' | 'production') => Promise<string[]>;
+      __testAreasRowMismatchWarning?: (
+        envMode: 'development' | 'production',
+      ) => Promise<{ warnings: string[]; derivedCols: string | null }>;
     }
   ).__testAreasRowMismatchWarning = async (envMode: 'development' | 'production') => {
     const win = window as unknown as { __F12_NODE_ENV__?: string };
@@ -2705,23 +2761,68 @@ if (rootEl) {
     try {
       function MismatchFixture({ tick }: { tick: number }) {
         return (
-          <Scene areas={['nav main', 'left center right']} data-tick={tick}>
-            <Panel area="nav" cut={false} label="Nav">
-              Nav
-            </Panel>
-          </Scene>
+          <div>
+            <Scene areas={['nav main', 'left center right']} data-tick={tick}>
+              <Panel area="nav" cut={false} label="Nav">
+                Nav
+              </Panel>
+            </Scene>
+            <Scene
+              id="fixture-cols-mismatch-scene"
+              columns={12}
+              areas={['nav main']}
+              data-tick={tick}
+            >
+              <Panel area="nav" cut={false} label="Nav">
+                Nav
+              </Panel>
+              <Panel area="main" cut={false} label="Main">
+                Main
+              </Panel>
+            </Scene>
+          </div>
         );
       }
       root.render(<MismatchFixture tick={1} />);
       await new Promise((r) => setTimeout(r, 40));
       root.render(<MismatchFixture tick={2} />);
       await new Promise((r) => setTimeout(r, 40));
-      return warnings;
+      const derivedCols =
+        host.querySelector('#fixture-cols-mismatch-scene')?.getAttribute('data-columns') ?? null;
+      return { warnings, derivedCols };
     } finally {
       root.unmount?.();
       host.remove();
       console.warn = origWarn;
       win.__F12_NODE_ENV__ = prevEnv;
+    }
+  };
+  (
+    window as unknown as {
+      __testGhostWireInitialMountPose?: () => Promise<{
+        firstFrameOffset: number;
+        finalOffset: number;
+      }>;
+    }
+  ).__testGhostWireInitialMountPose = async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = RD.createRoot(host);
+    try {
+      root.render(
+        <Sheet pegs={false} motion="stepped">
+          <GhostWire id="fixture-gw-mount" from="src/a.ts" to="src/b.ts" />
+        </Sheet>,
+      );
+      await new Promise((r) => requestAnimationFrame(r));
+      const revealLine = host.querySelector('#fixture-gw-mount line.f12-ghost-wire-reveal');
+      const firstFrameOffset = Number(revealLine?.getAttribute('stroke-dashoffset') ?? '0');
+      await new Promise((r) => setTimeout(r, 480));
+      const finalOffset = Number(revealLine?.getAttribute('stroke-dashoffset') ?? '-1');
+      return { firstFrameOffset, finalOffset };
+    } finally {
+      root.unmount?.();
+      host.remove();
     }
   };
 }

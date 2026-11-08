@@ -3,11 +3,15 @@
 // themes (light, dark), preferences (reduced-motion, forced-colors), and all 19 components.
 
 import { mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { launch, openGallery, getRenderedCuts, check, finish, REPO_ROOT } from './lib.mjs';
 
-const docsImagesDir = resolve(REPO_ROOT, 'docs/images');
-mkdirSync(docsImagesDir, { recursive: true });
+const updateDocs = process.argv.includes('--update-docs') || process.env.UPDATE_DOCS === '1';
+const screenshotsDir = updateDocs
+  ? resolve(REPO_ROOT, 'docs/images')
+  : resolve(tmpdir(), 'frame12-test-screenshots');
+mkdirSync(screenshotsDir, { recursive: true });
 
 const BROWSER_NAMES = (process.env.BROWSERS || 'chromium,firefox,webkit')
   .split(',')
@@ -680,7 +684,7 @@ for (const browserName of BROWSER_NAMES) {
 
       const f1203Sheet = page.locator('#gallery-f12-03-sheet');
       await f1203Sheet.screenshot({
-        path: resolve(docsImagesDir, `gallery-f12-03-360-${browserName}.png`),
+        path: resolve(screenshotsDir, `gallery-f12-03-360-${browserName}.png`),
       });
 
       check(
