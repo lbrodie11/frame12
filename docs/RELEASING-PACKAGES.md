@@ -2,11 +2,11 @@
 
 FRAME/12 distributes its React component kit (`registry/`) through the `shadcn` registry (`@frame12` / `https://frame12.dev/r/<name>.json`), while standalone packages under `packages/*` are published to the npm registry under the `@frame12` scope:
 
-| Package | Directory | Purpose | Internal Dependencies |
-| --- | --- | --- | --- |
-| `@frame12/tokens` | `packages/tokens` | Zero-dependency design tokens (`dist/tokens.css`, W3C DTCG 2025.10 `dist/tokens.json`, and TypeScript/JS `tokens` + `cssText`) | None |
-| `@frame12/lint` | `packages/lint` | Programmatic design-grammar linter (`lintSource`, `lintHtml`, `lintDirectory`) and CLI (`frame12-lint`) with an optional `typescript` peer | None |
-| `@frame12/static` | `packages/static` | Non-React HTML (`document`, `panel`, `metric`, `badge`, `tag`, `stamp`, `receipt`, `ghostWire`, `toneBarList`) and deterministic SVG/PNG social-card renderer (`renderCard`) | `@frame12/tokens` (exact version) |
+| Package | Directory | Status | Purpose | Internal Dependencies |
+| --- | --- | --- | --- | --- |
+| `@frame12/tokens` | `packages/tokens` | In tree | Zero-dependency design tokens (`dist/tokens.css`, W3C DTCG 2025.10 `dist/tokens.json`, and TypeScript/JS `tokens` + `cssText`) | None |
+| `@frame12/lint` | `packages/lint` | Joining in F12-02 | Programmatic design-grammar linter (`lintSource`, `lintHtml`, `lintFiles`) and CLI (`frame12-lint`) with an optional `typescript` peer | None |
+| `@frame12/static` | `packages/static` | Joining in F12-06 | Non-React HTML (`document`, `panel`, `metric`, `badge`, `tag`, `stamp`, `receipt`, `ghostWire`, `toneBarList`) and deterministic SVG/PNG social-card renderer (`renderCard`) | `@frame12/tokens` (exact version) |
 
 > **Note:** The release pipeline never hard-codes package names. Both [`scripts/check-packages.mjs`](../scripts/check-packages.mjs) and [`scripts/release-packages.mjs`](../scripts/release-packages.mjs) discover publishable packages dynamically from `workspaces` entries in the root [`package.json`](../package.json) that live under `packages/` and do not set `"private": true`, then sort them in topological dependency order (`tokens` → `lint` → `static`). When `@frame12/lint` (F12-02) and `@frame12/static` (F12-06) land under `packages/`, they join the pipeline automatically.
 
@@ -37,9 +37,8 @@ FRAME/12 distributes its React component kit (`registry/`) through the `shadcn` 
 - `version` is valid SemVer (`X.Y.Z` or `X.Y.Z-prerelease`) and has a corresponding non-empty `## [<version>]` section in `packages/<dir>/CHANGELOG.md`.
 - `license` is `"MIT"` and `LICENSE` + `README.md` exist in the package directory.
 - `repository.directory` equals `"packages/<dir>"`.
-- `publishConfig.access` is `"public"`.
 - `files` contains **only** built output (`dist`), `README.md`, and `LICENSE` (no `src/`, `scripts/`, or `tests/`).
-- Every target in `main`, `types`, and `exports` resolves to an existing file on disk after `npm run build` (`types` condition listed before `default`).
+- Every target in `main`, `types`, `bin`, and `exports` resolves to an existing file on disk after `npm run build` (`types` condition listed before `default`).
 - Zero external runtime `dependencies` — only internal `@frame12/*` workspace packages pinned to their **exact** current version (`@frame12/lint` may declare an optional `typescript` `peerDependencies` entry; no other runtime or peer dependencies are allowed).
 
 ### Standalone Install Smoke Test
@@ -108,11 +107,13 @@ Inspect `/tmp/frame12-release-artifacts/release-manifest.json` and the generated
 
 ## 5. Trusted Publishing Architecture (OIDC Provenance)
 
-`.github/workflows/release-packages.yml` publishes packages using **npm Trusted Publishing (OIDC)** with SLSA build provenance (`npm publish --provenance --access public`):
+`.github/workflows/release-packages.yml` publishes packages using **npm Trusted Publishing (OIDC)** with SLSA build provenance (`npm publish "$TARBALL_PATH" --provenance --access public --ignore-scripts`):
 
 - **Zero long-lived npm tokens:** No `NPM_TOKEN` secret is stored in GitHub repository or organization secrets.
+- **Verified-tarball promotion (no rebuild or `npm ci` in `publish`):** The `verify` job builds, tests, smoke-installs, and packs `frame12-<pkg>-<version>.tgz` alongside its SHA-256 digest in `release-manifest.json`. The privileged `publish` job downloads `frame12-package-tarballs`, verifies the `.tgz` SHA-256 digest against `release-manifest.json`, and publishes that exact `.tgz` tarball without running `npm ci` or `npm run build` while holding `id-token: write` and `contents: write`.
+- **Git tag commit pinning & concurrency serialization:** Non-dry-run releases verify that `refs/tags/<pkg>@<version>^{commit}` equals `$GITHUB_SHA` in both `--resolve` and `--verify-publish`, preventing untagged branch commits from being published. Workflow and `publish`-job `concurrency` groups (`cancel-in-progress: false`) serialize simultaneous tag pushes so upstream npm dependency checks and GitHub Releases cannot race.
 - **Node 24 + npm >= 11.5.1 runtime guard:** npm OIDC trusted publishing requires **Node.js >= 22.14.0** and **npm >= 11.5.1**. While the repository's root `packageManager` stays pinned at `npm@10.8.2` for local development and CI `verify` jobs, the isolated `publish` job runs on `ubuntu-24.04` with `node-version: 24` and executes `node scripts/release-packages.mjs --check-env` first, failing fast with a clear diagnostic if `npm --version` is below `11.5.1`.
-- **Least-privilege permissions & SHA-pinned actions:** All third-party GitHub Actions are pinned to full 40-character commit SHAs. Top-level permissions and the `verify` job have `contents: read` only; `id-token: write` and `contents: write` are scoped exclusively to the `publish` job.
+- **Least-privilege permissions, `persist-credentials: false`, & SHA-pinned actions:** All third-party GitHub Actions are pinned to full 40-character commit SHAs, and `actions/checkout` runs with `persist-credentials: false`. Top-level permissions and the `verify` job have `contents: read` only; `id-token: write` and `contents: write` are scoped exclusively to the `publish` job.
 
 ---
 

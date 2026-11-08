@@ -28,7 +28,9 @@ import {
   parseReleaseTag,
   runDryRunRelease,
   verifyNpmInternalDependencies,
+  verifyTagCommit,
   verifyTagMatchesPackage,
+  verifyVerifiedArtifact,
 } from '../release-packages.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -489,11 +491,11 @@ function makeValidTokensPkgJson(overrides = {}) {
     );
     fs.writeFileSync(
       path.join(lintDir, 'dist/index.js'),
-      `export function lintHtml(html) {\n  const violations = [];\n  if (/#[0-9a-fA-F]{3,6}/.test(String(html))) {\n    violations.push({ ruleId: 'color-literal', message: 'Hard-coded hex color' });\n  }\n  return violations;\n}\n`,
+      `export function lintHtml(html) {\n  const violations = [];\n  if (/#[0-9a-fA-F]{3,6}/.test(String(html))) {\n    violations.push({ rule: 'color-literal', message: 'Hard-coded hex color' });\n  }\n  return violations;\n}\n`,
     );
     fs.writeFileSync(
       path.join(lintDir, 'dist/index.d.ts'),
-      `export interface LintViolation { ruleId: string; message: string; }\nexport declare function lintHtml(html: string): LintViolation[];\n`,
+      `export interface Violation { rule: string; message: string; }\nexport declare function lintHtml(html: string): Violation[];\n`,
     );
 
     // 4c. Create fixture packages/static (`@frame12/static` depending on `@frame12/tokens` and exporting `document` + `renderCard`)
@@ -561,6 +563,18 @@ function makeValidTokensPkgJson(overrides = {}) {
 
     const smokeRes = runStandalonePackageSmokeTest(fixtureRoot, { silent: true });
 
+    // Verify SHA-256 tarball manifest verification (`verifyVerifiedArtifact`)
+    const verifiedTokensArtifact = verifyVerifiedArtifact(discovered[0], dryRunOutDir);
+    let tamperedTarballThrew = false;
+    const tamperedDir = path.join(fixtureRoot, 'tampered-artifacts');
+    fs.cpSync(dryRunOutDir, tamperedDir, { recursive: true });
+    fs.appendFileSync(path.join(tamperedDir, 'frame12-tokens-0.2.0.tgz'), 'tampered');
+    try {
+      verifyVerifiedArtifact(discovered[0], tamperedDir);
+    } catch (err) {
+      tamperedTarballThrew = err.message.includes('SHA-256 mismatch');
+    }
+
     // Also test missing export file detection on disk
     fs.rmSync(path.join(staticDir, 'dist/index.js'));
     const missingExportValidation = validatePackages(fixtureRoot, { runNpmPackCheck: false });
@@ -575,12 +589,17 @@ function makeValidTokensPkgJson(overrides = {}) {
         fs.existsSync(path.join(dryRunOutDir, 'frame12-tokens-0.2.0.tgz')) &&
         fs.existsSync(path.join(dryRunOutDir, 'frame12-lint-0.2.0.tgz')) &&
         fs.existsSync(path.join(dryRunOutDir, 'frame12-static-0.2.0.tgz')) &&
+        verifiedTokensArtifact.tarball === 'frame12-tokens-0.2.0.tgz' &&
+        tamperedTarballThrew &&
         smokeRes.verified.length === 3 &&
         Boolean(smokeRes.results.tokens && smokeRes.results.lint && smokeRes.results.static) &&
+        smokeRes.results.lint.cleanViolations === 0 &&
+        Array.isArray(smokeRes.results.lint.dirtyRules) &&
+        smokeRes.results.lint.dirtyRules.includes('color-literal') &&
         missingExportValidation.errors.some((e) =>
           e.includes('export target "./dist/index.js" at exports["."]["default"] does not exist on disk after build'),
         ),
-      'multi-package fixture (tokens, lint, static): discovered automatically in topological order (tokens before static), passes dry-run release, and passes standalone tarball smoke test (cssText, lintHtml, document, renderCard)',
+      'multi-package fixture (tokens, lint, static): discovered automatically in topological order (tokens before static), passes dry-run release + SHA-256 artifact verification, and passes standalone tarball smoke test (cssText, lintHtml clean+color-literal, document, renderCard)',
       JSON.stringify({
         order: namesOrder,
         tarballs: dryRunRes.manifest.packages.map((p) => p.tarball),
@@ -592,7 +611,7 @@ function makeValidTokensPkgJson(overrides = {}) {
   }
 }
 
-// 5. Release tag validation, npm/Node version guard, and internal npm dependency check
+// 5. Release tag validation, git tag commit check, npm/Node version guard, and internal npm dependency check
 {
   const parsedTag = parseReleaseTag('refs/tags/tokens@0.2.0');
   const parsedPre = parseReleaseTag('static@0.3.0-rc.1');
@@ -601,6 +620,26 @@ function makeValidTokensPkgJson(overrides = {}) {
     parseReleaseTag('v0.2.0');
   } catch {
     badTagThrew = true;
+  }
+
+  const commitMatchOk = verifyTagCommit('tokens@0.2.0', 'abc1234def5678', {
+    resolveGitTagCommit: (tag) => (tag === 'tokens@0.2.0' ? 'abc1234def5678' : null),
+  });
+  let missingTagCommitThrew = false;
+  try {
+    verifyTagCommit('tokens@0.2.0', 'abc1234def5678', {
+      resolveGitTagCommit: () => null,
+    });
+  } catch (err) {
+    missingTagCommitThrew = err.message.includes('does not exist');
+  }
+  let mismatchedTagCommitThrew = false;
+  try {
+    verifyTagCommit('tokens@0.2.0', 'abc1234def5678', {
+      resolveGitTagCommit: () => '99999999999999',
+    });
+  } catch (err) {
+    mismatchedTagCommitThrew = err.message.includes('points to commit 99999999999999');
   }
 
   const envFailOldNpm = checkPublishEnvironment({ nodeVersion: '24.0.0', npmVersion: '10.8.2' });
@@ -676,6 +715,9 @@ function makeValidTokensPkgJson(overrides = {}) {
       parsedPre.shortName === 'static' &&
       parsedPre.prerelease === true &&
       badTagThrew &&
+      commitMatchOk.commit === 'abc1234def5678' &&
+      missingTagCommitThrew &&
+      mismatchedTagCommitThrew &&
       !envFailOldNpm.ok &&
       envFailOldNpm.errors[0].includes('requires npm >= 11.5.1') &&
       !envFailMidNpm.ok &&
@@ -690,7 +732,7 @@ function makeValidTokensPkgJson(overrides = {}) {
       publishedDepOk[0].publishedOnNpm === true &&
       extracted020 === '- Initial tokens release.' &&
       extractedMissing === null,
-    'release-packages unit: tag parser, Node >= 22.14.0 & npm >= 11.5.1 guard, tag-to-package.json version match, npm internal dependency gate, and changelog section extractor pass',
+    'release-packages unit: tag parser, git tag commit SHA verification, Node >= 22.14.0 & npm >= 11.5.1 guard, tag-to-package.json version match, npm internal dependency gate, and changelog section extractor pass',
   );
 }
 

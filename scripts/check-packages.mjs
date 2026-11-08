@@ -219,7 +219,7 @@ function collectExportsTargets(exportsField, currentPath = 'exports', out = []) 
  * Validates a single publishable package object against FRAME/12 release pipeline rules.
  */
 export function validateSinglePackage(pkgInfo, workspacePackagesByName, options = {}) {
-  const { runNpmPackCheck = true } = options;
+  const { runNpmPackCheck = true, requireBuiltFiles = true } = options;
   const { shortName, dir, relDir, pkgJson } = pkgInfo;
   const errors = [];
   const label = `${relDir}/package.json`;
@@ -384,7 +384,7 @@ export function validateSinglePackage(pkgInfo, workspacePackagesByName, options 
           `${label}: export target "${item.target}" at ${item.keyPath} must point inside "./dist/" (or "./package.json")`,
         );
       }
-      if (dir && fs.existsSync(dir)) {
+      if (requireBuiltFiles && dir && fs.existsSync(dir)) {
         const resolvedPath = path.join(dir, item.target);
         if (!fs.existsSync(resolvedPath)) {
           errors.push(
@@ -400,7 +400,7 @@ export function validateSinglePackage(pkgInfo, workspacePackagesByName, options 
       const target = pkgJson[field];
       if (typeof target !== 'string' || !target.startsWith('./dist/')) {
         errors.push(`${label}: "${field}" ("${target}") must start with "./dist/"`);
-      } else if (dir && fs.existsSync(dir) && !fs.existsSync(path.join(dir, target))) {
+      } else if (requireBuiltFiles && dir && fs.existsSync(dir) && !fs.existsSync(path.join(dir, target))) {
         errors.push(`${label}: "${field}" target "${target}" does not exist on disk after build`);
       }
     }
@@ -416,7 +416,7 @@ export function validateSinglePackage(pkgInfo, workspacePackagesByName, options 
     for (const [binName, binTarget] of binEntries) {
       if (typeof binTarget !== 'string' || !binTarget.startsWith('./dist/')) {
         errors.push(`${label}: bin["${binName}"] ("${binTarget}") must point inside "./dist/"`);
-      } else if (dir && fs.existsSync(dir) && !fs.existsSync(path.join(dir, binTarget))) {
+      } else if (requireBuiltFiles && dir && fs.existsSync(dir) && !fs.existsSync(path.join(dir, binTarget))) {
         errors.push(`${label}: bin["${binName}"] target "${binTarget}" does not exist on disk after build`);
       }
     }
@@ -575,10 +575,17 @@ if (present.includes('@frame12/tokens')) {
 if (present.includes('@frame12/lint')) {
   const lintMod = await import('@frame12/lint');
   assert.equal(typeof lintMod.lintHtml, 'function', '@frame12/lint must export lintHtml');
-  const sampleHtml = '<!doctype html><html data-theme="light"><body><div class="f12-sheet"><div class="f12-panel"><span class="f12-cut">C-01</span></div></div></body></html>';
-  const lintRes = await lintMod.lintHtml(sampleHtml);
-  assert.ok(lintRes !== undefined && lintRes !== null, 'lintHtml must return a result');
-  results.lint = { ok: true, type: Array.isArray(lintRes) ? 'array' : typeof lintRes };
+  const cleanHtml = '<!doctype html><html data-theme="light"><body><div class="f12-sheet"><div class="f12-panel"><span class="f12-cut">C-01</span></div></div></body></html>';
+  const cleanRes = await lintMod.lintHtml(cleanHtml);
+  assert.ok(Array.isArray(cleanRes), 'lintHtml must return an array of violations');
+  assert.equal(cleanRes.length, 0, 'clean sample HTML must produce 0 violations');
+  const dirtyHtml = '<!doctype html><html data-theme="light"><body><div class="f12-sheet"><div class="f12-panel" style="color: #ff0055"><span class="f12-cut">C-01</span></div></div></body></html>';
+  const dirtyRes = await lintMod.lintHtml(dirtyHtml);
+  assert.ok(
+    Array.isArray(dirtyRes) && dirtyRes.some((v) => v && v.rule === 'color-literal'),
+    'dirty sample HTML with hardcoded hex color must trigger color-literal',
+  );
+  results.lint = { ok: true, cleanViolations: cleanRes.length, dirtyRules: dirtyRes.map((v) => v.rule) };
 }
 
 if (present.includes('@frame12/static')) {
