@@ -1,5 +1,13 @@
 export { Sheet, Pegs, type SheetProps } from './sheet';
-export { Scene, GUTTERS, type SceneGutter, type SceneLayout, type SceneProps } from './scene';
+export {
+  Scene,
+  SceneArea,
+  GUTTERS,
+  type SceneGutter,
+  type SceneLayout,
+  type SceneProps,
+  type SceneAreaProps,
+} from './scene';
 export { Panel, type PanelShape, type PanelVariant, type PanelProps } from './panel';
 export { PanelPair, type PanelPairProps } from './panel-pair';
 export {
@@ -45,7 +53,16 @@ export {
   type TabsContentProps,
 } from './tabs';
 export { Badge, Burst, type BadgeStatus, type BadgeProps } from './badge';
-export { Tag, STATUS_GLYPHS, type SemanticStatus, type TagStatus, type TagProps } from './tag';
+export {
+  Tag,
+  Stamp,
+  STATUS_GLYPHS,
+  type SemanticStatus,
+  type TagStatus,
+  type TagVariant,
+  type TagProps,
+  type StampProps,
+} from './tag';
 export {
   Metric,
   Delta,
@@ -245,3 +262,17 @@ export {
   type PaginationNextProps,
   type PaginationEllipsisProps,
 } from './pagination';
+export {
+  GhostWire,
+  type GhostWireOrientation,
+  type GhostWireProps,
+} from './ghost-wire';
+export {
+  Receipt,
+  ReceiptList,
+  RECEIPT_ORIGIN_META,
+  type ReceiptKind,
+  type ReceiptOrigin,
+  type ReceiptProps,
+  type ReceiptListProps,
+} from './receipt';

@@ -9,6 +9,7 @@ declare const process: { env: { NODE_ENV?: string } };
 
 export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: PanelVariant;
+  area?: string;
   top?: Omit<PanelProps, 'shape'>;
   bottom?: Omit<PanelProps, 'shape'>;
   topCut?: string | false;
@@ -21,6 +22,7 @@ export interface PanelPairProps extends React.HTMLAttributes<HTMLDivElement> {
 export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(function PanelPair(
   {
     variant,
+    area,
     top,
     bottom,
     topCut,
@@ -28,6 +30,7 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
     topLabel,
     bottomLabel,
     className = '',
+    style,
     children,
     ...rest
   },
@@ -36,12 +39,18 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
   const inheritedVariant = usePanelVariantContext();
   const effectivePairVariant: PanelVariant = variant ?? inheritedVariant ?? 'expressive';
   const classes = `f12-pair${className ? ` ${className}` : ''}`;
+  const mergedStyle: React.CSSProperties | undefined = area
+    ? ({
+        '--f12-area': area,
+        ...style,
+      } as React.CSSProperties)
+    : style;
 
   if (top && bottom) {
     const topVariant = top.variant ?? effectivePairVariant;
     const bottomVariant = bottom.variant ?? effectivePairVariant;
     return (
-      <div ref={ref} className={classes} {...rest}>
+      <div ref={ref} className={classes} data-area={area} style={mergedStyle} {...rest}>
         <Panel
           {...top}
           cut={top.cut ?? topCut}
@@ -99,7 +108,7 @@ export const PanelPair = React.forwardRef<HTMLDivElement, PanelPairProps>(functi
   };
 
   return (
-    <div ref={ref} className={classes} {...rest}>
+    <div ref={ref} className={classes} data-area={area} style={mergedStyle} {...rest}>
       {first !== undefined && renderSlot(first, 'slant-bottom', topCut, topLabel)}
       {second !== undefined && renderSlot(second, 'slant-top', bottomCut, bottomLabel)}
     </div>

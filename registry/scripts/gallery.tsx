@@ -4,6 +4,7 @@ import { type MotionMode, useChanged, useOnTwos, useCountUp } from '@/hooks/use-
 import {
   Sheet,
   Scene,
+  SceneArea,
   Panel,
   PanelPair,
   SegmentedControl,
@@ -21,6 +22,7 @@ import {
   TabsContent,
   Badge,
   Tag,
+  Stamp,
   Alert,
   Notice,
   AlertTitle,
@@ -58,6 +60,9 @@ import {
   buildPaginationRange,
   Metric,
   Balloon,
+  GhostWire,
+  Receipt,
+  ReceiptList,
   ToneAreaChart,
   ToneBarList,
   ToneSpark,
@@ -649,6 +654,116 @@ export function GalleryApp() {
             setLastAction={setLastAction}
             summary={summary}
           />
+        </Scene>
+      </Sheet>
+
+      <Sheet autoCut pegs motion={motion} theme={theme} id="gallery-f12-03-sheet">
+        <Scene
+          id="gallery-areas-scene"
+          gutter="scene"
+          areas={[
+            'hero hero hero hero hero hero hero hero sideTop sideTop sideTop sideTop',
+            'hero hero hero hero hero hero hero hero sideBot sideBot sideBot sideBot',
+          ]}
+        >
+          <Panel
+            id="gallery-area-hero"
+            area="hero"
+            label="Co-change GhostWire and evidence receipts"
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <GhostWire
+                id="gallery-ghost-wire"
+                from="src/checkout/webhook.ts"
+                to="db/schema.sql"
+                label="src/checkout/webhook.ts usually changes with db/schema.sql, which was not changed"
+                strength={range === 7 ? 0.85 : range === 30 ? 0.55 : 0.25}
+                motion={motion}
+              />
+              <GhostWire
+                id="gallery-ghost-wire-low"
+                from="registry/ui/tag.tsx"
+                to="registry/styles/frame12.css"
+                strength={0.2}
+                orientation="horizontal"
+                motion={motion}
+              />
+              <GhostWire
+                id="gallery-ghost-wire-vertical"
+                from="scripts/check-frame12.mjs"
+                to="skills/frame12/SKILL.md"
+                label="scripts/check-frame12.mjs co-changes with skills/frame12/SKILL.md"
+                strength={0.9}
+                orientation="vertical"
+                motion={motion}
+              />
+              <ReceiptList id="gallery-receipt-list" ariaLabel="Verification receipts">
+                <Receipt
+                  id="gallery-receipt-commit"
+                  kind="commit"
+                  value="ab107e29f4c18820"
+                  href="https://github.com/lbrodie11/frame12/commit/ab107e2"
+                  title="feat: add page primitives"
+                  date="2026-11-08"
+                  origin="human"
+                />
+                <Receipt
+                  id="gallery-receipt-file"
+                  kind="file"
+                  value="registry/ui/ghost-wire.tsx"
+                  origin="agent"
+                />
+                <Receipt
+                  id="gallery-receipt-long-file"
+                  kind="file"
+                  value={
+                    'packages/ledger/src/reconciliation/adapters/production/' +
+                    'a'.repeat(150) +
+                    '.ts'
+                  }
+                  origin="bot"
+                />
+                <Receipt
+                  id="gallery-receipt-link"
+                  kind="link"
+                  value="Audit Report R-412"
+                  href="https://github.com/lbrodie11/frame12/actions"
+                  origin="bot"
+                />
+                <Receipt
+                  id="gallery-receipt-unsafe"
+                  kind="link"
+                  value="Blocked Unsafe Script"
+                  href="javascript:alert(1)"
+                  title="Plain text fallback"
+                />
+              </ReceiptList>
+            </div>
+          </Panel>
+          <Panel id="gallery-area-side-top" area="sideTop" label="Ink stamps showcase">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+              <Tag id="gallery-stamp-removed" variant="stamp">
+                removed
+              </Tag>
+              <Tag id="gallery-stamp-bot" variant="stamp" status="info">
+                bot
+              </Tag>
+              <Tag id="gallery-stamp-danger" variant="stamp" status="danger">
+                rejected
+              </Tag>
+              <Stamp id="gallery-stamp-verified" status="success">
+                verified
+              </Stamp>
+            </div>
+          </Panel>
+          <SceneArea id="gallery-scene-area-wrap" area="sideBot">
+            <Panel id="gallery-area-side-bot" label="Named-area companion panel">
+              <p style={{ margin: 0 }}>
+                Tall hero panel spans two rows beside two stacked panels at &gt;= 860px and
+                collapses to single-column DOM order below 860px.
+              </p>
+            </Panel>
+          </SceneArea>
         </Scene>
       </Sheet>
     </main>
