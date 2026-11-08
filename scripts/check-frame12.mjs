@@ -9,6 +9,7 @@ import {
   lintSource,
   collectFiles,
   lintFiles,
+  lintDirectory,
   lintHtml,
   runCli,
 } from '@frame12/lint';
@@ -20,6 +21,7 @@ export {
   lintSource,
   collectFiles,
   lintFiles,
+  lintDirectory,
   lintHtml,
   runCli,
 };

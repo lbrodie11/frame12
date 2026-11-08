@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // @frame12/lint — Automated design-grammar checker for FRAME/12.
 // Enforces:
 //   1. color-literal           — No hard-coded hex/rgb/hsl colors, CSS gradients, or font stacks outside token files
@@ -6,11 +7,11 @@
 //   4. cut-order               — Sequential C-01, C-02, C-03... in DOM/reading order without gaps or duplicates
 //   5. explicit-cut-in-autocut — No explicit cut/topCut/bottomCut on Panel/PanelPair inside <Sheet autoCut>
 //   6. raw-shadcn-import       — No raw @/components/ui/*, @radix-ui/*, or external chart/animation imports
-//   7. unsafe-html             — No external <script src>, inline on*= handlers, or javascript: URLs in HTML
+//   7. unsafe-html             — No external scripts/resources, iframes/embeds, inline on*= handlers, or javascript: URLs in HTML
 
-import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, realpathSync, statSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { resolve, relative, dirname, basename, extname } from 'node:path';
+import { resolve, relative, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const RULES = Object.freeze({
@@ -27,10 +28,10 @@ export const RULES = Object.freeze({
   'raw-shadcn-import':
     'Forbid raw @/components/ui/*, @radix-ui/*, or third-party chart/motion imports where a FRAME/12 component or adapter exists.',
   'unsafe-html':
-    'Forbid external <script src="…"> tags, inline on*= event handler attributes, and javascript: URLs in generated HTML.',
+    'Forbid external resource loads (<script src>, <link href>, <img src>, CSS @import/url()), embedded frames (<iframe>, <object>, <embed>, srcdoc), <meta http-equiv="refresh">, <base href>, inline on*= handlers, and javascript: URLs in generated HTML.',
 });
 
-const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css']);
+const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css', '.html', '.htm']);
 const TOKEN_BASENAMES = new Set([
   'frame12.css',
   'frame12-tokens.css',
@@ -137,7 +138,13 @@ const HTML_VOID_ELEMENTS = new Set([
   'wbr',
 ]);
 
+const FORBIDDEN_EMBED_TAGS = new Set(['iframe', 'object', 'embed']);
+const EXTERNAL_SUBRESOURCE_TAGS = new Set(['link', 'img', 'source', 'video', 'audio', 'track', 'image']);
+const EXTERNAL_SUBRESOURCE_ATTRS = new Set(['src', 'srcset', 'href', 'xlink:href', 'poster']);
+
 let cachedTs = undefined;
+let warnedTypeScriptFallback = false;
+
 try {
   const tsMod = await import('typescript');
   cachedTs = tsMod.default ?? tsMod;
@@ -147,14 +154,7 @@ try {
 
 function loadTypeScript() {
   if (cachedTs !== undefined) return cachedTs;
-  const __dir = dirname(fileURLToPath(import.meta.url));
-  const searchAnchors = [
-    import.meta.url,
-    resolve(process.cwd(), 'package.json'),
-    resolve(__dir, '../../../package.json'),
-    resolve(__dir, '../../../site/package.json'),
-    resolve(__dir, '../../../templates/next-starter/package.json'),
-  ];
+  const searchAnchors = [import.meta.url, resolve(process.cwd(), 'package.json')];
   for (const anchor of searchAnchors) {
     try {
       const req = createRequire(anchor);
@@ -1836,6 +1836,12 @@ export function lintSource(content, filePath = 'input.tsx', opts = {}) {
   if (ext !== '.css') {
     const ts = opts?.disableTypeScript ? null : loadTypeScript();
     if (!ts) {
+      if (!warnedTypeScriptFallback && !opts?.quietFallbackWarning) {
+        warnedTypeScriptFallback = true;
+        console.warn(
+          'WARN  [@frame12/lint] Optional peer dependency "typescript" is not installed; falling back to regex cut-order checks for JSX/TSX files.',
+        );
+      }
       lintCutsFallback(stripped, content, filePath, violations);
     } else {
       lintCutsWithTypeScript(ts, content, filePath, violations);
@@ -1905,6 +1911,33 @@ export function lintSource(content, filePath = 'input.tsx', opts = {}) {
 function lintCssInHtml(cssText, baseOffset, fullHtml, filePath, violations, isInlineAttr) {
   const clean = stripCssCommentsPreservingLines(cssText);
   let m;
+
+  // unsafe-html in CSS: @import and external url(https://...) / url(//...)
+  const cssImportRegex = /@import\b[^;\n]*/gi;
+  while ((m = cssImportRegex.exec(clean)) !== null) {
+    const absIdx = baseOffset + m.index;
+    violations.push({
+      rule: 'unsafe-html',
+      file: filePath,
+      line: lineNumberAt(fullHtml, absIdx),
+      column: columnNumberAt(fullHtml, absIdx),
+      message: 'CSS "@import" is forbidden in self-contained generated HTML.',
+      snippet: m[0].trim(),
+    });
+  }
+
+  const externalCssUrlRegex = /\burl\(\s*(['"]?)\s*((?:https?:)?\/\/[^)'"\s]+)\s*\1\s*\)/gi;
+  while ((m = externalCssUrlRegex.exec(clean)) !== null) {
+    const absIdx = baseOffset + m.index;
+    violations.push({
+      rule: 'unsafe-html',
+      file: filePath,
+      line: lineNumberAt(fullHtml, absIdx),
+      column: columnNumberAt(fullHtml, absIdx),
+      message: `External CSS url("${m[2]}") is forbidden in self-contained generated HTML.`,
+      snippet: m[0].trim(),
+    });
+  }
 
   // 1a. Hex colors (#rgb, #rgba, #rrggbb, #rrggbbaa)
   const hexRegex = /#[0-9a-fA-F]{3,8}\b/g;
@@ -2056,7 +2089,7 @@ function lintCssInHtml(cssText, baseOffset, fullHtml, filePath, violations, isIn
 
 /**
  * Decodes basic numeric/named HTML character references and strips control characters/whitespace
- * to detect obfuscated `javascript:` URLs in attribute values.
+ * to detect obfuscated `javascript:` or external URLs in attribute values.
  */
 function normalizeUrlValueForSchemeCheck(rawVal) {
   const decoded = rawVal
@@ -2160,7 +2193,10 @@ function parseHtmlTagAttributes(html, startIdx) {
  *   (excluding `<style data-f12-tokens>` and `opts.tokenStyleIds`), `style="..."`
  *   attributes, `class="..."` attributes, and SVG presentation attributes.
  * - `cut-order` on `[data-cut]` and `.f12-cut` elements in DOM reading order.
- * - `unsafe-html` on external `<script src="...">`, `on*=` attributes, and `javascript:` URLs.
+ * - `unsafe-html` on external `<script src="...">`, external subresource loads
+ *   (`<link href>`, `<img src>`, CSS `@import`/`url()`), embedded frames
+ *   (`<iframe>`, `<object>`, `<embed>`, `srcdoc`), `<meta http-equiv="refresh">`,
+ *   `<base href>`, `on*=` attributes, and `javascript:` URLs.
  */
 export function lintHtml(html, opts = {}) {
   const filePath = opts.file ?? 'input.html';
@@ -2274,6 +2310,18 @@ export function lintHtml(html, opts = {}) {
       i + tagMatch[0].length,
     );
 
+    // unsafe-html: forbidden embedded frame/object tags (<iframe>, <object>, <embed>)
+    if (FORBIDDEN_EMBED_TAGS.has(lowerTag)) {
+      violations.push({
+        rule: 'unsafe-html',
+        file: filePath,
+        line: lineNumberAt(html, tagStartOffset),
+        column: columnNumberAt(html, tagStartOffset),
+        message: `Embedded <${lowerTag}> element is forbidden in self-contained generated HTML.`,
+        snippet: html.slice(tagStartOffset, tagEndOffset),
+      });
+    }
+
     // Check attributes on this element
     let idAttr = null;
     let hasDataF12Tokens = false;
@@ -2304,10 +2352,50 @@ export function lintHtml(html, opts = {}) {
         });
       }
 
-      // unsafe-html: javascript: URLs in attribute values
+      // unsafe-html: srcdoc attribute
+      if (attr.lowerName === 'srcdoc') {
+        violations.push({
+          rule: 'unsafe-html',
+          file: filePath,
+          line: lineNumberAt(html, attr.nameOffset),
+          column: columnNumberAt(html, attr.nameOffset),
+          message: 'Inline "srcdoc" attribute is forbidden in generated HTML.',
+          snippet: attr.raw,
+        });
+      }
+
+      // unsafe-html: <meta http-equiv="refresh">
+      if (
+        lowerTag === 'meta' &&
+        attr.lowerName === 'http-equiv' &&
+        attr.value.trim().toLowerCase() === 'refresh'
+      ) {
+        violations.push({
+          rule: 'unsafe-html',
+          file: filePath,
+          line: lineNumberAt(html, attr.nameOffset),
+          column: columnNumberAt(html, attr.nameOffset),
+          message: '<meta http-equiv="refresh"> redirect is forbidden in generated HTML.',
+          snippet: attr.raw,
+        });
+      }
+
+      // unsafe-html: <base href="...">
+      if (lowerTag === 'base' && attr.lowerName === 'href') {
+        violations.push({
+          rule: 'unsafe-html',
+          file: filePath,
+          line: lineNumberAt(html, attr.nameOffset),
+          column: columnNumberAt(html, attr.nameOffset),
+          message: '<base href="…"> is forbidden in self-contained generated HTML.',
+          snippet: attr.raw,
+        });
+      }
+
+      // unsafe-html: javascript: URLs and external subresource loads
       if (attr.hasValue && attr.value) {
         const normalizedUrl = normalizeUrlValueForSchemeCheck(attr.value);
-        if (/^javascript:/i.test(normalizedUrl)) {
+        if (/^(?:javascript|vbscript):/i.test(normalizedUrl)) {
           violations.push({
             rule: 'unsafe-html',
             file: filePath,
@@ -2316,6 +2404,30 @@ export function lintHtml(html, opts = {}) {
             message: `Unsafe "javascript:" URL in "${attr.name}" attribute is forbidden in generated HTML.`,
             snippet: attr.raw,
           });
+        } else if (
+          EXTERNAL_SUBRESOURCE_TAGS.has(lowerTag) &&
+          EXTERNAL_SUBRESOURCE_ATTRS.has(attr.lowerName)
+        ) {
+          const hasExternalOrigin =
+            /^(?:https?:)?\/\//i.test(normalizedUrl) ||
+            (attr.lowerName === 'srcset' && /(?:^|[\s,])(?:https?:)?\/\//i.test(attr.value));
+          const isExternalStylesheetLink =
+            lowerTag === 'link' &&
+            attrs.some(
+              (a) =>
+                a.lowerName === 'rel' &&
+                a.value.toLowerCase().split(/\s+/).includes('stylesheet'),
+            );
+          if (hasExternalOrigin || isExternalStylesheetLink) {
+            violations.push({
+              rule: 'unsafe-html',
+              file: filePath,
+              line: lineNumberAt(html, attr.nameOffset),
+              column: columnNumberAt(html, attr.nameOffset),
+              message: `External resource load <${lowerTag} ${attr.name}="${attr.value}"> is forbidden in self-contained generated HTML.`,
+              snippet: attr.raw,
+            });
+          }
         }
       }
 
@@ -2591,8 +2703,10 @@ export function lintFiles(targetPaths) {
   return { files, violations: allViolations };
 }
 
+export const lintDirectory = lintFiles;
+
 /**
- * Runs the CLI checker and returns the exit code (0 on pass, 1 on violations).
+ * Runs the CLI checker and returns the exit code (0 on pass, 1 on violations or missing files).
  */
 export function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
   const defaultTargets = [
@@ -2602,9 +2716,24 @@ export function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
     'site/src',
     'site/app',
   ].filter((p) => existsSync(resolve(cwd, p)));
-  const targets = argv.length > 0 ? argv : defaultTargets;
+  const rawTargets = argv.length > 0 ? argv : defaultTargets;
+  const targets = rawTargets.map((p) => resolve(cwd, p));
+
+  if (targets.length === 0) {
+    console.error(
+      'FAIL  check-frame12: No lintable files (.tsx, .ts, .jsx, .js, .css, .html) found. Pass one or more files or directories to check.',
+    );
+    return 1;
+  }
 
   const { files, violations } = lintFiles(targets);
+
+  if (files.length === 0) {
+    console.error(
+      'FAIL  check-frame12: No lintable files (.tsx, .ts, .jsx, .js, .css, .html) found. Pass one or more files or directories to check.',
+    );
+    return 1;
+  }
 
   if (violations.length === 0) {
     console.log(`PASS  check-frame12: ${files.length} file(s) checked, 0 violations.`);
@@ -2620,4 +2749,20 @@ export function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
   }
   console.error(`\n${violations.length} FRAME/12 violation(s) found across ${files.length} file(s).`);
   return 1;
+}
+
+function safeRealpath(p) {
+  try {
+    return realpathSync(p);
+  } catch {
+    return resolve(p);
+  }
+}
+
+const isMain =
+  process.argv[1] &&
+  safeRealpath(fileURLToPath(import.meta.url)) === safeRealpath(process.argv[1]);
+
+if (isMain) {
+  process.exit(runCli());
 }

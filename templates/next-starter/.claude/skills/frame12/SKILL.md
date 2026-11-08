@@ -162,8 +162,8 @@ Before finishing any FRAME/12 task, run the automated checker (`@frame12/lint`) 
 
 ```bash
 node scripts/check-frame12.mjs <your-files-or-directories>
-# or via the @frame12/lint CLI / library (lintSource, lintFiles, lintHtml):
-npx frame12-lint <your-files-or-directories>
+# or via the @frame12/lint CLI / library (lintSource, lintFiles, lintDirectory, lintHtml):
+npx @frame12/lint <your-files-or-directories>
 ```
 
 - [ ] **Zero `color-literal` errors:** All colors use `var(--f-*)` and all fonts use `var(--font-f-*)`.

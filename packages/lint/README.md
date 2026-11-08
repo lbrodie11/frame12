@@ -14,6 +14,7 @@ Zero-dependency design-grammar checker for [FRAME/12](../../README.md) across Ty
 import {
   lintSource,
   lintFiles,
+  lintDirectory,
   collectFiles,
   lintHtml,
   RULES,
@@ -30,22 +31,24 @@ const htmlViolations: Violation[] = lintHtml(htmlString, {
   tokenStyleIds: ['f12-tokens'], // <style id="f12-tokens"> or <style data-f12-tokens> is exempt
 });
 
-// 3. Lint directories or file paths on disk
-const { files, violations } = lintFiles(['src/components', 'src/app']);
+// 3. Lint directories or file paths on disk (.tsx, .ts, .jsx, .js, .css, .html, .htm)
+const { files, violations } = lintDirectory(['src/components', 'src/app', 'dist/report.html']);
 ```
 
-### CLI (`frame12-lint`)
+### CLI (`@frame12/lint` / `frame12-lint`)
 
 ```bash
-npx frame12-lint src/app src/components
-# PASS  check-frame12: 42 file(s) checked, 0 violations.
+npx @frame12/lint src/app src/components dist/report.html
+# PASS  check-frame12: 43 file(s) checked, 0 violations.
 ```
+
+The CLI accepts `.tsx`, `.ts`, `.jsx`, `.js`, `.css`, `.html`, and `.htm` files or directories (routing `.html` / `.htm` files to `lintHtml()`), and exits with code `1` if violations are found or if `0` lintable files match the target paths.
 
 ### Optional `typescript` Peer Dependency
 
 `typescript` (`>=5.0.0`) is an **optional** peer dependency:
 - When `typescript` is installed, `lintSource()` parses JSX/TSX with the TypeScript compiler AST (`ts.createSourceFile`) to trace `cut-order` and `explicit-cut-in-autocut` through spread props, local variable identifiers, and `<PanelPair>` slots.
-- When `typescript` is not installed (for example, in a standalone HTML generator that only calls `lintHtml()`), `lintHtml()` and all CSS/regex source rules work with zero dependencies, and `lintSource()` falls back to its built-in regex cut scanner without crashing.
+- When `typescript` is not installed (for example, in a standalone HTML generator that only calls `lintHtml()`), `lintHtml()` and all CSS/regex source rules work with zero dependencies, and `lintSource()` emits a one-time `WARN  [@frame12/lint]` notice on `stderr` (suppressible via `{ quietFallbackWarning: true }`) before falling back to its built-in regex cut scanner.
 
 ---
 
@@ -61,7 +64,7 @@ Every violation carries a stable `rule` ID (`RuleId`), `file`, 1-based `line` an
 | [`cut-order`](#cut-order) | Require panel cut labels (`C-01`, `C-02`, …) to use two-digit formatting and appear in strict sequential reading order starting at `C-01` without gaps or duplicates. |
 | [`explicit-cut-in-autocut`](#explicit-cut-in-autocut) | Forbid explicit `cut` props on `Panel`/`PanelPair` inside `<Sheet autoCut>` where cuts are numbered automatically. |
 | [`raw-shadcn-import`](#raw-shadcn-import) | Forbid raw `@/components/ui/*`, `@radix-ui/*`, or third-party chart/motion imports where a FRAME/12 component or adapter exists. |
-| [`unsafe-html`](#unsafe-html) | Forbid external `<script src="…">` tags, inline `on*=` event handler attributes, and `javascript:` URLs in generated HTML. |
+| [`unsafe-html`](#unsafe-html) | Forbid external resource loads (`<script src>`, `<link href>`, `<img src>`, CSS `@import`/`url()`), embedded frames (`<iframe>`, `<object>`, `<embed>`, `srcdoc`), `<meta http-equiv="refresh">`, `<base href>`, inline `on*=` handlers, and `javascript:` URLs in generated HTML. |
 
 ---
 
@@ -190,11 +193,13 @@ import { Button, Dialog, DialogContent } from '@/components/frame12';
 
 ### `unsafe-html`
 
-Active in `lintHtml()`. Forbid external `<script src="…">` tags, inline event handler attributes (`onclick=`, `onload=`, `onerror=`, …), and `javascript:` URLs in attribute values. Self-contained inline `<script>` elements without `src` (such as the on-twos pose clock) are permitted.
+Active in `lintHtml()` (and when linting `.html` / `.htm` files via `lintFiles()`, `lintDirectory()`, or the CLI). Forbid external `<script src="…">` tags, external resource loads (`<link rel="stylesheet" href="…">`, `<img src="https://…">`, `<source>`, `<video>`, `<audio>`, `<track>`, `<image>`, CSS `@import`, and external CSS `url(https://…)`), embedded frames (`<iframe>`, `<object>`, `<embed>`, `srcdoc`), `<meta http-equiv="refresh">`, `<base href="…">`, inline event handler attributes (`onclick=`, `onload=`, `onerror=`, …), and `javascript:` / `vbscript:` URLs in attribute values. Self-contained inline `<script>` elements without `src` (such as the on-twos pose clock), relative/anchor `<a href="…">` links, and `data:` URIs are permitted.
 
 **Bad:**
 ```html
 <script src="https://cdn.example.com/tracker.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter" />
+<iframe src="https://example.com/embed"></iframe>
 <button onclick="doSomething()">Run</button>
 <a href="javascript:alert(1)">Link</a>
 ```

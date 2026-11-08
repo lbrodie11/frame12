@@ -17,8 +17,9 @@ import {
   lintSource,
   collectFiles,
   lintFiles,
+  lintDirectory,
   lintHtml,
-} from '../src/index.js';
+} from '../dist/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = resolve(__dirname, '..');
@@ -67,9 +68,11 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
   check(
     typeof lintSource === 'function' &&
       typeof lintFiles === 'function' &&
+      typeof lintDirectory === 'function' &&
+      lintDirectory === lintFiles &&
       typeof collectFiles === 'function' &&
       typeof lintHtml === 'function',
-    'exports: lintSource, lintFiles, collectFiles, and lintHtml are functions',
+    'exports: lintSource, lintFiles, lintDirectory, collectFiles, and lintHtml are functions',
   );
 
   // Check README has an anchor section for every rule ID
@@ -83,7 +86,7 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
 }
 
 // ---------------------------------------------------------------------------
-// 2. CLI output parity (repo + 6-violation fixture snapshot)
+// 2. CLI output parity (repo + 6-violation fixture snapshot + .html + 0-files)
 // ---------------------------------------------------------------------------
 {
   const repoWrapperOut = execFileSync(
@@ -93,7 +96,7 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
   );
   const repoBinOut = execFileSync(
     process.execPath,
-    [join(PKG_ROOT, 'bin/frame12-lint.mjs')],
+    [join(PKG_ROOT, 'dist/cli.mjs')],
     { cwd: REPO_ROOT, encoding: 'utf8' },
   );
   check(
@@ -106,6 +109,25 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
   // 6-violation fixture (one violation per source rule)
   const tmpDir = mkdtempSync(join(tmpdir(), 'f12-lint-parity-'));
   try {
+    // 0-files check in empty tmpDir
+    let zeroFilesStatus = 0;
+    let zeroFilesStderr = '';
+    try {
+      execFileSync(process.execPath, [join(PKG_ROOT, 'dist/cli.mjs')], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      zeroFilesStatus = err.status;
+      zeroFilesStderr = err.stderr;
+    }
+    check(
+      zeroFilesStatus === 1 && zeroFilesStderr.includes('FAIL  check-frame12: No lintable files'),
+      'CLI: exits with code 1 and clear error when 0 lintable files are found',
+      zeroFilesStderr,
+    );
+
     const fixtureRel = 'six-violations.tsx';
     const fixturePath = join(tmpDir, fixtureRel);
     const sixViolationsSource = [
@@ -167,7 +189,7 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
     try {
       execFileSync(
         process.execPath,
-        [join(PKG_ROOT, 'bin/frame12-lint.mjs'), fixtureRel],
+        [join(PKG_ROOT, 'dist/cli.mjs'), fixtureRel],
         { cwd: tmpDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
       );
     } catch (err) {
@@ -184,6 +206,33 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
       wrapperStderr !== expectedSnapshot
         ? `Expected:\n${expectedSnapshot}\nActual:\n${wrapperStderr}`
         : '',
+    );
+
+    // CLI .html linting
+    const htmlFixtureRel = 'bad-page.html';
+    writeFileSync(
+      join(tmpDir, htmlFixtureRel),
+      '<style>.g { gap: 14px; }</style><section data-cut="1">Bad</section>\n',
+      'utf8',
+    );
+    let htmlCliStatus = 0;
+    let htmlCliStderr = '';
+    try {
+      execFileSync(
+        process.execPath,
+        [join(PKG_ROOT, 'dist/cli.mjs'), htmlFixtureRel],
+        { cwd: tmpDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+    } catch (err) {
+      htmlCliStatus = err.status;
+      htmlCliStderr = err.stderr;
+    }
+    check(
+      htmlCliStatus === 1 &&
+        htmlCliStderr.includes('[illegal-gutter] bad-page.html:1') &&
+        htmlCliStderr.includes('[cut-order] bad-page.html:1'),
+      'CLI: routes .html files to lintHtml() and reports violations',
+      htmlCliStderr,
     );
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -317,18 +366,27 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
     JSON.stringify(vBadgeCuts),
   );
 
-  // 3e. unsafe-html: external <script src>, onclick=, and javascript: URLs
+  // 3e. unsafe-html: external <script src>, onclick=, javascript: URLs, external resources, embeds, meta refresh, base, CSS @import/url()
   const htmlUnsafe = [
     '<div>',
     '  <script src="https://evil.example/payload.js"></script>',
     '  <button type="button" onclick="steal()">Click</button>',
     '  <a href="javascript:alert(1)">Bad link</a>',
     '  <a href="&#106;avascript:alert(2)">Encoded bad link</a>',
+    '  <link rel="stylesheet" href="https://evil.example/a.css">',
+    '  <img src="https://evil.example/a.png" alt="ext">',
+    '  <iframe src="/local.html"></iframe>',
+    '  <object data="/local.swf"></object>',
+    '  <embed src="/local.swf">',
+    '  <div srcdoc="<p>inline</p>"></div>',
+    '  <meta http-equiv="refresh" content="0;url=https://evil.example">',
+    '  <base href="https://evil.example/">',
+    '  <style>@import "https://evil.example/b.css"; .bg { background-image: url(https://evil.example/bg.png); }</style>',
     '</div>',
   ].join('\n');
   const vUnsafe = lintHtml(htmlUnsafe, { file: 'unsafe.html' });
   check(
-    vUnsafe.length === 4 &&
+    vUnsafe.length === 14 &&
       vUnsafe.every((v) => v.rule === 'unsafe-html') &&
       vUnsafe[0].line === 2 &&
       vUnsafe[0].column === 11 &&
@@ -338,7 +396,7 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
       vUnsafe[2].column === 6 &&
       vUnsafe[3].line === 5 &&
       vUnsafe[3].column === 6,
-    'lintHtml [unsafe-html]: flags external <script src>, onclick=, and plain/encoded javascript: URLs with exact line/column',
+    'lintHtml [unsafe-html]: flags external <script src>, onclick=, javascript: URLs, external <link>/<img>, <iframe>/<object>/<embed>, srcdoc, <meta http-equiv="refresh">, <base href>, and CSS @import/url()',
     JSON.stringify(vUnsafe),
   );
 }
@@ -447,10 +505,10 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
 }
 
 // ---------------------------------------------------------------------------
-// 6. Optional peer test: works when `typescript` is not resolvable
+// 6. Optional peer test: works when `typescript` is not resolvable + emits warning
 // ---------------------------------------------------------------------------
 {
-  const indexUrl = pathToFileURL(join(PKG_ROOT, 'src/index.js')).href;
+  const indexUrl = pathToFileURL(join(PKG_ROOT, 'dist/index.js')).href;
   const loaderScript = `
     import { register } from 'node:module';
     const hookCode = \`
@@ -464,6 +522,9 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
       }
     \`;
     register('data:text/javascript,' + encodeURIComponent(hookCode));
+    const warnings = [];
+    const origWarn = console.warn;
+    console.warn = (...args) => warnings.push(args.join(' '));
     const { lintHtml, lintSource } = await import(${JSON.stringify(indexUrl)});
     const htmlRes = lintHtml('<style>.a { gap: 14px; }</style><section data-cut="1"></section>');
     const tsxRes = lintSource(
@@ -471,7 +532,14 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
       'test.tsx',
       { disableTypeScript: true },
     );
-    console.log(JSON.stringify({ htmlCount: htmlRes.length, tsxRules: tsxRes.map((v) => v.rule) }));
+    // Second call should not duplicate the one-time fallback warning
+    lintSource('export const Y = () => <div />;', 'test2.tsx', { disableTypeScript: true });
+    console.warn = origWarn;
+    console.log(JSON.stringify({
+      htmlCount: htmlRes.length,
+      tsxRules: tsxRes.map((v) => v.rule),
+      warnings,
+    }));
   `;
 
   const out = execFileSync(
@@ -483,14 +551,49 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
   check(
     parsed.htmlCount === 2 &&
       Array.isArray(parsed.tsxRules) &&
-      parsed.tsxRules.includes('explicit-cut-in-autocut'),
-    'optional peer: lintHtml and lintSource fallback work when typescript is not resolvable',
+      parsed.tsxRules.includes('explicit-cut-in-autocut') &&
+      Array.isArray(parsed.warnings) &&
+      parsed.warnings.length === 1 &&
+      parsed.warnings[0].includes('WARN  [@frame12/lint] Optional peer dependency "typescript" is not installed'),
+    'optional peer: lintHtml and lintSource fallback work when typescript is absent and emit a one-time WARN notice',
     out,
   );
 }
 
 // ---------------------------------------------------------------------------
-// 7. Package tarball hygiene (npm pack --dry-run)
+// 7. Standalone templates/next-starter/scripts/check-frame12.mjs outside monorepo
+// ---------------------------------------------------------------------------
+{
+  const starterCheckerSrc = readFileSync(
+    join(REPO_ROOT, 'templates/next-starter/scripts/check-frame12.mjs'),
+    'utf8',
+  );
+  const tmpDir = mkdtempSync(join(tmpdir(), 'f12-starter-standalone-'));
+  try {
+    const checkerCopy = join(tmpDir, 'check-frame12.mjs');
+    const samplePage = join(tmpDir, 'page.tsx');
+    writeFileSync(checkerCopy, starterCheckerSrc, 'utf8');
+    writeFileSync(
+      samplePage,
+      "export function Page() { return <div style={{ gap: 'var(--f-gutter-scene)' }}>OK</div>; }\n",
+      'utf8',
+    );
+    const out = execFileSync(process.execPath, [checkerCopy, 'page.tsx'], {
+      cwd: tmpDir,
+      encoding: 'utf8',
+    });
+    check(
+      out === 'PASS  check-frame12: 1 file(s) checked, 0 violations.\n',
+      'starter template: templates/next-starter/scripts/check-frame12.mjs runs standalone outside monorepo without @frame12/lint installed',
+      out,
+    );
+  } finally {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 8. Package tarball hygiene (npm pack --dry-run)
 // ---------------------------------------------------------------------------
 {
   const packJsonRaw = execFileSync('npm', ['pack', '--dry-run', '--json'], {
@@ -500,13 +603,16 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
   const packInfo = JSON.parse(packJsonRaw)[0];
   const packedPaths = packInfo.files.map((f) => f.path).sort();
   check(
-    packedPaths.includes('src/index.js') &&
-      packedPaths.includes('src/index.d.ts') &&
-      packedPaths.includes('bin/frame12-lint.mjs') &&
+    packedPaths.includes('dist/index.js') &&
+      packedPaths.includes('dist/index.d.ts') &&
+      packedPaths.includes('dist/cli.mjs') &&
+      packedPaths.includes('LICENSE') &&
       packedPaths.includes('README.md') &&
       packedPaths.includes('package.json') &&
-      !packedPaths.some((p) => p.startsWith('tests/')),
-    'npm pack --dry-run: ships only src/, bin/, README.md, LICENSE, package.json (no tests)',
+      !packedPaths.some(
+        (p) => p.startsWith('src/') || p.startsWith('scripts/') || p.startsWith('tests/'),
+      ),
+    'npm pack --dry-run: ships only dist/, LICENSE, README.md, package.json (no src/scripts/tests)',
     `Files: ${packedPaths.join(', ')}`,
   );
 }

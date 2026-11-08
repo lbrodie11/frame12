@@ -4,23 +4,21 @@
   "description": "FRAME/12 design-grammar linter for TSX, JSX, TS, JS, CSS, and generated HTML.",
   "license": "MIT",
   "type": "module",
-  "main": "./src/index.js",
-  "types": "./src/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
-    "frame12-lint": "./bin/frame12-lint.mjs"
+    "frame12-lint": "./dist/cli.mjs",
+    "lint": "./dist/cli.mjs"
   },
   "exports": {
     ".": {
-      "types": "./src/index.d.ts",
-      "default": "./src/index.js"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
   "files": [
-    "src",
-    "bin",
-    "README.md",
-    "LICENSE"
+    "dist"
   ],
   "peerDependencies": {
     "typescript": ">=5.0.0"
@@ -30,7 +28,21 @@
       "optional": true
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "test": "node tests/lint.test.mjs"
+    "build": "node scripts/build-lint.mjs",
+    "check": "node scripts/build-lint.mjs --check",
+    "test": "node scripts/build-lint.mjs --check && node tests/lint.test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lbrodie11/frame12.git",
+    "directory": "packages/lint"
+  },
+  "homepage": "https://frame12.dev",
+  "engines": {
+    "node": ">=20"
   }
 }

@@ -1,4 +1,4 @@
 #!/usr/bin/env node
-import { runCli } from '../src/index.js';
+import { runCli } from './index.js';
 
 process.exit(runCli());

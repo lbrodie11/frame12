@@ -34,6 +34,10 @@ export interface LintSourceOptions {
    * Force fallback behavior as if the optional `typescript` peer dependency is not installed.
    */
   disableTypeScript?: boolean;
+  /**
+   * Suppress the one-time console warning when falling back to regex cut-order checks.
+   */
+  quietFallbackWarning?: boolean;
 }
 
 export declare const RULES: Readonly<Record<RuleId, string>>;
@@ -52,6 +56,8 @@ export declare function lintFiles(targetPaths: string[]): {
   files: string[];
   violations: Violation[];
 };
+
+export declare const lintDirectory: typeof lintFiles;
 
 export declare function lintHtml(
   html: string,
