@@ -337,6 +337,8 @@ export function validateDtcgDocument(doc) {
 
   const quotedFont = formatDtcgFontFamilyCss([
     'var(--font-body, "Zen Kaku")',
+    '-apple-system',
+    'BlinkMacSystemFont',
     'Arial',
     'Custom "Quote" Font',
     'ui-monospace',
@@ -348,7 +350,7 @@ export function validateDtcgDocument(doc) {
       distErrors.length === 0 &&
       invalidFixtureErrors.length === 6 &&
       quotedFont ===
-        'var(--font-body, "Zen Kaku"), "Arial", "Custom \\"Quote\\" Font", ui-monospace, sans-serif',
+        'var(--font-body, "Zen Kaku"), -apple-system, BlinkMacSystemFont, "Arial", "Custom \\"Quote\\" Font", ui-monospace, sans-serif',
     'src/tokens.source.json and dist/tokens.json pass strict W3C DTCG 2025.10 validation (including hex/components and $value/modes.light equality)',
     sourceErrors.concat(distErrors).join('; '),
   );

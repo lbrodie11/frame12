@@ -4,7 +4,7 @@
 // React loads from cdnjs at view time; everything else is inlined.
 import { build } from 'esbuild';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { cssText } from '../../packages/tokens/dist/index.js';
+import { cssText } from '@frame12/tokens';
 
 const FONTS =
   'https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=M+PLUS+1+Code:wght@400;500;700&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap';

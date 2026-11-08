@@ -45,6 +45,8 @@ const GENERIC_FONT_FAMILIES = new Set([
   'emoji',
   'math',
   'fangsong',
+  '-apple-system',
+  'BlinkMacSystemFont',
 ]);
 
 export function componentsToHex(components) {
