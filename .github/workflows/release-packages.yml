@@ -22,10 +22,10 @@ on:
         default: true
         type: boolean
 
-# Serialize tag-triggered release runs so two tags pushed together cannot race on
+# Serialize tag-triggered and manual non-dry-run release runs so two releases cannot race on
 # upstream npm dependency checks or GitHub Release creation.
 concurrency:
-  group: release-packages-${{ github.event_name == 'push' && 'tag-release' || github.run_id }}
+  group: release-packages-${{ (github.event_name == 'push' || inputs.dry_run == false) && 'release' || github.run_id }}
   cancel-in-progress: false
 
 # Least privilege by default: top-level and `verify` job have read-only access.

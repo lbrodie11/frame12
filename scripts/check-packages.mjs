@@ -250,9 +250,14 @@ export function validateSinglePackage(pkgInfo, workspacePackagesByName, options 
     }
   }
 
-  // 3. License: MIT
+  // 3. License: MIT & publishConfig.access: "public"
   if (pkgJson.license !== 'MIT') {
     errors.push(`${label}: "license" must be "MIT" (got ${JSON.stringify(pkgJson.license)})`);
+  }
+  if (pkgJson.publishConfig?.access !== 'public') {
+    errors.push(
+      `${label}: "publishConfig.access" must be "public" (got ${JSON.stringify(pkgJson.publishConfig?.access)})`,
+    );
   }
 
   // 4. repository.directory is set to packages/<shortName>

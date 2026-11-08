@@ -5,7 +5,7 @@ FRAME/12 distributes its React component kit (`registry/`) through the `shadcn` 
 | Package | Directory | Status | Purpose | Internal Dependencies |
 | --- | --- | --- | --- | --- |
 | `@frame12/tokens` | `packages/tokens` | In tree | Zero-dependency design tokens (`dist/tokens.css`, W3C DTCG 2025.10 `dist/tokens.json`, and TypeScript/JS `tokens` + `cssText`) | None |
-| `@frame12/lint` | `packages/lint` | Joining in F12-02 | Programmatic design-grammar linter (`lintSource`, `lintHtml`, `lintFiles`) and CLI (`frame12-lint`) with an optional `typescript` peer | None |
+| `@frame12/lint` | `packages/lint` | Joining in F12-02 | Programmatic design-grammar linter (`lintSource`, `lintHtml`, `lintFiles`, `lintDirectory`) and CLI (`frame12-lint`) with an optional `typescript` peer | None |
 | `@frame12/static` | `packages/static` | Joining in F12-06 | Non-React HTML (`document`, `panel`, `metric`, `badge`, `tag`, `stamp`, `receipt`, `ghostWire`, `toneBarList`) and deterministic SVG/PNG social-card renderer (`renderCard`) | `@frame12/tokens` (exact version) |
 
 > **Note:** The release pipeline never hard-codes package names. Both [`scripts/check-packages.mjs`](../scripts/check-packages.mjs) and [`scripts/release-packages.mjs`](../scripts/release-packages.mjs) discover publishable packages dynamically from `workspaces` entries in the root [`package.json`](../package.json) that live under `packages/` and do not set `"private": true`, then sort them in topological dependency order (`tokens` → `lint` → `static`). When `@frame12/lint` (F12-02) and `@frame12/static` (F12-06) land under `packages/`, they join the pipeline automatically.
@@ -36,6 +36,7 @@ FRAME/12 distributes its React component kit (`registry/`) through the `shadcn` 
 - `name` is scoped under `@frame12/<dir>` matching its `packages/<dir>` folder.
 - `version` is valid SemVer (`X.Y.Z` or `X.Y.Z-prerelease`) and has a corresponding non-empty `## [<version>]` section in `packages/<dir>/CHANGELOG.md`.
 - `license` is `"MIT"` and `LICENSE` + `README.md` exist in the package directory.
+- `publishConfig.access` is `"public"`.
 - `repository.directory` equals `"packages/<dir>"`.
 - `files` contains **only** built output (`dist`), `README.md`, and `LICENSE` (no `src/`, `scripts/`, or `tests/`).
 - Every target in `main`, `types`, `bin`, and `exports` resolves to an existing file on disk after `npm run build` (`types` condition listed before `default`).
@@ -45,7 +46,7 @@ FRAME/12 distributes its React component kit (`registry/`) through the `shadcn` 
 
 `node scripts/smoke-install.mjs` (and `node scripts/smoke-install.mjs --packages-only`) packs every present publishable package with `npm pack`, installs the `.tgz` tarballs into an isolated temporary directory with **no other dependencies**, and executes runtime checks for whichever packages exist in the workspace:
 
-- **`@frame12/tokens`:** imports `cssText` and `tokens`, verifying `--f-paper` and `--f-ink` custom properties and palette tokens.
+- **`@frame12/tokens`:** imports `cssText` and `tokens`, verifying `--f-ink` and `--f-stroke` custom properties and palette tokens.
 - **`@frame12/lint`:** calls `lintHtml` on a sample HTML page, verifying clean grammar passes and a hardcoded hex color triggers `color-literal`.
 - **`@frame12/static`:** renders a full HTML page with `document()` and renders a deterministic `1200×630` SVG card with `renderCard()`.
 

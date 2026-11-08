@@ -60,6 +60,9 @@ function makeValidTokensPkgJson(overrides = {}) {
       './package.json': './package.json',
     },
     files: ['dist'],
+    publishConfig: {
+      access: 'public',
+    },
     repository: {
       type: 'git',
       url: 'https://github.com/lbrodie11/frame12.git',
@@ -335,6 +338,18 @@ function makeValidTokensPkgJson(overrides = {}) {
       },
       expectedSubstring: '"repository.directory" must be "packages/tokens"',
     },
+    {
+      name: 'missing publishConfig.access',
+      pkgInfo: {
+        shortName: 'tokens',
+        dir: null,
+        relDir: 'packages/tokens',
+        pkgJson: makeValidTokensPkgJson({
+          publishConfig: undefined,
+        }),
+      },
+      expectedSubstring: '"publishConfig.access" must be "public"',
+    },
   ];
 
   const failedBadCases = [];
@@ -467,6 +482,9 @@ function makeValidTokensPkgJson(overrides = {}) {
             './package.json': './package.json',
           },
           files: ['dist'],
+          publishConfig: {
+            access: 'public',
+          },
           peerDependencies: {
             typescript: '>=5.0.0',
           },
@@ -520,6 +538,9 @@ function makeValidTokensPkgJson(overrides = {}) {
             './package.json': './package.json',
           },
           files: ['dist'],
+          publishConfig: {
+            access: 'public',
+          },
           dependencies: {
             '@frame12/tokens': '0.2.0',
           },
@@ -575,6 +596,18 @@ function makeValidTokensPkgJson(overrides = {}) {
       tamperedTarballThrew = err.message.includes('SHA-256 mismatch');
     }
 
+    let missingSha256Threw = false;
+    const missingShaDir = path.join(fixtureRoot, 'missing-sha-artifacts');
+    fs.cpSync(dryRunOutDir, missingShaDir, { recursive: true });
+    const manifestNoSha = JSON.parse(fs.readFileSync(path.join(missingShaDir, 'release-manifest.json'), 'utf8'));
+    delete manifestNoSha.packages[0].sha256;
+    fs.writeFileSync(path.join(missingShaDir, 'release-manifest.json'), JSON.stringify(manifestNoSha, null, 2));
+    try {
+      verifyVerifiedArtifact(discovered[0], missingShaDir);
+    } catch (err) {
+      missingSha256Threw = err.message.includes('missing a valid 64-character hex sha256 digest');
+    }
+
     // Also test missing export file detection on disk
     fs.rmSync(path.join(staticDir, 'dist/index.js'));
     const missingExportValidation = validatePackages(fixtureRoot, { runNpmPackCheck: false });
@@ -591,6 +624,7 @@ function makeValidTokensPkgJson(overrides = {}) {
         fs.existsSync(path.join(dryRunOutDir, 'frame12-static-0.2.0.tgz')) &&
         verifiedTokensArtifact.tarball === 'frame12-tokens-0.2.0.tgz' &&
         tamperedTarballThrew &&
+        missingSha256Threw &&
         smokeRes.verified.length === 3 &&
         Boolean(smokeRes.results.tokens && smokeRes.results.lint && smokeRes.results.static) &&
         smokeRes.results.lint.cleanViolations === 0 &&

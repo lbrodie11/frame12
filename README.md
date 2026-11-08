@@ -183,7 +183,7 @@ In addition to the `shadcn` component registry, FRAME/12 ships standalone packag
 | Package | Status | Purpose |
 | --- | --- | --- |
 | [`@frame12/tokens`](packages/tokens/) | In tree (`0.2.0`) | Zero-dependency design tokens: standalone `tokens.css` (light/dark `--f-*` custom properties and metric-matched `@font-face` fallbacks), resolved W3C DTCG 2025.10 `tokens.json`, and TypeScript/JS `tokens` + `cssText` exports. |
-| `@frame12/lint` | Joining in F12-02 | Programmatic design-grammar checker (`lintSource`, `lintHtml`, `lintFiles`) and CLI (`frame12-lint`) enforcing the FRAME/12 design rules across `.tsx`, `.jsx`, `.css`, and static `.html` files (optional `typescript` peer for TSX AST rules). |
+| `@frame12/lint` | Joining in F12-02 | Programmatic design-grammar checker (`lintSource`, `lintHtml`, `lintFiles`, `lintDirectory`) and CLI (`frame12-lint`) enforcing the FRAME/12 design rules across `.tsx`, `.jsx`, `.css`, and static `.html` files (optional `typescript` peer for TSX AST rules). |
 | `@frame12/static` | Joining in F12-06 | Non-React HTML (`document`, `panel`, `metric`, `badge`, `tag`, `stamp`, `receipt`, `ghostWire`, `toneBarList`) and deterministic `1200×630` SVG/PNG social-card renderer (`renderCard`), built on `@frame12/tokens`. |
 
 Each package has independent SemVer versioning, its own `CHANGELOG.md`, and tag-driven npm OIDC trusted-publishing releases (`<pkg>@<version>`). See [`docs/RELEASING-PACKAGES.md`](docs/RELEASING-PACKAGES.md) for the release order (`tokens` → `lint` → `static`), dry-run mode, and verification gates.

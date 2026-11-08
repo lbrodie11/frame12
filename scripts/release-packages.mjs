@@ -241,8 +241,13 @@ export function verifyVerifiedArtifact(pkgInfo, artifactDir) {
   if (!fs.existsSync(tarballPath)) {
     throw new Error(`Verified tarball missing at ${tarballPath}`);
   }
+  if (typeof entry.sha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(entry.sha256)) {
+    throw new Error(
+      `Verified release-manifest.json entry for ${entry.tarball} is missing a valid 64-character hex sha256 digest`,
+    );
+  }
   const actualSha256 = computeFileSha256(tarballPath);
-  if (entry.sha256 && actualSha256 !== entry.sha256) {
+  if (actualSha256 !== entry.sha256.toLowerCase()) {
     throw new Error(
       `Verified tarball SHA-256 mismatch for ${entry.tarball}: expected ${entry.sha256}, got ${actualSha256}`,
     );
@@ -350,7 +355,9 @@ export function runDryRunRelease(options = {}) {
 function getArgValue(args, flag, fallback = '') {
   const idx = args.indexOf(flag);
   if (idx === -1 || idx + 1 >= args.length) return fallback;
-  return args[idx + 1];
+  const val = args[idx + 1];
+  if (val === '' || val.startsWith('--')) return fallback;
+  return val;
 }
 
 function writeGithubOutputs(kv) {
@@ -400,13 +407,7 @@ if (isMain) {
           throw new Error('A package tag (<pkg>@<version>) is required when dry_run is false.');
         }
         const { parsed, pkg } = verifyTagMatchesPackage(effectiveTag, packages);
-        if (expectedSha) {
-          verifyTagCommit(parsed.tag, expectedSha, { rootDir });
-        } else if (!isTagPush) {
-          throw new Error(
-            'Non-dry-run manual releases require --sha (or GITHUB_SHA) matching refs/tags/<tag>^{commit}.',
-          );
-        }
+        verifyTagCommit(parsed.tag, expectedSha, { rootDir });
         const outputs = {
           dry_run: 'false',
           tag: parsed.tag,
@@ -485,13 +486,14 @@ if (isMain) {
         throw new Error(`Package validation failed:\n  - ${errors.join('\n  - ')}`);
       }
       const { parsed, pkg } = verifyTagMatchesPackage(rawTag, packages);
-      if (expectedSha) {
-        verifyTagCommit(parsed.tag, expectedSha, { rootDir });
-      }
+      verifyTagCommit(parsed.tag, expectedSha, { rootDir });
       verifyNpmInternalDependencies(pkg, { dryRun: false });
-      if (artifactDir) {
-        verifyVerifiedArtifact(pkg, artifactDir);
+      if (!artifactDir) {
+        throw new Error(
+          '--verify-publish requires --artifact-dir <dir> pointing to the verified release artifacts.',
+        );
       }
+      verifyVerifiedArtifact(pkg, artifactDir);
       const changelogMd = fs.readFileSync(path.join(pkg.dir, 'CHANGELOG.md'), 'utf8');
       const notes = extractPackageChangelog(changelogMd, pkg.version);
       if (!notes) {
