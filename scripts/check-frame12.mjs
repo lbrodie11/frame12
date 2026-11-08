@@ -21,10 +21,7 @@ const TOKEN_BASENAMES = new Set([
   'og-image.tsx',
   'apple-icon.tsx',
 ]);
-const TOKEN_EXEMPT_PATHS = [
-  'registry/styles/frame12-tokens.css',
-  'packages/tokens/dist/tokens.css',
-];
+const TOKEN_EXEMPT_PATHS = ['packages/tokens/dist/tokens.css'];
 const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', '.next', '.f12-run', 'test-results']);
 
 const LEGAL_GUTTER_NAMES = new Set(['pair', 'scene', 'change']);

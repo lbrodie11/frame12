@@ -9,7 +9,10 @@ import { fileURLToPath } from 'node:url';
 import {
   buildTokenArtifacts,
   checkTokenSync,
+  componentsToHex,
   extractRegistryTokenRegion,
+  formatDtcgFontFamilyCss,
+  replaceRegistryTokenRegion,
 } from '../scripts/build-tokens.mjs';
 import { tokens, cssText, light, dark, gutters, stroke, motion, fonts, shadow } from '../dist/index.js';
 
@@ -51,11 +54,11 @@ export function validateDtcgDocument(doc) {
     if (val.colorSpace !== 'srgb') {
       errors.push(`${tokenPath}: color.colorSpace must be "srgb", got "${val.colorSpace}"`);
     }
-    if (
-      !Array.isArray(val.components) ||
-      val.components.length !== 3 ||
-      !val.components.every((c) => typeof c === 'number' && Number.isFinite(c) && c >= 0 && c <= 1)
-    ) {
+    const validComponents =
+      Array.isArray(val.components) &&
+      val.components.length === 3 &&
+      val.components.every((c) => typeof c === 'number' && Number.isFinite(c) && c >= 0 && c <= 1);
+    if (!validComponents) {
       errors.push(`${tokenPath}: color.components must be 3 numbers in [0, 1]`);
     }
     if (
@@ -67,6 +70,13 @@ export function validateDtcgDocument(doc) {
     if (val.hex !== undefined) {
       if (typeof val.hex !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(val.hex)) {
         errors.push(`${tokenPath}: color.hex must be a 6-digit #rrggbb string`);
+      } else if (validComponents) {
+        const expectedHex = componentsToHex(val.components);
+        if (val.hex.toLowerCase() !== expectedHex) {
+          errors.push(
+            `${tokenPath}: color.hex "${val.hex}" does not match rounded components "${expectedHex}"`,
+          );
+        }
       }
       if (val.alpha !== undefined && val.alpha !== 1) {
         errors.push(`${tokenPath}: color.hex must be omitted when alpha < 1`);
@@ -163,6 +173,11 @@ export function validateDtcgDocument(doc) {
             } else {
               isValidColorValue(modes.light, `${currentPath}.$extensions.modes.light`);
               isValidColorValue(modes.dark, `${currentPath}.$extensions.modes.dark`);
+              if (JSON.stringify(node.$value) !== JSON.stringify(modes.light)) {
+                errors.push(
+                  `${currentPath}: color $value must deep-equal $extensions["dev.frame12.modes"].light`,
+                );
+              }
             }
           }
           break;
@@ -209,16 +224,29 @@ export function validateDtcgDocument(doc) {
   assert.notEqual(regionText, null, 'registry/styles/frame12.css must contain /* @tokens:start */ and /* @tokens:end */');
   const regionBuf = Buffer.from(regionText, 'utf8');
 
+  const expectedFallbackFaces = [
+    'f12DisplayFallback',
+    'f12DisplayFallbackDejaVu',
+    'f12BodyFallback',
+    'f12BodyFallbackDejaVu',
+    'f12MonoFallbackConsolas',
+    'f12MonoFallback',
+  ];
+  const hasAllFallbackFaces = expectedFallbackFaces.every((face) =>
+    cssText.includes(`font-family: "${face}";`),
+  );
+
   check(
     distCssBuf.equals(regionBuf) &&
       distCssBuf.equals(regTokensCssBuf) &&
-      Buffer.from(cssText, 'utf8').equals(distCssBuf),
-    'tokens.css byte-equals registry/styles/frame12.css token region, frame12-tokens.css, and exported cssText',
+      Buffer.from(cssText, 'utf8').equals(distCssBuf) &&
+      hasAllFallbackFaces,
+    'tokens.css byte-equals registry/styles/frame12.css token region, frame12-tokens.css, and exported cssText (including all 6 metric-matched @font-face fallbacks)',
     `${distCssBuf.length} bytes`,
   );
 }
 
-// 2. Build determinism (into temp directories — never rewrites repo files)
+// 2. Build determinism (into temp directories — never rewrites repo files) & CRLF handling
 {
   const tmpDirA = fs.mkdtempSync(path.join(os.tmpdir(), 'f12-tokens-det-a-'));
   const tmpDirB = fs.mkdtempSync(path.join(os.tmpdir(), 'f12-tokens-det-b-'));
@@ -250,6 +278,13 @@ export function validateDtcgDocument(doc) {
     const buildMemA = buildTokenArtifacts();
     const buildMemB = buildTokenArtifacts();
 
+    // Verify CRLF handling in replaceRegistryTokenRegion
+    const crlfSample =
+      '/* header */\r\n/* @tokens:start */\r\nold\r\n/* @tokens:end */\r\n.f12-panel {}\r\n';
+    const crlfUpdated = replaceRegistryTokenRegion(crlfSample, buildMemA.tokensCss);
+    const hasBareLf = /(^|[^\r])\n/.test(crlfUpdated);
+    const roundTrip = extractRegistryTokenRegion(crlfUpdated);
+
     check(
       firstRun.css.equals(secondRun.css) &&
         firstRun.json.equals(secondRun.json) &&
@@ -258,8 +293,10 @@ export function validateDtcgDocument(doc) {
         buildMemA.tokensCss === buildMemB.tokensCss &&
         buildMemA.tokensJson === buildMemB.tokensJson &&
         buildMemA.indexJs === buildMemB.indexJs &&
-        buildMemA.indexDts === buildMemB.indexDts,
-      'build-tokens.mjs is 100% deterministic across repeated runs without modifying repo files',
+        buildMemA.indexDts === buildMemB.indexDts &&
+        !hasBareLf &&
+        roundTrip === buildMemA.tokensCss,
+      'build-tokens.mjs is 100% deterministic across repeated runs and preserves CRLF line endings without mixed EOLs',
     );
   } finally {
     fs.rmSync(tmpDirA, { recursive: true, force: true });
@@ -271,22 +308,48 @@ export function validateDtcgDocument(doc) {
 {
   const sourceDtcg = JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'src/tokens.source.json'), 'utf8'));
   const distDtcg = JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'dist/tokens.json'), 'utf8'));
+  const dtsText = fs.readFileSync(path.join(PKG_ROOT, 'dist/index.d.ts'), 'utf8');
   const sourceErrors = validateDtcgDocument(sourceDtcg);
   const distErrors = validateDtcgDocument(distDtcg);
 
-  // Verify the validator rejects non-compliant DTCG shapes (mode map in $value, string dimension, CSS string shadow, spec page $schema)
+  // Verify the validator rejects non-compliant DTCG shapes (mode map in $value, hex/components mismatch, $value != modes.light, string dimension, CSS string shadow, spec page $schema)
   const invalidFixtureErrors = validateDtcgDocument({
     $schema: 'https://www.designtokens.org/tr/2025.10/format/',
-    color: { $type: 'color', ink: { $value: { light: '#121212', dark: '#f1f0ea' } } },
+    color: {
+      $type: 'color',
+      ink: { $value: { light: '#121212', dark: '#f1f0ea' } },
+      mismatchHex: {
+        $value: { colorSpace: 'srgb', components: [0, 0, 0], alpha: 1, hex: '#ffffff' },
+      },
+      divergedLight: {
+        $value: { colorSpace: 'srgb', components: [1, 1, 1], alpha: 1, hex: '#ffffff' },
+        $extensions: {
+          'dev.frame12.modes': {
+            light: { colorSpace: 'srgb', components: [0, 0, 0], alpha: 1, hex: '#000000' },
+            dark: { colorSpace: 'srgb', components: [0, 0, 0], alpha: 1, hex: '#000000' },
+          },
+        },
+      },
+    },
     gutter: { $type: 'dimension', pair: { $value: '12px' } },
     shadow: { $type: 'shadow', sheet: { $value: '0 1px 0 rgba(0,0,0,0.05)' } },
   });
 
+  const quotedFont = formatDtcgFontFamilyCss([
+    'var(--font-body, "Zen Kaku")',
+    'Arial',
+    'Custom "Quote" Font',
+    'ui-monospace',
+    'sans-serif',
+  ]);
+
   check(
     sourceErrors.length === 0 &&
       distErrors.length === 0 &&
-      invalidFixtureErrors.length === 4,
-    'src/tokens.source.json and dist/tokens.json pass strict W3C DTCG 2025.10 validation (and validator rejects invalid shapes)',
+      invalidFixtureErrors.length === 6 &&
+      quotedFont ===
+        'var(--font-body, "Zen Kaku"), "Arial", "Custom \\"Quote\\" Font", ui-monospace, sans-serif',
+    'src/tokens.source.json and dist/tokens.json pass strict W3C DTCG 2025.10 validation (including hex/components and $value/modes.light equality)',
     sourceErrors.concat(distErrors).join('; '),
   );
 
@@ -306,12 +369,19 @@ export function validateDtcgDocument(doc) {
       tokens.motion.fps === 12 &&
       tokens.light.ink === '#121212' &&
       tokens.light['ink-2'] === '#4b4b4b' &&
-      tokens.light.ink2 === '#4b4b4b' &&
       tokens.light['marker-ink'] === '#121212' &&
-      tokens.light.markerInk === '#121212' &&
+      !('ink2' in tokens.light) &&
+      !('markerInk' in tokens.light) &&
+      !('ink2' in tokens.dark) &&
+      !('markerInk' in tokens.dark) &&
+      Object.keys(tokens.light).length === 13 &&
+      JSON.stringify(Object.keys(tokens.light)) === JSON.stringify(Object.keys(tokens.dark)) &&
       tokens.dark.ink === '#f1f0ea' &&
       tokens.dark.sheet === '#050505' &&
       tokens.dark.panel === '#19191a' &&
+      dtsText.includes('export interface Frame12Palette {') &&
+      dtsText.includes('readonly light: Frame12Palette;') &&
+      dtsText.includes('readonly dark: Frame12Palette;') &&
       distDtcg.color.ink.$value.hex === '#121212' &&
       distDtcg.color.ink.$extensions['dev.frame12.modes'].light.hex === '#121212' &&
       distDtcg.color.ink.$extensions['dev.frame12.modes'].dark.hex === '#f1f0ea' &&
@@ -328,7 +398,7 @@ export function validateDtcgDocument(doc) {
       Object.isFrozen(tokens) &&
       Object.isFrozen(tokens.light) &&
       Object.isFrozen(tokens.dark),
-    'tokens JS/TS exports (deep-frozen at runtime) and resolved DTCG 2025.10 tokens.json match canonical values',
+    'tokens JS/TS exports (13 canonical kebab-case palette keys, shared Frame12Palette d.ts, deep-frozen at runtime) and resolved DTCG 2025.10 tokens.json match canonical values',
   );
 }
 

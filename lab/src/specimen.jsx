@@ -128,18 +128,18 @@ function Specimen() {
 
       <section className="sp-sec" aria-labelledby="h-sheet">
         <h2 id="h-sheet" className="sp-h">The sheet</h2>
-        <div className="theme-light sp-shot"><Dashboard variant="frame" motion="cut" range={30} setRange={noop} focus={null} setFocus={noop} idPrefix="spA" /></div>
+        <div className="theme-light f12-theme-light sp-shot"><Dashboard variant="frame" motion="cut" range={30} setRange={noop} focus={null} setFocus={noop} idPrefix="spA" /></div>
       </section>
 
       <section className="sp-sec" aria-labelledby="h-variants">
         <h2 id="h-variants" className="sp-h">Same language, dark and phone</h2>
         <div className="sp-two">
           <figure className="sp-fig">
-            <div className="theme-dark sp-shot"><Dashboard variant="frame" motion="cut" range={7} setRange={noop} focus="exit" setFocus={noop} idPrefix="spB" /></div>
+            <div className="theme-dark f12-theme-dark sp-shot"><Dashboard variant="frame" motion="cut" range={7} setRange={noop} focus="exit" setFocus={noop} idPrefix="spB" /></div>
             <figcaption>Dark: gutters turn black, the manga convention for flashback pages. Shown on 7 days with one intervention selected.</figcaption>
           </figure>
           <figure className="sp-fig sp-phone-fig">
-            <div className="theme-light sp-shot sp-phone"><Dashboard variant="frame" motion="cut" range={90} setRange={noop} focus={null} setFocus={noop} idPrefix="spC" /></div>
+            <div className="theme-light f12-theme-light sp-shot sp-phone"><Dashboard variant="frame" motion="cut" range={90} setRange={noop} focus={null} setFocus={noop} idPrefix="spC" /></div>
             <figcaption>Phone: panels stack in reading order; the gutters keep their meaning.</figcaption>
           </figure>
         </div>
@@ -155,12 +155,12 @@ function Specimen() {
         <h2 id="h-details" className="sp-h">Construction details</h2>
         <div className="sp-grid">
           <div className="sp-card">
-            <div className="theme-light sp-live"><div className="dash frame m-cut"><Panel cut="C-07"><p className="sp-mini">Panel content</p></Panel></div></div>
+            <div className="theme-light f12-theme-light sp-live"><div className="dash frame m-cut"><Panel cut="C-07"><p className="sp-mini">Panel content</p></Panel></div></div>
             <h3>Cut numbers</h3>
             <p>Set into the frame line, numbered in reading order. Visual order, reading order and code order always match.</p>
           </div>
           <div className="sp-card">
-            <div className="theme-light sp-live">
+            <div className="theme-light f12-theme-light sp-live">
               <div className="dash frame m-cut sp-pair">
                 <Panel cut="C-02" shape="slant-bottom"><p className="sp-mini">Profit</p></Panel>
                 <Panel cut="C-03" shape="slant-top"><p className="sp-mini">Conversion lift</p></Panel>
@@ -170,19 +170,19 @@ function Specimen() {
             <p>Two related metrics share one slanted 12 px gutter, the manga cue for "these belong together".</p>
           </div>
           <div className="sp-card">
-            <div className="theme-light sp-live sp-tones">
+            <div className="theme-light f12-theme-light sp-live sp-tones">
               <span className="tone t1" /><span className="tone t2" /><span className="tone t3" />
             </div>
             <h3>Screentone</h3>
             <p>Halftone dots replace gradients and transparency. Density carries emphasis; it prints and survives grayscale.</p>
           </div>
           <div className="sp-card">
-            <div className="theme-light sp-live sp-chart"><div className="dash frame m-cut"><Chart summary={s7} focus={null} variant="frame" motion="cut" height={170} /></div></div>
+            <div className="theme-light f12-theme-light sp-live sp-chart"><div className="dash frame m-cut"><Chart summary={s7} focus={null} variant="frame" motion="cut" height={170} /></div></div>
             <h3>Speech balloon</h3>
             <p>Annotations are balloons with a tail to the point they describe, not floating tooltips.</p>
           </div>
           <div className="sp-card">
-            <div className="theme-light sp-live sp-marker">
+            <div className="theme-light f12-theme-light sp-live sp-marker">
               <div className="dash frame m-cut sp-marker-row">
                 <span className="tag">Example data</span>
                 <p className="delta up"><span className="delta-sym" aria-hidden="true">▲</span>11.4%<span className="delta-ref"> vs prior 30 days</span></p>
@@ -193,7 +193,7 @@ function Specimen() {
             <p>One flat yellow, always under ink text. It flags; it never colors a line or a chart.</p>
           </div>
           <div className="sp-card">
-            <div className="theme-light sp-live sp-rng">
+            <div className="theme-light f12-theme-light sp-live sp-rng">
               <div className="dash frame m-stepped"><RangeTabs value={range} onChange={setRange} variant="frame" idPrefix="spR" /></div>
             </div>
             <h3>Range control</h3>

@@ -35,7 +35,7 @@ Self-contained CSS custom properties (`--f-*` and `--font-f-*`) with automatic `
 @import "@frame12/tokens/tokens.css";
 ```
 
-> **Font fallback note:** The `--font-f-display`, `--font-f-body`, and `--font-f-mono` stacks include metric-adjusted fallback `@font-face` names (`"f12DisplayFallback"`, `"f12DisplayFallbackDejaVu"`, `"f12BodyFallback"`, `"f12BodyFallbackDejaVu"`, `"f12MonoFallbackConsolas"`, `"f12MonoFallback"`) whose `@font-face` rules are defined only in full `frame12.css`. When `tokens.css` / `frame12-tokens.css` is used standalone without `frame12.css`, browsers ignore those synthetic `@font-face` names and fall through directly to the system fallback fonts (`"Arial Black"`, `"Hiragino Sans"`, `ui-monospace`, etc.).
+> **Font fallback note:** `tokens.css` / `frame12-tokens.css` includes the 6 cross-platform metric-matched `@font-face` fallback rules (`"f12DisplayFallback"`, `"f12DisplayFallbackDejaVu"`, `"f12BodyFallback"`, `"f12BodyFallbackDejaVu"`, `"f12MonoFallbackConsolas"`, `"f12MonoFallback"`) so standalone consumers get zero-reflow metric fallbacks across macOS, Windows, Linux, and Android even before `.woff2` web fonts finish loading.
 >
 > **Motion token note:** `--f-stroke` (`2.5px`) is consumed via `var(--f-stroke)` across `frame12.css`, whereas `--f-pose` (`83.33ms`) and `--f-fps` (`12`) are reference-only CSS custom properties exposed on `:root` for external consumers (`useOnTwos` computes `FRAME_MS = 1000 / 12` in JS, and `.f12-m-stepped` uses integer multi-pose `250ms` / `333ms` keyframe durations).
 

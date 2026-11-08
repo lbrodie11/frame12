@@ -4,6 +4,7 @@
 // React loads from cdnjs at view time; everything else is inlined.
 import { build } from 'esbuild';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { cssText } from '../../packages/tokens/dist/index.js';
 
 const FONTS =
   'https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=M+PLUS+1+Code:wght@400;500;700&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap';
@@ -13,7 +14,7 @@ const HOST_RESET =
   ':root{color-scheme:light;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}';
 
 const read = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8');
-const baseCss = read('styles.css') + '\n' + read('shell.css');
+const baseCss = cssText + '\n' + read('styles.css') + '\n' + read('shell.css');
 mkdirSync('dist/artifact', { recursive: true });
 mkdirSync('dist/standalone', { recursive: true });
 

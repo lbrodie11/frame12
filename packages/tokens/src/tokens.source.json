@@ -345,6 +345,94 @@
   },
   "font": {
     "$type": "fontFamily",
+    "$extensions": {
+      "dev.frame12.fallbacks": [
+        {
+          "fontFamily": "f12DisplayFallback",
+          "local": [
+            "Arial",
+            "Helvetica Neue",
+            "Helvetica",
+            "Liberation Sans",
+            "Arimo",
+            "Nimbus Sans",
+            "Nimbus Sans L",
+            "Roboto",
+            "Noto Sans",
+            "FreeSans"
+          ],
+          "fontWeight": 400,
+          "sizeAdjust": "131.74%",
+          "ascentOverride": "88.05%",
+          "descentOverride": "21.86%",
+          "lineGapOverride": "0%"
+        },
+        {
+          "fontFamily": "f12DisplayFallbackDejaVu",
+          "local": ["DejaVu Sans", "Bitstream Vera Sans", "Verdana"],
+          "fontWeight": 400,
+          "sizeAdjust": "120.3%",
+          "ascentOverride": "96.4%",
+          "descentOverride": "23.9%",
+          "lineGapOverride": "0%"
+        },
+        {
+          "fontFamily": "f12BodyFallback",
+          "local": [
+            "Arial",
+            "Helvetica Neue",
+            "Helvetica",
+            "Liberation Sans",
+            "Arimo",
+            "Nimbus Sans",
+            "Nimbus Sans L",
+            "Roboto",
+            "Noto Sans",
+            "FreeSans"
+          ],
+          "fontWeight": 400,
+          "sizeAdjust": "99.1%",
+          "ascentOverride": "117.05%",
+          "descentOverride": "29.06%",
+          "lineGapOverride": "0%"
+        },
+        {
+          "fontFamily": "f12BodyFallbackDejaVu",
+          "local": ["DejaVu Sans", "Bitstream Vera Sans", "Verdana"],
+          "fontWeight": 400,
+          "sizeAdjust": "90.5%",
+          "ascentOverride": "128.17%",
+          "descentOverride": "31.82%",
+          "lineGapOverride": "0%"
+        },
+        {
+          "fontFamily": "f12MonoFallbackConsolas",
+          "local": ["Consolas"],
+          "fontWeight": 400,
+          "sizeAdjust": "90.91%",
+          "ascentOverride": "110%",
+          "descentOverride": "25.85%",
+          "lineGapOverride": "0%"
+        },
+        {
+          "fontFamily": "f12MonoFallback",
+          "local": [
+            "Menlo",
+            "DejaVu Sans Mono",
+            "Courier New",
+            "Liberation Mono",
+            "Cousine",
+            "Noto Sans Mono",
+            "Droid Sans Mono"
+          ],
+          "fontWeight": 400,
+          "sizeAdjust": "83.19%",
+          "ascentOverride": "120.21%",
+          "descentOverride": "28.25%",
+          "lineGapOverride": "0%"
+        }
+      ]
+    },
     "display": {
       "$value": [
         "var(--font-dela-gothic-one, \"Dela Gothic One\")",
