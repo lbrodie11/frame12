@@ -277,7 +277,7 @@ export function extractRegistryTokenRegion(registryCss) {
   }
   const innerStart = startIdx + START_MARKER.length;
   const inner = registryCss.slice(innerStart, endIdx);
-  return inner.replace(/^\r?\n/, '');
+  return inner.replace(/\r\n/g, '\n').replace(/^\n/, '');
 }
 
 export function replaceRegistryTokenRegion(registryCss, tokensCss) {
@@ -309,7 +309,7 @@ export function checkTokenSync() {
     const rel = path.relative(REPO_ROOT, filePath);
     if (!fs.existsSync(filePath)) {
       drifts.push(`Missing generated token artifact: ${rel}`);
-    } else if (fs.readFileSync(filePath, 'utf8') !== expected) {
+    } else if (fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n') !== expected) {
       drifts.push(`Token artifact drift in ${rel}`);
     }
   }
@@ -361,10 +361,8 @@ if (isMain) {
 
   if (fs.existsSync(REGISTRY_CSS_PATH)) {
     const regCss = fs.readFileSync(REGISTRY_CSS_PATH, 'utf8');
-    if (regCss.includes(START_MARKER) && regCss.includes(END_MARKER)) {
-      const updated = replaceRegistryTokenRegion(regCss, tokensCss);
-      fs.writeFileSync(REGISTRY_CSS_PATH, updated);
-    }
+    const updated = replaceRegistryTokenRegion(regCss, tokensCss);
+    fs.writeFileSync(REGISTRY_CSS_PATH, updated);
   }
 
   console.log(
