@@ -2,8 +2,12 @@
 
 import * as React from 'react';
 
+// Bundlers (Next.js, webpack, Vite) statically replace `process.env.NODE_ENV`. Declared locally so
+// consumers without @types/node (e.g. Vite's react-ts template) still type-check this file.
+declare const process: { env: { NODE_ENV?: string } };
+
 export type SceneGutter = 'pair' | 'scene' | 'change';
-export type SceneLayout = 'split' | 'stack' | 'equal' | 'three';
+export type SceneLayout = 'split' | 'stack' | 'equal' | 'three' | 'areas';
 
 export const GUTTERS: Record<SceneGutter, number> = {
   pair: 12,
@@ -14,19 +18,165 @@ export const GUTTERS: Record<SceneGutter, number> = {
 export interface SceneProps extends React.HTMLAttributes<HTMLDivElement> {
   gutter?: SceneGutter;
   layout?: SceneLayout;
+  areas?: string[];
+  columns?: number;
+  breakpoint?: number | string;
   children?: React.ReactNode;
 }
 
-export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene(
-  { gutter = 'scene', layout = 'split', className = '', children, ...rest },
+export interface SceneAreaProps extends React.HTMLAttributes<HTMLDivElement> {
+  area: string;
+  children?: React.ReactNode;
+}
+
+export function resolveAreaProps(
+  area: string | undefined,
+  style: React.CSSProperties | undefined,
+): { 'data-area': string | undefined; style: React.CSSProperties | undefined } {
+  const safeArea = typeof area === 'string' && area.trim() ? area.trim() : undefined;
+  const mergedStyle: React.CSSProperties | undefined = safeArea
+    ? ({
+        '--f12-area': safeArea,
+        ...style,
+      } as React.CSSProperties)
+    : style;
+  return { 'data-area': safeArea, style: mergedStyle };
+}
+
+export const SceneArea = React.forwardRef<HTMLDivElement, SceneAreaProps>(function SceneArea(
+  { area, className = '', style, children, ...rest },
   ref,
 ) {
+  const areaProps = resolveAreaProps(area, style);
+
+  return (
+    <div
+      ref={ref}
+      className={`f12-scene-area${className ? ` ${className}` : ''}`}
+      data-area={areaProps['data-area']}
+      style={areaProps.style}
+      {...rest}
+    >
+      {children}
+    </div>
+  );
+});
+
+export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene(
+  {
+    gutter = 'scene',
+    layout = 'split',
+    areas,
+    columns,
+    breakpoint = '860px',
+    className = '',
+    style,
+    children,
+    ...rest
+  },
+  ref,
+) {
+  const reactId = React.useId();
+  const warnedAreasRef = React.useRef<string | null>(null);
+  const warnedColsRef = React.useRef<string | null>(null);
+  const warnedBpRef = React.useRef<string | null>(null);
   const safeGutter: SceneGutter =
     gutter === 'pair' || gutter === 'scene' || gutter === 'change' ? gutter : 'scene';
-  const safeLayout: SceneLayout =
-    layout === 'split' || layout === 'stack' || layout === 'equal' || layout === 'three'
+  const hasAreas = Array.isArray(areas) && areas.length > 0;
+  const safeLayout: SceneLayout = hasAreas
+    ? 'areas'
+    : layout === 'split' ||
+        layout === 'stack' ||
+        layout === 'equal' ||
+        layout === 'three' ||
+        layout === 'areas'
       ? layout
       : 'split';
+
+  const cleanedRows = hasAreas
+    ? areas.map((row) => row.trim().replace(/^["']+|["']+$/g, '').trim())
+    : [];
+  const rowTokenCounts = cleanedRows.map((row) => (row ? row.split(/\s+/).length : 0));
+  const firstRowCount = rowTokenCounts[0] ?? 0;
+
+  const formattedAreas = hasAreas
+    ? cleanedRows.map((row) => `"${row}"`).join(' ')
+    : undefined;
+
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    hasAreas &&
+    rowTokenCounts.length > 1 &&
+    rowTokenCounts.some((count) => count !== firstRowCount) &&
+    warnedAreasRef.current !== formattedAreas
+  ) {
+    warnedAreasRef.current = formattedAreas ?? null;
+    console.warn(
+      `[FRAME/12 Scene] Mismatched column counts across areas rows (${rowTokenCounts.join(', ')}). Every row in areas should have ${firstRowCount} column token(s).`,
+    );
+  }
+
+  const explicitCols =
+    typeof columns === 'number' && Number.isFinite(columns) && columns > 0
+      ? Math.floor(columns)
+      : undefined;
+
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    hasAreas &&
+    explicitCols !== undefined &&
+    explicitCols !== firstRowCount &&
+    warnedColsRef.current !== `${explicitCols}:${firstRowCount}`
+  ) {
+    warnedColsRef.current = `${explicitCols}:${firstRowCount}`;
+    console.warn(
+      `[FRAME/12 Scene] Explicit columns (${explicitCols}) does not match the areas row token count (${firstRowCount}). Deriving ${firstRowCount} column(s) from areas.`,
+    );
+  }
+
+  const safeColumns = firstRowCount > 0 ? firstRowCount : (explicitCols ?? 12);
+
+  const hasExplicitBreakpoint =
+    breakpoint !== undefined &&
+    (typeof breakpoint !== 'string' || breakpoint.trim().length > 0);
+  const rawBp =
+    typeof breakpoint === 'number' && Number.isFinite(breakpoint) && breakpoint > 0
+      ? `${breakpoint}px`
+      : typeof breakpoint === 'string' && breakpoint.trim()
+        ? /^\d+(\.\d+)?$/.test(breakpoint.trim())
+          ? `${breakpoint.trim()}px`
+          : breakpoint.trim()
+        : '860px';
+  const isValidBreakpoint =
+    !hasExplicitBreakpoint ||
+    (typeof breakpoint === 'number'
+      ? Number.isFinite(breakpoint) && breakpoint > 0
+      : /^\d+(\.\d+)?(px|rem|em)$/i.test(rawBp));
+
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    hasExplicitBreakpoint &&
+    !isValidBreakpoint &&
+    warnedBpRef.current !== String(breakpoint)
+  ) {
+    warnedBpRef.current = String(breakpoint);
+    console.warn(
+      `[FRAME/12 Scene] Invalid breakpoint "${String(breakpoint)}". Expected a positive number or px/rem/em length (e.g. "960px", "60rem"). Falling back to 860px.`,
+    );
+  }
+
+  const normalizedBreakpoint = isValidBreakpoint ? rawBp : '860px';
+  const isCustomBreakpoint = normalizedBreakpoint !== '860px';
+  const bpSlug = normalizedBreakpoint.replace(/[^a-zA-Z0-9_-]/g, '-');
+  const bpScope = `bp-${bpSlug}-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+
+  const mergedStyle: React.CSSProperties | undefined = hasAreas
+    ? ({
+        '--f12-scene-cols': String(safeColumns),
+        '--f12-scene-areas': formattedAreas,
+        ...style,
+      } as React.CSSProperties)
+    : style;
 
   const classes = `f12-scene f12-scene-${safeLayout} f12-scene-${safeGutter}${className ? ` ${className}` : ''}`;
 
@@ -36,8 +186,15 @@ export const Scene = React.forwardRef<HTMLDivElement, SceneProps>(function Scene
       className={classes}
       data-gutter={GUTTERS[safeGutter]}
       data-layout={safeLayout}
+      data-columns={hasAreas ? safeColumns : undefined}
+      data-breakpoint={hasAreas ? normalizedBreakpoint : undefined}
+      data-scene-bp={hasAreas && isCustomBreakpoint ? bpScope : undefined}
+      style={mergedStyle}
       {...rest}
     >
+      {hasAreas && isCustomBreakpoint ? (
+        <style>{`@media (min-width: ${normalizedBreakpoint}) { .f12-scene.f12-scene-areas[data-scene-bp="${bpScope}"] { grid-template-columns: repeat(var(--f12-scene-cols, 12), minmax(0, 1fr)); grid-template-areas: var(--f12-scene-areas); } .f12-scene.f12-scene-areas[data-scene-bp="${bpScope}"] > [data-area] { grid-area: var(--f12-area); } } @container (max-width: 760px) { .f12-scene.f12-scene-areas[data-scene-bp="${bpScope}"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; } .f12-scene.f12-scene-areas[data-scene-bp="${bpScope}"] > [data-area] { grid-area: auto; } }`}</style>
+      ) : null}
       {children}
     </div>
   );

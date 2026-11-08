@@ -45,6 +45,8 @@ const PRIMARY_INTERFACE_BY_SLUG = {
   'tone-bar-list': 'ToneBarListProps',
   'tone-spark': 'ToneSparkProps',
   balloon: 'BalloonProps',
+  'ghost-wire': 'GhostWireProps',
+  receipt: 'ReceiptProps',
   dialog: 'DialogProps',
   select: 'SelectProps',
   tooltip: 'TooltipProps',

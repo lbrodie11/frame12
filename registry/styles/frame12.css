@@ -175,7 +175,10 @@
 .f12-balloon,
 .f12-balloon-standalone,
 .f12-tag,
-.f12-badge {
+.f12-badge,
+.f12-ghost-wire,
+.f12-receipt,
+.f12-receipt-list {
   box-sizing: border-box;
 }
 
@@ -196,7 +199,10 @@
 .f12-select *,
 .f12-select-content *,
 .f12-menu *,
-.f12-table-wrap * {
+.f12-table-wrap *,
+.f12-ghost-wire *,
+.f12-receipt *,
+.f12-receipt-list * {
   box-sizing: border-box;
 }
 
@@ -358,6 +364,31 @@
 .f12-scene.f12-scene-three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+.f12-scene.f12-scene-areas {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: none;
+}
+.f12-scene.f12-scene-areas > [data-area],
+.f12-scene-area {
+  min-width: 0;
+  grid-area: auto;
+}
+.f12-scene-area {
+  display: flex;
+  flex-direction: column;
+}
+.f12-scene-area > .f12-panel {
+  flex: 1;
+}
+@media (min-width: 860px) {
+  .f12-scene.f12-scene-areas:not([data-scene-bp]) {
+    grid-template-columns: repeat(var(--f12-scene-cols, 12), minmax(0, 1fr));
+    grid-template-areas: var(--f12-scene-areas);
+  }
+  .f12-scene.f12-scene-areas:not([data-scene-bp]) > [data-area] {
+    grid-area: var(--f12-area);
+  }
+}
 .f12-scene.f12-scene-pair {
   gap: var(--f-gutter-pair);
 }
@@ -475,6 +506,20 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.f12-tag-stamp {
+  font-family: var(--font-f-display);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border: 2px solid var(--f-rule);
+  background: var(--f-panel);
+  color: var(--f-ink);
+  transform: rotate(-3deg);
+  transform-origin: center;
+}
 
 .f12-badge {
   position: relative;
@@ -550,6 +595,203 @@
 }
 .f12-status-danger .f12-status-glyph {
   color: var(--f-panel);
+}
+.f12-tag-stamp.f12-status-neutral,
+.f12-tag-stamp.f12-status-info {
+  border-width: 2px;
+}
+.f12-tag-stamp.f12-status-success,
+.f12-tag-stamp.f12-status-warning,
+.f12-tag-stamp.f12-status-danger {
+  font-weight: 400;
+}
+
+/* ===================================================================== GhostWire & Receipt */
+.f12-ghost-wire {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(24px, 1fr) minmax(0, max-content);
+  align-items: center;
+  gap: var(--f-gutter-pair);
+  min-width: 0;
+  max-width: 100%;
+  color: var(--f-ink);
+  font-family: var(--font-f-mono);
+}
+.f12-ghost-wire.f12-ghost-wire-vertical,
+.f12-ghost-wire[data-orientation="vertical"] {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+}
+.f12-ghost-wire-endpoint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 10px;
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--f-ink);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.f12-ghost-wire-from {
+  border: 2px solid var(--f-rule);
+  background: var(--f-panel);
+  font-weight: 700;
+}
+.f12-ghost-wire-to {
+  border: 2px dashed var(--f-rule);
+  background: var(--f-sheet);
+  font-weight: 500;
+}
+.f12-ghost-wire-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 24px;
+  width: 100%;
+}
+.f12-ghost-wire.f12-ghost-wire-vertical .f12-ghost-wire-connector,
+.f12-ghost-wire[data-orientation="vertical"] .f12-ghost-wire-connector {
+  flex-direction: row;
+  justify-content: flex-start;
+  min-width: 0;
+  width: auto;
+  padding-inline-start: 14px;
+}
+.f12-ghost-wire-svg {
+  display: block;
+  width: 100%;
+  height: 12px;
+  overflow: visible;
+  flex-shrink: 0;
+}
+.f12-ghost-wire.f12-ghost-wire-vertical .f12-ghost-wire-svg,
+.f12-ghost-wire[data-orientation="vertical"] .f12-ghost-wire-svg {
+  width: 12px;
+  height: 28px;
+}
+.f12-ghost-wire-line {
+  stroke: var(--f-rule);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+.f12-ghost-wire-reveal {
+  stroke: #fff;
+  stroke-width: 12;
+  fill: none;
+}
+.f12-ghost-wire-label {
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--f-ink-2);
+  text-align: center;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.f12-ghost-wire.f12-ghost-wire-vertical .f12-ghost-wire-label,
+.f12-ghost-wire[data-orientation="vertical"] .f12-ghost-wire-label {
+  text-align: start;
+}
+
+.f12-receipt-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--f-gutter-pair);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+.f12-receipt-item {
+  min-width: 0;
+  max-width: 100%;
+  display: inline-flex;
+}
+.f12-receipt {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1.5px solid var(--f-rule);
+  background: var(--f-panel);
+  color: var(--f-ink);
+  font-family: var(--font-f-body);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.f12-receipt-origin {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--f-ink);
+}
+.f12-receipt-origin .f12-status-glyph {
+  margin-inline-end: 0;
+}
+.f12-receipt-value {
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--f-ink);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.f12-receipt-code {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  background: none;
+  padding: 0;
+}
+.f12-receipt-link {
+  color: var(--f-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.f12-receipt-link:hover {
+  background: var(--f-marker);
+  color: var(--f-marker-ink);
+}
+.f12-receipt-title {
+  font-family: var(--font-f-body);
+  font-size: 12px;
+  color: var(--f-ink);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.f12-receipt-date {
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  color: var(--f-ink-2);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .f12-burst {
   position: absolute;
@@ -3124,12 +3366,19 @@ dialog.f12-dialog > .f12-cut {
   .f12-scene.f12-scene-split,
   .f12-scene.f12-scene-equal,
   .f12-scene.f12-scene-three,
+  .f12-scene.f12-scene-areas:not([data-scene-bp]),
   .f12-console-filters,
   .f12-console-grid-2,
   .f12-console-kv-list,
   .f12-console-kv-list.f12-console-kpi-foot,
   .f12-settings .f12-settings-posture-panel .f12-console-kv-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .f12-scene.f12-scene-areas:not([data-scene-bp]) {
+    grid-template-areas: none;
+  }
+  .f12-scene.f12-scene-areas:not([data-scene-bp]) > [data-area] {
+    grid-area: auto;
   }
   .f12-rng-btn {
     padding: 6px 10px 5px;
@@ -3454,9 +3703,21 @@ dialog.f12-dialog > .f12-cut {
   .f12-tag,
   .f12-badge,
   .f12-alert,
-  .f12-toast {
+  .f12-toast,
+  .f12-ghost-wire-from,
+  .f12-receipt {
     border: 1px solid CanvasText;
     background-image: none;
+  }
+  .f12-ghost-wire-to {
+    border: 2px dashed CanvasText;
+  }
+  .f12-ghost-wire-line {
+    stroke: CanvasText;
+  }
+  .f12-ghost-wire-reveal {
+    forced-color-adjust: none;
+    stroke: #fff;
   }
   .f12-status-neutral,
   .f12-alert-neutral,

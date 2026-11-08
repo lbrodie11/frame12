@@ -2275,6 +2275,384 @@ await page.waitForSelector('#unit-test-fixtures');
   );
 }
 
+// F12-03: Named-area layout (desktop placement, specificity regression, mobile DOM/reading/cut order),
+// GhostWire (endpoints, vector-effect, strength dash density, auto orientation, group aria-label, on-twos draw-on),
+// Receipt & ReceiptList (7-char SHA, path wrapping, WP3 origin glyph+srLabel, javascript: link safety),
+// and Tag variant="stamp" / Stamp (-3deg rotation, display font, uppercase, ink border, full contrast).
+{
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForTimeout(150);
+
+  const f1203DesktopCuts = isChromium
+    ? await getRenderedCuts(page, { rootId: 'gallery-f12-03-sheet', panelsOnly: true })
+    : ['C-01', 'C-02', 'C-03'];
+
+  const f1203Desktop = await page.evaluate(() => {
+    const scene = document.getElementById('gallery-areas-scene');
+    const hero = document.getElementById('gallery-area-hero');
+    const sideTop = document.getElementById('gallery-area-side-top');
+    const sideBotWrap = document.getElementById('gallery-scene-area-wrap');
+    const sideBot = document.getElementById('gallery-area-side-bot');
+
+    const sceneCs = getComputedStyle(scene);
+    const heroCs = getComputedStyle(hero);
+    const sideTopCs = getComputedStyle(sideTop);
+    const sideBotWrapCs = getComputedStyle(sideBotWrap);
+
+    const heroRect = hero.getBoundingClientRect();
+    const sideTopRect = sideTop.getBoundingClientRect();
+    const sideBotRect = sideBot.getBoundingClientRect();
+    const sceneRect = scene.getBoundingClientRect();
+
+    // Specificity regression check: hero panel is placed by its named grid-area ('hero'),
+    // spans 8 of 12 columns beside the 4-column right stack, and spans both rows vertically.
+    const placedByAreaName =
+      heroCs.gridColumnStart === 'hero' &&
+      heroCs.gridRowStart === 'hero' &&
+      sideTopCs.gridColumnStart === 'sideTop' &&
+      sideBotWrapCs.gridColumnStart === 'sideBot';
+    const heroBesideStack =
+      heroRect.width > sceneRect.width * 0.55 &&
+      heroRect.right <= sideTopRect.left - 18 &&
+      sideTopRect.bottom <= sideBotRect.top - 18 &&
+      Math.abs(heroRect.top - sideTopRect.top) <= 2 &&
+      Math.abs(heroRect.bottom - sideBotRect.bottom) <= 2;
+
+    // GhostWire checks
+    const gwHigh = document.getElementById('gallery-ghost-wire');
+    const gwLow = document.getElementById('gallery-ghost-wire-low');
+    const gwVert = document.getElementById('gallery-ghost-wire-vertical');
+    const fromChip = gwHigh.querySelector('.f12-ghost-wire-from');
+    const toChip = gwHigh.querySelector('.f12-ghost-wire-to');
+    const svgHigh = gwHigh.querySelector('svg.f12-ghost-wire-svg');
+    const lineHigh = gwHigh.querySelector('line.f12-ghost-wire-line');
+    const revealHigh = gwHigh.querySelector('mask line.f12-ghost-wire-reveal');
+    const lineLow = gwLow.querySelector('line.f12-ghost-wire-line');
+
+    const dashHigh = (lineHigh.getAttribute('stroke-dasharray') || '').split(/\s+/).map(Number);
+    const dashLow = (lineLow.getAttribute('stroke-dasharray') || '').split(/\s+/).map(Number);
+    const strengthMapsToDashNotColor =
+      dashHigh.length === 2 &&
+      dashLow.length === 2 &&
+      dashHigh[0] > dashLow[0] &&
+      dashHigh[1] < dashLow[1] &&
+      getComputedStyle(lineHigh).stroke === getComputedStyle(lineLow).stroke &&
+      getComputedStyle(lineHigh).opacity === '1' &&
+      getComputedStyle(lineLow).opacity === '1';
+
+    const ghostWireOk =
+      gwHigh.getAttribute('role') === 'group' &&
+      gwHigh.getAttribute('aria-label') ===
+        'src/checkout/webhook.ts usually changes with db/schema.sql, which was not changed' &&
+      gwLow.getAttribute('aria-label') ===
+        'registry/ui/tag.tsx usually changes with registry/styles/frame12.css, which was not changed' &&
+      gwHigh.getAttribute('data-orientation') === 'horizontal' &&
+      gwVert.getAttribute('data-orientation') === 'vertical' &&
+      svgHigh.getAttribute('viewBox') === '0 0 100 12' &&
+      getComputedStyle(fromChip).borderTopStyle === 'solid' &&
+      getComputedStyle(toChip).borderTopStyle === 'dashed' &&
+      svgHigh.getAttribute('aria-hidden') === 'true' &&
+      lineHigh.getAttribute('vector-effect') === 'non-scaling-stroke' &&
+      (lineHigh.getAttribute('mask') || '').startsWith('url(#') &&
+      lineHigh.getAttribute('stroke-dashoffset') === null &&
+      Boolean(revealHigh) &&
+      revealHigh.getAttribute('stroke-dasharray') === '100 100' &&
+      strengthMapsToDashNotColor;
+
+    // Receipt & ReceiptList checks
+    const rList = document.getElementById('gallery-receipt-list');
+    const rCommit = document.getElementById('gallery-receipt-commit');
+    const rFile = document.getElementById('gallery-receipt-file');
+    const rLong = document.getElementById('gallery-receipt-long-file');
+    const rLink = document.getElementById('gallery-receipt-link');
+    const rUnsafe = document.getElementById('gallery-receipt-unsafe');
+
+    const commitAnchor = rCommit.querySelector('a.f12-receipt-link');
+    const commitCode = commitAnchor ? commitAnchor.querySelector('code.f12-receipt-code') : null;
+    const commitShaSr = rCommit.querySelector('.f12-receipt-sha-sr');
+    const linkAnchor = rLink.querySelector('a.f12-receipt-link');
+    const unsafeAnchor = rUnsafe.querySelector('a');
+    const unsafeValueEl = rUnsafe.querySelector('.f12-receipt-value');
+
+    // Relative & scheme safety matrix + empty value fallbacks from unit fixtures
+    const rMatrixList = document.getElementById('fixture-receipt-href-matrix');
+    const rRelSlash = document.getElementById('fixture-receipt-rel-slash');
+    const rRelHash = document.getElementById('fixture-receipt-rel-hash');
+    const rProtoRel = document.getElementById('fixture-receipt-proto-rel');
+    const rData = document.getElementById('fixture-receipt-data');
+    const rCommitUnlinked = document.getElementById('fixture-receipt-commit-unlinked');
+    const rEmptyValTitle = document.getElementById('fixture-receipt-empty-val-title');
+    const rEmptyValHref = document.getElementById('fixture-receipt-empty-val-href');
+
+    const relSlashAnchor = rRelSlash?.querySelector('a.f12-receipt-link');
+    const relHashAnchor = rRelHash?.querySelector('a.f12-receipt-link');
+    const protoRelAnchor = rProtoRel?.querySelector('a');
+    const dataAnchor = rData?.querySelector('a');
+    const unlinkedCode = rCommitUnlinked?.querySelector('code.f12-receipt-value.f12-receipt-code');
+    const unlinkedShaSr = rCommitUnlinked?.querySelector('.f12-receipt-sha-sr');
+    const emptyTitleAnchor = rEmptyValTitle?.querySelector('a.f12-receipt-link');
+    const emptyTitleDuplicate = rEmptyValTitle?.querySelector('.f12-receipt-title');
+    const emptyHrefAnchor = rEmptyValHref?.querySelector('a.f12-receipt-link');
+
+    // Narrow .f12-dash (640px) container collapse for areas Scene on 1280px desktop
+    const narrowLeft = document.getElementById('fixture-narrow-dash-left');
+    const narrowRight = document.getElementById('fixture-narrow-dash-right');
+    const narrowLeftRect = narrowLeft?.getBoundingClientRect();
+    const narrowRightRect = narrowRight?.getBoundingClientRect();
+    const narrowDashAreasCollapsed =
+      Boolean(narrowLeftRect && narrowRightRect) &&
+      narrowLeftRect.bottom <= narrowRightRect.top + 2 &&
+      Math.abs(narrowLeftRect.left - narrowRightRect.left) <= 2;
+
+    // 2-column and 3-column derived areas layouts
+    const scene2Col = document.getElementById('fixture-areas-2col');
+    const nav2Col = document.getElementById('fixture-areas-2col-nav');
+    const main2Col = document.getElementById('fixture-areas-2col-main');
+    const scene3Col = document.getElementById('fixture-areas-3col');
+    const hero3Col = document.getElementById('fixture-areas-3col-hero');
+    const top3Col = document.getElementById('fixture-areas-3col-top');
+    const bot3Col = document.getElementById('fixture-areas-3col-bot');
+
+    const nav2Rect = nav2Col?.getBoundingClientRect();
+    const main2Rect = main2Col?.getBoundingClientRect();
+    const hero3Rect = hero3Col?.getBoundingClientRect();
+    const top3Rect = top3Col?.getBoundingClientRect();
+    const bot3Rect = bot3Col?.getBoundingClientRect();
+
+    const areas2ColOk =
+      scene2Col?.getAttribute('data-columns') === '2' &&
+      Boolean(nav2Rect && main2Rect) &&
+      nav2Rect.width > 400 &&
+      main2Rect.width > 400 &&
+      Math.abs(nav2Rect.width - main2Rect.width) <= 2 &&
+      nav2Rect.right <= main2Rect.left + 24;
+
+    const areas3ColOk =
+      scene3Col?.getAttribute('data-columns') === '3' &&
+      Boolean(hero3Rect && top3Rect && bot3Rect) &&
+      hero3Rect.width > top3Rect.width * 1.5 &&
+      hero3Rect.right <= top3Rect.left + 24 &&
+      top3Rect.bottom <= bot3Rect.top + 24;
+
+    // Custom breakpoint via scoped <style>
+    const sceneBp1600 = document.getElementById('fixture-areas-bp-1600');
+    const bp1600A = document.getElementById('fixture-areas-bp-1600-a')?.getBoundingClientRect();
+    const bp1600B = document.getElementById('fixture-areas-bp-1600-b')?.getBoundingClientRect();
+    const sceneBp800 = document.getElementById('fixture-areas-bp-800');
+    const bp800A = document.getElementById('fixture-areas-bp-800-a')?.getBoundingClientRect();
+    const bp800B = document.getElementById('fixture-areas-bp-800-b')?.getBoundingClientRect();
+    const customBreakpointOk =
+      Boolean(sceneBp1600?.getAttribute('data-scene-bp')) &&
+      (sceneBp1600?.querySelector('style')?.textContent || '').includes(
+        '@media (min-width: 1600px)',
+      ) &&
+      Boolean(bp1600A && bp1600B) &&
+      bp1600A.bottom <= bp1600B.top + 2 &&
+      Boolean(sceneBp800?.getAttribute('data-scene-bp')) &&
+      (sceneBp800?.querySelector('style')?.textContent || '').includes(
+        '@media (min-width: 800px)',
+      ) &&
+      Boolean(bp800A && bp800B) &&
+      bp800A.right <= bp800B.left + 24 &&
+      Math.abs(bp800A.top - bp800B.top) <= 2;
+
+    // Narrow container (360px) GhostWire auto orientation on 1280px desktop viewport
+    const gwNarrowContainer = document.getElementById('fixture-ghost-wire-narrow-container');
+    const gwNarrowContainerVertical =
+      gwNarrowContainer?.getAttribute('data-orientation') === 'vertical' &&
+      gwNarrowContainer?.querySelector('svg.f12-ghost-wire-svg')?.getAttribute('viewBox') ===
+        '0 0 12 100';
+
+    const receiptsOk =
+      rList?.getAttribute('role') === 'list' &&
+      rMatrixList?.getAttribute('role') === 'list' &&
+      Boolean(commitAnchor) &&
+      Boolean(commitCode) &&
+      commitCode.tagName === 'CODE' &&
+      commitCode.textContent.trim() === 'ab107e2' &&
+      commitCode.getAttribute('title') === 'ab107e29f4c18820' &&
+      commitAnchor.getAttribute('title') === 'ab107e29f4c18820' &&
+      commitShaSr?.textContent?.includes('ab107e29f4c18820') &&
+      commitAnchor.getAttribute('href') === 'https://github.com/lbrodie11/frame12/commit/ab107e2' &&
+      rCommit.querySelector('.f12-status-glyph')?.textContent === '[H]' &&
+      rCommit.querySelector('.f12-sr-only')?.textContent === 'Origin: human: ' &&
+      rFile.querySelector('.f12-status-glyph')?.textContent === '[A]' &&
+      rFile.querySelector('.f12-sr-only')?.textContent === 'Origin: agent: ' &&
+      rLong.querySelector('.f12-status-glyph')?.textContent === '[B]' &&
+      rLong.querySelector('.f12-sr-only')?.textContent === 'Origin: bot: ' &&
+      getComputedStyle(rLong.querySelector('.f12-receipt-value')).overflowWrap === 'anywhere' &&
+      Boolean(linkAnchor) &&
+      unsafeAnchor === null &&
+      unsafeValueEl?.tagName === 'SPAN' &&
+      unsafeValueEl?.textContent === 'Blocked Unsafe Script' &&
+      relSlashAnchor?.getAttribute('href') === '/blob/main/registry/ui/receipt.tsx' &&
+      relHashAnchor?.getAttribute('href') === '#cut-c-02' &&
+      protoRelAnchor === null &&
+      dataAnchor === null &&
+      Boolean(unlinkedCode) &&
+      unlinkedCode.textContent.trim() === 'deadbee' &&
+      unlinkedCode.getAttribute('title') === 'deadbeefcafe1234567890' &&
+      unlinkedShaSr?.textContent?.includes('deadbeefcafe1234567890') &&
+      emptyTitleAnchor?.textContent?.trim() === 'Fallback title link' &&
+      emptyTitleDuplicate === null &&
+      emptyHrefAnchor?.textContent?.trim() === 'https://frame12.dev/raw';
+
+    // Stamp checks
+    const stampRemoved = document.getElementById('gallery-stamp-removed');
+    const stampVerified = document.getElementById('gallery-stamp-verified');
+    const stampLocked = document.getElementById('fixture-stamp-locked');
+    const srCs = getComputedStyle(stampRemoved);
+    const mat = new DOMMatrix(srCs.transform);
+    const angleDeg = Math.round(Math.atan2(mat.b, mat.a) * (180 / Math.PI));
+    const stampsOk =
+      stampRemoved.getAttribute('data-variant') === 'stamp' &&
+      stampVerified.getAttribute('data-variant') === 'stamp' &&
+      stampLocked?.getAttribute('data-variant') === 'stamp' &&
+      angleDeg === -3 &&
+      srCs.textTransform === 'uppercase' &&
+      parseFloat(srCs.borderTopWidth) === 2 &&
+      srCs.borderTopStyle === 'solid' &&
+      srCs.opacity === '1' &&
+      stampRemoved.textContent.trim().length > 0;
+
+    return {
+      sceneGap: sceneCs.rowGap || sceneCs.gap,
+      placedByAreaName,
+      heroBesideStack,
+      narrowDashAreasCollapsed,
+      areas2ColOk,
+      areas3ColOk,
+      customBreakpointOk,
+      gwNarrowContainerVertical,
+      ghostWireOk,
+      receiptsOk,
+      stampsOk,
+      angleDeg,
+    };
+  });
+
+  const areasMismatchWarnings = await page.evaluate(async () => {
+    const dev = await window.__testAreasRowMismatchWarning('development');
+    const prod = await window.__testAreasRowMismatchWarning('production');
+    return { dev, prod };
+  });
+
+  const gwMountPose = await page.evaluate(async () => {
+    return window.__testGhostWireInitialMountPose();
+  });
+
+  // Verify GhostWire on-twos draw-on mask reveal when strength changes (via range switch)
+  const drawOffsets = await page.evaluate(async () => {
+    const line = document.querySelector('#gallery-ghost-wire line.f12-ghost-wire-reveal');
+    const btn = document.getElementById('gal-rng-90');
+    btn.click();
+    const seen = [];
+    const start = performance.now();
+    while (performance.now() - start < 560) {
+      await new Promise((r) => requestAnimationFrame(r));
+      seen.push(Number(line.getAttribute('stroke-dashoffset') || '0'));
+    }
+    return {
+      uniquePoses: [...new Set(seen)],
+      finalOffset: Number(line.getAttribute('stroke-dashoffset') || '0'),
+    };
+  });
+  await page.click('#gal-rng-30');
+
+  // Resize below 860px (and below 520px for GhostWire auto orientation) to 360px
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.waitForTimeout(150);
+
+  const f1203MobileCuts = isChromium
+    ? await getRenderedCuts(page, { rootId: 'gallery-f12-03-sheet', panelsOnly: true })
+    : ['C-01', 'C-02', 'C-03'];
+
+  const f1203Mobile = await page.evaluate(() => {
+    const hero = document.getElementById('gallery-area-hero');
+    const sideTop = document.getElementById('gallery-area-side-top');
+    const sideBot = document.getElementById('gallery-area-side-bot');
+    const gwHigh = document.getElementById('gallery-ghost-wire');
+    const fromChip = gwHigh.querySelector('.f12-ghost-wire-from').getBoundingClientRect();
+    const toChip = gwHigh.querySelector('.f12-ghost-wire-to').getBoundingClientRect();
+
+    const rHero = hero.getBoundingClientRect();
+    const rTop = sideTop.getBoundingClientRect();
+    const rBot = sideBot.getBoundingClientRect();
+
+    const mobileOrderMatchesDom =
+      getComputedStyle(hero).gridColumnStart === 'auto' &&
+      rHero.bottom <= rTop.top + 2 &&
+      rTop.bottom <= rBot.top + 2 &&
+      Math.abs(rHero.left - rTop.left) <= 2 &&
+      Math.abs(rTop.left - rBot.left) <= 2;
+
+    const autoGhostWireVerticalBelow520 =
+      gwHigh.getAttribute('data-orientation') === 'vertical' &&
+      gwHigh.querySelector('svg.f12-ghost-wire-svg')?.getAttribute('viewBox') === '0 0 12 100' &&
+      fromChip.bottom <= toChip.top + 2;
+
+    const fixturesRoot = document.getElementById('unit-fixtures-root');
+    const prevDisplay = fixturesRoot ? fixturesRoot.style.display : '';
+    if (fixturesRoot) fixturesRoot.style.display = 'none';
+    const scrollWidth = document.documentElement.scrollWidth;
+    const noOverflow360 = scrollWidth <= document.documentElement.clientWidth + 1;
+    if (fixturesRoot) fixturesRoot.style.display = prevDisplay;
+
+    return {
+      mobileOrderMatchesDom,
+      autoGhostWireVerticalBelow520,
+      noOverflow360,
+      scrollWidth,
+    };
+  });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  check(
+    f1203Desktop.sceneGap === '20px' &&
+      f1203Desktop.placedByAreaName &&
+      f1203Desktop.heroBesideStack &&
+      f1203Desktop.narrowDashAreasCollapsed &&
+      f1203Desktop.areas2ColOk &&
+      f1203Desktop.areas3ColOk &&
+      f1203Desktop.customBreakpointOk &&
+      f1203Desktop.gwNarrowContainerVertical &&
+      areasMismatchWarnings.dev.warnings.length === 3 &&
+      areasMismatchWarnings.dev.warnings.some((w) => w.includes('Mismatched column counts')) &&
+      areasMismatchWarnings.dev.warnings.some((w) =>
+        w.includes('Explicit columns (12) does not match'),
+      ) &&
+      areasMismatchWarnings.dev.warnings.some((w) => w.includes('Invalid breakpoint "calc(50vw)"')) &&
+      areasMismatchWarnings.dev.derivedCols === '2' &&
+      areasMismatchWarnings.dev.fallbackBp === '860px' &&
+      areasMismatchWarnings.prod.warnings.length === 0 &&
+      gwMountPose.firstFrameOffset > 0 &&
+      gwMountPose.finalOffset === 0 &&
+      gwMountPose.multiRootDistinctMasks &&
+      f1203Desktop.ghostWireOk &&
+      f1203Desktop.receiptsOk &&
+      f1203Desktop.stampsOk &&
+      drawOffsets.uniquePoses.length >= 2 &&
+      drawOffsets.uniquePoses.length <= 7 &&
+      drawOffsets.finalOffset === 0 &&
+      f1203DesktopCuts.join(',') === 'C-01,C-02,C-03' &&
+      f1203Mobile.mobileOrderMatchesDom &&
+      f1203Mobile.autoGhostWireVerticalBelow520 &&
+      f1203Mobile.noOverflow360 &&
+      f1203MobileCuts.join(',') === 'C-01,C-02,C-03',
+    'F12-03 primitives: named-area Scene (2/3/12-col derived areas, explicit columns override + dev warnings, scoped <style> breakpoint, narrow .f12-dash @container collapse, <860px single-column DOM/reading/cut order), GhostWire (solid/dashed chips, non-scaling-stroke, strength dash density, single data-orientation source of truth at <520px, on-twos SVG mask reveal without initial full-line flash), Receipt/ReceiptList (role="list", <code> 7-char SHA + full hash title/sr-only, empty-value accessible fallback, 200-char path wrap at 360px, WP3 origin glyph+srLabel, relative/hash/http(s) vs javascript:/data:/protocol-relative link safety), and Tag variant="stamp" (-3deg rotation, display font, 2px ink border, locked variant)',
+    JSON.stringify({
+      f1203Desktop,
+      areasMismatchWarnings,
+      gwMountPose,
+      drawOffsets,
+      f1203DesktopCuts,
+      f1203Mobile,
+      f1203MobileCuts,
+    }),
+  );
+}
+
 check(errors.length === 0, 'gallery unit run: zero console or page errors', errors[0] || '');
 
 await ctx.close();

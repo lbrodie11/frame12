@@ -189,6 +189,20 @@ for (const scheme of ['light', 'dark']) {
   await ctx.close();
 }
 
+// Mobile (390px) light & dark axe, contrast, and overflow check across all primitives (including F12-03)
+for (const scheme of ['light', 'dark']) {
+  const { ctx, page, errors } = await openGallery(browser, { w: 390, h: 844, scheme });
+  const c = await page.evaluate(CONTRAST);
+  const axeMobile = await new AxeBuilder({ page }).analyze();
+  const sw = await page.evaluate(() => document.documentElement.scrollWidth);
+  check(
+    c.length === 0 && axeMobile.violations.length === 0 && sw <= 390 && errors.length === 0,
+    `gallery ${scheme} (390px mobile): WCAG AA contrast, @axe-core/playwright zero violations, and zero horizontal overflow`,
+    `scrollWidth=${sw} axe=${axeMobile.violations.map((v) => v.id).join(',')} contrast=${c.slice(0, 2).join('; ')}`,
+  );
+  await ctx.close();
+}
+
 // Forced-colors (Windows High Contrast) mode check
 {
   const { ctx, page, errors } = await openGallery(browser, { scheme: 'light' });
@@ -244,18 +258,38 @@ for (const scheme of ['light', 'dark']) {
   await ctx.close();
 }
 
-// Reduced motion check
+// Reduced motion check: changes land instantly AND zero animation frames run
 {
-  const { ctx, page } = await openGallery(browser, { reduced: 'reduce' });
+  const rmCtx = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    colorScheme: 'light',
+    reducedMotion: 'reduce',
+  });
+  await rmCtx.addInitScript(() => {
+    window.__f12RafCount = 0;
+    const origRaf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (cb) => {
+      window.__f12RafCount += 1;
+      return origRaf(cb);
+    };
+  });
+  const page = await rmCtx.newPage();
+  await page.goto(new URL('../dist/gallery.html', import.meta.url).href, { waitUntil: 'load' });
+  await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
   await page.click('#mo-stepped');
   const r = await page.evaluate(async () => {
+    window.__f12RafCount = 0;
     document.querySelector('#gal-rng-90').click();
-    await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+    await new Promise((res) => setTimeout(res, 120));
+    const rafCallsOnInteraction = window.__f12RafCount;
     const clip = document.querySelector('.f12-dash clipPath rect');
     const svg = clip.closest('svg');
     const btn = document.querySelector('#gal-rng-90');
     const ind = btn.closest('.f12-rng').querySelector('.f12-rng-ind');
+    const gwLine = document.querySelector('#gallery-ghost-wire line.f12-ghost-wire-line');
     return {
+      rafCallsOnInteraction,
+      gwOffset: Number(gwLine?.getAttribute('stroke-dashoffset') || '0'),
       chart: +clip.getAttribute('width') >= +svg.getAttribute('width') - 20,
       marker:
         Math.abs(
@@ -263,8 +297,12 @@ for (const scheme of ['light', 'dark']) {
         ) < 1,
     };
   });
-  check(r.chart && r.marker, 'registry reduced motion: changes land instantly');
-  await ctx.close();
+  check(
+    r.chart && r.marker && r.rafCallsOnInteraction === 0 && r.gwOffset === 0,
+    'registry reduced motion: changes land instantly and zero requestAnimationFrame callbacks run',
+    JSON.stringify(r),
+  );
+  await rmCtx.close();
 }
 
 await browser.close();

@@ -34,6 +34,9 @@ import {
   ToneBarList,
   ToneSpark,
   Balloon,
+  GhostWire,
+  Receipt,
+  ReceiptList,
   Dialog,
   DialogTrigger,
   DialogContent,
@@ -419,7 +422,10 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
             <div className="f12-row-pair">
               <Tag>Example data</Tag>
               <Tag>Production · US-East</Tag>
-              <Tag>12fps · On Twos</Tag>
+              <Tag variant="stamp">removed</Tag>
+              <Tag variant="stamp" status="info">
+                bot
+              </Tag>
             </div>
           </div>
         );
@@ -638,6 +644,55 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
                 Holdout cohort +0.51 pp
               </Balloon>
             </div>
+          </div>
+        );
+
+      case 'ghost-wire':
+        return (
+          <div className="f12-preview-sheet">
+            <div className="f12-stack-pair">
+              <GhostWire
+                from="src/db/queries/orders.ts"
+                to="db/schema.sql"
+                label="src/db/queries/orders.ts usually changes with db/schema.sql, which was not changed"
+                strength={0.85}
+                motion={motion}
+              />
+              <GhostWire
+                from="registry/ui/tag.tsx"
+                to="registry/styles/frame12.css"
+                label="registry/ui/tag.tsx co-changes with registry/styles/frame12.css"
+                strength={0.35}
+                motion={motion}
+              />
+            </div>
+          </div>
+        );
+
+      case 'receipt':
+        return (
+          <div className="f12-preview-sheet">
+            <ReceiptList ariaLabel={`Evidence receipts (${previewTheme})`}>
+              <Receipt
+                kind="commit"
+                value="ab107e29f4c1"
+                href="https://github.com/lbrodie11/frame12/commit/ab107e2"
+                title="feat: add page primitives"
+                date="2026-11-08"
+                origin="human"
+              />
+              <Receipt
+                kind="file"
+                value="registry/ui/ghost-wire.tsx"
+                origin="agent"
+              />
+              <Receipt
+                kind="link"
+                value="CI Audit Run R-412"
+                href="https://github.com/lbrodie11/frame12/actions"
+                origin="bot"
+              />
+            </ReceiptList>
           </div>
         );
 

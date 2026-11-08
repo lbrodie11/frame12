@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useSize } from '@/hooks/use-on-twos';
+import { resolveAreaProps } from './scene';
 
 // Bundlers (Next.js, webpack, Vite) statically replace `process.env.NODE_ENV`. Declared locally so
 // consumers without @types/node (e.g. Vite's react-ts template) still type-check this file.
@@ -15,6 +16,7 @@ export interface PanelProps extends React.HTMLAttributes<HTMLElement> {
   shape?: PanelShape;
   variant?: PanelVariant;
   label?: string;
+  area?: string;
   children?: React.ReactNode;
 }
 
@@ -34,7 +36,7 @@ export function usePanelVariantContext(): PanelVariant | undefined {
 }
 
 export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
-  { cut, shape = 'rect', variant, className = '', label, children, ...rest },
+  { cut, shape = 'rect', variant, className = '', label, area, style, children, ...rest },
   forwardedRef,
 ) {
   const inheritedVariant = React.useContext(PanelVariantContext);
@@ -89,13 +91,16 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
         : '0.35,0.35 99.65,0.35 99.65,99.65 0.35,99.65';
 
   const variantClass = isQuiet ? ' f12-panel-quiet' : '';
+  const areaProps = resolveAreaProps(area, style);
 
   return (
     <section
       ref={setRefs}
       className={`f12-panel f12-${shape}${variantClass}${className ? ` ${className}` : ''}`}
       data-variant={isQuiet ? 'quiet' : undefined}
+      data-area={areaProps['data-area']}
       aria-label={label}
+      style={areaProps.style}
       {...rest}
     >
       {showSvgFrame &&

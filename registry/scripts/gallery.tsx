@@ -4,6 +4,7 @@ import { type MotionMode, useChanged, useOnTwos, useCountUp } from '@/hooks/use-
 import {
   Sheet,
   Scene,
+  SceneArea,
   Panel,
   PanelPair,
   SegmentedControl,
@@ -21,6 +22,7 @@ import {
   TabsContent,
   Badge,
   Tag,
+  Stamp,
   Alert,
   Notice,
   AlertTitle,
@@ -58,6 +60,9 @@ import {
   buildPaginationRange,
   Metric,
   Balloon,
+  GhostWire,
+  Receipt,
+  ReceiptList,
   ToneAreaChart,
   ToneBarList,
   ToneSpark,
@@ -649,6 +654,116 @@ export function GalleryApp() {
             setLastAction={setLastAction}
             summary={summary}
           />
+        </Scene>
+      </Sheet>
+
+      <Sheet autoCut pegs motion={motion} theme={theme} id="gallery-f12-03-sheet">
+        <Scene
+          id="gallery-areas-scene"
+          gutter="scene"
+          areas={[
+            'hero hero hero hero hero hero hero hero sideTop sideTop sideTop sideTop',
+            'hero hero hero hero hero hero hero hero sideBot sideBot sideBot sideBot',
+          ]}
+        >
+          <Panel
+            id="gallery-area-hero"
+            area="hero"
+            label="Co-change GhostWire and evidence receipts"
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <GhostWire
+                id="gallery-ghost-wire"
+                from="src/checkout/webhook.ts"
+                to="db/schema.sql"
+                label="src/checkout/webhook.ts usually changes with db/schema.sql, which was not changed"
+                strength={range === 7 ? 0.85 : range === 30 ? 0.55 : 0.25}
+                motion={motion}
+              />
+              <GhostWire
+                id="gallery-ghost-wire-low"
+                from="registry/ui/tag.tsx"
+                to="registry/styles/frame12.css"
+                strength={0.2}
+                orientation="horizontal"
+                motion={motion}
+              />
+              <GhostWire
+                id="gallery-ghost-wire-vertical"
+                from="scripts/check-frame12.mjs"
+                to="skills/frame12/SKILL.md"
+                label="scripts/check-frame12.mjs co-changes with skills/frame12/SKILL.md"
+                strength={0.9}
+                orientation="vertical"
+                motion={motion}
+              />
+              <ReceiptList id="gallery-receipt-list" ariaLabel="Verification receipts">
+                <Receipt
+                  id="gallery-receipt-commit"
+                  kind="commit"
+                  value="ab107e29f4c18820"
+                  href="https://github.com/lbrodie11/frame12/commit/ab107e2"
+                  title="feat: add page primitives"
+                  date="2026-11-08"
+                  origin="human"
+                />
+                <Receipt
+                  id="gallery-receipt-file"
+                  kind="file"
+                  value="registry/ui/ghost-wire.tsx"
+                  origin="agent"
+                />
+                <Receipt
+                  id="gallery-receipt-long-file"
+                  kind="file"
+                  value={
+                    'packages/ledger/src/reconciliation/adapters/production/' +
+                    'a'.repeat(150) +
+                    '.ts'
+                  }
+                  origin="bot"
+                />
+                <Receipt
+                  id="gallery-receipt-link"
+                  kind="link"
+                  value="Audit Report R-412"
+                  href="https://github.com/lbrodie11/frame12/actions"
+                  origin="bot"
+                />
+                <Receipt
+                  id="gallery-receipt-unsafe"
+                  kind="link"
+                  value="Blocked Unsafe Script"
+                  href="javascript:alert(1)"
+                  title="Plain text fallback"
+                />
+              </ReceiptList>
+            </div>
+          </Panel>
+          <Panel id="gallery-area-side-top" area="sideTop" label="Ink stamps showcase">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+              <Tag id="gallery-stamp-removed" variant="stamp">
+                removed
+              </Tag>
+              <Tag id="gallery-stamp-bot" variant="stamp" status="info">
+                bot
+              </Tag>
+              <Tag id="gallery-stamp-danger" variant="stamp" status="danger">
+                rejected
+              </Tag>
+              <Stamp id="gallery-stamp-verified" status="success">
+                verified
+              </Stamp>
+            </div>
+          </Panel>
+          <SceneArea id="gallery-scene-area-wrap" area="sideBot">
+            <Panel id="gallery-area-side-bot" label="Named-area companion panel">
+              <p style={{ margin: 0 }}>
+                Tall hero panel spans two rows beside two stacked panels at &gt;= 860px and
+                collapses to single-column DOM order below 860px.
+              </p>
+            </Panel>
+          </SceneArea>
         </Scene>
       </Sheet>
     </main>
@@ -2428,9 +2543,129 @@ function Wp5UnitFixtures() {
               data-link-page={String(linkPage)}
               data-link-calls={String(linkPageCalls)}
             />
+
+            {/* 7. F12-03 unit fixtures: relative Receipt hrefs, narrow container GhostWire */}
+            <div style={{ width: '360px', maxWidth: '100%' }}>
+              <GhostWire
+                id="fixture-ghost-wire-narrow-container"
+                from="src/api/routes.ts"
+                to="src/api/schema.ts"
+                orientation="auto"
+              />
+            </div>
+            <ReceiptList id="fixture-receipt-href-matrix" ariaLabel="Receipt href safety matrix">
+              <Receipt
+                id="fixture-receipt-rel-slash"
+                kind="file"
+                value="src/ui/receipt.tsx"
+                href="/blob/main/registry/ui/receipt.tsx"
+              />
+              <Receipt
+                id="fixture-receipt-rel-hash"
+                kind="link"
+                value="Jump to Cut C-02"
+                href="#cut-c-02"
+              />
+              <Receipt
+                id="fixture-receipt-proto-rel"
+                kind="link"
+                value="Protocol-relative blocked"
+                href="//evil.example/payload"
+              />
+              <Receipt
+                id="fixture-receipt-data"
+                kind="link"
+                value="Data URI blocked"
+                href="data:text/html,<script>alert(1)</script>"
+              />
+              <Receipt
+                id="fixture-receipt-commit-unlinked"
+                kind="commit"
+                value="deadbeefcafe1234567890"
+              />
+              <Receipt
+                id="fixture-receipt-empty-val-title"
+                kind="link"
+                value=""
+                href="https://frame12.dev/audit"
+                title="Fallback title link"
+              />
+              <Receipt
+                id="fixture-receipt-empty-val-href"
+                kind="link"
+                value=""
+                href="https://frame12.dev/raw"
+              />
+            </ReceiptList>
+            <div>
+              <Stamp
+                id="fixture-stamp-locked"
+                {...({ variant: undefined } as unknown as Record<string, unknown>)}
+              >
+                locked
+              </Stamp>
+            </div>
           </div>
         </Panel>
       </Scene>
+      <div style={{ width: '640px', maxWidth: '100%' }}>
+        <Sheet pegs={false} id="fixture-narrow-dash-sheet">
+          <Scene id="fixture-narrow-dash-areas" gutter="scene" areas={['left right']}>
+            <Panel id="fixture-narrow-dash-left" area="left" cut={false} label="Narrow dash left">
+              Left
+            </Panel>
+            <Panel
+              id="fixture-narrow-dash-right"
+              area="right"
+              cut={false}
+              label="Narrow dash right"
+            >
+              Right
+            </Panel>
+          </Scene>
+        </Sheet>
+      </div>
+      <div style={{ width: '1000px', maxWidth: '100%' }}>
+        <Scene id="fixture-areas-2col" gutter="scene" areas={['nav main']}>
+          <Panel id="fixture-areas-2col-nav" area="nav" cut={false} label="2-col nav">
+            Nav
+          </Panel>
+          <Panel id="fixture-areas-2col-main" area="main" cut={false} label="2-col main">
+            Main
+          </Panel>
+        </Scene>
+        <Scene
+          id="fixture-areas-3col"
+          gutter="scene"
+          areas={['hero hero sideTop', 'hero hero sideBot']}
+        >
+          <Panel id="fixture-areas-3col-hero" area="hero" cut={false} label="3-col hero">
+            Hero (2 of 3 cols)
+          </Panel>
+          <Panel id="fixture-areas-3col-top" area="sideTop" cut={false} label="3-col side top">
+            Side top (1 of 3 cols)
+          </Panel>
+          <Panel id="fixture-areas-3col-bot" area="sideBot" cut={false} label="3-col side bot">
+            Side bot (1 of 3 cols)
+          </Panel>
+        </Scene>
+        <Scene id="fixture-areas-bp-1600" gutter="scene" breakpoint={1600} areas={['a b']}>
+          <Panel id="fixture-areas-bp-1600-a" area="a" cut={false} label="BP 1600 A">
+            A
+          </Panel>
+          <Panel id="fixture-areas-bp-1600-b" area="b" cut={false} label="BP 1600 B">
+            B
+          </Panel>
+        </Scene>
+        <Scene id="fixture-areas-bp-800" gutter="scene" breakpoint="800px" areas={['a b']}>
+          <Panel id="fixture-areas-bp-800-a" area="a" cut={false} label="BP 800 A">
+            A
+          </Panel>
+          <Panel id="fixture-areas-bp-800-b" area="b" cut={false} label="BP 800 B">
+            B
+          </Panel>
+        </Scene>
+      </div>
     </Sheet>
   );
 }
@@ -2503,6 +2738,107 @@ if (rootEl) {
       host.remove();
       console.warn = origWarn;
       win.__F12_NODE_ENV__ = prevEnv;
+    }
+  };
+  (
+    window as unknown as {
+      __testAreasRowMismatchWarning?: (
+        envMode: 'development' | 'production',
+      ) => Promise<{ warnings: string[]; derivedCols: string | null }>;
+    }
+  ).__testAreasRowMismatchWarning = async (envMode: 'development' | 'production') => {
+    const win = window as unknown as { __F12_NODE_ENV__?: string };
+    const prevEnv = win.__F12_NODE_ENV__;
+    win.__F12_NODE_ENV__ = envMode;
+    const warnings: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(String).join(' '));
+    };
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = RD.createRoot(host);
+    try {
+      function MismatchFixture({ tick }: { tick: number }) {
+        return (
+          <div>
+            <Scene areas={['nav main', 'left center right']} data-tick={tick}>
+              <Panel area="nav" cut={false} label="Nav">
+                Nav
+              </Panel>
+            </Scene>
+            <Scene
+              id="fixture-cols-mismatch-scene"
+              columns={12}
+              breakpoint="calc(50vw)"
+              areas={['nav main']}
+              data-tick={tick}
+            >
+              <Panel area="nav" cut={false} label="Nav">
+                Nav
+              </Panel>
+              <Panel area="main" cut={false} label="Main">
+                Main
+              </Panel>
+            </Scene>
+          </div>
+        );
+      }
+      root.render(<MismatchFixture tick={1} />);
+      await new Promise((r) => setTimeout(r, 40));
+      root.render(<MismatchFixture tick={2} />);
+      await new Promise((r) => setTimeout(r, 40));
+      const sceneEl = host.querySelector('#fixture-cols-mismatch-scene');
+      const derivedCols = sceneEl?.getAttribute('data-columns') ?? null;
+      const fallbackBp = sceneEl?.getAttribute('data-breakpoint') ?? null;
+      return { warnings, derivedCols, fallbackBp };
+    } finally {
+      root.unmount?.();
+      host.remove();
+      console.warn = origWarn;
+      win.__F12_NODE_ENV__ = prevEnv;
+    }
+  };
+  (
+    window as unknown as {
+      __testGhostWireInitialMountPose?: () => Promise<{
+        firstFrameOffset: number;
+        finalOffset: number;
+        multiRootDistinctMasks: boolean;
+      }>;
+    }
+  ).__testGhostWireInitialMountPose = async () => {
+    const hostA = document.createElement('div');
+    const hostB = document.createElement('div');
+    document.body.appendChild(hostA);
+    document.body.appendChild(hostB);
+    const rootA = RD.createRoot(hostA);
+    const rootB = RD.createRoot(hostB);
+    try {
+      rootA.render(
+        <Sheet pegs={false} motion="stepped">
+          <GhostWire id="fixture-gw-mount" from="src/a.ts" to="src/b.ts" />
+        </Sheet>,
+      );
+      rootB.render(
+        <Sheet pegs={false} motion="stepped">
+          <GhostWire id="fixture-gw-mount" from="src/a.ts" to="src/b.ts" />
+        </Sheet>,
+      );
+      await new Promise((r) => requestAnimationFrame(r));
+      const revealLine = hostA.querySelector('#fixture-gw-mount line.f12-ghost-wire-reveal');
+      const firstFrameOffset = Number(revealLine?.getAttribute('stroke-dashoffset') ?? '0');
+      const maskA = hostA.querySelector('mask')?.getAttribute('id') ?? '';
+      const maskB = hostB.querySelector('mask')?.getAttribute('id') ?? '';
+      const multiRootDistinctMasks = Boolean(maskA && maskB && maskA !== maskB);
+      await new Promise((r) => setTimeout(r, 480));
+      const finalOffset = Number(revealLine?.getAttribute('stroke-dashoffset') ?? '-1');
+      return { firstFrameOffset, finalOffset, multiRootDistinctMasks };
+    } finally {
+      rootA.unmount?.();
+      rootB.unmount?.();
+      hostA.remove();
+      hostB.remove();
     }
   };
 }

@@ -160,21 +160,46 @@ const RAW_CATALOG: CatalogEntry[] = [
       },
       {
         "name": "layout",
-        "type": "'split' | 'stack' | 'equal' | 'three'",
+        "type": "'split' | 'stack' | 'equal' | 'three' | 'areas'",
         "defaultValue": "'split'",
-        "description": "Grid column template: 2fr/1fr (split), 1fr (stack), 1fr/1fr (equal), or 3-col (three)."
+        "description": "Grid column template: 2fr/1fr (split), 1fr (stack), 1fr/1fr (equal), 3-col (three), or named CSS grid areas (areas)."
+      },
+      {
+        "name": "areas",
+        "type": "string[]",
+        "defaultValue": "undefined",
+        "description": "CSS grid-template-areas row strings over a multi-column grid (activated at or above breakpoint)."
+      },
+      {
+        "name": "columns",
+        "type": "number",
+        "defaultValue": "12 (or derived from first areas row)",
+        "description": "Grid column count when layout=\"areas\" is used without areas; when areas is provided, the column count is derived from the number of area tokens in the first areas row (warning in development if an explicit columns prop disagrees)."
+      },
+      {
+        "name": "breakpoint",
+        "type": "number | string",
+        "defaultValue": "'860px'",
+        "description": "Viewport min-width breakpoint at or above which named grid areas are active; below this breakpoint (or inside a .f12-dash container <= 760px), children stack in a single column in DOM/reading/cut order. Custom breakpoints emit a scoped <style> tag so SSR and first paint match with zero layout shift."
       }
     ],
-    "stateBehavior": "Stateless CSS Grid layout primitive driven by gutter (\"pair\" | \"scene\" | \"change\") and layout (\"split\" | \"stack\" | \"equal\" | \"three\").",
+    "subcomponents": [
+      {
+        "name": "SceneArea",
+        "propsType": "SceneAreaProps",
+        "description": "Wrapper element accepting area: string to place arbitrary children into a named grid area inside <Scene areas={...}>."
+      }
+    ],
+    "stateBehavior": "Stateless CSS Grid layout primitive for gutter (\"pair\" | \"scene\" | \"change\") and layout (\"split\" | \"stack\" | \"equal\" | \"three\" | \"areas\"). Derives column count from the first areas row when areas is provided, uses @media (min-width: 860px) by default, emits a scoped <style> rule for custom breakpoint values (SSR-safe with zero hydration layout shift), and collapses inside narrow .f12-dash containers (@container (max-width: 760px)).",
     "a11yNotes": [
-      "Collapses multi-column grids to a single reading-order column below 760px container width.",
+      "Collapses split, equal, three, and areas grids to a single reading-order column below 760px container width (@container (max-width: 760px)), and collapses named-area grids (layout=\"areas\") below the 860px viewport breakpoint (or custom breakpoint via scoped <style>).",
       "Preserves DOM order and keyboard tab sequence across desktop and mobile viewports."
     ],
     "keyboardNotes": [
       "Maintains strict visual-to-DOM reading order: left-to-right across columns on desktop and top-to-bottom when stacked on mobile."
     ],
     "themeBehavior": "Transparent structural grid container; exposes --f-desk or --f-sheet through legal gutter gaps between framed panels.",
-    "responsiveBehavior": "Uses CSS container queries (@container (max-width: 760px)) and media queries to collapse split, equal, and three layouts into a single 1fr column on narrow viewports.",
+    "responsiveBehavior": "Uses CSS container queries (@container (max-width: 760px)) to collapse split, equal, three, and areas layouts into a single 1fr column, and @media (min-width: 860px) (or a scoped <style> @media rule for custom breakpoint values) to activate named grid areas.",
     "grammarNotes": [
       "Arbitrary gaps (8px, 16px, 24px) are forbidden by check-frame12.mjs; always use Scene gutter props.",
       "Use layout=\"split\" (2fr 1fr) when pairing an establishing C-01 panel with a PanelPair."
@@ -224,6 +249,12 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "string",
         "defaultValue": "undefined",
         "description": "Accessible aria-label applied to the underlying <section> element."
+      },
+      {
+        "name": "area",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Named CSS Grid area token when placed inside a <Scene areas={...}> container."
       }
     ],
     "stateBehavior": "Stateless semantic <section> wrapper that tracks its own offsetWidth/offsetHeight via useSize (ResizeObserver) when rendering an expressive SVG polygon border.",
@@ -267,6 +298,12 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "PanelVariant",
         "defaultValue": "'expressive' ('quiet' inside TabsContent)",
         "description": "When set to quiet, renders rectangular 1px orthographic panels without diagonal slants or automatic cut badges."
+      },
+      {
+        "name": "area",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Named CSS Grid area token when placed inside a <Scene areas={...}> container."
       },
       {
         "name": "top",
@@ -1104,6 +1141,12 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "props": [
       {
+        "name": "variant",
+        "type": "'default' | 'stamp'",
+        "defaultValue": "'default'",
+        "description": "Visual treatment: 'default' highlighter strip or 'stamp' (-3° rotated display-font uppercase ink stamp)."
+      },
+      {
         "name": "status",
         "type": "'neutral' | 'info' | 'success' | 'warning' | 'danger'",
         "defaultValue": "undefined",
@@ -1126,6 +1169,13 @@ const RAW_CATALOG: CatalogEntry[] = [
         "type": "React.ReactNode",
         "defaultValue": "undefined",
         "description": "Child elements rendered inside the component."
+      }
+    ],
+    "subcomponents": [
+      {
+        "name": "Stamp",
+        "propsType": "StampProps",
+        "description": "Convenience component alias that renders <Tag variant=\"stamp\"> with a -3° rotation, display font, uppercase text, and 2px ink border."
       }
     ],
     "stateBehavior": "Stateless inline metadata marker supporting default highlighter yellow or non-color semantic status variants.",
@@ -2279,6 +2329,158 @@ const RAW_CATALOG: CatalogEntry[] = [
       "Using floating drop-shadow popovers for peak annotations instead of <Balloon>."
     ],
     "usageTemplate": "import { Balloon } from '@/components/frame12';\n\nexport function PeakCallout() {\n  return <Balloon tailOffset={-8} showDot>Peak Oct 26 · $6,120</Balloon>;\n}"
+  },
+  {
+    "slug": "ghost-wire",
+    "title": "GhostWire",
+    "category": "Data & Charts",
+    "summary": "Dashed co-change connector wire linking a solid changed endpoint chip to a dashed untouched endpoint chip with stroke dash density mapped from strength and 12fps on-twos draw-on motion.",
+    "registryUrl": "https://frame12.dev/r/ghost-wire.json",
+    "sourceFile": "registry/ui/ghost-wire.tsx",
+    "whenToUse": [
+      "To visualize co-change coupling or missing companion edits (e.g. \"a.ts usually changes with schema.sql, which was not changed\") in code review and agentic audit screens.",
+      "Whenever strength (0..1) must be encoded non-color-only via SVG stroke dash density rather than opacity or color."
+    ],
+    "whenNotToUse": [
+      "Do not use GhostWire for decorative dividers or generic horizontal rules; use <Scene> gutters or panel borders instead.",
+      "Do not encode coupling strength via color or reduced opacity."
+    ],
+    "props": [
+      {
+        "name": "from",
+        "type": "React.ReactNode",
+        "defaultValue": "required",
+        "description": "Solid-bordered origin endpoint chip representing the changed file or artifact."
+      },
+      {
+        "name": "to",
+        "type": "React.ReactNode",
+        "defaultValue": "required",
+        "description": "Dashed-bordered target endpoint chip representing the untouched co-change partner."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Accessible relationship summary and visible caption (e.g. 'a.ts usually changes with schema.sql, which was not changed'). When omitted, the default aria-label ('<from> usually changes with <to>, which was not changed') assumes the missed-companion use case; other relationship uses should pass label."
+      },
+      {
+        "name": "strength",
+        "type": "number",
+        "defaultValue": "0.5",
+        "description": "Coupling strength in 0..1 mapped to SVG stroke-dasharray density (never color or opacity)."
+      },
+      {
+        "name": "orientation",
+        "type": "'auto' | 'horizontal' | 'vertical'",
+        "defaultValue": "'auto'",
+        "description": "Connector layout axis: 'auto' renders horizontally at >= 520px container/viewport width and vertically below 520px."
+      },
+      {
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "'stepped'",
+        "description": "Motion timing mode: 'stepped' (12fps on twos draw-on), 'smooth', or 'cut' (0ms instant)."
+      }
+    ],
+    "stateBehavior": "Co-change connector that reveals its stationary dashed SVG line via an on-twos SVG mask line (stroke-dasharray: 100 100, stroke-dashoffset: 100→0 at 83.33ms per pose via useOnTwos, initialized in a layout effect so there is no full-line flash on mount), drives orientation=\"auto\" from a single data-orientation source of truth measured via ResizeObserver / matchMedia in a layout effect, and skips animation frames under prefers-reduced-motion: reduce.",
+    "a11yNotes": [
+      "Wraps the entire wire in a single role=\"group\" container with an accessible aria-label built from label. When label is omitted, the synthesized default ('<from> usually changes with <to>, which was not changed') assumes the missed-companion use case; pass an explicit label for other relationships.",
+      "Marks the SVG connector aria-hidden=\"true\" so assistive technologies announce the group relationship cleanly."
+    ],
+    "keyboardNotes": [
+      "Non-interactive semantic group unless interactive elements are passed inside the from or to slots."
+    ],
+    "themeBehavior": "Uses --f-panel and solid 2px --f-rule for the changed from chip, --f-sheet and dashed 2px --f-rule for the untouched to chip, and --f-rule for the non-scaling-stroke SVG line in both themes.",
+    "responsiveBehavior": "With orientation=\"auto\" (default), switches data-orientation between a 3-column horizontal wire at >= 520px inline width and a stacked vertical connector below 520px (measured synchronously in useLayoutEffect + ResizeObserver) while wrapping long file paths without overflow.",
+    "grammarNotes": [
+      "Encodes coupling strength (0..1) strictly through SVG stroke dash density, never color or opacity.",
+      "Uses vector-effect: non-scaling-stroke on the SVG connector line."
+    ],
+    "commonErrors": [
+      "Encoding co-change confidence with faded gray strokes instead of passing strength={0..1} on <GhostWire>."
+    ],
+    "usageTemplate": "import { GhostWire } from '@/components/frame12';\n\nexport function CoChangeWire() {\n  return (\n    <GhostWire\n      from=\"src/db/queries/orders.ts\"\n      to=\"db/schema.sql\"\n      label=\"src/db/queries/orders.ts usually changes with db/schema.sql, which was not changed\"\n      strength={0.82}\n    />\n  );\n}"
+  },
+  {
+    "slug": "receipt",
+    "title": "Receipt & ReceiptList",
+    "category": "Data & Charts",
+    "summary": "Evidence chips and list container linking 7-character commit SHAs, wrapping repository file paths, or verified HTTP(S) links with WP3 non-color authorship origin indicators.",
+    "registryUrl": "https://frame12.dev/r/receipt.json",
+    "sourceFile": "registry/ui/receipt.tsx",
+    "whenToUse": [
+      "To cite verifiable evidence (short commit SHAs, repository file paths, or external HTTP/HTTPS links) inside audit panels, tables, and review consoles.",
+      "To attribute evidence to human, agent, or bot origins using non-color orthographic glyphs ([H], [A], [B]) and screen-reader labels."
+    ],
+    "whenNotToUse": [
+      "Do not pass raw HTML strings; Receipt renders value, title, and date as escaped plain text.",
+      "Do not use Receipt for generic action buttons; use <Button> instead."
+    ],
+    "props": [
+      {
+        "name": "kind",
+        "type": "'commit' | 'file' | 'link'",
+        "defaultValue": "required",
+        "description": "Evidence category: 'commit' renders a 7-char monospace SHA in <code> while keeping the full hash in title and .f12-sr-only; 'file' and 'link' wrap long paths anywhere without overflow."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "defaultValue": "required",
+        "description": "Commit SHA, repository file path, or link text (named value rather than ref, which React reserves)."
+      },
+      {
+        "name": "href",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Optional URL; rendered as an <a> link when it is http://, https://, a same-origin root-relative path (/… but not //…), or a fragment (#…); otherwise rendered as plain text."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Optional plain-text commit message or description shown beside the value."
+      },
+      {
+        "name": "date",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Optional plain-text timestamp or relative date string."
+      },
+      {
+        "name": "origin",
+        "type": "'human' | 'agent' | 'bot'",
+        "defaultValue": "undefined",
+        "description": "Optional authorship indicator rendered with an orthographic glyph ([H], [A], [B]) and .f12-sr-only label."
+      }
+    ],
+    "subcomponents": [
+      {
+        "name": "ReceiptList",
+        "propsType": "ReceiptListProps",
+        "description": "Unordered list container (<ul role=\"list\" className=\"f12-receipt-list\">) that wraps multiple <Receipt> items with 12px pair gutters."
+      }
+    ],
+    "stateBehavior": "Stateless evidence chip that renders 7-character commit SHAs inside <code> (preserving the full hash in title and .f12-sr-only), falls back to title or href when value is empty on a linked receipt so <a> always has an accessible name, and validates href against http(s), root-relative (/…), and fragment (#…) URLs before rendering an anchor.",
+    "a11yNotes": [
+      "Origin indicators pair a visual glyph ([H], [A], [B]) marked aria-hidden=\"true\" with a .f12-sr-only prefix ('Origin: human:', 'Origin: agent:', 'Origin: bot:').",
+      "For kind=\"commit\", the truncated 7-character SHA is rendered inside <code> while the full commit hash remains accessible via title={rawValue} and .f12-sr-only.",
+      "Allows http(s), same-origin root-relative (/… excluding //…), and fragment (#…) links while rejecting javascript:, data:, protocol-relative, and other unsafe schemes."
+    ],
+    "keyboardNotes": [
+      "When href is a valid http(s) URL, the value renders as a native <a> link with a 3px solid --f-ink focus-visible outline; otherwise it is non-interactive plain text."
+    ],
+    "themeBehavior": "Renders a 1.5px solid --f-rule frame over --f-panel with --f-ink monospace values and --f-marker hover highlights on verified links.",
+    "responsiveBehavior": "Applies overflow-wrap: anywhere and word-break: break-word on file paths and link text so 200-character spaceless paths wrap within 360px viewports with zero horizontal overflow.",
+    "grammarNotes": [
+      "Uses value instead of ref (which React reserves) for the SHA, path, or link text.",
+      "Follows the WP3 non-color status grammar for origin indicators."
+    ],
+    "commonErrors": [
+      "Passing non-HTTP(S) URLs expecting an interactive link; only http:// and https:// URLs render an <a> element."
+    ],
+    "usageTemplate": "import { Receipt, ReceiptList } from '@/components/frame12';\n\nexport function EvidenceReceipts() {\n  return (\n    <ReceiptList ariaLabel=\"Commit and file receipts\">\n      <Receipt kind=\"commit\" value=\"ab107e29f4c1\" href=\"https://github.com/lbrodie11/frame12/commit/ab107e2\" title=\"feat: add page primitives\" date=\"2026-11-08\" origin=\"human\" />\n      <Receipt kind=\"file\" value=\"registry/ui/ghost-wire.tsx\" origin=\"agent\" />\n    </ReceiptList>\n  );\n}"
   },
   {
     "slug": "use-on-twos",
