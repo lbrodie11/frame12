@@ -64,10 +64,14 @@ for (const styleFile of ['frame12.css', 'frame12-tokens.css', 'frame12-tailwind.
   });
 }
 
-// 3b. LICENSE -> packages/tokens/LICENSE
+// 3b. LICENSE -> packages/tokens/LICENSE & packages/lint/LICENSE
 FILE_MAPPINGS.push({
   src: path.join(ROOT, 'LICENSE'),
   dest: path.join(ROOT, 'packages/tokens/LICENSE'),
+});
+FILE_MAPPINGS.push({
+  src: path.join(ROOT, 'LICENSE'),
+  dest: path.join(ROOT, 'packages/lint/LICENSE'),
 });
 
 // 4. scripts/check-frame12.mjs -> templates/next-starter/scripts/check-frame12.mjs

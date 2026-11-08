@@ -1,0 +1,36 @@
+{
+  "name": "@frame12/lint",
+  "version": "0.2.0",
+  "description": "FRAME/12 design-grammar linter for TSX, JSX, TS, JS, CSS, and generated HTML.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "bin": {
+    "frame12-lint": "./bin/frame12-lint.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "test": "node tests/lint.test.mjs"
+  }
+}

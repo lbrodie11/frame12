@@ -234,6 +234,7 @@ npm test                          # runs sync checks, doc checks, static linter,
 | Workspace / Directory | Contents |
 | --- | --- |
 | [`packages/tokens/`](packages/tokens/) | Zero-dependency `@frame12/tokens` package generating `dist/tokens.css`, W3C DTCG `dist/tokens.json`, and TypeScript/JS `dist/index.js` + `dist/index.d.ts` (`tokens`, `cssText`) plus the token region of `registry/styles/frame12.css` from `src/tokens.source.json`. |
+| [`packages/lint/`](packages/lint/) | Zero-dependency `@frame12/lint` package (`lintSource`, `lintFiles`, `collectFiles`, `lintHtml`, `RULES`, and `frame12-lint` CLI) enforcing FRAME/12 design grammar across TSX/JSX/TS/JS, CSS, and generated HTML. |
 | [`registry/`](registry/) | Source for the 42 `shadcn`-compatible registry payloads (`registry/ui/`, `registry/blocks/`, `registry/hooks/use-on-twos.ts`, `registry/styles/frame12.css`, `registry/styles/frame12-tokens.css`), built into `site/public/r/*.json`. |
 | [`skills/frame12/`](skills/frame12/) | Portable AI Agent Skill (`SKILL.md`, `references/components-and-adapters.md`, `references/examples-and-mistakes.md`) and ESLint flat config (`eslint.frame12.mjs`). |
 | [`site/`](site/) | Next.js App Router documentation and interactive showcase deployed at **[frame12.dev](https://frame12.dev)**. |
