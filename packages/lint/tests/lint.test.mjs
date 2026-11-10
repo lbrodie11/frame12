@@ -666,6 +666,18 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
     'ink-autoplay: setters and constants resolve by lexical binding (same-named setters in sibling components, a shadowed setter in a nested function, a parameter shadowing a module constant) and only mount-time calls count (a listener registered in a mount effect passes, a timer scheduled there is flagged)',
     JSON.stringify(scopes.map((v) => [v.line, v.message.slice(0, 50)])),
   );
+  for (const disableTypeScript of [false, true]) {
+    const forms = lintSource(fx('ink-autoplay-forms.tsx'), 'ink-autoplay-forms.tsx', {
+      disableTypeScript,
+      quietFallbackWarning: true,
+    }).filter((v) => v.rule === 'ink-autoplay');
+    check(
+      forms.length === 2 && forms[0].line === 9 && /InkSequence/.test(forms[0].message) &&
+        forms[1].line === 11 && /InkStroke/.test(forms[1].message),
+      `ink-autoplay (${disableTypeScript ? 'regex-free fallback scanner' : 'TypeScript AST'}): \`play\` after an attribute containing => and > is flagged, aliased imports (\`InkSequence as Story\`) are checked under their real name, and "play" inside a string value is ignored`,
+      JSON.stringify(forms.map((v) => [v.line, v.message.slice(0, 40)])),
+    );
+  }
   const fb = lintSource(fx('ink-autoplay-literal.tsx'), 'ink-autoplay-literal.tsx', {
     disableTypeScript: true,
     quietFallbackWarning: true,

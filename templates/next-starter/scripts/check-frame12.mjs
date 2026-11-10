@@ -1429,6 +1429,18 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 }
 
 const INK_TAGS = new Set(['InkStroke', 'InkReveal', 'InkSequence']);
+
+/**
+ * Local JSX names that refer to an ink primitive: the canonical names plus any alias from a
+ * named import (`import { InkSequence as Story } from …`). Maps local name → canonical name.
+ */
+function inkTagAliases(importClauses) {
+  const map = new Map([...INK_TAGS].map((t) => [t, t]));
+  for (const [imported, local] of importClauses) {
+    if (INK_TAGS.has(imported)) map.set(local, imported);
+  }
+  return map;
+}
 const EFFECT_HOOKS = new Set(['useEffect', 'useLayoutEffect', 'useInsertionEffect']);
 /** Calls whose callback runs by itself soon after it is scheduled (no user action involved). */
 const SELF_RUNNING_CALLBACKS = new Set([
@@ -1618,9 +1630,19 @@ function lintInkAutoplayWithTypeScript(ts, content, filePath, violations) {
     });
   };
 
+  const importPairs = [];
+  for (const stmt of sf.statements) {
+    const named = ts.isImportDeclaration(stmt) && stmt.importClause?.namedBindings;
+    if (named && ts.isNamedImports(named)) {
+      for (const el of named.elements) importPairs.push([(el.propertyName ?? el.name).text, el.name.text]);
+    }
+  }
+  const inkTags = inkTagAliases(importPairs);
+
   const check = (el) => {
-    const tag = ts.isPropertyAccessExpression(el.tagName) ? el.tagName.name.text : el.tagName.getText(sf);
-    if (!INK_TAGS.has(tag)) return;
+    const local = ts.isPropertyAccessExpression(el.tagName) ? el.tagName.name.text : el.tagName.getText(sf);
+    const tag = inkTags.get(local);
+    if (!tag) return;
     for (const attr of el.attributes.properties) {
       if (!ts.isJsxAttribute(attr) || attr.name.getText(sf) !== 'play') continue;
       if (!attr.initializer) {
@@ -1665,22 +1687,90 @@ function lintInkAutoplayWithTypeScript(ts, content, filePath, violations) {
   walk(sf);
 }
 
-/** Regex fallback for `ink-autoplay` when the optional `typescript` peer is not installed. */
+/** Skips a `{…}` expression starting at `i` (which is `{`), honouring strings and nesting. */
+function skipBraces(src, i) {
+  let depth = 0;
+  for (; i < src.length; i++) {
+    const c = src[i];
+    if (c === '"' || c === "'" || c === '`') {
+      for (i++; i < src.length && src[i] !== c; i++) if (src[i] === '\\') i++;
+    } else if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return i + 1;
+  }
+  return src.length;
+}
+
+/**
+ * Parses the attributes of a JSX opening tag starting at `i` (just after the tag name). Handles
+ * `{…}` values (including `=>` and `>` inside them), quoted strings and spreads. Returns the
+ * attributes and the index after the tag's closing `>`.
+ */
+function scanJsxAttributes(src, i) {
+  const attrs = [];
+  while (i < src.length) {
+    while (/\s/.test(src[i] ?? '')) i++;
+    const c = src[i];
+    if (c === undefined || c === '>') return { attrs, end: i + 1 };
+    if (c === '/' && src[i + 1] === '>') return { attrs, end: i + 2 };
+    if (c === '{') {
+      i = skipBraces(src, i); // {...spread}
+      continue;
+    }
+    const nameMatch = /^[A-Za-z_$][\w$:.-]*/.exec(src.slice(i, i + 200));
+    if (!nameMatch) return { attrs, end: i + 1 };
+    const start = i;
+    i += nameMatch[0].length;
+    while (/\s/.test(src[i] ?? '')) i++;
+    let value = null;
+    if (src[i] === '=') {
+      i++;
+      while (/\s/.test(src[i] ?? '')) i++;
+      if (src[i] === '"' || src[i] === "'") {
+        const q = src[i];
+        const close = src.indexOf(q, i + 1);
+        const stop = close < 0 ? src.length : close + 1;
+        value = src.slice(i, stop);
+        i = stop;
+      } else if (src[i] === '{') {
+        const stop = skipBraces(src, i);
+        value = src.slice(i, stop);
+        i = stop;
+      }
+    }
+    attrs.push({ name: nameMatch[0], value, index: start });
+  }
+  return { attrs, end: i };
+}
+
+/** Fallback for `ink-autoplay` when the optional `typescript` peer is not installed: literal forms only. */
 function lintInkAutoplayFallback(stripped, rawContent, filePath, violations) {
-  const re = /<(InkStroke|InkReveal|InkSequence)\b([^>]*?)\/?>/g;
+  const pairs = [];
+  for (const m of stripped.matchAll(/\bimport\s*(?:type\s+)?\{([^}]*)\}\s*from/g)) {
+    for (const part of m[1].split(',')) {
+      const [imported, local] = part.trim().split(/\s+as\s+/);
+      if (imported) pairs.push([imported.trim(), (local ?? imported).trim()]);
+    }
+  }
+  const inkTags = inkTagAliases(pairs);
+  const tagRe = /<([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g;
   let m;
-  while ((m = re.exec(stripped)) !== null) {
-    const attrs = m[2];
-    const hit = /(?:^|\s)play(?=\s|\/|$)|(?:^|\s)play\s*=\s*\{\s*true\s*\}/.exec(attrs);
-    if (!hit) continue;
-    const index = m.index + m[0].indexOf(attrs) + hit.index;
+  while ((m = tagRe.exec(stripped)) !== null) {
+    const local = m[1].split('.').pop();
+    const tag = inkTags.get(local);
+    if (!tag) continue;
+    const { attrs, end } = scanJsxAttributes(stripped, m.index + m[0].length);
+    tagRe.lastIndex = end;
+    const play = attrs.find((a) => a.name === 'play');
+    if (!play) continue;
+    const v = play.value === null ? null : play.value.replace(/^\{\s*|\s*\}$/g, '').trim();
+    if (play.value !== null && v !== 'true') continue;
     violations.push({
       rule: 'ink-autoplay',
       file: filePath,
-      line: lineNumberAt(rawContent, index),
-      column: columnNumberAt(rawContent, index),
-      message: `<${m[1]} play> plays on load. Ink must never draw on initial load (rule 5): drive \`play\` from a user action instead.`,
-      snippet: m[0].slice(0, 120),
+      line: lineNumberAt(rawContent, play.index),
+      column: columnNumberAt(rawContent, play.index),
+      message: `<${tag} ${play.value === null ? 'play' : 'play={true}'}> plays on load. Ink must never draw on initial load (rule 5): drive \`play\` from a user action instead.`,
+      snippet: stripped.slice(m.index, end).slice(0, 120),
     });
   }
 }
