@@ -690,8 +690,8 @@ try {
           noJsHome.sparkSvgs >= 2 &&
           noJsHome.sparkMinHeight >= 70 &&
           noJsHome.unhighlightedRngs === 0 &&
-          noJsCuts.join(',') === 'C-01,C-02,C-03,C-04,C-05,C-06,C-07,C-08',
-        'site / pre-hydration OS dark mode (JS disabled): dark sheet/panel, server-rendered chart & sparklines (74px height), highlighted segmented controls, and auto cuts C-01..C-08',
+          noJsCuts.join(',') === 'C-01,C-02,C-03,C-04,C-05',
+        'site / pre-hydration OS dark mode (JS disabled): dark sheet/panel, server-rendered chart & sparklines (74px height), highlighted segmented controls, and auto cuts C-01..C-05 (the four story panels are unnumbered: their beats are labelled C-01..C-04 in HTML)',
         JSON.stringify({ ...noJsHome, noJsCuts }),
       );
       await noJsCtx.close();
@@ -2699,7 +2699,7 @@ try {
               const r = e.getBoundingClientRect();
               return { top: Math.round(r.top), left: Math.round(r.left) };
             });
-            let readingOrder = rects.length === 8;
+            let readingOrder = rects.length === 5;
             for (let i = 1; i < rects.length; i++) {
               const prev = rects[i - 1];
               const cur = rects[i];
@@ -2726,12 +2726,12 @@ try {
           });
           check(
             homeGeom.noOverlap &&
-              homeGeom.panelCount === 8 &&
-              homeGeom.visibleCutCount === 8 &&
+              homeGeom.panelCount === 9 &&
+              homeGeom.visibleCutCount === 5 &&
               homeGeom.readingOrder &&
               homeGeom.noOverflow &&
               errors.length === 0,
-            `site [${engineName} 1280px ${scheme}] /: 8 ordered panels, Conversion lift descender clearance (${homeGeom.clearancePx}px >= 10px) & zero overflow`,
+            `site [${engineName} 1280px ${scheme}] /: 9 panels (5 numbered in reading order + 4 unnumbered story beats), Conversion lift descender clearance (${homeGeom.clearancePx}px >= 10px) & zero overflow`,
             errors.join('; '),
           );
           await page.close();
