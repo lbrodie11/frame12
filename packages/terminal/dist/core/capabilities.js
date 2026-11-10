@@ -68,6 +68,24 @@ function terminalSupportsLinks(env) {
         return true;
     return false;
 }
+/** True for terminals known to re-wrap on resize (see `Capabilities.reflow`). */
+function terminalReflows(env, multiplexer) {
+    if (env.FRAME12_REFLOW === '1')
+        return true;
+    if (env.FRAME12_REFLOW === '0')
+        return false;
+    if (multiplexer)
+        return false;
+    const program = env.TERM_PROGRAM ?? '';
+    if (['iTerm.app', 'Apple_Terminal', 'WezTerm', 'ghostty', 'vscode', 'Hyper', 'Tabby', 'rio', 'Alacritty'].includes(program))
+        return true;
+    if (env.WT_SESSION || env.KITTY_WINDOW_ID || env.TERM === 'xterm-kitty')
+        return true;
+    if (env.TERM === 'foot' || env.TERM?.startsWith('foot-') || env.TERM === 'xterm-ghostty' || env.TERM === 'wezterm' || env.TERM === 'alacritty')
+        return true;
+    const vte = Number(env.VTE_VERSION);
+    return Number.isFinite(vte) && vte >= 4000;
+}
 function detectMultiplexer(env) {
     if (env.TMUX || env.TERM?.startsWith('tmux'))
         return 'tmux';
@@ -234,5 +252,6 @@ export function detectCapabilities(env = {}, streams = {}, argv = [], options = 
         ciProvider: provider,
         dumb,
         multiplexer,
+        reflow: terminalReflows(env, multiplexer),
     };
 }

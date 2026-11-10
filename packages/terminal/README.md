@@ -182,8 +182,11 @@ process.exitCode = await run.end();
 - **Keys:** `j`/`k` or arrows move, `Enter` inspects (every receipt), `Esc` closes, `o` opens the
   focused receipt's link after a `y/N` confirmation (https only), `?` toggles help, `q` quits.
 - **Ctrl-C:** the first cancels gracefully (running cuts become `canceled`, results print, exit
-  code 130); a second within 2 s forces exit. SIGTERM and SIGHUP cancel like one Ctrl-C.
-- **Exit codes:** `completed` 0, `failed` 1, `canceled` 130. EPIPE on stdout (`| head`) exits 0.
+  code 130); a second within 2 s forces exit. SIGTERM and SIGHUP cancel a running job like one
+  Ctrl-C; a second one, or one when nothing is running, finishes with what is there and exits, so a
+  closed terminal never leaves the process behind.
+- **Exit codes:** `completed` 0, `failed` 1, `canceled` 130. EPIPE on stdout or stderr (`| head`,
+  `2>&1 | head`) exits 0.
 - **The terminal is always restored** (cursor, raw mode, alternate screen) on every exit path,
   including uncaught exceptions and unhandled rejections.
 - **Linear fallback:** the live view runs only when stdin and stdout are terminals, outside CI,
@@ -191,7 +194,10 @@ process.exitCode = await run.end();
   and one line says why. `--screen-reader` prints plain, self-describing lines.
 - **Results are printed linearly** when the live view closes, so nothing important exists only in
   a redraw. The alternate screen is opt-in (`fullscreen: true`) because it loses scrollback.
-- **Resizing** re-lays out without leftovers, including terminals that re-wrap what is on screen.
+- **Resizing** re-lays out without leftovers. Terminals that re-wrap what is on screen when they
+  narrow (iTerm2, kitty, WezTerm, VTE, Windows Terminal, VS Code; `caps.reflow`) get an extra
+  cleanup of the re-wrapped rows; it is skipped elsewhere, where it would erase lines above the
+  live view. `FRAME12_REFLOW=1|0` overrides the detection.
 - **Foreign output:** `console.*` lands above the live region. A direct `process.stdout.write` or a
   child process writing to the terminal corrupts the live view: run children through
   `spawnLogged`, or use `--plain`. In development a stray write is reported once in the view.
@@ -199,7 +205,8 @@ process.exitCode = await run.end();
 ```ts
 import { spawnLogged } from '@frame12/terminal/process';
 
-const { code } = await spawnLogged(run.director, 'npm', ['test'], { cut: 'test' });
+// No shell, so pass a real executable: on Windows `npm` is a .cmd shim that only a shell can run.
+const { code } = await spawnLogged(run.director, process.execPath, ['--test'], { cut: 'test' });
 ```
 
 `spawnLogged` never uses a shell, logs each stdout line as `info` and stderr line as `warn`
@@ -207,7 +214,8 @@ const { code } = await spawnLogged(run.director, 'npm', ['test'], { cut: 'test' 
 child SIGTERM, then SIGKILL if it is still running after `killAfterMs` (default 5000). A line
 that never ends is bounded: past `maxLineLength` (default 16,384) its head is logged, the rest is
 dropped, and one line says how many characters were not logged; carriage-return progress keeps
-only its latest text. In the linear view these lines are narrated like log events (errors and
+only its latest text. Once the child exits, its output gets `drainMs` (default 500) to arrive, so a
+grandchild that inherited the pipes cannot keep the promise pending. In the linear view these lines are narrated like log events (errors and
 warnings always), so a child's failure reason reaches CI logs too.
 
 ## Capabilities
@@ -217,7 +225,7 @@ import { detectCapabilities } from '@frame12/terminal';
 
 const caps = detectCapabilities(process.env, process, process.argv);
 // { colorLevel, stderrColorLevel, attributes, unicode, ambiguousWide, links, columns, rows,
-//   isTTY, stderrIsTTY, interactive, screenReader, ci, ciProvider, dumb, multiplexer }
+//   isTTY, stderrIsTTY, interactive, screenReader, ci, ciProvider, dumb, multiplexer, reflow }
 ```
 
 `detectCapabilities` is pure: everything it reads is passed in. Color is resolved separately for

@@ -26,6 +26,11 @@ export interface SpawnLoggedOptions {
    * and one line says how many characters were not logged. Default 16,384.
    */
   maxLineLength?: number;
+  /**
+   * After the child exits, how long its output may keep draining before the pipes are closed (a
+   * grandchild may still hold them). Default 500 ms.
+   */
+  drainMs?: number;
 }
 
 export interface SpawnResult {
@@ -151,16 +156,30 @@ export function spawnLogged(director: Director, cmd: string, args: readonly stri
       director.log('error', `${cmd} could not start: ${e.message}`, meta('stderr'));
       finish({ code: null, signal: null, error: e.message });
     });
-    child.on('close', (code, sig) => {
+    const ended = (code: number | null, sig: NodeJS.Signals | null) => {
       // A child that never started emits 'close' after 'error'; it already logged why.
       if (settled) return;
+      if (drainTimer !== undefined) clearTimeout(drainTimer);
       // Flush any partial last lines first, so the exit line is the last thing logged.
       out.end();
       err.end();
       const how = sig ? `was stopped by ${sig}` : `exited with code ${code}`;
       director.log(code === 0 ? 'info' : 'error', `${cmd} ${how}`, meta(code === 0 ? 'stdout' : 'stderr'));
       finish({ code, signal: sig });
+    };
+    // 'close' waits for every holder of the pipes. A grandchild that inherited them (`sh -c 'sleep
+    // 30'`, a daemon, a worker left behind) would keep this pending long after the child is gone,
+    // so once the child has exited its output gets a short window to drain, then the pipes close.
+    let drainTimer: ReturnType<typeof setTimeout> | undefined;
+    child.on('exit', (code, sig) => {
+      drainTimer = setTimeout(() => {
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        ended(code, sig);
+      }, Math.max(0, options.drainMs ?? 500));
+      drainTimer.unref?.();
     });
+    child.on('close', ended);
   });
 }
 

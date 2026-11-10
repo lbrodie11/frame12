@@ -15,6 +15,11 @@ export interface SpawnLoggedOptions {
      * and one line says how many characters were not logged. Default 16,384.
      */
     maxLineLength?: number;
+    /**
+     * After the child exits, how long its output may keep draining before the pipes are closed (a
+     * grandchild may still hold them). Default 500 ms.
+     */
+    drainMs?: number;
 }
 export interface SpawnResult {
     /** The exit code, or null when the process was killed or never started. */

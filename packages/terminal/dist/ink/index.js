@@ -106,13 +106,22 @@ export function startLive(options) {
         exit(1);
     };
     stdout.on('error', onStdoutError);
-    /** Resolves once everything written to stdout so far has flushed (or failed, handled above). */
-    const flushed = () => new Promise((resolve) => {
+    // The same for stderr: narration goes there, and `cmd 2>&1 | head` breaks it first.
+    const onStderrError = (err) => {
+        if (stdoutFailed)
+            return;
+        stdoutFailed = true;
+        restore();
+        exit(err.code === 'EPIPE' ? 0 : 1);
+    };
+    stderr.on('error', onStderrError);
+    /** Resolves once everything written to a stream so far has flushed (or failed, handled above). */
+    const flushed = (stream) => new Promise((resolve) => {
         // A Writable calls write callbacks in order; a test sink that is not a Writable has nothing to flush.
-        if (typeof stdout.writableLength !== 'number' || stdout.writableEnded || stdout.destroyed)
+        if (typeof stream.writableLength !== 'number' || stream.writableEnded || stream.destroyed)
             return resolve();
         try {
-            stdout.write('', () => resolve());
+            stream.write('', () => resolve());
         }
         catch {
             resolve();
@@ -120,8 +129,9 @@ export function startLive(options) {
     });
     /** The last step of both views: wait for the final output, then stop listening for its errors. */
     const settle = async (code) => {
-        await flushed();
+        await Promise.all([flushed(stdout), flushed(stderr)]);
         stdout.off('error', onStdoutError);
+        stderr.off('error', onStderrError);
         resolveDone(code);
         return code;
     };
@@ -163,11 +173,16 @@ export function startLive(options) {
         else
             void finish();
     };
-    /** SIGTERM and SIGHUP cancel like one interrupt, but never force or finish on their own. */
+    /**
+     * SIGTERM and SIGHUP ask the process to end. The first cancels a running job, like one Ctrl-C;
+     * when nothing is running (already canceled, or the run is over) the view finishes with what it
+     * has and the process exits with the run's code, so a closed terminal never leaves an orphan.
+     */
     const cancelOnSignal = (sig) => {
-        const status = director.snapshot().status;
-        if (status === 'running' || status === 'idle')
-            director.cancel(sig);
+        const s = director.snapshot();
+        if ((s.status === 'running' || s.status === 'idle') && !s.canceled)
+            return director.cancel(sig);
+        void finish().then((code) => exit(code));
     };
     /** Both views finish by themselves once the run has ended and its snapshot has arrived. */
     const unsubscribeFinish = director.subscribe((s) => {
@@ -180,20 +195,29 @@ export function startLive(options) {
         const writer = createLinearWriter({ format: caps.screenReader ? 'plain' : 'rich', caps, stdout, stderr, ...renderOpts });
         if (caps.isTTY || caps.stderrIsTTY)
             stderr.write(`${caps.screenReader ? 'Note' : 'Live view off'}: ${reason}.\n`);
+        // The writer sees every event pushed to the Director (through run.push or directly, when the host
+        // shares its Director), before the Director folds it: finishing on the snapshot ends the writer,
+        // which must have printed that snapshot by then.
         // Log lines that did not arrive as events (the host's director.log, spawnLogged's child output)
-        // are narrated too; lines that came from events were already printed by the writer. Counted
-        // through the ring buffer: total = kept + dropped.
+        // are narrated too; event logs were printed by the writer. New lines are found through the ring
+        // buffer: total = kept + dropped.
         const logTotal = () => director.snapshot().logs.length + director.snapshot().dropped.logs;
         let logsSeen = logTotal();
         const forwardLogs = () => {
             const logs = director.snapshot().logs;
             const fresh = Math.min(logTotal() - logsSeen, logs.length);
             for (const l of logs.slice(logs.length - fresh))
-                writer.log(l.level, l.text);
+                if (l.origin === 'host')
+                    writer.log(l.level, l.text);
             logsSeen = logTotal();
         };
-        let pushing = false;
-        cleanups.push(director.subscribe(() => !finished && !pushing && forwardLogs()));
+        cleanups.push(director.tap((event) => {
+            if (finished)
+                return;
+            forwardLogs();
+            writer.write(event);
+        }));
+        cleanups.push(director.subscribe(() => !finished && forwardLogs()));
         finish = async () => {
             if (finished)
                 return done;
@@ -212,20 +236,7 @@ export function startLive(options) {
             director,
             mode,
             reason: reason,
-            push(event) {
-                // The writer first: the Director finishing on a snapshot ends the writer, which must have
-                // printed that snapshot by then.
-                forwardLogs();
-                writer.write(event);
-                pushing = true;
-                try {
-                    director.push(event);
-                }
-                finally {
-                    pushing = false;
-                }
-                logsSeen = logTotal(); // this event's own log line was printed by the writer
-            },
+            push: (event) => director.push(event),
             end: () => finish(),
             done,
         };
@@ -253,8 +264,9 @@ export function startLive(options) {
         // Results are printed linearly: nothing important lives only in a live redraw. Cuts keep the
         // labels the live view gave them (in start order), whatever order the snapshot lists them in.
         const cutLabels = new Map(state.cuts.map((c) => [c.cut, c.label]));
+        // At the terminal's current width: it may have been resized since the run started.
         if (state.snapshot)
-            stdout.write(renderRich(state.snapshot, renderCapsFor(caps, 'stdout'), { ...renderOpts, cutLabels }));
+            stdout.write(renderRich(state.snapshot, rc(), { ...renderOpts, cutLabels }));
         else
             stderr.write('No result snapshot arrived, so no results are shown.\n');
         if (ownsDirector)
@@ -307,7 +319,7 @@ export function startLive(options) {
     let lastColumns = stdout.columns || caps.columns;
     const beforeInkResize = () => {
         const columns = stdout.columns || lastColumns;
-        if (columns < lastColumns && !options.fullscreen) {
+        if (columns < lastColumns && !options.fullscreen && caps.reflow) {
             const cleanup = reflowCleanup(tracker.lastFrameLines(), columns);
             if (cleanup)
                 writeOwn(cleanup);

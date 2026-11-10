@@ -61,8 +61,9 @@ createLinearWriter(o: { format: 'rich' | 'plain' | 'json'; caps: Capabilities; s
 
 // Director (core) and live view (@frame12/terminal/ink).
 createDirector(o: { caps; motion: Tempo; onEvent?; onCancel?; maxLogs?; maxEvents?; maxItems?; maxWarnings?; safety?; validation?; scheduler? }): Director;
+// Director: { push(raw); tap(raw => void); subscribe(state => void); snapshot(); cancel(reason); log(level, text, meta?); flush(); signal; dispose() }. LogLine.origin: 'event' | 'host'.
 startLive(o: { caps; motion; stdin?; stdout?; stderr?; fullscreen?; product?; nextSteps?; safety?; director?; onCancel?; handleSignals?; exit?; devWarnings? }): { director; mode: 'live' | 'linear'; reason?; push(e); end(): Promise<number>; done };
-spawnLogged(director, cmd: string, args?: string[], o?: { cwd?; env?; cut?; signal?; stderrLevel?; killAfterMs?; maxLineLength? }): Promise<{ code; signal; error? }>; // @frame12/terminal/process
+spawnLogged(director, cmd: string, args?: string[], o?: { cwd?; env?; cut?; signal?; stderrLevel?; killAfterMs?; maxLineLength?; drainMs? }): Promise<{ code; signal; error? }>; // @frame12/terminal/process
 
 ## Rules
 

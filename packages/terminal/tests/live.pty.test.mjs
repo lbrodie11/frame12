@@ -37,8 +37,8 @@ function childEnv(extra) {
 /** Every spawned app, so a failing test never leaves a pty open (which would hang the runner). */
 const spawned = new Set();
 
-function spawnApp(args, { cols = 100, rows = 30, env = {} } = {}) {
-  const term = new headless.Terminal({ cols, rows, allowProposedApi: true, scrollback: 1000 });
+function spawnApp(args, { cols = 100, rows = 30, env = {}, termOptions = {} } = {}) {
+  const term = new headless.Terminal({ cols, rows, allowProposedApi: true, scrollback: 1000, ...termOptions });
   const child = pty.spawn(process.execPath, [path.join(PKG, 'tests/fixtures/live-app.mjs'), ...args], {
     name: 'xterm-256color',
     cols,
@@ -235,6 +235,27 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
     });
   }
 
+  for (const [scenario, signals, code] of [
+    ['ignore-cancel', ['SIGTERM', 'SIGTERM'], 130],
+    ['ignore-cancel', ['SIGHUP', 'SIGHUP'], 130],
+    ['idle', ['SIGTERM'], 0],
+  ]) {
+    it(`${signals.join(' + ')} ends the process (${scenario}, fifth review)`, { skip: WIN ? 'POSIX signals are not delivered through ConPTY' : false }, async () => {
+      const app = spawnApp(['--scenario', scenario]);
+      await app.waitFor(ready);
+      await new Promise((r) => setTimeout(r, 300)); // the producer's last events (run-end) are in
+      for (const sig of signals) {
+        app.child.kill(sig);
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      const timeout = new Promise((r) => setTimeout(() => r('still alive'), 4000));
+      const result = await Promise.race([app.exited, timeout]);
+      assert.notEqual(result, 'still alive', app.screen().slice(-600));
+      assert.equal(result.exitCode, code);
+      assert.ok(cursorRestored(app.raw));
+    });
+  }
+
   for (const scenario of ['crash', 'reject']) {
     it(`restores the terminal after ${scenario === 'crash' ? 'a thrown error' : 'an unhandled rejection'} (exit 1)`, async () => {
       const app = spawnApp(['--scenario', scenario]);
@@ -265,7 +286,8 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
 
   it('re-lays out on resize (120 → 40 → 80) without leftover copies of the live region', async () => {
     // Dev warnings on: the resize cleanup is our own write, so it must not trip the stray-write warning.
-    const app = spawnApp(['--scenario', 'hold', '--dev-warnings', 'on'], { cols: 120, rows: 30 });
+    // xterm.js re-wraps on resize, as VS Code's terminal (TERM_PROGRAM=vscode) does.
+    const app = spawnApp(['--scenario', 'hold', '--dev-warnings', 'on'], { cols: 120, rows: 30, env: { FRAME12_REFLOW: '1' } });
     await app.waitFor(ready);
     for (const cols of [40, 80]) {
       app.resize(cols, 30);
@@ -279,6 +301,21 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
     assert.equal(vis.filter((l) => /j\/k move/.test(l)).length, 1, 'one hint bar');
     for (const l of vis) assert.ok([...l].length <= 80, `line fits 80 columns: ${l}`);
     assert.doesNotMatch(app.screen(), /wrote to stdout directly/, 'no false stray-write warning');
+    app.child.write('\u0003');
+    await app.exited;
+  });
+
+  it('keeps completed cuts on a terminal that does not re-wrap when it narrows (fifth review)', async () => {
+    // xterm, st, the Linux console: no reflow. The cleanup for re-wrapping terminals must not run
+    // there, or it erases the <Static> lines above the live region.
+    const app = spawnApp(['--scenario', 'hold'], { cols: 120, rows: 30, env: { FRAME12_REFLOW: '0' }, termOptions: { windowsMode: true } });
+    await app.waitFor(ready);
+    app.resize(40, 30);
+    await new Promise((r) => setTimeout(r, 300));
+    const screen = app.visible().join('\n');
+    for (const c of ['C-01 · RESOLVE WORKSPACE', 'C-02 · READ HISTORY', 'C-03 · PAIR CHANGES']) {
+      assert.equal(screen.split(c).length - 1, 1, `${c} kept:\n${screen}`);
+    }
     app.child.write('\u0003');
     await app.exited;
   });

@@ -31,6 +31,7 @@ export function createDirector(options) {
     const stream = createStreamValidator(options.validation);
     const abort = new AbortController();
     const listeners = new Set();
+    const taps = new Set();
     const poseMs = tempoIntervalMs(options.motion);
     const state = {
         version: 0,
@@ -249,7 +250,7 @@ export function createDirector(options) {
                 mergeReceipts(ev.finding, [ev.receipt]);
                 return false;
             case 'log':
-                addLog({ level: ev.level, text: ev.text, ...(ev.cut !== undefined ? { cut: ev.cut } : {}), ...(ev.stream !== undefined ? { stream: ev.stream } : {}) });
+                addLog({ level: ev.level, text: ev.text, origin: 'event', ...(ev.cut !== undefined ? { cut: ev.cut } : {}), ...(ev.stream !== undefined ? { stream: ev.stream } : {}) });
                 return ev.level === 'error' || ev.level === 'warn';
             case 'warning':
                 addWarning(ev.message);
@@ -269,6 +270,14 @@ export function createDirector(options) {
     const push = (raw) => {
         if (disposed)
             return;
+        for (const t of [...taps]) {
+            try {
+                t(raw);
+            }
+            catch {
+                // A failing tap must not lose the event.
+            }
+        }
         seen++;
         if (seen > maxEvents)
             state.dropped.events++;
@@ -298,6 +307,10 @@ export function createDirector(options) {
     };
     return {
         push,
+        tap(listener) {
+            taps.add(listener);
+            return () => void taps.delete(listener);
+        },
         subscribe(listener) {
             listeners.add(listener);
             return () => void listeners.delete(listener);
@@ -327,7 +340,7 @@ export function createDirector(options) {
             if (disposed)
                 return;
             for (const line of san.text(text, 'log', 'log').split('\n')) {
-                addLog({ level, text: line, ...(meta?.cut !== undefined ? { cut: san.text(meta.cut, 'identifier') } : {}), ...(meta?.stream ? { stream: meta.stream } : {}) });
+                addLog({ level, text: line, origin: 'host', ...(meta?.cut !== undefined ? { cut: san.text(meta.cut, 'identifier') } : {}), ...(meta?.stream ? { stream: meta.stream } : {}) });
             }
             if (level === 'error' || level === 'warn')
                 publish();
@@ -345,6 +358,7 @@ export function createDirector(options) {
                 sched.clearTimeout(frameTimer);
             frameTimer = undefined;
             listeners.clear();
+            taps.clear();
         },
     };
 }

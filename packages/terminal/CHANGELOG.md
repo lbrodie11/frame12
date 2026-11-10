@@ -57,7 +57,12 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     Director too, and reflow-aware resizing; `@frame12/terminal/process` (`spawnLogged` with SIGKILL
     after `killAfterMs` when a canceled child ignores SIGTERM, bounded pending lines via
     `maxLineLength`, and child output narrated in the linear view; `openUrl`). `LinearWriter.log()`
-    narrates log lines that did not arrive as events.
+    narrates log lines that did not arrive as events. `Director.tap()` sees every pushed event (the
+    linear view narrates events pushed straight to a shared Director); `LogLine.origin` tells event
+    logs from host logs; `Capabilities.reflow` gates the resize cleanup to terminals that re-wrap;
+    SIGTERM/SIGHUP finish and exit when nothing is left to cancel; EPIPE on stderr exits 0; final
+    results use the current width; `spawnLogged` settles `drainMs` after the child exits even if a
+    grandchild holds its pipes.
   - Contract: optional `Finding.relation` (`history-only | direct | indirect`) for typed connectors;
     the stream validator rejects a second `snapshot` (`duplicate-snapshot`).
   - `@frame12/terminal/testing`: `createEventFactory` (injected clock), `fakeStreams`, and seven

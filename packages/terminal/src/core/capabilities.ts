@@ -66,6 +66,13 @@ export interface Capabilities {
   dumb: boolean;
   /** Running inside a terminal multiplexer. */
   multiplexer: 'tmux' | 'screen' | undefined;
+  /**
+   * The terminal re-wraps what is on screen when it gets narrower (iTerm2, kitty, WezTerm, VTE,
+   * Windows Terminal, ...). Only then does a resize need the live view's extra cleanup; on a
+   * terminal that does not (xterm, the Linux console, multiplexers) that cleanup would erase lines
+   * above the live region. Unknown terminals are assumed not to. `FRAME12_REFLOW=1|0` overrides.
+   */
+  reflow: boolean;
 }
 
 /** Known CI provider variables, checked in order. `CI` itself is checked first. */
@@ -129,6 +136,19 @@ function terminalSupportsLinks(env: Env): boolean {
   const vte = Number(env.VTE_VERSION);
   if (Number.isFinite(vte) && vte >= 5000) return true;
   return false;
+}
+
+/** True for terminals known to re-wrap on resize (see `Capabilities.reflow`). */
+function terminalReflows(env: Env, multiplexer: 'tmux' | 'screen' | undefined): boolean {
+  if (env.FRAME12_REFLOW === '1') return true;
+  if (env.FRAME12_REFLOW === '0') return false;
+  if (multiplexer) return false;
+  const program = env.TERM_PROGRAM ?? '';
+  if (['iTerm.app', 'Apple_Terminal', 'WezTerm', 'ghostty', 'vscode', 'Hyper', 'Tabby', 'rio', 'Alacritty'].includes(program)) return true;
+  if (env.WT_SESSION || env.KITTY_WINDOW_ID || env.TERM === 'xterm-kitty') return true;
+  if (env.TERM === 'foot' || env.TERM?.startsWith('foot-') || env.TERM === 'xterm-ghostty' || env.TERM === 'wezterm' || env.TERM === 'alacritty') return true;
+  const vte = Number(env.VTE_VERSION);
+  return Number.isFinite(vte) && vte >= 4000;
 }
 
 function detectMultiplexer(env: Env): 'tmux' | 'screen' | undefined {
@@ -288,5 +308,6 @@ export function detectCapabilities(env: Env = {}, streams: Streams = {}, argv: r
     ciProvider: provider,
     dumb,
     multiplexer,
+    reflow: terminalReflows(env, multiplexer),
   };
 }

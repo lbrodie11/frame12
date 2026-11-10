@@ -12,10 +12,11 @@
  *   advances only on the tempo grid: every 83.33 ms at `twos`, every frame at `ones`, never at
  *   `still`. Data never waits for the pose.
  *
- * Memory is bounded: logs are a ring buffer (default 500 lines), warnings are capped, events past
- * `maxEvents` are only counted, and at most `maxItems` (default 5,000) cuts, findings, receipts and
- * metrics are stored. Past that, updates to stored items still apply, new items are only counted
- * (`dropped.items`): the snapshot, not narration, carries the full result.
+ * Memory is bounded: logs are a ring buffer (default 500 lines), warnings are capped, and at most
+ * `maxItems` (default 5,000) cuts, findings, receipts and metrics are stored. Past that, updates to
+ * stored items still apply and new items are only counted (`dropped.items`): the snapshot, not
+ * narration, carries the full result. Every event is still validated and folded; `maxEvents` only
+ * sets when `dropped.events` starts counting.
  */
 import type { Capabilities } from './capabilities.js';
 import type { CutStatus, Finding, LogLevel, Metric, RunStatus, Snapshot, TerminalEvent } from './contract.js';
@@ -42,6 +43,8 @@ export interface CutState {
 export interface LogLine {
     level: LogLevel;
     text: string;
+    /** `event`: from a `log` event; `host`: from `Director.log()` (the host, or a child via spawnLogged). */
+    origin: 'event' | 'host';
     cut?: string;
     stream?: 'stdout' | 'stderr';
 }
@@ -94,7 +97,7 @@ export interface DirectorOptions {
     onCancel?: (reason: string) => void;
     /** Log ring-buffer size. Default 500. */
     maxLogs?: number;
-    /** Events counted in detail before older ones are only summarized. Default 5,000. */
+    /** Events after this many are counted in `dropped.events` (still validated and folded). Default 5,000. */
     maxEvents?: number;
     /**
      * Cuts, findings, receipts and metrics stored, together. Past it, updates to stored items still
@@ -119,6 +122,12 @@ export interface AbortSignalLike {
 export interface Director {
     /** Accepts one event (parsed JSON). Never throws. */
     push(raw: unknown): void;
+    /**
+     * Sees every pushed event, raw and before validation, ahead of the fold and any publish; returns
+     * an unsubscribe function. For renderers that validate on their own (the linear view), so events
+     * pushed to a shared Director directly reach them too.
+     */
+    tap(listener: (raw: unknown) => void): () => void;
     /** Subscribes to published states; returns an unsubscribe function. */
     subscribe(listener: Listener): () => void;
     /** The current state (also between publishes). */

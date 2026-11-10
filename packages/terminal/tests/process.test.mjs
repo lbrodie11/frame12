@@ -86,6 +86,17 @@ describe('process: spawnLogged', () => {
     assert.deepEqual(lines.slice(0, -1), ['next', 'after']);
   });
 
+  it('settles soon after the child exits even when a grandchild still holds its pipes (fifth review)', async () => {
+    const d = director();
+    // The grandchild inherits stdout/stderr and lives 5 s; the child exits at once (unref).
+    const [cmd, args] = node("require('child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 5000)'], { stdio: 'inherit' }).unref(); console.log('child done')");
+    const t0 = Date.now();
+    const r = await spawnLogged(d, cmd, args, { drainMs: 200 });
+    assert.equal(r.code, 0);
+    assert.ok(Date.now() - t0 < 3000, `settled after ${Date.now() - t0} ms`);
+    assert.deepEqual(d.snapshot().logs.map((l) => l.text).slice(0, 1), ['child done']);
+  });
+
   it('sends SIGKILL when a canceled child ignores SIGTERM (second review)', { skip: process.platform === 'win32' && 'kill() is forceful on Windows' }, async () => {
     const d = director();
     const [cmd, args] = node("process.on('SIGTERM', () => {}); console.log('ready'); setInterval(() => {}, 1000)");

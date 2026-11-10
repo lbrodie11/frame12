@@ -286,6 +286,20 @@ describe('director: state', () => {
     assert.equal(clock.pending, 0, 'no pose clock for a canceled run');
   });
 
+  it('tap sees every pushed event, raw and before the fold; log lines record their origin (fifth review)', () => {
+    const { director, f } = setup('still');
+    const seen = [];
+    const off = director.tap((raw) => seen.push([raw?.type ?? typeof raw, director.snapshot().status]));
+    director.push(f.next('run-start', { title: 'T' }));
+    director.push('not an event');
+    director.push(f.next('log', { level: 'warn', text: 'from an event' }));
+    director.log('error', 'from the host');
+    off();
+    director.push(f.next('warning', { message: 'after unsubscribe' }));
+    assert.deepEqual(seen, [['run-start', 'idle'], ['string', 'running'], ['log', 'running']], 'before the fold: run-start still sees idle');
+    assert.deepEqual(director.snapshot().logs.map((l) => [l.text, l.origin]), [['from an event', 'event'], ['from the host', 'host']]);
+  });
+
   it('publishes nothing after dispose', () => {
     const { director, publishes, clock, f } = setup('twos');
     director.push(f.next('run-start', { title: 'T' }));

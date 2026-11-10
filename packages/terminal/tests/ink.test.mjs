@@ -307,6 +307,45 @@ describe('ink: startLive end to end with fake streams (fourth review)', async ()
     assert.match(text, /exited with\s+code 3/); // the line may wrap (a long node path)
   });
 
+  it('the linear view narrates events pushed straight to a supplied Director (fifth review)', async () => {
+    const stdout = out();
+    const stderr = out();
+    const director = createDirector({ caps: capsFor(false), motion: 'still' });
+    const run = start(false, { director, stdout, stderr });
+    for (const ev of fixture('success').events) director.push(ev);
+    assert.equal(await run.done, 0);
+    assert.match(stripAnsi(stdout.text()), /FINDINGS\s+3 \(/);
+    assert.doesNotMatch(stderr.text(), /No result snapshot|without run-end/);
+  });
+
+  it('an EPIPE on stderr (`2>&1 | head`) exits 0 quietly (fifth review)', async () => {
+    const exits = [];
+    const stderr = out({ failOn: /C-02/ });
+    const run = start(false, { stderr, exit: (c) => exits.push(c) });
+    for (const ev of fixture('success').events) run.push(ev);
+    await run.done;
+    await new Promise((r) => setTimeout(r, 50));
+    assert.deepEqual(exits, [0]);
+  });
+
+  it('prints the final results at the width the terminal has now (fifth review)', async () => {
+    const { stringWidth } = await import('@frame12/terminal');
+    const stdout = out({ tty: true });
+    stdout.columns = 120;
+    const run = start(true, { stdout });
+    const events = fixture('success').events;
+    for (const ev of events.slice(0, -1)) run.push(ev);
+    stdout.columns = 50;
+    stdout.emit('resize');
+    await new Promise((r) => setTimeout(r, 30));
+    run.push(events.at(-1));
+    await run.done;
+    const text = stripAnsi(stdout.text());
+    const results = text.slice(text.lastIndexOf('FINDINGS'));
+    const wide = results.split('\n').filter((l) => stringWidth(l) > 50);
+    assert.deepEqual(wide, []);
+  });
+
   it('does not print an event-borne log line twice in the linear view', async () => {
     const stderr = out();
     const run = start(false, { stderr });
