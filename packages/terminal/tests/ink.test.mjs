@@ -113,6 +113,26 @@ describe('ink: the live view draws the PR 2 grammar', () => {
   });
 });
 
+describe('ink: startLive in linear mode (first review)', () => {
+  const sink = () => {
+    let text = '';
+    return { stream: { write: (s) => ((text += s), true), on() {}, off() {}, isTTY: false }, text: () => text };
+  };
+  for (const [name, code] of [['success', 0], ['failed', 1], ['canceled', 130]]) {
+    it(`resolves done by itself on the snapshot (${name} → exit ${code})`, async () => {
+      const { detectCapabilities } = await import('@frame12/terminal');
+      const { startLive } = await import('@frame12/terminal/ink');
+      const out = sink();
+      const caps = detectCapabilities({}, { stdout: { isTTY: false }, stderr: { isTTY: false } }, [], { platform: 'linux' });
+      const run = startLive({ caps, motion: 'still', stdout: out.stream, stderr: out.stream, handleSignals: false });
+      assert.equal(run.mode, 'linear');
+      for (const ev of fixture(name).events) run.push(ev);
+      assert.equal(await run.done, code);
+      assert.equal(await run.end(), code, 'end() after the fact returns the same code');
+    });
+  }
+});
+
 describe('ink: lifecycle helpers', () => {
   it('maps run status to exit codes', () => {
     assert.deepEqual(['completed', 'failed', 'canceled', 'running'].map(exitCodeFor), [0, 1, 130, 1]);

@@ -205,6 +205,15 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
     assert.deepEqual(csi.map((m) => m[0]), [], 'append-only: only styling sequences');
   });
 
+  it('linear mode honors Ctrl-C too: cancel, results, exit 130 (first review)', async () => {
+    const app = spawnApp(['--scenario', 'hold'], { rows: 8 });
+    await app.waitFor(({ raw }) => /Live view off/.test(raw) && /C-04/.test(raw));
+    app.child.write('\u0003');
+    const { exitCode } = await app.exited;
+    assert.equal(exitCode, 130, app.raw.slice(-600));
+    assert.match(app.raw, /canceled/);
+  });
+
   it('re-lays out on resize (120 → 40 → 80) without leftover copies of the live region', async () => {
     const app = spawnApp(['--scenario', 'hold'], { cols: 120, rows: 30 });
     await app.waitFor(ready);

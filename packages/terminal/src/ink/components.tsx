@@ -12,7 +12,6 @@ import { safeLink } from '../core/safety.js';
 import { paint } from '../core/tokens.js';
 import { truncateEnd } from '../core/width.js';
 import {
-  CUT_STATUS_WORDS,
   FINDING_STATUS_WORDS,
   compactFinding,
   cut,
@@ -230,4 +229,3 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
   );
 }
 
-export { CUT_STATUS_WORDS };

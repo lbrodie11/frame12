@@ -6,6 +6,7 @@
  * sanitized and redacted like every other string, and reports the exit code.
  */
 import { spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
 import type { Director } from '../core/director.js';
 import { safeLink } from '../core/safety.js';
 
@@ -32,14 +33,17 @@ export interface SpawnResult {
 /** Splits a stream into complete lines, keeping a partial last line until more arrives. */
 function lineSplitter(onLine: (line: string) => void): { push(chunk: Buffer): void; end(): void } {
   let rest = '';
+  // A streaming decoder keeps a multi-byte character split across two chunks intact.
+  const decoder = new StringDecoder('utf8');
   return {
     push(chunk) {
-      const text = rest + chunk.toString('utf8');
+      const text = rest + decoder.write(chunk);
       const parts = text.split(/\r?\n/);
       rest = parts.pop() ?? '';
       for (const p of parts) onLine(p);
     },
     end() {
+      rest += decoder.end();
       if (rest !== '') onLine(rest);
       rest = '';
     },

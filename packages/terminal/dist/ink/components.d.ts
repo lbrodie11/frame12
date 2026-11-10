@@ -6,7 +6,7 @@
 import * as React from 'react';
 import type { CutState, Director, RunState } from '../core/director.js';
 import type { Finding } from '../core/contract.js';
-import { CUT_STATUS_WORDS, type NextStep, type RenderCaps } from '../render/grammar.js';
+import { type NextStep, type RenderCaps } from '../render/grammar.js';
 /** Re-renders when the Director publishes; reads its current state. */
 export declare function useRunState(director: Director): Readonly<RunState>;
 export interface StoryboardProps {
@@ -44,4 +44,3 @@ export declare function Inspector({ finding, frame, firstReceipt, rc, marker }: 
 }): React.JSX.Element;
 /** The live view's root. */
 export declare function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onInterrupt, onOpen }: StoryboardProps): React.JSX.Element;
-export { CUT_STATUS_WORDS };

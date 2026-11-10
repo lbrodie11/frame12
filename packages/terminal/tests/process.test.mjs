@@ -23,6 +23,13 @@ describe('process: spawnLogged', () => {
     assert.equal(d.snapshot().logs.at(-1).level, 'error');
   });
 
+  it('keeps a multi-byte character split across two chunks intact (first review)', async () => {
+    const d = director();
+    const [cmd, args] = node("const b = Buffer.from('\u6f22\u5b57\u30c6\u30b9\u30c8\\n'); process.stdout.write(b.subarray(0, 4)); setTimeout(() => process.stdout.write(b.subarray(4)), 50)");
+    await spawnLogged(d, cmd, args);
+    assert.equal(d.snapshot().logs.find((l) => l.stream === 'stdout').text, '\u6f22\u5b57\u30c6\u30b9\u30c8');
+  });
+
   it('sanitizes and redacts child output', async () => {
     const d = director();
     const token = ['ghp', '_', 'z'.repeat(36)].join('');

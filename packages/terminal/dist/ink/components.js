@@ -10,7 +10,7 @@ import { glyph } from '../core/glyphs.js';
 import { safeLink } from '../core/safety.js';
 import { paint } from '../core/tokens.js';
 import { truncateEnd } from '../core/width.js';
-import { CUT_STATUS_WORDS, FINDING_STATUS_WORDS, compactFinding, cut, evidenceCard, masthead, toneBar, } from '../render/grammar.js';
+import { FINDING_STATUS_WORDS, compactFinding, cut, evidenceCard, masthead, toneBar, } from '../render/grammar.js';
 import { orderFindings } from '../render/index.js';
 /** Re-renders when the Director publishes; reads its current state. */
 export function useRunState(director) {
@@ -146,4 +146,3 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
                                 return (_jsx(Box, { "aria-role": "listitem", "aria-label": `${o.frame} ${o.finding.title}: ${FINDING_STATUS_WORDS[o.finding.status]}`, "aria-state": { selected }, children: _jsxs(Text, { wrap: "truncate-end", children: [paint(mark, 'strong', rc.style), " ", line] }) }, o.finding.id));
                             }))] })) : null, lastProblem ? _jsx(Text, { wrap: "truncate-end", children: paint(`${lastProblem.level}: ${lastProblem.text.split('\n')[0]}`, lastProblem.level === 'error' ? 'status-danger' : 'ink2', rc.style) }) : null, lastWarning ? _jsxs(Text, { wrap: "truncate-end", children: [paint(`${glyph('warning', rc)} warning: ${lastWarning}`, 'status-warning', rc.style), state.warnings.length > 1 ? paint(` (+${state.warnings.length - 1} more)`, 'ink2', rc.style) : ''] }) : null, confirmUrl !== undefined ? (_jsx(Box, { "aria-role": "menu", "aria-label": "Confirm opening a link", children: _jsxs(Text, { wrap: "truncate-end", children: ["Open ", confirmUrl, " in your browser? y/N"] }) })) : (_jsx(HintBar, { rc: rc, inspecting: inspecting, helpOpen: helpOpen })), nextSteps && nextSteps.length > 0 && state.status !== 'running' && state.status !== 'idle' ? (_jsx(Text, { children: paint(`next: ${nextSteps[0].command}`, 'ink2', rc.style) })) : null] })] }));
 }
-export { CUT_STATUS_WORDS };

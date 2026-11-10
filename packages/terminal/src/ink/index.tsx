@@ -134,11 +134,41 @@ export function startLive(options: LiveOptions): LiveRun {
   stdout.on('error', onStdoutError);
   cleanups.push(() => stdout.off('error', onStdoutError));
 
+  /**
+   * The one interrupt rule for both views: the first Ctrl-C/SIGINT cancels a running job (the
+   * cancel is acknowledged at once); when nothing is running any more it finishes; a second
+   * interrupt within 2 s forces exit, whatever the producer is doing.
+   */
+  let lastInterrupt = Number.NEGATIVE_INFINITY;
+  let finish: () => Promise<number> = async () => done;
+  const interrupt = (why: string) => {
+    const now = Date.now();
+    if (now - lastInterrupt < 2000) {
+      restore();
+      exit(130);
+      return;
+    }
+    lastInterrupt = now;
+    const status = director.snapshot().status;
+    if (status === 'running' || status === 'idle') director.cancel(why);
+    else void finish();
+  };
+  /** SIGTERM and SIGHUP cancel like one interrupt, but never force or finish on their own. */
+  const cancelOnSignal = (sig: string) => {
+    const status = director.snapshot().status;
+    if (status === 'running' || status === 'idle') director.cancel(sig);
+  };
+  /** Both views finish by themselves once the run has ended and its snapshot has arrived. */
+  const unsubscribeFinish = director.subscribe((s) => {
+    if (s.snapshot && s.status !== 'running' && s.status !== 'idle') void finish();
+  });
+  cleanups.push(unsubscribeFinish);
+
   // ------------------------------------------------------------------ linear fallback
   if (mode === 'linear') {
     const writer = createLinearWriter({ format: caps.screenReader ? 'plain' : 'rich', caps, stdout, stderr, ...renderOpts });
     if (caps.isTTY || caps.stderrIsTTY) stderr.write(`${caps.screenReader ? 'Note' : 'Live view off'}: ${reason}.\n`);
-    const finish = async () => {
+    finish = async () => {
       if (finished) return done;
       finished = true;
       writer.end();
@@ -147,21 +177,7 @@ export function startLive(options: LiveOptions): LiveRun {
       resolveDone(code);
       return code;
     };
-    let lastLinearInterrupt = Number.NEGATIVE_INFINITY;
-    installSignals(
-      () => {
-        // Same rule as the live view: the first SIGINT cancels, a second within 2 s forces exit.
-        const now = Date.now();
-        if (now - lastLinearInterrupt < 2000) {
-          restore();
-          exit(130);
-          return;
-        }
-        lastLinearInterrupt = now;
-        director.cancel('SIGINT');
-      },
-      (sig) => director.cancel(sig),
-    );
+    installSignals(() => interrupt('SIGINT'), cancelOnSignal);
     return {
       director,
       mode,
@@ -170,14 +186,13 @@ export function startLive(options: LiveOptions): LiveRun {
         director.push(event);
         writer.write(event);
       },
-      end: finish,
+      end: () => finish(),
       done,
     };
   }
 
   // ------------------------------------------------------------------ live view
   let instance: Instance | undefined;
-  let lastInterrupt = Number.NEGATIVE_INFINITY;
   const rc = () => ({ ...renderCapsFor({ ...caps, columns: stdout.columns || caps.columns }, 'stdout'), columns: Math.max(20, stdout.columns || caps.columns) });
   const rows = () => Math.max(5, stdout.rows || caps.rows);
 
@@ -203,19 +218,7 @@ export function startLive(options: LiveOptions): LiveRun {
     return code;
   };
 
-  /** First interrupt cancels (immediately acknowledged); a second within 2 s forces exit. */
-  const interrupt = (why: string) => {
-    const now = Date.now();
-    if (now - lastInterrupt < 2000) {
-      restore();
-      exit(130);
-      return;
-    }
-    lastInterrupt = now;
-    const status = director.snapshot().status;
-    if (status === 'running' || status === 'idle') director.cancel(why);
-    else void finishLive();
-  };
+  finish = finishLive;
 
   const view = () => (
     <Storyboard
@@ -227,7 +230,7 @@ export function startLive(options: LiveOptions): LiveRun {
       onQuit={() => {
         const status = director.snapshot().status;
         if (status === 'running' || status === 'idle') interrupt('quit (q)');
-        else void finishLive();
+        else void finish();
       }}
       onInterrupt={() => interrupt('SIGINT')}
       onOpen={(url) => void openUrl(url)}
@@ -243,6 +246,8 @@ export function startLive(options: LiveOptions): LiveRun {
       if (!warned && !finished && !/[\\/]ink[\\/]build[\\/]/.test(new Error().stack ?? '')) {
         warned = true;
         director.log('warn', 'Something wrote to stdout directly during the live view, which corrupts it. Use console.* or spawnLogged, or run with --plain.');
+        // Warned once: put the original back, so no later write pays for a stack trace.
+        stdout.write = original;
       }
       return (original as (...a: unknown[]) => boolean).apply(this, args);
     } as typeof stdout.write;
@@ -283,19 +288,7 @@ export function startLive(options: LiveOptions): LiveRun {
     stdout.off('resize', beforeInkResize);
     stdout.off('resize', onResize);
   });
-  installSignals(
-    () => interrupt('SIGINT'),
-    (sig) => {
-      const status = director.snapshot().status;
-      if (status === 'running' || status === 'idle') director.cancel(sig);
-    },
-  );
-
-  // When the run ends with its snapshot, close the live view by itself.
-  const unsubscribe = director.subscribe((s) => {
-    if (s.snapshot && s.status !== 'running' && s.status !== 'idle') void finishLive();
-  });
-  cleanups.push(unsubscribe);
+  installSignals(() => interrupt('SIGINT'), cancelOnSignal);
 
   return {
     director,
