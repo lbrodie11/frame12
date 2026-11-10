@@ -70,6 +70,11 @@ All notable changes to **FRAME/12** are documented in this file.
   - Replaced `2.5px` stroke/border literals across `registry/styles/frame12.css` with `var(--f-stroke)` (while `--f-pose` and `--f-fps` remain reference-only CSS custom properties on `:root`).
   - Renamed the 6 internal `.f12-m-*` transition/animation helper variables in `registry/styles/frame12.css` from `--f-*` to `--f12-*` (`--f-rng-ind-transition` → `--f12-rng-ind-transition`, `--f-switch-thumb-transition` → `--f12-switch-thumb-transition`, `--f-skeleton-animation` → `--f12-skeleton-animation`, `--f-enter-animation` → `--f12-enter-animation`, `--f-pop-animation` → `--f12-pop-animation`, `--f-burst-animation` → `--f12-burst-animation`), aligning with `--f12-autocut-display` and `--f12-m-chars` so the `--f-*` prefix is reserved exclusively for public design tokens.
 
+### Fixed
+
+- **Redundant `?section=` is dropped from block URLs:** `?section=overview` (Developer Console) and `?section=profile` (Workspace Settings) render the default tab and are now removed from the address bar with `replaceState`, like unknown values already were.
+- **`/favicon.ico` no longer 404s:** browsers request it on their own for documents without a `<head>` (e.g. `/llms.txt`, `/r/*.json`). `site/public/favicon.ico` is generated from the canonical `site/app/icon.svg` at 16/32/48 px by `site/scripts/build-favicon.mjs`; `site-verify.mjs` pixel-compares each entry against `icon.svg`, and `npm test` checks the file exists. Page `<head>` icons are unchanged (`/icon.svg`, `/apple-icon`).
+
 ## [0.2.0] - 2026-11-06
 
 ### Added
