@@ -460,6 +460,11 @@
   background: var(--f-sheet);
   color: var(--f-ink);
 }
+/* <Sheet autoCut> also sets --f12-autocut-display inline; this attribute rule keeps cut labels
+   numbered where a strict CSP blocks inline style attributes (static pages in webviews). */
+.f12-sheet[data-autocut] {
+  --f12-autocut-display: block;
+}
 .f12-cut[data-autocut] {
   display: var(--f12-autocut-display, none);
   counter-increment: f12-cut;
@@ -2356,6 +2361,8 @@ button.f12-breadcrumb-link {
 }
 .f12-balloon-gap {
   position: absolute;
+  /* Centred default (tail offset 0); <Balloon> sets the exact offset inline. */
+  left: calc(50% - 5px);
   bottom: -2px;
   width: 10px;
   height: 3px;
