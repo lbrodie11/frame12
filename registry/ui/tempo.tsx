@@ -26,6 +26,10 @@ export interface TempoProviderProps {
 
 const useIsoLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
 
+// Bundlers (Next.js, webpack, Vite) statically replace `process.env.NODE_ENV`. Declared locally so
+// browser-only TypeScript consumers without @types/node still compile (as in panel.tsx).
+declare const process: { env: { NODE_ENV?: string } };
+
 const isDev = (): boolean => {
   try {
     return process.env.NODE_ENV !== 'production';
