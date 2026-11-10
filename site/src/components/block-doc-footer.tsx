@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Panel, Tag } from '@/components/frame12';
 import { getBlockCatalogEntry } from '@/lib/catalog';
 import { blockDependenciesAnchorId, blockOriginToken, type BlockSlug } from '@/lib/return-context';
-import { rememberFocusForBack } from '@/lib/history-focus';
+import { returnFocusProps } from '@/lib/history-focus';
 
 export function BlockDocumentationSection({
   slug,
@@ -61,7 +61,7 @@ export function BlockDocumentationSection({
                     href={`/components/${dep}?from=${from}`}
                     className="f12-link-btn"
                     id={linkId}
-                    onClick={() => rememberFocusForBack(linkId, headingId)}
+                    {...returnFocusProps(headingId)}
                   >
                     {dep}
                   </Link>

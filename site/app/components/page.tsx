@@ -25,7 +25,7 @@ import {
   catalogOriginToken,
   type CatalogGroupId,
 } from '@/lib/return-context';
-import { rememberFocusForBack } from '@/lib/history-focus';
+import { returnFocusProps } from '@/lib/history-focus';
 
 /** "Inspect →" link that carries its catalog group as an origin token and remembers focus. */
 function InspectLink({ slug, title, group }: { slug: string; title: string; group: CatalogGroupId }) {
@@ -36,7 +36,7 @@ function InspectLink({ slug, title, group }: { slug: string; title: string; grou
       id={id}
       className="f12-link-btn f12-nowrap"
       aria-label={`Inspect ${title}`}
-      onClick={() => rememberFocusForBack(id, catalogGroupAnchorId(group))}
+      {...returnFocusProps(catalogGroupAnchorId(group))}
     >
       Inspect →
     </Link>

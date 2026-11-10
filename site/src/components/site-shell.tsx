@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { SegmentedControl, Tag } from '@/components/frame12';
 import { type MotionMode } from '@/hooks/use-on-twos';
 import { NAV_ITEMS, resolveNavOwnership } from '@/lib/nav-ownership';
-import { startFocusRestoration } from '@/lib/history-focus';
+import { startFocusRestoration, startFocusTracking } from '@/lib/history-focus';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -55,7 +55,14 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   const [navOverflow, setNavOverflow] = React.useState({ start: false, end: false });
 
   // Back/Forward only: return focus to the link that was activated on that history entry.
-  React.useEffect(() => startFocusRestoration(), []);
+  React.useEffect(() => {
+    const stopTracking = startFocusTracking();
+    const stopRestoring = startFocusRestoration();
+    return () => {
+      stopTracking();
+      stopRestoring();
+    };
+  }, []);
 
   // Overflow cue for the narrow, horizontally scrolling nav row (its scrollbar is hidden): show
   // an edge fade + chevron at each edge that still has links beyond it, and nothing otherwise.
@@ -79,7 +86,8 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       focusRaf = window.requestAnimationFrame(() => {
         const max = list.scrollWidth - list.clientWidth;
         if (max <= 1) return;
-        const pad = parseFloat(getComputedStyle(list).scrollPaddingLeft) || 32;
+        const parsedPad = parseFloat(getComputedStyle(list).scrollPaddingLeft);
+        const pad = Number.isFinite(parsedPad) ? parsedPad : 32;
         const lr = list.getBoundingClientRect();
         const r = link.getBoundingClientRect();
         if (r.left >= lr.left + pad - 1 && r.right <= lr.right - pad + 1) return;
