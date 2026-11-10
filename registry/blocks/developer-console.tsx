@@ -856,6 +856,12 @@ export interface DeveloperConsoleProps {
   className?: string;
   headerSlot?: React.ReactNode;
   footerSlot?: React.ReactNode;
+  /**
+   * Called once with the new section after every internal section change (tab click, breadcrumb,
+   * empty-state or cross-link). Never called on mount. Use it to mirror the section into a URL
+   * (e.g. `?section=`) without making the block router-aware.
+   */
+  onSectionChange?: (section: ConsoleSection) => void;
 }
 
 const SLO_TARGET_MAX_ERROR_BPS = 50;
@@ -876,6 +882,7 @@ function DeveloperConsoleInner({
   className = '',
   headerSlot,
   footerSlot,
+  onSectionChange,
 }: DeveloperConsoleProps) {
   const { toast } = useToast();
   const reactId = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -885,6 +892,16 @@ function DeveloperConsoleInner({
   const [activeSection, setActiveSection] = React.useState<ConsoleSection>(
     defaultSection ?? initialSection ?? 'overview',
   );
+  // Report each committed section change (never the initial mount) to the optional callback.
+  // Comparing against the last reported value keeps StrictMode effect replays from double-firing.
+  const onSectionChangeRef = React.useRef(onSectionChange);
+  onSectionChangeRef.current = onSectionChange;
+  const reportedSectionRef = React.useRef(activeSection);
+  React.useEffect(() => {
+    if (reportedSectionRef.current === activeSection) return;
+    reportedSectionRef.current = activeSection;
+    onSectionChangeRef.current?.(activeSection);
+  }, [activeSection]);
   const [datasetState, setDatasetState] = React.useState<ConsoleDatasetState>(
     defaultDatasetState ?? initialDatasetState ?? 'populated',
   );

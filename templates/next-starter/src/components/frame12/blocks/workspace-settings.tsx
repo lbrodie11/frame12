@@ -688,6 +688,11 @@ export interface WorkspaceSettingsProps {
   idPrefix?: string;
   /** Callback fired whenever unsaved draft state or modified sections change. */
   onDirtyChange?: (isDirty: boolean, dirtySections: SettingsSection[]) => void;
+  /**
+   * Called once with the new section after every internal section change (tab click, breadcrumb,
+   * or validation jump). Never called on mount. Use it to mirror the section into a URL.
+   */
+  onSectionChange?: (section: SettingsSection) => void;
   /** Optional slot rendered at the top of the sheet (used by the docs showcase for install commands). */
   headerSlot?: React.ReactNode;
   /** Optional slot rendered at the bottom of the sheet. */
@@ -707,6 +712,7 @@ function WorkspaceSettingsInner({
   showSandboxControls = true,
   idPrefix,
   onDirtyChange,
+  onSectionChange,
   headerSlot,
   footerSlot,
 }: WorkspaceSettingsProps) {
@@ -727,6 +733,16 @@ function WorkspaceSettingsInner({
   );
   const [activeSection, setActiveSection] =
     React.useState<SettingsSection>(resolvedDefaultSection);
+  // Report each committed section change (never the initial mount) to the optional callback.
+  // Comparing against the last reported value keeps StrictMode effect replays from double-firing.
+  const onSectionChangeRef = React.useRef(onSectionChange);
+  onSectionChangeRef.current = onSectionChange;
+  const reportedSectionRef = React.useRef(activeSection);
+  React.useEffect(() => {
+    if (reportedSectionRef.current === activeSection) return;
+    reportedSectionRef.current = activeSection;
+    onSectionChangeRef.current?.(activeSection);
+  }, [activeSection]);
   const [datasetState, setDatasetState] =
     React.useState<SettingsDatasetState>(resolvedDefaultDatasetState);
 

@@ -3075,6 +3075,12 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
         "type": "React.ReactNode",
         "defaultValue": "undefined",
         "description": "Optional React node rendered at the bottom of the sheet."
+      },
+      {
+        "name": "onSectionChange",
+        "type": "(section: ConsoleSection) => void",
+        "defaultValue": "undefined",
+        "description": "Called once with the new section after every internal section change (never on mount). Mirror it into the URL (e.g. ?section= via history.replaceState) and pass it back as defaultSection so Back, reload, and shared links reopen the same tab."
       }
     ],
     "customizationGuidance": [
@@ -3206,6 +3212,12 @@ const RAW_BLOCK_CATALOG: BlockCatalogEntry[] = [
         "type": "(isDirty: boolean, dirtySections: SettingsSection[]) => void",
         "defaultValue": "undefined",
         "description": "Callback fired whenever unsaved draft state or modified sections change."
+      },
+      {
+        "name": "onSectionChange",
+        "type": "(section: SettingsSection) => void",
+        "defaultValue": "undefined",
+        "description": "Called once with the new section after every internal section change (tab, breadcrumb, or validation jump; never on mount). Mirror it into the URL to make the active tab shareable and Back-safe."
       },
       {
         "name": "headerSlot",
