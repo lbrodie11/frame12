@@ -26,7 +26,7 @@ const page = document({ title, body, inlineCss: false });
 
 /** Side-by-side: the React kit and @frame12/static rendering the same pull-request report. */
 export default function StaticPage() {
-  const staticReport = renderStaticPrReport();
+  const staticReport = renderStaticPrReport(undefined, undefined, ' (static)');
   return (
     <>
       <Sheet autoCut pegs id="static-intro">
@@ -63,12 +63,12 @@ export default function StaticPage() {
         </Scene>
       </Sheet>
       <div className="f12-static-compare" id="static-compare">
-        <section aria-labelledby="static-compare-react" className="f12-static-compare-col" data-renderer="react">
-          <h2 id="static-compare-react" className="f12-static-compare-h">React kit</h2>
-          <PrReportReact />
+        <section id="static-compare-react" aria-labelledby="static-compare-react-h" className="f12-static-compare-col" data-renderer="react">
+          <h2 id="static-compare-react-h" className="f12-static-compare-h">React kit</h2>
+          <PrReportReact labelSuffix=" (React)" />
         </section>
-        <section aria-labelledby="static-compare-static" className="f12-static-compare-col" data-renderer="static">
-          <h2 id="static-compare-static" className="f12-static-compare-h">@frame12/static</h2>
+        <section id="static-compare-static" aria-labelledby="static-compare-static-h" className="f12-static-compare-col" data-renderer="static">
+          <h2 id="static-compare-static-h" className="f12-static-compare-h">@frame12/static</h2>
           {/* renderStaticPrReport() returns escaped, deterministic markup built only from the report data. */}
           <div dangerouslySetInnerHTML={{ __html: staticReport }} />
         </section>

@@ -58,8 +58,11 @@ export const PR_REPORT: PrReportData = {
 
 export const PR_REPORT_AREAS = ['summary metrics', 'risk evidence'];
 
-/** The report rendered with @frame12/static. Returns the sheet (use document() for a full page). */
-export function renderStaticPrReport(data: PrReportData = PR_REPORT, theme?: 'light' | 'dark'): Html {
+/**
+ * The report rendered with @frame12/static. Returns the sheet (use document() for a full page).
+ * `labelSuffix` keeps region names unique when two reports share a page.
+ */
+export function renderStaticPrReport(data: PrReportData = PR_REPORT, theme?: 'light' | 'dark', labelSuffix = ''): Html {
   return sheet({
     autoCut: true,
     ...(theme ? { theme } : {}),
@@ -68,13 +71,13 @@ export function renderStaticPrReport(data: PrReportData = PR_REPORT, theme?: 'li
       children: fragment(
         panel({
           area: 'summary',
-          label: 'Change summary',
+          label: `Change summary${labelSuffix}`,
           children: fragment(data.summary, balloon({ children: data.note })),
         }),
         panelPair({
           area: 'metrics',
-          topLabel: 'Size',
-          bottomLabel: 'Coverage',
+          topLabel: `Size${labelSuffix}`,
+          bottomLabel: `Coverage${labelSuffix}`,
           top: { children: metric({ label: 'Lines changed', value: data.linesChanged, format: (v) => Math.round(v).toLocaleString('en-US') }) },
           bottom: {
             children: metric({
@@ -88,13 +91,13 @@ export function renderStaticPrReport(data: PrReportData = PR_REPORT, theme?: 'li
         }),
         panel({
           area: 'risk',
-          label: 'Co-change risk',
+          label: `Co-change risk${labelSuffix}`,
           children: fragment(
             ghostWire({ ...data.coChange, orientation: 'vertical' }),
             toneBarList({ title: 'Hotspots', subtitle: 'Lines changed per file', items: data.hotspots, selectedId: 'invoice', idPrefix: 'static-hot', density: 'compact' }),
           ),
         }),
-        panel({ area: 'evidence', label: 'Evidence', children: receiptList({ items: data.receipts, ariaLabel: 'Evidence for this report' }) }),
+        panel({ area: 'evidence', label: `Evidence${labelSuffix}`, children: receiptList({ items: data.receipts, ariaLabel: `Evidence for this report${labelSuffix}` }) }),
       ),
     }),
   });

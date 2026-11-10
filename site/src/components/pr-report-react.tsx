@@ -17,18 +17,27 @@ import {
 import { PR_REPORT, PR_REPORT_AREAS, type PrReportData } from '@/lib/pr-report';
 
 /** The PR report rendered with the React kit, from the same data as renderStaticPrReport(). */
-export function PrReportReact({ data = PR_REPORT, theme }: { data?: PrReportData; theme?: 'light' | 'dark' }) {
+export function PrReportReact({
+  data = PR_REPORT,
+  theme,
+  labelSuffix = '',
+}: {
+  data?: PrReportData;
+  theme?: 'light' | 'dark';
+  /** Keeps region names unique when two reports share a page. */
+  labelSuffix?: string;
+}) {
   return (
     <Sheet autoCut theme={theme}>
       <Scene areas={PR_REPORT_AREAS}>
-        <Panel area="summary" label="Change summary">
+        <Panel area="summary" label={`Change summary${labelSuffix}`}>
           {data.summary}
           <Balloon>{data.note}</Balloon>
         </Panel>
         <PanelPair
           area="metrics"
-          topLabel="Size"
-          bottomLabel="Coverage"
+          topLabel={`Size${labelSuffix}`}
+          bottomLabel={`Coverage${labelSuffix}`}
           top={{
             children: (
               <Metric
@@ -52,7 +61,7 @@ export function PrReportReact({ data = PR_REPORT, theme }: { data?: PrReportData
             ),
           }}
         />
-        <Panel area="risk" label="Co-change risk">
+        <Panel area="risk" label={`Co-change risk${labelSuffix}`}>
           <GhostWire {...data.coChange} orientation="vertical" />
           <ToneBarList
             title="Hotspots"
@@ -63,8 +72,8 @@ export function PrReportReact({ data = PR_REPORT, theme }: { data?: PrReportData
             density="compact"
           />
         </Panel>
-        <Panel area="evidence" label="Evidence">
-          <ReceiptList ariaLabel="Evidence for this report">
+        <Panel area="evidence" label={`Evidence${labelSuffix}`}>
+          <ReceiptList ariaLabel={`Evidence for this report${labelSuffix}`}>
             {data.receipts.map((r) => (
               <Receipt key={`${r.kind}-${r.value}`} {...r} />
             ))}
