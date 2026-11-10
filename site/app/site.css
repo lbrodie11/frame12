@@ -1086,18 +1086,22 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   align-self: flex-start;
   color: var(--f-ink);
 }
-/* Scroll driver: only while the sequence is scrubbing, and only where the strip fits the
-   viewport. The stage sticks inside a track at most 1.5 extra viewport heights tall (the spacer
-   is inside the content box so the sticky stage can travel through it). Native scroll only. */
-@media (min-width: 1000px) and (min-height: 720px) {
-  .home-story-track[data-ink-scroll]::after {
-    content: "";
-    display: block;
-    height: 150svh;
-  }
-  .home-story-track[data-ink-scroll] .home-story-stage {
-    position: sticky;
-    top: var(--f-gutter-change);
+/* Scroll driver layout: where scroll timelines are supported and the strip fits the viewport, the
+   stage sticks inside a track at most 1.5 extra viewport heights tall (the spacer sits inside the
+   content box so the sticky stage can travel through it). It depends on CSS alone, never on JS
+   state or tempo, so hydration and tempo changes never move the page (CLS 0); under `still` the
+   finished storyboard simply stays pinned while you scroll past. Native scroll only. */
+@supports (animation-timeline: view()) {
+  @media (min-width: 1000px) and (min-height: 720px) {
+    .home-story-track::after {
+      content: "";
+      display: block;
+      height: 150svh;
+    }
+    .home-story-stage {
+      position: sticky;
+      top: var(--f-gutter-change);
+    }
   }
 }
 @media (forced-colors: active) {
