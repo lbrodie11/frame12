@@ -2,7 +2,7 @@ import { attrs, child, escapeHtml, html, textContent, type Child, type Html } fr
 import { hash } from './hash.js';
 import { badge } from './text.js';
 import { safeUrl } from './url.js';
-import { fail, ident, num, oneOf, optIdent, optString, bool } from './validate.js';
+import { fail, ident, num, obj, oneOf, optIdent, optString, bool } from './validate.js';
 
 // ------------------------------------------------------------------------------- formatters
 
@@ -48,6 +48,7 @@ function delta(value: number, kind: 'pct' | 'pp', comparisonLabel?: string, rang
 /** Mirrors `<Metric>` at rest: the settled value, delta, note and optional spark. */
 export function metric(o: MetricOpts): Html {
   const where = 'metric()';
+  obj(where, o);
   if (typeof o.label !== 'string') fail(where, 'label must be a string');
   const value = num(where, 'value', o.value, -Number.MAX_VALUE, Number.MAX_VALUE);
   const format = o.format ?? fmtMoney;
@@ -105,6 +106,7 @@ export interface ToneBarListOpts {
  */
 export function toneBarList(o: ToneBarListOpts): Html {
   const where = 'toneBarList()';
+  obj(where, o);
   const title = optString(where, 'title', o.title);
   const subtitle = optString(where, 'subtitle', o.subtitle);
   if (!Array.isArray(o.items)) fail(where, 'items must be an array');
@@ -131,7 +133,7 @@ export function toneBarList(o: ToneBarListOpts): Html {
     seen.add(r.id);
   }
   const prefix = optIdent(where, 'idPrefix', o.idPrefix) ?? `f12-s${hash(JSON.stringify([title, subtitle, items, selectedId, density]))}`;
-  const max = Math.max(1, ...items.map((r) => r.value));
+  const max = items.reduce((m, r) => (r.value > m ? r.value : m), 1);
   const isCompact = density === 'compact';
   const head =
     title || subtitle
@@ -152,6 +154,9 @@ export function toneBarList(o: ToneBarListOpts): Html {
     ])}><span class="f12-int-name">${escapeHtml(r.name)}${r.badge ? badge({ children: r.badge }) : ''}</span><span class="f12-int-bar" aria-hidden="true"><span${attrs([
       ['class', `f12-int-fill${patternClass}`],
       ['data-pattern', r.pattern ?? 'dots'],
+      // Static-only: the width rounded to whole percent, styled by static.css so bars keep their
+      // length when a strict CSP blocks the exact inline style (see PARITY.md).
+      ['data-fill', Math.round(Math.max(0, (r.value / max) * 100))],
       ['style', `width:${Math.max(0, (r.value / max) * 100)}%`],
     ])}></span></span><span class="f12-int-val">${escapeHtml(formatted)}${
       r.share != null ? `<span class="f12-int-share">${(r.share * 100).toFixed(0)}%</span>` : ''
@@ -180,6 +185,7 @@ export interface GhostWireOpts {
 /** Mirrors `<GhostWire>` at rest: the co-change wire fully revealed, `auto` drawn horizontal. */
 export function ghostWire(o: GhostWireOpts): Html {
   const where = 'ghostWire()';
+  obj(where, o);
   const label = optString(where, 'label', o.label);
   const strength = o.strength === undefined ? 0.5 : num(where, 'strength', o.strength, 0, 1);
   const orientation = oneOf(where, 'orientation', o.orientation, ['auto', 'horizontal', 'vertical'] as const, 'auto');
@@ -243,6 +249,7 @@ export interface ReceiptOpts {
 /** Mirrors `<Receipt>`: an evidence chip (commit, file or link). Unsafe hrefs render as text. */
 export function receipt(o: ReceiptOpts): Html {
   const where = 'receipt()';
+  obj(where, o);
   const kind = oneOf(where, 'kind', o.kind, ['commit', 'file', 'link'] as const, 'file');
   if (o.kind === undefined) fail(where, 'kind is required');
   if (typeof o.value !== 'string') fail(where, 'value must be a string');
@@ -311,9 +318,10 @@ export interface ReceiptListOpts {
 /** Mirrors `<ReceiptList>` with one `<Receipt>` per item. */
 export function receiptList(o: ReceiptListOpts): Html {
   const where = 'receiptList()';
+  obj(where, o);
   if (!Array.isArray(o.items)) fail(where, 'items must be an array');
   const ariaLabel = optString(where, 'ariaLabel', o.ariaLabel) ?? 'Evidence receipts';
-  const items = o.items.map((it) => `<li class="f12-receipt-item">${receipt(it)}</li>`).join('');
+  const items = o.items.map((it, i) => `<li class="f12-receipt-item">${receipt(obj(where, it, `items[${i}]`))}</li>`).join('');
   return html(
     `<ul${attrs([
       ['role', 'list'],

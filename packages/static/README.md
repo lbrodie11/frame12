@@ -1,7 +1,7 @@
 # @frame12/static
 
 Framework-free HTML renderers for [FRAME/12](https://frame12.dev). They're pure functions that
-return escaped, deterministic HTML strings with the **same DOM, classes and attributes** as the
+return escaped, deterministic HTML (as `Html` values; `String(html)` gives the markup) with the **same DOM, classes and attributes** as the
 React components in the shadcn registry. A page made with `@frame12/static` and a page made with
 `<Sheet>`/`<Panel>` are styled by the same canonical CSS and look the same.
 
@@ -43,15 +43,16 @@ const body = sheet({
   }),
 });
 
-const html = document({ title: pr.title, body }); // a complete, self-contained page
+const page = document({ title: pr.title, body }); // a complete, self-contained page
+fs.writeFileSync('report.html', String(page));    // Html is an object: String() gives the markup
 ```
 
 `document()` returns `<!doctype html>`, charset, viewport, `<style data-f12-tokens>` (the
 `@frame12/tokens` `cssText`), `<style data-f12-static>` (this package's `static.css`), then
 your body.
 
-Compose children with `fragment(...)`. Joining two `Html` values with `+` produces a plain
-string, which the next renderer escapes as text.
+Compose children with `fragment(...)`. `String(html)`, `${html}` and `a + b` all produce plain
+strings, which the next renderer escapes as text.
 
 ## API
 
@@ -73,10 +74,14 @@ string, which the next renderer escapes as text.
 | `receiptList({ items, ariaLabel? })` | `<ReceiptList>` |
 | `fragment(...parts)` | `<>…</>` |
 | `unsafeRaw(trustedHtml)`, `escapeHtml(s)`, `safeUrl(u)`, `isHtml(v)` | Escaping building blocks |
+| `toIdent(s)` | Turns any string (a file path, a title) into a valid identifier for `area`, `idPrefix`, `selectedId` and tone-bar item ids |
+| `dedupeIds(html)` | Makes auto ids unique when you assemble a page without `document()` |
 | `fmtPct`, `fmtPPAbs`, `fmtMoney` | Same output as React (`en-US`) |
 | `staticCss` | The generated CSS as a string |
 
-Every renderer returns `Html`, a branded string. Stamps are `tag({ variant: 'stamp' })`, as in
+Every renderer returns `Html`: a frozen object whose `toString()`, `valueOf()` and `toJSON()`
+return the markup. Write it with `String(html)`; TypeScript rejects passing an `Html` where a
+`string` is expected, so a missing `String()` fails at compile time. Stamps are `tag({ variant: 'stamp' })`, as in
 React. Interactive and motion props (`onSelect`, `motion`, `pop`, `changed`, handlers, refs,
 `className`) aren't offered. `toneBarList` shows `selectedId` as the selected state, but its
 rows are plain `<div data-static>` elements, never inert buttons.
@@ -93,21 +98,38 @@ The security contract:
   entity-encoded schemes (`&#106;avascript:`) and every other scheme are rejected. Validation
   fails closed: no `href` is rendered, and the value is shown as text.
 - **Identifiers** (`area`, `areas` cells, `idPrefix`, `selectedId`, tone-bar item `id`s) must
-  match `^[a-z][a-z0-9-]{0,63}$`, otherwise the renderer throws a `TypeError`.
+  match `^[a-z][a-z0-9-]{0,63}$`, otherwise the renderer throws a `TypeError`. When ids come from
+  data (file paths, names), pass them through `toIdent()`, which keeps valid identifiers and
+  turns anything else into a deterministic, collision-resistant one (`src/Foo.ts` →
+  `src-foo-ts-<hash>`), so one odd value can't take down a report. Each named area in `areas`
+  must form one rectangle, and `panelPair` needs both `top` and `bottom` (or neither).
+- **Options** must be objects: `receipt(null)` throws the same `[@frame12/static receipt()] …`
+  `TypeError` as any other invalid input.
 - **Numbers** (`breakpoint`, `columns`, `width`, `height`, `strength`, `tailOffset`, `value`,
   `share`, `delta`) must be finite and in range, otherwise the renderer throws. A string
-  `breakpoint` must match `^\d{2,4}(px|rem|em)$`. Only these validated, re-serialized values ever
+  `breakpoint` must match `^\d{2,4}(px|rem|em)$`, and a number must be an integer from 10 to 9999
+  (px), the same range. Only these validated, re-serialized values ever
   reach CSS (inline custom properties and the scoped `<style>` for a custom `breakpoint`);
   caller strings are never interpolated into CSS.
-- **`lang`** must be a BCP 47-shaped tag, otherwise `en`. **`title`** is escaped.
+- **`lang`** must be a BCP 47-shaped tag, otherwise `en` (the one input that falls back instead
+  of throwing, as the F12-04 contract specifies). **`title`** is escaped.
 
-### `Html` branding is not a security boundary
+### How `Html` is recognised
 
-`Html` is a TypeScript brand. It's a compile-time aid only: anyone can write `'<b>' as Html`.
-At runtime, the kit recognises markup through an internal registry of strings that its
-renderers, `fragment()` and `unsafeRaw()` produced, so a string that was only *cast* to `Html` is
-still escaped. Don't rely on the type for safety. Rely on never passing untrusted input to
-`unsafeRaw()`.
+Trust is decided by **object identity, not text**. Only `Html` objects created inside this
+package (by a renderer, `fragment()` or `unsafeRaw()`) carry a private field; `isHtml()` checks
+that field. A plain string is always escaped, even when its text equals markup the kit rendered
+earlier, so replaying a previous render's output as, say, a commit subject shows it as text. A
+forged object (`Object.create(…)`, `{ toString() {…} }`) is rejected with a `TypeError`. Nothing
+is cached: an `Html` is garbage-collected like any object, and output never depends on what was
+rendered before.
+
+The TypeScript type is a compile-time aid, not the security boundary: a cast such as
+`'<b>' as unknown as Html` compiles, but the runtime check still escapes or rejects it. The
+boundary is the rule below: never pass untrusted input to `unsafeRaw()`.
+
+One consequence: `Html` from two different copies of `@frame12/static` (for example two
+versions installed side by side) isn't recognised across copies and is escaped. Keep one copy.
 
 ### `unsafeRaw()`: the only bypass
 
@@ -162,8 +184,10 @@ is a separate, later change.
 
 Auto ids (`ghostWire` masks, `toneBarList` rows without `idPrefix`) are derived from a hash of the
 renderer's inputs, so fragments are deterministic. `document()` makes duplicates unique with a
-counter scoped to that one call and rewrites the `url(#…)` references that follow them. If you
-build pages without `document()`, pass `idPrefix` or avoid rendering identical ghost wires twice.
+counter scoped to that one call. It only rewrites two attributes inside tags: an auto `id`, and
+the `mask="url(#…)"` with which the same ghost wire references its own mask. Text, `href`s and
+caller-chosen ids (`idPrefix`) are never touched. If you assemble a page without `document()`,
+call `dedupeIds(fragment(...))` on it.
 
 ## Targets
 
@@ -171,10 +195,22 @@ build pages without `document()`, pass `idPrefix` or avoid rendering identical g
   `inlineCss: true`. The page makes no requests.
 - **CSP-restricted hosts** (VS Code webviews, strict `style-src`): render with
   `document({ inlineCss: false })` and load both stylesheets as resources allowed by the host's
-  CSP. Never loosen the host CSP to fit the page.
+  CSP.
+
+  Renderers still put a few per-instance values in `style` attributes, exactly like React
+  (tone-bar widths, named-area placement, the balloon tail offset, hero metric sizing). A host
+  CSP decides what happens to them:
+
+  | Host policy | Result |
+  | --- | --- |
+  | `style-src <host>; style-src-attr 'unsafe-inline'` (**recommended**) | Identical to the inline page. `style-src-attr` allows only style *attributes*, not `<style>` elements or scripts. |
+  | `style-src <host>` (fully strict) | Still correct and readable: cut labels stay numbered (`[data-autocut]` rule), tone-bar lengths come from `data-fill` (whole-percent precision), and the balloon seam uses its centred default. Named areas fall back to one full-width column in DOM order, a non-zero balloon `tailOffset` loses its seam offset, and big metrics use the default hero size. A scene with a custom `breakpoint` also stacks, because its scoped `<style>` element is blocked. |
+
+  Don't loosen a host's policy beyond that to fit the page. Both rows are tested in Chromium,
+  Firefox and WebKit with a real `Content-Security-Policy` header.
 
   ```js
-  const page = document({ title, body, inlineCss: false });
+  const page = String(document({ title, body, inlineCss: false }));
   // In a VS Code webview, inject before </head>:
   //   <link rel="stylesheet" href="${webview.asWebviewUri(tokensCssUri)}">   // @frame12/tokens/tokens.css
   //   <link rel="stylesheet" href="${webview.asWebviewUri(staticCssUri)}">   // @frame12/static/static.css
@@ -211,8 +247,14 @@ tokenizer (no dependencies):
    `@media`/`@container`/`@supports` blocks and referenced `@keyframes` are kept. Focus-visible
    and screen-reader-only rules are always kept.
 3. Gates fail the build when a manifest class has no rule (unless a `CLASS_EXCEPTIONS` entry
-   gives a reason), when the output references a class outside the manifest (dead weight), or
-   when a `var()` without a fallback is never defined.
+   gives a reason), when the output references a class outside the manifest (dead weight), when
+   a `var()` without a fallback is never defined, or when `frame12.css` contains an at-rule the
+   generator doesn't handle (a statement at-rule such as `@layer a, b;`, an `@keyframes` nested
+   in a condition, `@page`, …) rather than dropping or hoisting it.
+4. Two static-only blocks are appended, both using tokens only: a zero-specificity document base
+   (`html`/`body` background, margin and font), and the strict-CSP fallbacks described under
+   **Targets** (`.f12-int-fill[data-fill]` widths and a one-column fallback for named-area
+   scenes whose inline custom properties are blocked).
 
 `frame12.css` stays canonical, so `static.css` never needs editing by hand.
 

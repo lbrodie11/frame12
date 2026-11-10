@@ -1,5 +1,5 @@
 import { attrs, child, escapeHtml, html, textContent } from './html.js';
-import { bool, num, oneOf, fail } from './validate.js';
+import { bool, num, obj, oneOf, fail } from './validate.js';
 const STATUSES = ['neutral', 'info', 'success', 'warning', 'danger'];
 /** Same glyphs as React's `STATUS_GLYPHS`. */
 export const STATUS_GLYPHS = Object.freeze({
@@ -61,6 +61,7 @@ function statusParts(where, o) {
 /** Mirrors `<Tag>`. Stamps are `tag({ variant: 'stamp' })`, as `<Stamp>` is `<Tag variant="stamp">`. */
 export function tag(o) {
     const where = 'tag()';
+    obj(where, o);
     const variant = oneOf(where, 'variant', o.variant, ['default', 'stamp'], 'default');
     const { status, prefix } = statusParts(where, o);
     const isStamp = variant === 'stamp';
@@ -82,6 +83,7 @@ function burst() {
 }
 /** Mirrors `<Badge>` at rest (no `pop` motion; the burst SVG appears when `status` is unset). */
 export function badge(o) {
+    obj('badge()', o);
     const { status, prefix } = statusParts('badge()', o);
     return html(`<span${attrs([
         ['class', `f12-badge${status ? ` f12-status-${status}` : ''}`],
@@ -91,6 +93,7 @@ export function badge(o) {
 /** Mirrors `<Balloon>`: a speech balloon with a mitered tail and optional marker dot. */
 export function balloon(o) {
     const where = 'balloon()';
+    obj(where, o);
     const offset = o.tailOffset === undefined ? 0 : num(where, 'tailOffset', o.tailOffset, -36, 36);
     const showDot = bool(where, 'showDot', o.showDot, true);
     const svgW = 120;

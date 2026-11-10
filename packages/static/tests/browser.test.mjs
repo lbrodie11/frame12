@@ -5,9 +5,13 @@
 //      heading levels, SVGs hidden or labeled, list semantics, no focusable element without a function.
 //   4. Visual parity: the demo report and an edge-case report rendered by React and by
 //      @frame12/static at 360/768/1440 px, light and dark. Targeted geometry assertions (panel
-//      boxes, polygon points, slant rise, cut positions, gutters) plus a reported full-page diff.
+//      boxes, polygon points, slant rise, cut positions, gutters, per-component element counts)
+//      plus a reported (not gated) full-page diff ratio.
+//   5. Strict CSP: document({ inlineCss: false }) served with a real Content-Security-Policy header
+//      and the two stylesheets linked, under a fully strict policy and the recommended one.
 //
-// Engines: BROWSERS=chromium (default) or BROWSERS=chromium,firefox,webkit (npm run test:cross-browser).
+// Engines: run directly, BROWSERS defaults to chromium. Through tests/run.mjs (npm test), BROWSERS
+// defaults to chromium,firefox,webkit, like registry/tests/cross-browser.mjs.
 import AxeBuilder from '@axe-core/playwright';
 import { build } from 'esbuild';
 import fs from 'node:fs';
@@ -93,7 +97,7 @@ const docBase = ':where(html){background:var(--f-desk);color:var(--f-ink)}:where
 const h1 = (t) => S.fragment(S.unsafeRaw('<h1 class="f12-sr-only">'), t, S.unsafeRaw('</h1>'));
 function writePage(name, html) {
   const file = path.join(RUN, name);
-  fs.writeFileSync(file, html);
+  fs.writeFileSync(file, String(html));
   return pathToFileURL(file).href;
 }
 const pages = {};
@@ -129,6 +133,17 @@ const fixtures = S.document({
   }),
 });
 pages.fixtures = writePage('fixtures.html', fixtures);
+
+// Strict-CSP page: the demo report plus a balloon and tone bars, with no inline <style>.
+const cspPage = S.document({
+  title: 'CSP',
+  inlineCss: false,
+  body: S.fragment(
+    h1('CSP'),
+    report.renderStaticPrReport(report.PR_REPORT),
+    S.sheet({ autoCut: true, children: S.panel({ children: S.fragment(S.balloon({ children: 'Centred tail' }), S.toneBarList({ items: [{ id: 'a', name: 'A', value: 100 }, { id: 'b', name: 'B', value: 10 }] })) }) }),
+  ),
+});
 
 // React SSR markup for the in-browser cut check (CSS counters number it the same way).
 const R = await loadReactKit();
@@ -310,6 +325,69 @@ for (const engine of BROWSERS) {
       }
     }
 
+    // 5. Strict CSP (VS Code webviews): inlineCss: false + linked stylesheets + a real CSP header.
+    for (const [policy, csp] of [
+      ['fully strict', "default-src 'none'; style-src http://f12.test"],
+      ['recommended', "default-src 'none'; style-src http://f12.test; style-src-attr 'unsafe-inline'"],
+    ]) {
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+      const page = await ctx.newPage();
+      await page.addInitScript(() => {
+        window.__cspViolations = [];
+        document.addEventListener('securitypolicyviolation', (e) => window.__cspViolations.push(`${e.violatedDirective}`));
+      });
+      const files = {
+        '/tokens.css': fs.readFileSync(path.join(REPO_ROOT, 'packages/tokens/dist/tokens.css'), 'utf8'),
+        '/static.css': fs.readFileSync(path.join(PKG_ROOT, 'dist/static.css'), 'utf8'),
+        '/page.html': String(cspPage).replace('</head>', '<link rel="stylesheet" href="/tokens.css"><link rel="stylesheet" href="/static.css"></head>'),
+      };
+      await page.route('http://f12.test/**', (route) => {
+        const p = new URL(route.request().url()).pathname;
+        if (!(p in files)) return route.fulfill({ status: 404, body: '' });
+        return route.fulfill({
+          status: 200,
+          contentType: p.endsWith('.css') ? 'text/css' : 'text/html; charset=utf-8',
+          headers: p.endsWith('.html') ? { 'content-security-policy': csp } : {},
+          body: files[p],
+        });
+      });
+      await page.goto('http://f12.test/page.html');
+      await page.waitForSelector('.f12-sheet');
+      await page.waitForTimeout(200);
+      const r = await page.evaluate(() => {
+        const fills = [...document.querySelectorAll('.f12-int-fill')].map((f) => ({ want: Number(f.dataset.fill), got: (f.getBoundingClientRect().width / f.parentElement.getBoundingClientRect().width) * 100 }));
+        const visibleCuts = [...document.querySelectorAll('.f12-cut[data-autocut]')].filter((c) => getComputedStyle(c).display !== 'none').length;
+        const autoCuts = document.querySelectorAll('.f12-cut[data-autocut]').length;
+        const sheetBg = getComputedStyle(document.querySelector('.f12-sheet')).backgroundColor;
+        const gap = getComputedStyle(document.querySelector('.f12-balloon-gap')).left;
+        const balloon = document.querySelector('.f12-balloon').getBoundingClientRect();
+        const scene = document.querySelector('.f12-scene-areas');
+        const areas = getComputedStyle(scene).gridTemplateAreas;
+        const sceneW = scene.getBoundingClientRect().width;
+        const panelWidths = [...scene.children].filter((c) => c.matches('.f12-panel, .f12-pair')).map((c) => c.getBoundingClientRect().width / sceneW);
+        const gapEl = document.querySelector('.f12-balloon-gap');
+        return { fills, visibleCuts, autoCuts, sheetBg, gapCentre: parseFloat(gap) + 5 - gapEl.offsetParent.clientWidth / 2, areas, panelWidths, violations: window.__cspViolations };
+      });
+      const tag2 = `${tag} CSP ${policy}`;
+      check(r.sheetBg !== 'rgba(0, 0, 0, 0)' && r.sheetBg !== '', `${tag2}: linked tokens.css + static.css load and style the page`, r.sheetBg);
+      check(r.autoCuts > 0 && r.visibleCuts === r.autoCuts, `${tag2}: every auto-cut label is displayed (${r.visibleCuts}/${r.autoCuts})`);
+      if (engine === 'chromium') {
+        const cuts = await getRenderedCuts(page);
+        // Two sheets on the page: the report (C-01…C-05) and the balloon/tone-bar sheet (C-01).
+        check(cuts.join() === 'C-01,C-02,C-03,C-04,C-05,C-01' && cuts.length === r.autoCuts, `${tag2}: rendered cut labels read C-01…C-05 then C-01 (one sequence per sheet)`, cuts.join());
+      }
+      check(r.fills.length > 0 && r.fills.every((f) => Math.abs(f.got - f.want) <= 1.5), `${tag2}: tone-bar fills keep their length (within 1.5% of the data)`, JSON.stringify(r.fills.map((f) => [f.want, Number(f.got.toFixed(1))])));
+      check(Math.abs(r.gapCentre) <= 1, `${tag2}: the balloon seam stays centred under the tail`, String(r.gapCentre));
+      if (policy === 'recommended') {
+        check(r.violations.length === 0, `${tag2}: zero CSP violations`, r.violations.join(', '));
+        check(r.areas.includes('summary') && r.panelWidths.every((w) => w < 0.7), `${tag2}: named areas are placed (inline custom properties allowed)`, `${r.areas} ${r.panelWidths.map((w) => w.toFixed(2))}`);
+      } else {
+        check(r.violations.length > 0 && r.violations.every((v) => /style-src/.test(v)), `${tag2}: only style attributes are blocked (${r.violations.length} reports, all style-src)`, [...new Set(r.violations)].join(', '));
+        check(r.areas === 'none' && r.panelWidths.length === 4 && r.panelWidths.every((w) => w > 0.99), `${tag2}: documented degradation: named areas fall back to one full-width column in DOM order`, `${r.areas} ${r.panelWidths.map((w) => w.toFixed(2))}`);
+      }
+      await ctx.close();
+    }
+
     // 4. Visual parity, React vs static.
     for (const which of ['demo', 'edge']) {
       for (const scheme of SCHEMES) {
@@ -355,7 +433,19 @@ for (const engine of BROWSERS) {
           fs.writeFileSync(path.join(OUT, `${engine}-${which}-${width}-${scheme}-react.png`), sb);
           const ratio = await diffRatio(st.page, sa, sb);
           report_lines.push({ engine, which, width, scheme, diffRatio: Number(ratio.toFixed(4)), maxVertexDistancePx: Number(maxDev.toFixed(2)) });
-          check(ratio < 0.05, `${label}: full-page diff ratio ${(ratio * 100).toFixed(2)}% (reported; antialiasing and the documented SSR slant only)`);
+          // Reported, not gated: the pixel ratio mixes antialiasing with the documented SSR slant,
+          // so the geometry assertions above are the gate. Component counts catch a missing piece.
+          console.log(`INFO  ${label}: full-page diff ratio ${(ratio * 100).toFixed(2)}%`);
+          const countsOf = (page) => page.evaluate(() => {
+            const out = {};
+            for (const el of document.querySelectorAll('[class*="f12-"]')) for (const c of el.classList) if (c.startsWith('f12-')) out[c] = (out[c] || 0) + 1;
+            return out;
+          });
+          const [cs, cr] = await Promise.all([countsOf(st.page), countsOf(re.page)]);
+          const ignore = new Set(['f12-m-cut', 'f12-m-stepped']);
+          const keys = [...new Set([...Object.keys(cs), ...Object.keys(cr)])].filter((k) => !ignore.has(k)).sort();
+          const diffKeys = keys.filter((k) => cs[k] !== cr[k]);
+          check(diffKeys.length === 0, `${label}: every f12-* class appears the same number of times in both renderers`, diffKeys.map((k) => `${k}:${cs[k]}/${cr[k]}`).join(' '));
           await st.ctx.close();
           await re.ctx.close();
         }

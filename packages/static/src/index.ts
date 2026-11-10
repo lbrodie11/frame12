@@ -3,6 +3,7 @@
  * Pure, deterministic functions that return escaped `Html` strings. See PARITY.md.
  */
 export { escapeHtml, fragment, isHtml, unsafeRaw, type Child, type Html } from './html.js';
+export { toIdent } from './ident.js';
 export { safeUrl } from './url.js';
 export {
   GUTTERS,
@@ -57,5 +58,5 @@ export {
   type ToneBarListOpts,
   type ToneBarPattern,
 } from './data.js';
-export { document, type DocumentOpts } from './document.js';
+export { dedupeIds, document, type DocumentOpts } from './document.js';
 export { staticCss } from './static-css.js';

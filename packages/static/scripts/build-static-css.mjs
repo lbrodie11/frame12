@@ -50,6 +50,18 @@ const DOCUMENT_BASE = `/* Document base (static pages only). */
 }
 `;
 
+// Strict-CSP fallback (static pages only): tone-bar fills carry their rounded width in
+// data-fill, so bars keep their length when a host CSP blocks the exact inline style. Not in
+// frame12.css because React never emits data-fill.
+// Named-area scenes: frame12.css falls back to 12 auto-placed columns when --f12-scene-cols is
+// missing (React's layout="areas" without areas). A static scene with areas always has
+// data-columns, and when a CSP blocks its inline custom properties the readable fallback is one
+// column in DOM order. With the variable present this rule computes exactly what frame12.css does.
+const CSP_FALLBACK =
+  `/* Strict-CSP fallback (static pages only): layout and data without inline styles. */\n` +
+  `@media (min-width: 860px) {\n  .f12-scene.f12-scene-areas[data-columns]:not([data-scene-bp]) {\n    grid-template-columns: repeat(var(--f12-scene-cols, 1), minmax(0, 1fr));\n  }\n}\n` +
+  Array.from({ length: 101 }, (_, n) => `.f12-int-fill[data-fill="${n}"] {\n  width: ${n}%;\n}\n`).join('');
+
 const GLOBAL_SELECTOR_RE = /(^|[\s>+~(,])(:root|html|body)\b|\[class\*=["']?f12-/;
 
 function stripTokenBlock(css) {
@@ -86,16 +98,20 @@ function filterNodes(nodes, ctx) {
         out.push({ ...n, selector: kept.join(', ') });
       }
     } else if (n.children) {
-      const children = filterNodes(n.children, ctx);
+      const children = filterNodes(n.children, { ...ctx, depth: (ctx.depth ?? 0) + 1 });
       if (children.length) out.push({ ...n, children });
     } else if (n.name === 'keyframes' || n.name === '-webkit-keyframes') {
+      if (ctx.depth > 0) {
+        throw new Error(`@${n.name} ${n.prelude} is nested inside an at-rule; static.css would hoist it out of its condition. Move it to the top level of frame12.css.`);
+      }
       ctx.keyframes.push(n);
+    } else if (n.body === null) {
+      throw new Error(`Statement at-rule "@${n.name} ${n.prelude};" in frame12.css has no static.css handling (it would be dropped). Teach scripts/build-static-css.mjs about it first.`);
     } else if (n.name === 'font-face') {
       out.push(n);
-    } else if (n.name === 'import') {
-      throw new Error('frame12.css must not @import (static output must make no requests)');
+    } else {
+      throw new Error(`At-rule "@${n.name}" in frame12.css has no static.css handling (it would be dropped). Teach scripts/build-static-css.mjs about it first.`);
     }
-    // Other at-rules (@page, @property, …) are not used by frame12.css today and are dropped.
   }
   return out;
 }
@@ -141,7 +157,7 @@ export function buildStaticCss({ css, manifest, tokensCss = '' }) {
     if (!classSet.has(c)) errors.push(`coverage: CLASS_EXCEPTIONS["${c}"] is not a manifest class`);
   }
 
-  const output = HEADER + DOCUMENT_BASE + serialize([...tree, ...keyframes]);
+  const output = HEADER + DOCUMENT_BASE + serialize([...tree, ...keyframes]) + CSP_FALLBACK;
 
   // Dead weight: re-parse the output and check every referenced class.
   const reparsed = parseCss(output);

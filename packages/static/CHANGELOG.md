@@ -24,4 +24,10 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - `fmtPct`, `fmtPPAbs` and `fmtMoney` with the same output as React.
   - `dist/static.css` (`@frame12/static/static.css`) and `staticCss`, generated from
     `registry/styles/frame12.css` with class-manifest coverage and dead-weight gates.
-  - Deterministic output: hash-derived auto ids, de-duplicated per `document()` call.
+  - Deterministic output: hash-derived auto ids, de-duplicated per `document()` call (or
+    `dedupeIds()`), touching only auto `id`s and the ghost wire's own `mask` reference.
+  - `Html` is a frozen object recognised by identity (not by text), so output never depends on
+    earlier renders, replayed markup is escaped, and nothing is retained in memory.
+  - `toIdent()` turns data (file paths, names) into valid identifiers.
+  - Strict-CSP support: `data-fill` tone-bar widths and a one-column named-area fallback in
+    `static.css`, tested under a real `Content-Security-Policy` in Chromium, Firefox and WebKit.

@@ -123,7 +123,7 @@ const ALLOWED_ATTRS = new Set([
   'mask', 'stroke-dasharray', 'stroke-dashoffset', 'focusable', 'aria-hidden', 'aria-label', 'aria-live', 'aria-current',
   'data-theme', 'data-autocut', 'data-gutter', 'data-layout', 'data-columns', 'data-breakpoint', 'data-scene-bp',
   'data-area', 'data-variant', 'data-status', 'data-density', 'data-static', 'data-pattern', 'data-orientation',
-  'data-strength', 'data-endpoint', 'data-kind', 'data-origin', 'data-f12-tokens', 'data-f12-static',
+  'data-strength', 'data-fill', 'data-endpoint', 'data-kind', 'data-origin', 'data-f12-tokens', 'data-f12-static',
 ]);
 const lt = (s) => (s.match(/</g) || []).length;
 const quot = (s) => (s.match(/"/g) || []).length;
@@ -165,7 +165,7 @@ for (let i = 0; i < N; i++) {
       structuralFailures.push(`${name} control/surrogate ← ${JSON.stringify(input).slice(0, 80)}`);
     }
     if (i < 500 || (i * SINKS.length + renders) % lintEvery === 0) {
-      const v = lintHtml(out).filter((x) => x.rule === 'unsafe-html');
+      const v = lintHtml(String(out)).filter((x) => x.rule === 'unsafe-html');
       if (v.length) lintFailures.push(`${name}: ${v[0].message}`);
     }
   }
@@ -278,7 +278,7 @@ check(lintFailures.length === 0, 'property: lintHtml reports no unsafe-html on s
   );
   check(outs[0].includes('&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;.ts'), 'receipt(): file name characters are preserved, escaped once');
   const listed = S.receiptList({ items: names.map((n) => ({ kind: 'file', value: n })) });
-  check(lintHtml(listed).filter((v) => v.rule === 'unsafe-html').length === 0, 'receiptList() of malicious names passes lintHtml unsafe-html');
+  check(lintHtml(String(listed)).filter((v) => v.rule === 'unsafe-html').length === 0, 'receiptList() of malicious names passes lintHtml unsafe-html');
 }
 
 finish('escaping');

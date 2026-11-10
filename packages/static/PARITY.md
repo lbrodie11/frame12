@@ -13,7 +13,7 @@ markup and asserts each divergence explicitly.
 
 | React | Static | Why |
 | --- | --- | --- |
-| `children: ReactNode` | `children: Html \| string` | No React tree. A `string` is escaped as text, and an `Html` value (returned by a renderer, `fragment()` or `unsafeRaw()`) is inserted as is. |
+| `children: ReactNode` | `children: Html \| string` | No React tree. A `string` is escaped as text, and an `Html` value (a frozen object returned by a renderer, `fragment()` or `unsafeRaw()`, recognised by identity) is inserted as is. Renderers return `Html`; `String(html)` gives the markup. |
 | `ref`, `on*` handlers, `className`, `style`, `...rest` HTML attributes | dropped | Static output has no behaviour. Arbitrary attribute or class pass-through would turn the API into an escape hatch around the grammar. |
 | `motion?: MotionMode` and motion-only props (`pop`, `burst`, `changed`) | dropped | `useOnTwos` animates only when `key` changes. A static document never changes, so first paint is the resting frame (see **Motion** below). |
 | *(none)* | `Panel` `width?` / `height?` | Static-only. React measures with `ResizeObserver`; static output can't, so callers that know the box size can request the exact-pixel polygon. |
@@ -30,9 +30,10 @@ is `f12-m-cut` under `prefers-reduced-motion: reduce`). No renderer emits `f12-e
 ### Ids
 
 React ids come from `React.useId()`. Static ids are deterministic. Each is derived from a
-stable hash of the renderer's inputs, then `document()` makes duplicates unique with a counter
-scoped to that one call (it renames the second and later copies, plus the `url(#…)` references
-that follow them). The parity test normalizes React `useId` fragments and static hash fragments
+stable hash of the renderer's inputs, then `document()` (or `dedupeIds()`) makes duplicates
+unique with a counter scoped to that one call. It renames the second and later copies of an
+auto `id`, and the ghost wire's own `mask="url(#…)"` that follows it. Text, `href`s and
+caller-chosen ids are never rewritten. The parity test normalizes React `useId` fragments and static hash fragments
 to the same placeholder before comparing.
 
 ## Rows
@@ -56,9 +57,9 @@ Legend: **=** same output · **Δ** divergence (reason given) · **+** static-on
 | --- | --- | --- |
 | `gutter?: 'pair' \| 'scene' \| 'change' = 'scene'` | same | **=** Same `f12-scene-<gutter>` class and `data-gutter` (12/20/32). **Δ** An unknown value throws (React falls back to `scene`). |
 | `layout?: 'split' \| 'stack' \| 'equal' \| 'three' \| 'areas' = 'split'` | same | **=** Non-empty `areas` forces `areas`, as in React. **Δ** An unknown value throws. |
-| `areas?: string[]` | `areas?: string[]` | **=** Same `--f12-scene-cols` / `--f12-scene-areas` style and `data-columns`. **Δ** Every cell token must match `^[a-z][a-z0-9-]{0,63}$` (or be a `.` null cell), and every row must have the same token count, otherwise it throws. React warns and passes raw strings to CSS. |
+| `areas?: string[]` | `areas?: string[]` | **=** Same `--f12-scene-cols` / `--f12-scene-areas` style and `data-columns`. **Δ** Every cell token must match `^[a-z][a-z0-9-]{0,63}$` (or be a `.` null cell), every row must have the same token count, and each named area must form one rectangle (browsers ignore the whole value otherwise), otherwise it throws. React warns and passes raw strings to CSS. |
 | `columns?: number` | `columns?: number` | **=** Used when `areas` is absent (default 12); the areas token count wins when present. **Δ** Must be an integer 1–24, otherwise it throws. A mismatch with the areas token count throws (React warns). |
-| `breakpoint?: number \| string = '860px'` | same | **=** Same `data-breakpoint`, and for a custom breakpoint the same scoped `<style>` block keyed by `data-scene-bp`. **Δ** A number must be an integer 1–9999 (px). A string must match `^\d{2,4}(px\|rem\|em)$` (React also accepts decimals and bare digits), otherwise it throws. Only the validated, re-serialized value is written into the `<style>` block. The scope suffix is a hash, not `useId`. |
+| `breakpoint?: number \| string = '860px'` | same | **=** Same `data-breakpoint`, and for a custom breakpoint the same scoped `<style>` block keyed by `data-scene-bp`. **Δ** A number must be an integer 10–9999 (px), the same range as the string form. A string must match `^\d{2,4}(px\|rem\|em)$` (React also accepts decimals and bare digits), otherwise it throws. Only the validated, re-serialized value is written into the `<style>` block. The scope suffix is a hash, not `useId`. |
 | `className`, `style`, `...rest` | dropped | **Δ** Allowed divergence. |
 | `children` | `children: Html` | **=** |
 
@@ -88,6 +89,7 @@ Legend: **=** same output · **Δ** divergence (reason given) · **+** static-on
 | --- | --- | --- |
 | `variant?` | same | **=** Effective pair variant. Quiet slots render `rect`, expressive slots render `slant-bottom` / `slant-top`. |
 | `area?` | same | **=** Validated identifier. |
+| `top` without `bottom` (or the reverse) | throws | **Δ** React silently renders an empty pair; static throws, in line with its stricter validation. |
 | `top?`, `bottom?: Omit<PanelProps,'shape'>` | `top?`, `bottom?: Omit<PanelOpts,'shape'>` | **=** When both are given, `top.cut ?? topCut`, `top.label ?? topLabel` and `top.variant ?? variant`, exactly as React. |
 | `topCut?`, `bottomCut?: string \| false` | same | **=** Same rules (`undefined` → auto-cut span, `false` → none). |
 | `topLabel?`, `bottomLabel?` | same | **=** |
@@ -147,7 +149,8 @@ Legend: **=** same output · **Δ** divergence (reason given) · **+** static-on
 | --- | --- | --- |
 | `title?`, `subtitle?` | same | **=** `<h3 class="f12-m-label">` + `<p class="f12-ints-sub">`. |
 | `items: ToneBarItem[]` | same | **=** Same fill width, formatted value, share and pattern classes. Item badges render as `badge({ children })`, which matches `<Badge burst>` at rest. **Δ** `id` must match `^[a-z][a-z0-9-]{0,63}$` (it becomes part of an element id). `value` must be finite and ≥ 0, and `share` must be finite in `[0, 1]`, otherwise it throws. |
-| `selectedId?: string \| null` | same | **Δ** The selected row carries `aria-current="true"` instead of `aria-pressed="true"` (see the row element below). It must match the identifier pattern. |
+| `selectedId?: string \| null` | same | **Δ** The selected row carries `aria-current="true"` instead of `aria-pressed="true"` (see the row element below). It must match the identifier pattern (use `toIdent()` for data-derived ids). |
+| fill `<span class="f12-int-fill" data-pattern style="width:N%">` | adds `data-fill="round(N)"` | **Δ** Static-only. `static.css` styles `[data-fill="0…100"]` widths, so bars keep their length (to whole-percent precision) when a host CSP blocks the exact inline `style`. With inline styles allowed the inline width wins and the result is identical. |
 | `density?: 'comfortable' \| 'compact'` | same | **=** |
 | `idPrefix?: string` | same | **=** Row ids are `int-<idPrefix>-<id>`. **Δ** Validated identifier. The default prefix is `f12-s<hash>` (React: `f12-<useId>`). |
 | row element `<button type="button" class="f12-int-row" aria-pressed>` | `<div class="f12-int-row" data-static="">` | **Δ** A static page has no handler, and an inert `<button>` would look and announce as clickable without being one. The row keeps the same class and children, so layout is identical. The `data-static` and `aria-current` variants are styled by rules added to the canonical `frame12.css` in a separate parity commit (no pointer cursor, no hover underline, same selected styling). |
@@ -191,6 +194,8 @@ Legend: **=** same output · **Δ** divergence (reason given) · **+** static-on
 | --- | --- |
 | `document()` | **+** A self-contained page: `<!doctype html>`, charset, viewport, `<style data-f12-tokens>`, `<style data-f12-static>`, body. It de-duplicates auto ids. |
 | `fragment(...parts)` | **+** Concatenates `Html` parts and escapes strings. `Html` values joined with `+` become plain strings and would be escaped. React's equivalent is `<>…</>`. |
+| `toIdent(s)` | **+** Turns any string into a valid identifier (valid ones unchanged; others slugged plus a hash). |
+| `dedupeIds(html)` | **+** The auto-id de-duplication `document()` applies, for pages assembled without it. Touches only auto `id`s and the ghost wire's own `mask` reference. |
 | `unsafeRaw(trustedHtml)` | **+** The only way to bypass escaping. |
 | `escapeHtml(s)`, `safeUrl(u)` | **+** Exported building blocks of the escaping contract. |
 

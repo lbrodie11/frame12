@@ -34,7 +34,7 @@
     "build": "node scripts/build.mjs",
     "check": "node scripts/build.mjs --check",
     "test": "node scripts/build.mjs --check && node tests/run.mjs",
-    "test:unit": "node tests/run.mjs escaping parity render css manifest",
+    "test:unit": "node tests/run.mjs escaping parity render css manifest regressions",
     "test:cross-browser": "BROWSERS=chromium,firefox,webkit node tests/run.mjs browser"
   },
   "repository": {

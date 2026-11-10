@@ -1,6 +1,6 @@
 import { attrs, child, escapeHtml, html } from './html.js';
 import { hash } from './hash.js';
-import { bool, fail, ident, IDENT_RE, num, oneOf, optIdent, optString } from './validate.js';
+import { bool, fail, ident, IDENT_RE, num, obj, oneOf, optIdent, optString } from './validate.js';
 /** Gutter widths in px, identical to React's `GUTTERS`. */
 export const GUTTERS = Object.freeze({
     pair: 12,
@@ -11,6 +11,7 @@ const PEGS = '<div class="f12-pegs" aria-hidden="true"><span class="f12-peg slot
 /** Mirrors `<Sheet>`: the desk frame, the sheet, optional peg holes, and auto-cut numbering. */
 export function sheet(o) {
     const where = 'sheet()';
+    obj(where, o);
     const pegs = bool(where, 'pegs', o.pegs, true);
     const autoCut = bool(where, 'autoCut', o.autoCut, false);
     const theme = o.theme === undefined ? undefined : oneOf(where, 'theme', o.theme, ['light', 'dark'], 'light');
@@ -29,7 +30,7 @@ function normalizeBreakpoint(where, bp) {
     if (bp === undefined)
         return DEFAULT_BREAKPOINT;
     if (typeof bp === 'number') {
-        return `${num(where, 'breakpoint', bp, 1, 9999, { integer: true })}px`;
+        return `${num(where, 'breakpoint', bp, 10, 9999, { integer: true })}px`;
     }
     if (typeof bp === 'string' && /^\d{2,4}(px|rem|em)$/.test(bp))
         return bp;
@@ -58,11 +59,34 @@ function parseAreas(where, areas) {
     if (rows.some((r) => r.length !== first)) {
         fail(where, `every areas row must have ${first} column token(s) (got ${rows.map((r) => r.length).join(', ')})`);
     }
+    // Each named area must be one filled rectangle; browsers ignore the whole grid-template-areas
+    // value otherwise (e.g. "a b a"), silently dropping the layout.
+    const boxes = new Map();
+    rows.forEach((row, r) => row.forEach((name, c) => {
+        if (name.startsWith('.'))
+            return;
+        const b = boxes.get(name);
+        if (!b)
+            boxes.set(name, { r0: r, r1: r, c0: c, c1: c, cells: 1 });
+        else {
+            b.r0 = Math.min(b.r0, r);
+            b.r1 = Math.max(b.r1, r);
+            b.c0 = Math.min(b.c0, c);
+            b.c1 = Math.max(b.c1, c);
+            b.cells++;
+        }
+    }));
+    for (const [name, b] of boxes) {
+        if (b.cells !== (b.r1 - b.r0 + 1) * (b.c1 - b.c0 + 1)) {
+            fail(where, `area "${name}" must form a single rectangle in areas`);
+        }
+    }
     return rows;
 }
 /** Mirrors `<Scene>`: a grid scene with gutter grammar (12/20/32px) and optional named areas. */
 export function scene(o) {
     const where = 'scene()';
+    obj(where, o);
     const gutter = oneOf(where, 'gutter', o.gutter, ['pair', 'scene', 'change'], 'scene');
     const requestedLayout = oneOf(where, 'layout', o.layout, ['split', 'stack', 'equal', 'three', 'areas'], 'split');
     const rows = o.areas === undefined ? [] : parseAreas(where, o.areas);
@@ -96,6 +120,7 @@ export function scene(o) {
 }
 /** Mirrors `<SceneArea>`: places its children in a named `Scene` area. */
 export function sceneArea(o) {
+    obj('sceneArea()', o);
     const area = ident('sceneArea()', 'area', o.area);
     return html(`<div${attrs([
         ['class', 'f12-scene-area'],
@@ -126,6 +151,7 @@ export function exactPoints(shape, w, h) {
 /** Mirrors `<Panel>`: an ink-framed panel with a cut label. */
 export function panel(o) {
     const where = 'panel()';
+    obj(where, o);
     const shape = oneOf(where, 'shape', o.shape, ['rect', 'slant-bottom', 'slant-top'], 'rect');
     const variant = oneOf(where, 'variant', o.variant, ['expressive', 'quiet'], 'expressive');
     const label = optString(where, 'label', o.label);
@@ -165,8 +191,16 @@ export function panel(o) {
 /** Mirrors `<PanelPair>`: two panels on a 12px pair gutter with complementary slants. */
 export function panelPair(o) {
     const where = 'panelPair()';
+    obj(where, o);
     const variant = oneOf(where, 'variant', o.variant, ['expressive', 'quiet'], 'expressive');
     const area = optIdent(where, 'area', o.area);
+    if ((o.top === undefined) !== (o.bottom === undefined)) {
+        fail(where, 'top and bottom must be passed together (or use children)');
+    }
+    if (o.top !== undefined)
+        obj(where, o.top, 'top');
+    if (o.bottom !== undefined)
+        obj(where, o.bottom, 'bottom');
     let inner;
     if (o.top && o.bottom) {
         const slot = (p, slant, cut, label) => {
@@ -179,7 +213,7 @@ export function panelPair(o) {
                 label: p.label ?? label,
                 variant: v,
                 shape: v === 'quiet' ? 'rect' : slant,
-            });
+            }).toString();
         };
         inner =
             slot(o.top, 'slant-bottom', o.topCut, o.topLabel) +

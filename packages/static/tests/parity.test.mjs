@@ -56,8 +56,10 @@ export function normalize(markup) {
       attrs.sort();
       out.push(`<${m[3].toLowerCase()}${attrs.length ? ' ' + attrs.join(' ') : ''}>`);
     } else if (m[6] !== undefined) {
-      const t = decode(m[6]).replace(/\s+/g, ' ');
-      if (t.trim() || t === ' ') out.push(`#text ${t}`);
+      // Text is compared exactly (entities decoded, whitespace untouched), so untrimmed values
+      // or lost spaces can't hide behind normalization.
+      const t = decode(m[6]);
+      out.push(`#text ${JSON.stringify(t)}`);
     }
   }
   return out.join('\n');
@@ -147,7 +149,7 @@ for (const variant of [undefined, ...variants]) {
   const kids = S.fragment(S.panel({ shape: 'slant-bottom', children: 'a' }), S.panel({ shape: 'slant-top', children: 'b' }));
   const s = S.panelPair({ children: kids });
   const r = renderToStaticMarkup(h(R.PanelPair, null, h(R.Panel, { shape: 'slant-bottom' }, 'a'), h(R.Panel, { shape: 'slant-top' }, 'b')));
-  check(s === `<div class="f12-pair">${kids}</div>` && normalize(r) === normalize(s), 'divergence (PanelPair.children): Html children are inserted verbatim; with explicit shapes the result equals React');
+  check(String(s) === `<div class="f12-pair">${kids}</div>` && normalize(r) === normalize(s), 'divergence (PanelPair.children): Html children are inserted verbatim; with explicit shapes the result equals React');
 }
 
 // ---------------------------------------------------------------- Balloon
@@ -213,7 +215,9 @@ same('Metric with spark Html', h(R.Metric, { label: 'L', value: 1, spark: h('div
 function toStaticRows(reactMarkup) {
   return reactMarkup
     .replace(/<button type="button" (id="[^"]*") class="f12-int-row" aria-pressed="(true|false)">/g, (_m, id, on) => `<div ${id} class="f12-int-row" data-static=""${on === 'true' ? ' aria-current="true"' : ''}>`)
-    .replace(/<\/button>/g, '</div>');
+    .replace(/<\/button>/g, '</div>')
+    // Static-only data-fill: the inline width rounded to whole percent (strict-CSP fallback).
+    .replace(/<span class="(f12-int-fill[^"]*)" data-pattern="([^"]*)" style="width:([^"%]*)%"/g, (_m, cls, pat, w) => `<span class="${cls}" data-pattern="${pat}" data-fill="${Math.round(Number(w))}" style="width:${w}%"`);
 }
 const items = [
   { id: 'invoice', name: 'invoice.ts', value: 412, share: 0.32 },
@@ -236,6 +240,8 @@ for (const density of ['comfortable', 'compact']) {
 {
   const s = S.toneBarList({ items, selectedId: 'tax', idPrefix: 'p' });
   check((s.match(/aria-current="true"/g) || []).length === 1 && !s.includes('aria-pressed') && !/<button|tabindex/.test(s), 'divergence (ToneBarList.selectedId): exactly one aria-current="true", no buttons, no tabindex');
+  const fills = [...String(s).matchAll(/data-fill="(\d+)" style="width:([^"%]*)%"/g)];
+  check(fills.length === items.length && fills.every(([, f, w]) => Number(f) === Math.round(Number(w))), 'divergence (ToneBarList data-fill): static adds the inline width rounded to whole percent, for strict-CSP hosts');
   const auto = S.toneBarList({ items });
   check(/id="int-f12-s[0-9a-z]+-invoice"/.test(auto), 'divergence (ToneBarList.idPrefix): default prefix is a deterministic f12-s<hash>');
 }

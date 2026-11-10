@@ -79,14 +79,14 @@ const cuts = (html) => [...html.matchAll(/<span class="f12-cut"( data-autocut=""
     });
   const a = make();
   const b = make();
-  check(a === b, 'determinism: two renders are byte-identical');
+  check(String(a) === String(b), 'determinism: two renders are byte-identical');
   check(!/\d{13}|Math\.random|Date/.test(a), 'determinism: no timestamps');
   const ids = [...a.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
   check(ids.length === new Set(ids).size && ids.length === 5, 'ids: identical components in one document get unique ids', ids.join(', '));
   const masks = [...a.matchAll(/<mask id="([^"]+)"[\s\S]*?mask="url\(#([^)]+)\)"/g)];
   check(masks.length === 3 && masks.every((m) => m[1] === m[2]), 'ids: every mask url(#…) reference resolves to its own (renamed) mask');
   check(/id="(f12-gw-mask-a-ts-b-ts-s[0-9a-z]+)"[\s\S]*id="\1-2"/.test(a), 'ids: the second identical ghostWire is renamed with a document-scoped counter (-2)');
-  check(make() === a && S.ghostWire({ from: 'a.ts', to: 'b.ts' }) === S.ghostWire({ from: 'a.ts', to: 'b.ts' }), 'ids: stable across calls (fragments too)');
+  check(String(make()) === String(a) && String(S.ghostWire({ from: 'a.ts', to: 'b.ts' })) === String(S.ghostWire({ from: 'a.ts', to: 'b.ts' })), 'ids: stable across calls (fragments too)');
   const explicit = S.document({ title: 't', body: S.fragment(S.toneBarList({ items: [{ id: 'x', name: 'X', value: 1 }], idPrefix: 'hot' }), S.toneBarList({ items: [{ id: 'y', name: 'Y', value: 1 }], idPrefix: 'hot' })) });
   check(explicit.includes('id="int-hot-x"') && explicit.includes('id="int-hot-y"'), 'ids: idPrefix is respected');
 }

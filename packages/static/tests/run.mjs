@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // Runs every @frame12/static test file in order and fails if any fails.
-// Browser tests run in Chromium, Firefox and WebKit, like registry/tests/cross-browser.mjs;
-// set BROWSERS=chromium for a quick local run.
+// Here BROWSERS defaults to chromium,firefox,webkit (like registry/tests/cross-browser.mjs, which
+// root `npm test` also runs in all three); set BROWSERS=chromium for a quick local run. Running
+// tests/browser.test.mjs directly defaults to chromium.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const only = process.argv.slice(2);
-const files = ['escaping', 'parity', 'render', 'css', 'manifest', 'browser'].filter((f) => only.length === 0 || only.includes(f));
+const files = ['escaping', 'parity', 'render', 'css', 'manifest', 'regressions', 'browser'].filter((f) => only.length === 0 || only.includes(f));
 const env = { ...process.env, BROWSERS: process.env.BROWSERS || 'chromium,firefox,webkit' };
 const failed = [];
 for (const f of files) {

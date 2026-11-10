@@ -1,5 +1,5 @@
 import { attrs, child, escapeHtml, html, textContent, type Child, type Html } from './html.js';
-import { bool, num, oneOf, fail } from './validate.js';
+import { bool, num, obj, oneOf, fail } from './validate.js';
 
 export type SemanticStatus = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 export type TagVariant = 'default' | 'stamp';
@@ -76,6 +76,7 @@ export interface TagOpts {
 /** Mirrors `<Tag>`. Stamps are `tag({ variant: 'stamp' })`, as `<Stamp>` is `<Tag variant="stamp">`. */
 export function tag(o: TagOpts): Html {
   const where = 'tag()';
+  obj(where, o);
   const variant = oneOf(where, 'variant', o.variant, ['default', 'stamp'] as const, 'default');
   const { status, prefix } = statusParts(where, o);
   const isStamp = variant === 'stamp';
@@ -110,6 +111,7 @@ function burst(): string {
 
 /** Mirrors `<Badge>` at rest (no `pop` motion; the burst SVG appears when `status` is unset). */
 export function badge(o: BadgeOpts): Html {
+  obj('badge()', o);
   const { status, prefix } = statusParts('badge()', o);
   return html(
     `<span${attrs([
@@ -131,6 +133,7 @@ export interface BalloonOpts {
 /** Mirrors `<Balloon>`: a speech balloon with a mitered tail and optional marker dot. */
 export function balloon(o: BalloonOpts): Html {
   const where = 'balloon()';
+  obj(where, o);
   const offset = o.tailOffset === undefined ? 0 : num(where, 'tailOffset', o.tailOffset, -36, 36);
   const showDot = bool(where, 'showDot', o.showDot, true);
   const svgW = 120;

@@ -224,6 +224,9 @@
   background: var(--f-sheet);
   color: var(--f-ink);
 }
+.f12-sheet[data-autocut] {
+  --f12-autocut-display: block;
+}
 .f12-cut[data-autocut] {
   display: var(--f12-autocut-display, none);
   counter-increment: f12-cut;
@@ -682,6 +685,7 @@
 }
 .f12-balloon-gap {
   position: absolute;
+  left: calc(50% - 5px);
   bottom: -2px;
   width: 10px;
   height: 3px;
@@ -993,4 +997,313 @@
   .f12-status-danger {
     border: 3px double var(--f-rule);
   }
+}
+/* Strict-CSP fallback (static pages only): layout and data without inline styles. */
+@media (min-width: 860px) {
+  .f12-scene.f12-scene-areas[data-columns]:not([data-scene-bp]) {
+    grid-template-columns: repeat(var(--f12-scene-cols, 1), minmax(0, 1fr));
+  }
+}
+.f12-int-fill[data-fill="0"] {
+  width: 0%;
+}
+.f12-int-fill[data-fill="1"] {
+  width: 1%;
+}
+.f12-int-fill[data-fill="2"] {
+  width: 2%;
+}
+.f12-int-fill[data-fill="3"] {
+  width: 3%;
+}
+.f12-int-fill[data-fill="4"] {
+  width: 4%;
+}
+.f12-int-fill[data-fill="5"] {
+  width: 5%;
+}
+.f12-int-fill[data-fill="6"] {
+  width: 6%;
+}
+.f12-int-fill[data-fill="7"] {
+  width: 7%;
+}
+.f12-int-fill[data-fill="8"] {
+  width: 8%;
+}
+.f12-int-fill[data-fill="9"] {
+  width: 9%;
+}
+.f12-int-fill[data-fill="10"] {
+  width: 10%;
+}
+.f12-int-fill[data-fill="11"] {
+  width: 11%;
+}
+.f12-int-fill[data-fill="12"] {
+  width: 12%;
+}
+.f12-int-fill[data-fill="13"] {
+  width: 13%;
+}
+.f12-int-fill[data-fill="14"] {
+  width: 14%;
+}
+.f12-int-fill[data-fill="15"] {
+  width: 15%;
+}
+.f12-int-fill[data-fill="16"] {
+  width: 16%;
+}
+.f12-int-fill[data-fill="17"] {
+  width: 17%;
+}
+.f12-int-fill[data-fill="18"] {
+  width: 18%;
+}
+.f12-int-fill[data-fill="19"] {
+  width: 19%;
+}
+.f12-int-fill[data-fill="20"] {
+  width: 20%;
+}
+.f12-int-fill[data-fill="21"] {
+  width: 21%;
+}
+.f12-int-fill[data-fill="22"] {
+  width: 22%;
+}
+.f12-int-fill[data-fill="23"] {
+  width: 23%;
+}
+.f12-int-fill[data-fill="24"] {
+  width: 24%;
+}
+.f12-int-fill[data-fill="25"] {
+  width: 25%;
+}
+.f12-int-fill[data-fill="26"] {
+  width: 26%;
+}
+.f12-int-fill[data-fill="27"] {
+  width: 27%;
+}
+.f12-int-fill[data-fill="28"] {
+  width: 28%;
+}
+.f12-int-fill[data-fill="29"] {
+  width: 29%;
+}
+.f12-int-fill[data-fill="30"] {
+  width: 30%;
+}
+.f12-int-fill[data-fill="31"] {
+  width: 31%;
+}
+.f12-int-fill[data-fill="32"] {
+  width: 32%;
+}
+.f12-int-fill[data-fill="33"] {
+  width: 33%;
+}
+.f12-int-fill[data-fill="34"] {
+  width: 34%;
+}
+.f12-int-fill[data-fill="35"] {
+  width: 35%;
+}
+.f12-int-fill[data-fill="36"] {
+  width: 36%;
+}
+.f12-int-fill[data-fill="37"] {
+  width: 37%;
+}
+.f12-int-fill[data-fill="38"] {
+  width: 38%;
+}
+.f12-int-fill[data-fill="39"] {
+  width: 39%;
+}
+.f12-int-fill[data-fill="40"] {
+  width: 40%;
+}
+.f12-int-fill[data-fill="41"] {
+  width: 41%;
+}
+.f12-int-fill[data-fill="42"] {
+  width: 42%;
+}
+.f12-int-fill[data-fill="43"] {
+  width: 43%;
+}
+.f12-int-fill[data-fill="44"] {
+  width: 44%;
+}
+.f12-int-fill[data-fill="45"] {
+  width: 45%;
+}
+.f12-int-fill[data-fill="46"] {
+  width: 46%;
+}
+.f12-int-fill[data-fill="47"] {
+  width: 47%;
+}
+.f12-int-fill[data-fill="48"] {
+  width: 48%;
+}
+.f12-int-fill[data-fill="49"] {
+  width: 49%;
+}
+.f12-int-fill[data-fill="50"] {
+  width: 50%;
+}
+.f12-int-fill[data-fill="51"] {
+  width: 51%;
+}
+.f12-int-fill[data-fill="52"] {
+  width: 52%;
+}
+.f12-int-fill[data-fill="53"] {
+  width: 53%;
+}
+.f12-int-fill[data-fill="54"] {
+  width: 54%;
+}
+.f12-int-fill[data-fill="55"] {
+  width: 55%;
+}
+.f12-int-fill[data-fill="56"] {
+  width: 56%;
+}
+.f12-int-fill[data-fill="57"] {
+  width: 57%;
+}
+.f12-int-fill[data-fill="58"] {
+  width: 58%;
+}
+.f12-int-fill[data-fill="59"] {
+  width: 59%;
+}
+.f12-int-fill[data-fill="60"] {
+  width: 60%;
+}
+.f12-int-fill[data-fill="61"] {
+  width: 61%;
+}
+.f12-int-fill[data-fill="62"] {
+  width: 62%;
+}
+.f12-int-fill[data-fill="63"] {
+  width: 63%;
+}
+.f12-int-fill[data-fill="64"] {
+  width: 64%;
+}
+.f12-int-fill[data-fill="65"] {
+  width: 65%;
+}
+.f12-int-fill[data-fill="66"] {
+  width: 66%;
+}
+.f12-int-fill[data-fill="67"] {
+  width: 67%;
+}
+.f12-int-fill[data-fill="68"] {
+  width: 68%;
+}
+.f12-int-fill[data-fill="69"] {
+  width: 69%;
+}
+.f12-int-fill[data-fill="70"] {
+  width: 70%;
+}
+.f12-int-fill[data-fill="71"] {
+  width: 71%;
+}
+.f12-int-fill[data-fill="72"] {
+  width: 72%;
+}
+.f12-int-fill[data-fill="73"] {
+  width: 73%;
+}
+.f12-int-fill[data-fill="74"] {
+  width: 74%;
+}
+.f12-int-fill[data-fill="75"] {
+  width: 75%;
+}
+.f12-int-fill[data-fill="76"] {
+  width: 76%;
+}
+.f12-int-fill[data-fill="77"] {
+  width: 77%;
+}
+.f12-int-fill[data-fill="78"] {
+  width: 78%;
+}
+.f12-int-fill[data-fill="79"] {
+  width: 79%;
+}
+.f12-int-fill[data-fill="80"] {
+  width: 80%;
+}
+.f12-int-fill[data-fill="81"] {
+  width: 81%;
+}
+.f12-int-fill[data-fill="82"] {
+  width: 82%;
+}
+.f12-int-fill[data-fill="83"] {
+  width: 83%;
+}
+.f12-int-fill[data-fill="84"] {
+  width: 84%;
+}
+.f12-int-fill[data-fill="85"] {
+  width: 85%;
+}
+.f12-int-fill[data-fill="86"] {
+  width: 86%;
+}
+.f12-int-fill[data-fill="87"] {
+  width: 87%;
+}
+.f12-int-fill[data-fill="88"] {
+  width: 88%;
+}
+.f12-int-fill[data-fill="89"] {
+  width: 89%;
+}
+.f12-int-fill[data-fill="90"] {
+  width: 90%;
+}
+.f12-int-fill[data-fill="91"] {
+  width: 91%;
+}
+.f12-int-fill[data-fill="92"] {
+  width: 92%;
+}
+.f12-int-fill[data-fill="93"] {
+  width: 93%;
+}
+.f12-int-fill[data-fill="94"] {
+  width: 94%;
+}
+.f12-int-fill[data-fill="95"] {
+  width: 95%;
+}
+.f12-int-fill[data-fill="96"] {
+  width: 96%;
+}
+.f12-int-fill[data-fill="97"] {
+  width: 97%;
+}
+.f12-int-fill[data-fill="98"] {
+  width: 98%;
+}
+.f12-int-fill[data-fill="99"] {
+  width: 99%;
+}
+.f12-int-fill[data-fill="100"] {
+  width: 100%;
 }

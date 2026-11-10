@@ -120,6 +120,7 @@ export const MANIFEST_ATTRIBUTES = Object.freeze([
     'data-density',
     'data-static',
     'data-pattern',
+    'data-fill',
     'data-orientation',
     'data-strength',
     'data-endpoint',

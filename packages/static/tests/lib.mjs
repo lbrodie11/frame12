@@ -8,6 +8,17 @@ export const REPO_ROOT = path.resolve(PKG_ROOT, '../..');
 
 export const S = await import(pathToFileURL(path.join(PKG_ROOT, 'dist/index.js')).href);
 
+// Html is a frozen wrapper object, not a string. For readable assertions, the tests (and only the
+// tests) give its prototype read-only string helpers that delegate to String(html). Equality
+// still needs String(a) === String(b). The package's own prototype methods are recorded first so
+// a test can prove the shipped object has no string methods.
+const htmlProto = Object.getPrototypeOf(S.fragment(''));
+export const SHIPPED_HTML_METHODS = Object.freeze(Object.getOwnPropertyNames(htmlProto).sort());
+for (const m of ['includes', 'match', 'matchAll', 'startsWith', 'endsWith', 'split', 'replace', 'indexOf', 'lastIndexOf', 'slice']) {
+  Object.defineProperty(htmlProto, m, { value(...a) { return String(this)[m](...a); }, configurable: true });
+}
+Object.defineProperty(htmlProto, 'length', { get() { return String(this).length; }, configurable: true });
+
 let failures = 0;
 let passes = 0;
 export function check(ok, label, detail = '') {

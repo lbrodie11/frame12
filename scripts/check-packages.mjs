@@ -612,7 +612,7 @@ if (present.includes('@frame12/static')) {
     }
   }
   syncBuiltinESMExports();
-  const expected = ['document', 'sheet', 'scene', 'sceneArea', 'panel', 'panelPair', 'balloon', 'tag', 'badge', 'metric', 'toneBarList', 'ghostWire', 'receipt', 'receiptList', 'fragment', 'unsafeRaw', 'escapeHtml', 'safeUrl', 'isHtml', 'fmtPct', 'fmtPPAbs', 'fmtMoney'];
+  const expected = ['document', 'sheet', 'scene', 'sceneArea', 'panel', 'panelPair', 'balloon', 'tag', 'badge', 'metric', 'toneBarList', 'ghostWire', 'receipt', 'receiptList', 'fragment', 'unsafeRaw', 'escapeHtml', 'safeUrl', 'isHtml', 'toIdent', 'dedupeIds', 'fmtPct', 'fmtPPAbs', 'fmtMoney'];
   for (const name of expected) assert.equal(typeof staticMod[name], 'function', '@frame12/static must export ' + name + '()');
   assert.equal(typeof staticMod.staticCss, 'string', '@frame12/static must export staticCss');
   const body = staticMod.sheet({
@@ -622,8 +622,10 @@ if (present.includes('@frame12/static')) {
       staticMod.panel({ children: staticMod.receiptList({ items: [{ kind: 'link', value: 'x', href: 'javascript:alert(1)' }] }) }),
     ),
   });
-  const docHtml = staticMod.document({ title: 'Standalone <Smoke>', body });
-  assert.equal(typeof docHtml, 'string');
+  const docObj = staticMod.document({ title: 'Standalone <Smoke>', body });
+  assert.ok(staticMod.isHtml(docObj) && typeof docObj === 'object', 'document() must return an Html object');
+  const docHtml = String(docObj);
+  assert.ok(!staticMod.isHtml(docHtml), 'a string equal to rendered markup must not be trusted');
   assert.ok(docHtml.startsWith('<!doctype html>'), 'document() must return an HTML document');
   assert.ok(docHtml.includes('<style data-f12-tokens>') && docHtml.includes('<style data-f12-static>'), 'document() must inline tokens + static CSS');
   assert.ok(docHtml.includes('Standalone &lt;Smoke&gt;') && !docHtml.includes('javascript:'), 'document() must escape text and drop unsafe hrefs');
@@ -657,10 +659,14 @@ import { cssText } from '@frame12/tokens';
 const items: ReceiptOpts[] = [{ kind: 'commit', value: 'abc1234' }];
 const opts: PanelOpts = { cut: false, shape: 'slant-top', children: 'x' };
 const body: Html = sheet({ autoCut: true, children: fragment(panel(opts), metric({ label: 'L', value: 1 }), receiptList({ items })) });
-const page: string = document({ title: 't', body, theme: 'dark' });
+const page: string = String(document({ title: 't', body, theme: 'dark' }));
+// @ts-expect-error: Html is an object, not a string (use String(html))
+const notAString: string = document({ title: 't', body });
+// @ts-expect-error: a plain string is not Html (only renderers, fragment() and unsafeRaw() make Html)
+const forged: Html = '<b>x</b>';
 // @ts-expect-error: body must be Html, not a plain string
 document({ title: 't', body: '<p>x</p>' });
-export const out = page.length + cssText.length;
+export const out = page.length + cssText.length + String(notAString).length + String(forged).length;
 `,
       );
       fs.writeFileSync(

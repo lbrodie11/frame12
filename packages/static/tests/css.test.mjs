@@ -136,7 +136,7 @@ const staticCss = fs.readFileSync(path.join(PKG_ROOT, 'dist/static.css'), 'utf8'
   const tokensOnly = lintHtml(`<!doctype html><html><head><style data-f12-tokens>${tokensCss}</style></head><body></body></html>`);
   check(tokensOnly.length === 0, 'lintHtml: the token block is exempt via <style data-f12-tokens> (no tokenStyleIds option needed)');
   const doc = S.document({ title: 'x', body: S.sheet({ autoCut: true, children: S.panel({ children: 'x' }) }) });
-  check(lintHtml(doc).filter((x) => x.rule === 'unsafe-html' || x.rule === 'cut-order').length === 0, 'lintHtml: a full document() has no unsafe-html or cut-order findings');
+  check(lintHtml(String(doc)).filter((x) => x.rule === 'unsafe-html' || x.rule === 'cut-order').length === 0, 'lintHtml: a full document() has no unsafe-html or cut-order findings');
 }
 
 finish('css');

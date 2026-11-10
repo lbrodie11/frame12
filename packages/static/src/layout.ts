@@ -1,6 +1,6 @@
 import { attrs, child, escapeHtml, html, type Child, type Html } from './html.js';
 import { hash } from './hash.js';
-import { bool, fail, ident, IDENT_RE, num, oneOf, optIdent, optString } from './validate.js';
+import { bool, fail, ident, IDENT_RE, num, obj, oneOf, optIdent, optString } from './validate.js';
 
 export type SceneGutter = 'pair' | 'scene' | 'change';
 export type SceneLayout = 'split' | 'stack' | 'equal' | 'three' | 'areas';
@@ -29,6 +29,7 @@ export interface SheetOpts {
 /** Mirrors `<Sheet>`: the desk frame, the sheet, optional peg holes, and auto-cut numbering. */
 export function sheet(o: SheetOpts): Html {
   const where = 'sheet()';
+  obj(where, o);
   const pegs = bool(where, 'pegs', o.pegs, true);
   const autoCut = bool(where, 'autoCut', o.autoCut, false);
   const theme = o.theme === undefined ? undefined : oneOf(where, 'theme', o.theme, ['light', 'dark'] as const, 'light');
@@ -61,7 +62,7 @@ const DEFAULT_BREAKPOINT = '860px';
 function normalizeBreakpoint(where: string, bp: unknown): string {
   if (bp === undefined) return DEFAULT_BREAKPOINT;
   if (typeof bp === 'number') {
-    return `${num(where, 'breakpoint', bp, 1, 9999, { integer: true })}px`;
+    return `${num(where, 'breakpoint', bp, 10, 9999, { integer: true })}px`;
   }
   if (typeof bp === 'string' && /^\d{2,4}(px|rem|em)$/.test(bp)) return bp;
   return fail(where, `breakpoint must be an integer or match /^\\d{2,4}(px|rem|em)$/ (got ${JSON.stringify(String(bp)).slice(0, 80)})`);
@@ -86,12 +87,35 @@ function parseAreas(where: string, areas: unknown): string[][] {
   if (rows.some((r) => r.length !== first)) {
     fail(where, `every areas row must have ${first} column token(s) (got ${rows.map((r) => r.length).join(', ')})`);
   }
+  // Each named area must be one filled rectangle; browsers ignore the whole grid-template-areas
+  // value otherwise (e.g. "a b a"), silently dropping the layout.
+  const boxes = new Map<string, { r0: number; r1: number; c0: number; c1: number; cells: number }>();
+  rows.forEach((row, r) =>
+    row.forEach((name, c) => {
+      if (name.startsWith('.')) return;
+      const b = boxes.get(name);
+      if (!b) boxes.set(name, { r0: r, r1: r, c0: c, c1: c, cells: 1 });
+      else {
+        b.r0 = Math.min(b.r0, r);
+        b.r1 = Math.max(b.r1, r);
+        b.c0 = Math.min(b.c0, c);
+        b.c1 = Math.max(b.c1, c);
+        b.cells++;
+      }
+    }),
+  );
+  for (const [name, b] of boxes) {
+    if (b.cells !== (b.r1 - b.r0 + 1) * (b.c1 - b.c0 + 1)) {
+      fail(where, `area "${name}" must form a single rectangle in areas`);
+    }
+  }
   return rows;
 }
 
 /** Mirrors `<Scene>`: a grid scene with gutter grammar (12/20/32px) and optional named areas. */
 export function scene(o: SceneOpts): Html {
   const where = 'scene()';
+  obj(where, o);
   const gutter = oneOf(where, 'gutter', o.gutter, ['pair', 'scene', 'change'] as const, 'scene');
   const requestedLayout = oneOf(where, 'layout', o.layout, ['split', 'stack', 'equal', 'three', 'areas'] as const, 'split');
   const rows = o.areas === undefined ? [] : parseAreas(where, o.areas);
@@ -136,6 +160,7 @@ export interface SceneAreaOpts {
 
 /** Mirrors `<SceneArea>`: places its children in a named `Scene` area. */
 export function sceneArea(o: SceneAreaOpts): Html {
+  obj('sceneArea()', o);
   const area = ident('sceneArea()', 'area', o.area);
   return html(
     `<div${attrs([
@@ -185,6 +210,7 @@ export function exactPoints(shape: PanelShape, w: number, h: number): string {
 /** Mirrors `<Panel>`: an ink-framed panel with a cut label. */
 export function panel(o: PanelOpts): Html {
   const where = 'panel()';
+  obj(where, o);
   const shape = oneOf(where, 'shape', o.shape, ['rect', 'slant-bottom', 'slant-top'] as const, 'rect');
   const variant = oneOf(where, 'variant', o.variant, ['expressive', 'quiet'] as const, 'expressive');
   const label = optString(where, 'label', o.label);
@@ -242,8 +268,14 @@ export interface PanelPairOpts {
 /** Mirrors `<PanelPair>`: two panels on a 12px pair gutter with complementary slants. */
 export function panelPair(o: PanelPairOpts): Html {
   const where = 'panelPair()';
+  obj(where, o);
   const variant = oneOf(where, 'variant', o.variant, ['expressive', 'quiet'] as const, 'expressive');
   const area = optIdent(where, 'area', o.area);
+  if ((o.top === undefined) !== (o.bottom === undefined)) {
+    fail(where, 'top and bottom must be passed together (or use children)');
+  }
+  if (o.top !== undefined) obj(where, o.top, 'top');
+  if (o.bottom !== undefined) obj(where, o.bottom, 'bottom');
   let inner: string;
   if (o.top && o.bottom) {
     const slot = (
@@ -260,7 +292,7 @@ export function panelPair(o: PanelPairOpts): Html {
         label: p.label ?? label,
         variant: v,
         shape: v === 'quiet' ? 'rect' : slant,
-      });
+      }).toString();
     };
     inner =
       slot(o.top, 'slant-bottom', o.topCut, o.topLabel) +

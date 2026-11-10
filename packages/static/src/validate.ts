@@ -63,3 +63,11 @@ export function bool(where: string, field: string, value: unknown, fallback: boo
   if (typeof value !== 'boolean') fail(where, `${field} must be a boolean`);
   return value;
 }
+
+/** Throws the package's TypeError (not a raw "Cannot read properties of null") for non-objects. */
+export function obj<T>(where: string, value: T, field = 'options'): NonNullable<T> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    fail(where, `${field} must be an object (got ${value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value})`);
+  }
+  return value as NonNullable<T>;
+}

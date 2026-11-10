@@ -10,3 +10,5 @@ export declare function num(where: string, field: string, value: unknown, min: n
 export declare function oneOf<T extends string>(where: string, field: string, value: unknown, allowed: readonly T[], fallback: T): T;
 export declare function optString(where: string, field: string, value: unknown): string | undefined;
 export declare function bool(where: string, field: string, value: unknown, fallback: boolean): boolean;
+/** Throws the package's TypeError (not a raw "Cannot read properties of null") for non-objects. */
+export declare function obj<T>(where: string, value: T, field?: string): NonNullable<T>;

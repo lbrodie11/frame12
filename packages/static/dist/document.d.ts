@@ -11,10 +11,13 @@ export interface DocumentOpts {
     inlineCss?: boolean;
 }
 /**
- * Makes auto ids unique within one document using a counter scoped to this call. A renamed id's
- * `url(#…)` and `href="#…"` references that follow it (inside the same component) are rewritten.
+ * Makes the kit's auto ids unique within `markup`, using a counter scoped to this call. Only two
+ * attributes inside start tags are touched: `id="…"` when it is an auto id, and the
+ * `mask="url(#…)"` that the same ghostWire uses right after defining its mask. Text, `href`s,
+ * caller-chosen ids (`idPrefix`) and every other attribute are left exactly as they are.
+ * document() calls this; call it yourself when you assemble a page without document().
  */
-export declare function dedupeIds(markup: string): string;
+export declare function dedupeIds(markup: Html): Html;
 /**
  * A complete, self-contained HTML page: doctype, charset, viewport, the token CSS
  * (`<style data-f12-tokens>`), the static kit CSS (`<style data-f12-static>`) and the body.
