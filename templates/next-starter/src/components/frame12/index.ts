@@ -279,3 +279,15 @@ export {
 } from './receipt';
 export { TempoProvider, type TempoProviderProps } from './tempo';
 export { TempoControl, TEMPO_OPTIONS, type TempoControlProps } from './tempo-control';
+export {
+  ExposureScrubber,
+  type ExposureScrubberProps,
+  type ExposureScrubberDensity,
+  type ExposureScrubberVariant,
+  type ExposureFrame,
+  type ExposureStatus,
+  type ExposureTiming,
+  type ExposureRate,
+  type ExposureValueReason,
+  type ExposurePlayingReason,
+} from './exposure-scrubber';

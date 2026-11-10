@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { CATALOG, getCatalogEntry } from '@/lib/catalog';
 import { ComponentDetailView } from '@/components/component-detail-view';
+import { buildAgentRunDemo } from '@/lib/exposure-agent-demo';
 
 // Next.js 15+: dynamic route params are delivered as a Promise.
 type SlugParams = Promise<{ slug: string }>;
@@ -32,5 +33,7 @@ export default async function ComponentSlugPage({ params }: { params: SlugParams
   if (!entry) {
     notFound();
   }
-  return <ComponentDetailView entry={entry} />;
+  // Server-side: only the redacted demo data is serialized to the client.
+  const exposureAgentDemo = entry.slug === 'exposure-scrubber' ? buildAgentRunDemo() : undefined;
+  return <ComponentDetailView entry={entry} exposureAgentDemo={exposureAgentDemo} />;
 }

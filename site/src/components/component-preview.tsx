@@ -2,6 +2,10 @@
 
 import * as React from 'react';
 import { useResolvedMotion } from '@/hooks/use-tempo';
+import dynamic from 'next/dynamic';
+
+// Loaded only by the exposure-scrubber preview (its own chunk, not in every component page).
+const ExposurePreview = dynamic(() => import('@/components/exposure-demos').then((m) => m.ExposurePreview));
 import {
   Sheet,
   TempoProvider,
@@ -749,6 +753,13 @@ export function ComponentPreview({
                 </div>
               </div>
             </TempoProvider>
+          </div>
+        );
+
+      case 'exposure-scrubber':
+        return (
+          <div className="f12-preview-sheet">
+            <ExposurePreview idPrefix={`${pfx}-xs`} />
           </div>
         );
 

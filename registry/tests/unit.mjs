@@ -102,6 +102,7 @@ import {
     if (
       item.name !== 'use-on-twos' &&
       item.name !== 'use-tempo' &&
+      item.name !== 'use-exposure' &&
       item.name !== 'frame12-tokens' &&
       !hasDirectStyles &&
       !hasDepStyles

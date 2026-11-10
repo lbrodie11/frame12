@@ -100,7 +100,9 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
     { cwd: REPO_ROOT, encoding: 'utf8' },
   );
   check(
-    repoWrapperOut === 'PASS  check-frame12: 98 file(s) checked, 0 violations.\n' &&
+    // The exact number of lintable files the default run scans (F12-09 added 5: ExposureScrubber,
+    // its template copy, and the docs demo modules). Update it when lintable files are added.
+    repoWrapperOut === 'PASS  check-frame12: 103 file(s) checked, 0 violations.\n' &&
       repoBinOut === repoWrapperOut,
     'CLI parity: repo default check output is byte-identical to baseline',
     `Got: ${JSON.stringify(repoWrapperOut)}`,
