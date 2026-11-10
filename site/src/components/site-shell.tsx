@@ -132,14 +132,21 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       // Centering can switch the overflow cue on, which widens the scroll padding and makes the
       // browser re-snap the row to the nearest link start. For a link near either end that can
       // leave it partly off-screen (seen with the 10th nav item), so check once more after the
-      // padding has changed and re-apply the position if the link is not fully visible.
+      // padding has changed. Only a snap-sized nudge (at most half a link) is undone: any larger
+      // change came from someone else (a user or a script scrolling the row) and is left alone,
+      // as is everything after user input.
+      const placed = list.scrollLeft;
       window.cancelAnimationFrame(settleRaf);
       settleRaf = window.requestAnimationFrame(() => {
+        if (Math.abs(list.scrollLeft - placed) > 48) return;
         const lr = list.getBoundingClientRect();
         const r = active.getBoundingClientRect();
         if (r.left < lr.left || r.right > lr.right) centerActive(false);
       });
     };
+    const cancelSettle = () => window.cancelAnimationFrame(settleRaf);
+    const userInput = ['pointerdown', 'wheel', 'touchstart', 'keydown'] as const;
+    for (const type of userInput) list.addEventListener(type, cancelSettle, { passive: true });
     centerActive();
     let prevWidth = list.clientWidth;
     if (typeof ResizeObserver === 'function') {
@@ -151,11 +158,15 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       });
       ro.observe(list);
       return () => {
-        window.cancelAnimationFrame(settleRaf);
+        cancelSettle();
+        for (const type of userInput) list.removeEventListener(type, cancelSettle);
         ro.disconnect();
       };
     }
-    return () => window.cancelAnimationFrame(settleRaf);
+    return () => {
+      cancelSettle();
+      for (const type of userInput) list.removeEventListener(type, cancelSettle);
+    };
   }, [pathname]);
 
   useIsomorphicLayoutEffect(() => {
