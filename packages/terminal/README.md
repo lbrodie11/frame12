@@ -4,9 +4,10 @@ FRAME/12's interface language for the command line. A long-running command reads
 of **cuts** (`C-01`, `C-02`…), the finding that matters comes first as a **frame** (`F-01`), and
 every claim carries **receipts** (`E-01`).
 
-> **Status: 0.1.0 in progress (F12-13 PRs 1–4).** The core, the zero-dependency linear renderers
-> (`./render`), the Director, the live Ink view (`./ink`), `spawnLogged` (`./process`) and the
-> `frame12-term` CLI with `.f12rec` recordings are in.
+> **Status: 0.1.0 in progress (F12-13 PRs 1–5).** The core, the zero-dependency linear renderers
+> (`./render`), the Director, the live Ink view (`./ink`), `spawnLogged` (`./process`), the
+> `frame12-term` CLI with `.f12rec` recordings, and three reference apps
+> ([`examples/`](examples/)) are in.
 
 ```sh
 npm install @frame12/terminal
@@ -217,6 +218,20 @@ dropped, and one line says how many characters were not logged; carriage-return 
 only its latest text. Once the child exits, its output gets `drainMs` (default 500) to arrive, so a
 grandchild that inherited the pipes cannot keep the promise pending. In the linear view these lines are narrated like log events (errors and
 warnings always), so a child's failure reason reaches CI logs too.
+
+## Reference apps
+
+[`examples/`](examples/) has three programs built only on the public API, each running in all four
+renderers (`--format rich|plain|json|live`) with a VHS tape:
+
+- **Repo Archaeology investigation:** wraps the published `repo-archaeology` CLI as child
+  processes and maps its JSON to findings with commit receipts (adapter tested against a fixture
+  from hono at a pinned commit). Follow-up rates read as historical activity, never correctness.
+- **Build pipeline:** lint, typecheck, test and build through `spawnLogged`; a failure becomes a
+  `danger` panel whose receipts are the failing tests and error lines.
+- **Agent approval:** a tool call for an explicit y/N decision. It never approves by itself (a
+  timeout or a non-interactive terminal denies), and untrusted free text in the arguments is
+  withheld.
 
 ## The `frame12-term` CLI
 
