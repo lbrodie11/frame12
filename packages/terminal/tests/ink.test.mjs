@@ -304,7 +304,7 @@ describe('ink: startLive end to end with fake streams (fourth review)', async ()
     await run.done;
     const text = stderr.text();
     assert.equal(text.split('UNIQUE_CHILD_ERROR').length - 1, 1, `printed once:\n${text}`);
-    assert.match(text, /exited with code 3/);
+    assert.match(text, /exited with\s+code 3/); // the line may wrap (a long node path)
   });
 
   it('does not print an event-borne log line twice in the linear view', async () => {
