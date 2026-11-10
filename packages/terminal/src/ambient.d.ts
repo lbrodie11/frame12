@@ -14,3 +14,14 @@ declare class TextEncoder {
   encode(input?: string): Uint8Array;
 }
 declare var process: { platform?: string } | undefined;
+declare function setTimeout(fn: () => void, ms?: number): unknown;
+declare function clearTimeout(handle: unknown): void;
+declare var performance: { now(): number } | undefined;
+declare class AbortSignal {
+  readonly aborted: boolean;
+  readonly reason: unknown;
+}
+declare class AbortController {
+  readonly signal: AbortSignal;
+  abort(reason?: unknown): void;
+}
