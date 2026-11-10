@@ -2714,7 +2714,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "onEnd",
         "type": "() => void",
         "defaultValue": "undefined",
-        "description": "Called on animationend when the stroke finishes."
+        "description": "Called once on animationend when the stroke finishes; not when motion resolves to cut mid-draw (that consumes the play: re-enabling motion never replays it, only a new false → true play does)."
       }
     ],
     "subcomponents": [
@@ -2775,7 +2775,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "onEnd",
         "type": "() => void",
         "defaultValue": "undefined",
-        "description": "Called when the content has appeared."
+        "description": "Called exactly once per reveal when the content has appeared (a PanelPair or nested panels still give one call); not when motion resolves to cut mid-reveal (that consumes the play: only a new false → true play reveals again)."
       },
       {
         "name": "children",

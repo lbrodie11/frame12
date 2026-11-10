@@ -3,7 +3,7 @@
 // `window.__setTempo(t)` changes the tempo mid-play.
 import * as React from 'react';
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
-import { Panel, TempoProvider } from '@/components/frame12';
+import { Panel, PanelPair, TempoProvider } from '@/components/frame12';
 import { InkStroke, inkPencil } from '@/components/frame12/ink';
 import { InkReveal } from '@/components/frame12/ink-reveal';
 import { InkBeat, InkLand, InkSequence, type InkSequenceState } from '@/components/frame12/ink-sequence';
@@ -64,9 +64,15 @@ function PlainStroke() {
   );
 }
 
-function RevealPanel({ wrapped, dir, width }: { wrapped?: boolean; dir?: 'rtl' | 'ltr'; width?: number }) {
+function RevealPanel({ wrapped, dir, width, pair }: { wrapped?: boolean; dir?: 'rtl' | 'ltr'; width?: number; pair?: boolean }) {
   const [play] = usePlay(false);
-  const panel = (
+  const panel = pair ? (
+    <PanelPair
+      id="panel"
+      top={{ label: 'Top', cut: 'C-01', children: <p id="content">Top content</p> }}
+      bottom={{ label: 'Bottom', cut: 'C-02', children: <p>Bottom content</p> }}
+    />
+  ) : (
     <Panel id="panel" cut="C-01" label="Revealed">
       <p id="content">Panel content</p>
     </Panel>
@@ -127,7 +133,7 @@ function App({ name, opts }: { name: string; opts: Record<string, unknown> }) {
   let body: React.ReactElement;
   if (name === 'stroke') body = <Stroke poses={opts.poses as number | undefined} motion={opts.motion as never} initial={Boolean(opts.initial)} />;
   else if (name === 'plain-stroke') body = <PlainStroke />;
-  else if (name === 'reveal') body = <RevealPanel wrapped dir={opts.dir as never} width={opts.width as number | undefined} />;
+  else if (name === 'reveal') body = <RevealPanel wrapped dir={opts.dir as never} width={opts.width as number | undefined} pair={Boolean(opts.pair)} />;
   else if (name === 'plain-panel') body = <RevealPanel dir={opts.dir as never} width={opts.width as number | undefined} />;
   else body = <Sequence scroll={Boolean(opts.scroll)} />;
   return (

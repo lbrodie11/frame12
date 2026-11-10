@@ -36,7 +36,7 @@ export interface InkStrokeProps
   play?: boolean;
   /** The stroke's own motion, resolved against the viewer's tempo and OS reduced motion. */
   motion?: MotionMode;
-  /** Called when the stroke finishes drawing (`animationend`). */
+  /** Called once when the stroke finishes drawing (`animationend`); not when motion cancels it. */
   onEnd?: () => void;
 }
 
@@ -85,7 +85,11 @@ export const InkStroke = React.forwardRef<SVGPathElement, InkStrokeProps>(functi
   const driven = React.useContext(InkDrivenContext);
   const resolved = useResolvedMotion(motion);
   const cycle = useInkCycle(play);
-  const playing = !driven && play && cycle > 0 && resolved !== 'cut';
+  // A cycle is consumed when it finishes drawing or when motion resolves to cut mid-draw. Only a
+  // new false → true change of `play` draws again; re-enabling motion never replays it.
+  const [ended, setEnded] = React.useState<number>(0);
+  if (!driven && resolved === 'cut' && play && cycle > 0 && ended !== cycle) setEnded(cycle);
+  const playing = !driven && play && cycle > 0 && ended !== cycle && resolved !== 'cut';
 
   const vars: Record<string, string | number> = {};
   if (poses !== undefined) vars['--f12-ink-poses'] = clampPoses(poses);
@@ -105,7 +109,12 @@ export const InkStroke = React.forwardRef<SVGPathElement, InkStrokeProps>(functi
       style={{ ...(vars as React.CSSProperties), ...style }}
       onAnimationEnd={(e) => {
         onAnimationEnd?.(e);
-        if (!driven && e.target === e.currentTarget && e.animationName.startsWith('f12InkDraw')) {
+        if (
+          playing &&
+          e.target === e.currentTarget &&
+          e.animationName.startsWith('f12InkDraw')
+        ) {
+          setEnded(cycle);
           onEnd?.();
         }
       }}

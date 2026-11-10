@@ -191,6 +191,7 @@ export interface InkLandProps extends React.SVGProps<SVGGElement> {
 }
 ```
 
+- **One play, one draw.** A play is consumed when it finishes or when motion resolves to `cut` mid-draw (still tempo, reduced motion); re-enabling motion never replays it. Only a new `false → true` change of `play` draws again. `InkReveal`'s `onEnd` fires once per reveal, also around a `PanelPair`.
 - **Never on load.** `play` must change after mount through a user action (or `useChanged`). The `ink-autoplay` rule in `@frame12/lint` flags `play`, `play={true}` and values constant at mount (a `true` constant, an unchanging `useState(true)`, state set to `true` in a mount effect).
 - **Finished at rest.** `rest` is the default, SSR and no-JS state. `still` tempo, OS reduced motion, print and forced colors always show the finished drawing.
 - **Tokens only.** Strokes use `currentColor` from `--f-ink` / `--f-rule` (main line) and `--f-ink-2` (pencil, decorative, `aria-hidden`). Widths: `--f-stroke-pencil` (1px), `--f-stroke-detail` (1.5px), `--f-stroke` (2.5px). No opacity fades: every pose has the finished line's contrast.

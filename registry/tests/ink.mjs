@@ -368,6 +368,85 @@ for (const engine of BROWSERS) {
     await ctx.close();
   }
 
+  // ------------------------------------- a finished or cancelled cycle never replays (stroke, reveal)
+  {
+    const { ctx, page, errors } = await open();
+    const attrOf = (sel) => page.evaluate((sel) => document.querySelector(sel)?.getAttribute('data-ink') ?? null, sel);
+    const flip = async (tempo) => {
+      await page.evaluate((t) => window.__setTempo(t), tempo);
+      await settle(page);
+    };
+    const reducedFlip = async () => {
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await settle(page);
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await settle(page);
+    };
+    for (const [scenario, sel] of [['stroke', '#ink'], ['reveal', '.f12-ink-reveal']]) {
+      // After completion: play stays true; twos → still → twos and reduced motion on/off.
+      await page.evaluate((n) => window.__render(n, { tempo: 'twos' }), scenario);
+      await settle(page);
+      await page.evaluate(() => window.__toggle());
+      await settle(page);
+      await seek(page, 2000);
+      await settle(page);
+      const endsDone = await page.evaluate(() => window.__ends);
+      await flip('still');
+      await flip('twos');
+      await reducedFlip();
+      const afterDone = { anims: await timeAnimations(page), attr: await attrOf(sel), ends: await page.evaluate(() => window.__ends) };
+      const content = scenario === 'reveal' ? await page.evaluate(() => getComputedStyle(document.querySelector('#panel .f12-panel-body')).visibility) : 'visible';
+      // Mid-animation: cancel with still, re-enable; then cancel with reduced motion, re-enable.
+      await page.evaluate(() => window.__toggle());
+      await settle(page);
+      await page.evaluate(() => window.__toggle());
+      await settle(page);
+      await seek(page, 2 * POSE + 1);
+      await flip('still');
+      await flip('twos');
+      const afterCut = { anims: await timeAnimations(page), attr: await attrOf(sel) };
+      await page.evaluate(() => window.__toggle());
+      await settle(page);
+      await page.evaluate(() => window.__toggle());
+      await settle(page);
+      await seek(page, 2 * POSE + 1);
+      await reducedFlip();
+      const afterReduced = { anims: await timeAnimations(page), attr: await attrOf(sel) };
+      // A new false → true play still replays.
+      await page.evaluate(() => window.__toggle());
+      await settle(page);
+      await page.evaluate(() => window.__toggle());
+      await settle(page);
+      const replay = await timeAnimations(page);
+      check(
+        endsDone === 1 && afterDone.anims === 0 && afterDone.attr === null && afterDone.ends === 1 && content === 'visible' &&
+          afterCut.anims === 0 && afterCut.attr === null && afterReduced.anims === 0 && afterReduced.attr === null &&
+          replay > 0 && errors.length === 0,
+        `${tag} ${scenario === 'stroke' ? 'InkStroke' : 'InkReveal'}: a finished draw, or one cancelled by still tempo or reduced motion, never restarts when motion returns (content stays visible); only a new false → true play replays`,
+        { endsDone, afterDone, content, afterCut, afterReduced, replay, errors },
+      );
+    }
+    // PanelPair: two panel bodies, one completion per reveal.
+    await page.evaluate(() => window.__render('reveal', { tempo: 'twos', pair: true }));
+    await settle(page);
+    const bodies = await page.evaluate(() => document.querySelectorAll('#panel .f12-panel-body').length);
+    await page.evaluate(() => window.__toggle());
+    await settle(page);
+    await seek(page, 2000);
+    await settle(page);
+    const first = await page.evaluate(() => window.__ends);
+    await page.evaluate(() => window.__toggle());
+    await settle(page);
+    await page.evaluate(() => window.__toggle());
+    await settle(page);
+    await seek(page, 2000);
+    await settle(page);
+    const second = await page.evaluate(() => window.__ends);
+    check(bodies === 2 && first === 1 && second === 2,
+      `${tag} InkReveal around a PanelPair (2 panel bodies): onEnd fires exactly once per reveal (1, then 2 after a replay)`, { bodies, first, second });
+    await ctx.close();
+  }
+
   // ------------------------------------------------------------------------------ InkSequence
   {
     const { ctx, page, errors } = await open();

@@ -16,7 +16,7 @@ export interface InkRevealProps {
   play?: boolean;
   /** The reveal's own motion, resolved against the viewer's tempo and OS reduced motion. */
   motion?: MotionMode;
-  /** Called when the content has appeared (`animationend`). */
+  /** Called once per reveal, when the content has appeared; not when motion cancels the reveal. */
   onEnd?: () => void;
   /** One `Panel` or `PanelPair`. */
   children?: React.ReactNode;
@@ -48,7 +48,15 @@ function topRightFraction(polygon: SVGPolygonElement | null): number {
 export function InkReveal({ play = false, motion = 'stepped', onEnd, children }: InkRevealProps) {
   const resolved = useResolvedMotion(motion);
   const cycle = useInkCycle(play);
-  const playing = play && cycle > 0 && resolved !== 'cut';
+  // A cycle is consumed when its content has appeared or when motion resolves to cut mid-reveal.
+  // Only a new false → true change of `play` reveals again; re-enabling motion never replays it.
+  const [ended, setEnded] = React.useState<number>(0);
+  if (resolved === 'cut' && play && cycle > 0 && ended !== cycle) setEnded(cycle);
+  const playing = play && cycle > 0 && ended !== cycle && resolved !== 'cut';
+  // Every panel body lands at the same pose, so the first one's animationend means all content
+  // has appeared. A PanelPair (two bodies) or nested panels must still end the cycle only once,
+  // and the events arrive before React re-renders, hence a ref rather than state.
+  const endedRef = React.useRef<number>(0);
   const ref = React.useRef<HTMLDivElement | null>(null);
   const [start, setStart] = React.useState<{ cycle: number; rtl: boolean; at: number }>({
     cycle: 0,
@@ -78,12 +86,20 @@ export function InkReveal({ play = false, motion = 'stepped', onEnd, children }:
       data-ink-dir={start.rtl ? 'rtl' : 'ltr'}
       style={{ '--f12-ink-from': -start.at, '--f12-ink-to': 1 - start.at } as React.CSSProperties}
       onAnimationEnd={(e) => {
+        const target = e.target as Element;
         if (
-          e.animationName.startsWith('f12InkLand') &&
-          (e.target as Element).classList?.contains('f12-panel-body')
+          !playing ||
+          endedRef.current === cycle ||
+          !e.animationName.startsWith('f12InkLand') ||
+          !target.classList?.contains('f12-panel-body') ||
+          // A nested InkReveal reports its own completion, never this one's.
+          target.closest('.f12-ink-reveal') !== e.currentTarget
         ) {
-          onEnd?.();
+          return;
         }
+        endedRef.current = cycle;
+        setEnded(cycle);
+        onEnd?.();
       }}
     >
       {children}
