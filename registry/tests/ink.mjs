@@ -49,6 +49,19 @@ const seek = (page, t) =>
 const timeAnimations = (page) =>
   page.evaluate(() => document.getAnimations().filter((a) => a.timeline === document.timeline && a.effect?.target?.id !== 'spin').length);
 const settle = (page) => page.waitForTimeout(60); // React commits on a real-time task; the clock is paused.
+/**
+ * `animationend` is dispatched asynchronously after a seek (and React commits on a real-time
+ * task), so a fixed wait can read the count too early on a loaded runner. Poll (≤ 3 s) until the
+ * onEnd count reaches `n`, then return the actual count: exact checks still catch an extra call.
+ */
+async function endsAtLeast(page, n) {
+  for (let i = 0; i < 60; i++) {
+    const ends = await page.evaluate(() => window.__ends);
+    if (ends >= n) return ends;
+    await page.waitForTimeout(50);
+  }
+  return page.evaluate(() => window.__ends);
+}
 const strokeStyle = (page, id = 'ink') =>
   page.evaluate((id) => {
     const cs = getComputedStyle(document.getElementById(id));
@@ -173,6 +186,8 @@ for (const engine of BROWSERS) {
       { offsets: active.map((r) => r.v.split('|')[1]), holds, end: end.a },
     );
     // Replay (play false → true restarts with the other keyframe name) and sample at 120 Hz.
+    // First let the finished draw report its onEnd: it is delivered asynchronously.
+    await endsAtLeast(page, 1);
     await page.evaluate(() => window.__toggle());
     await settle(page);
     await page.evaluate(() => window.__toggle());
@@ -186,7 +201,7 @@ for (const engine of BROWSERS) {
       { lastChange60, lastChange120 },
     );
     await page.waitForTimeout(60);
-    const ends = await page.evaluate(() => window.__ends);
+    const ends = await endsAtLeast(page, 2);
     const spy = await page.evaluate(() => window.__spy);
     check(spy.raf === 0 && spy.timeout === 0 && ends === 2 && errors.length === 0,
       `${tag} zero JS animation: 0 requestAnimationFrame and 0 setTimeout calls across two full draws (a replay restarts); onEnd fired once per draw`, { spy, ends, errors });
@@ -331,7 +346,7 @@ for (const engine of BROWSERS) {
     await settle(page);
     const revealed = await page.locator('#host').screenshot();
     const panelDiff = await dec.diff(plain, revealed);
-    const ends = await page.evaluate(() => window.__ends);
+    const ends = await endsAtLeast(page, 1);
     await page.evaluate(() => window.__render('plain-stroke', { tempo: 'twos' }));
     await settle(page);
     const plainStroke = await page.locator('#stage').screenshot();
@@ -421,7 +436,7 @@ for (const engine of BROWSERS) {
       await settle(page);
       await seek(page, 2000);
       await settle(page);
-      const endsDone = await page.evaluate(() => window.__ends);
+      const endsDone = await endsAtLeast(page, 1);
       await flip('still');
       await flip('twos');
       await reducedFlip();
@@ -490,14 +505,14 @@ for (const engine of BROWSERS) {
     await settle(page);
     await seek(page, 2000);
     await settle(page);
-    const first = await page.evaluate(() => window.__ends);
+    const first = await endsAtLeast(page, 1);
     await page.evaluate(() => window.__toggle());
     await settle(page);
     await page.evaluate(() => window.__toggle());
     await settle(page);
     await seek(page, 2000);
     await settle(page);
-    const second = await page.evaluate(() => window.__ends);
+    const second = await endsAtLeast(page, 2);
     check(bodies === 2 && first === 1 && second === 2,
       `${tag} InkReveal around a PanelPair (2 panel bodies): onEnd fires exactly once per reveal (1, then 2 after a replay)`, { bodies, first, second });
     await ctx.close();
@@ -522,7 +537,7 @@ for (const engine of BROWSERS) {
     const strokeDash = await strokeStyle(page);
     await seek(page, 2000);
     await settle(page);
-    const strokeEnds = await page.evaluate(() => window.__ends);
+    const strokeEnds = await endsAtLeast(page, 1);
     // InkReveal: content visible mid-reveal; one onEnd; the content's own animation untouched.
     await page.evaluate(() => window.__render('reveal', { tempo: 'twos' }));
     await settle(page);
@@ -537,7 +552,7 @@ for (const engine of BROWSERS) {
     }));
     await seek(page, 2000);
     await settle(page);
-    const revealEnds = await page.evaluate(() => window.__ends);
+    const revealEnds = await endsAtLeast(page, 1);
     const spinAfter = await page.evaluate(() => document.getElementById('spin').getAnimations().length);
     const strokeDiff = await dec.diff(plainStroke, midStroke);
     check(
@@ -547,6 +562,35 @@ for (const engine of BROWSERS) {
       `${tag} ${label}: a play in flight already looks finished (stroke pixel-identical to a plain path mid-draw, reveal content visible), still ends and calls onEnd once, and content's own CSS animations keep running`,
       { strokeDash: strokeDash.a, strokeDiff, strokeEnds, mid, revealEnds, spinBefore, spinAfter, errors },
     );
+    await ctx.close();
+  }
+
+  // ------------------------- a draw that finishes as play changes still reports its own completion
+  {
+    // The browser delivers animationend asynchronously, so it can arrive after the consumer has
+    // already changed `play`. The event names the play it finished (keyframes …A / …B), so a
+    // completed draw still calls onEnd. WebKit drops animationend entirely when the animation is
+    // removed in the same task it finished, so there it may never arrive: never more than once.
+    const { ctx, page, errors } = await open();
+    const got = {};
+    for (const name of ['stroke', 'reveal']) {
+      await page.evaluate((n) => window.__render(n, { tempo: 'twos' }), name);
+      await settle(page);
+      await page.evaluate(() => window.__toggle());
+      await settle(page);
+      await page.evaluate(() => {
+        for (const a of document.getAnimations()) {
+          a.pause();
+          a.currentTime = 5000;
+        }
+        window.__toggle(); // Stop, in the same task the draw finished
+      });
+      got[name] = await endsAtLeast(page, 1);
+    }
+    const ok = engine === 'webkit' ? got.stroke <= 1 && got.reveal <= 1 : got.stroke === 1 && got.reveal === 1;
+    check(ok && errors.length === 0,
+      `${tag} a draw that finishes as play turns false still calls onEnd exactly once (InkStroke, InkReveal)${engine === 'webkit' ? ' — WebKit drops the event when the animation is removed in the same task: at most once' : ''}`,
+      { got, errors });
     await ctx.close();
   }
 
@@ -562,6 +606,7 @@ for (const engine of BROWSERS) {
     await settle(page);
     const before = await page.evaluate(() => [document.getElementById('seq').dataset.inkState, window.__ends]);
     await seek(page, 48 * POSE + 1);
+    await endsAtLeast(page, 1);
     await settle(page);
     const after = await page.evaluate(() => [document.getElementById('seq').dataset.inkState, window.__ends, window.__states.join(',')]);
     const spy = await page.evaluate(() => window.__spy);

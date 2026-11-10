@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useResolvedMotion } from '@/hooks/use-tempo';
-import { InkDrivenContext, clampPoses, useInkCycle } from './ink';
+import { InkDrivenContext, clampPoses, isInkCycleEvent, useInkCycle } from './ink';
 
 // Same union as `MotionMode` in use-on-twos.ts. Declared locally so this file only needs use-tempo.
 type MotionMode = 'stepped' | 'smooth' | 'cut';
@@ -90,6 +90,7 @@ export const InkSequence = React.forwardRef<HTMLDivElement, InkSequenceProps>(fu
   const resolved = useResolvedMotion(motion);
   const cycle = useInkCycle(play);
   const [ended, setEnded] = React.useState<number>(0);
+  const endedRef = React.useRef<number>(0);
   const [canScroll, setCanScroll] = React.useState<boolean>(false);
 
   // The scroll driver attaches only while the drawing is out of view, so hydration never swaps a
@@ -170,7 +171,15 @@ export const InkSequence = React.forwardRef<HTMLDivElement, InkSequenceProps>(fu
       onAnimationEnd={(e) => {
         onAnimationEnd?.(e);
         // The root's own clock animation lasts exactly `total` poses: its end is the last beat's end.
-        if (e.target === e.currentTarget && e.animationName.startsWith('f12InkClock')) {
+        // It counts only for the play it belongs to: a late end of a superseded play never ends
+        // the newer one, and a play stopped as it finished still reports its completion.
+        if (
+          e.target === e.currentTarget &&
+          isInkCycleEvent(e.animationName, 'f12InkClock', cycle) &&
+          ended !== cycle &&
+          endedRef.current !== cycle
+        ) {
+          endedRef.current = cycle;
           setEnded(cycle);
           onEnd?.();
         }

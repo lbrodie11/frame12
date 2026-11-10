@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useResolvedMotion } from '@/hooks/use-tempo';
-import { useInkCycle } from './ink';
+import { isInkCycleEvent, useInkCycle } from './ink';
 
 // Same union as `MotionMode` in use-on-twos.ts. Declared locally so this file only needs use-tempo.
 type MotionMode = 'stepped' | 'smooth' | 'cut';
@@ -88,9 +88,9 @@ export function InkReveal({ play = false, motion = 'stepped', onEnd, children }:
       onAnimationEnd={(e) => {
         const target = e.target as Element;
         if (
-          !playing ||
+          ended === cycle ||
           endedRef.current === cycle ||
-          !e.animationName.startsWith('f12InkLand') ||
+          !isInkCycleEvent(e.animationName, 'f12InkLand', cycle) ||
           !target.classList?.contains('f12-panel-body') ||
           // A nested InkReveal reports its own completion, never this one's.
           target.closest('.f12-ink-reveal') !== e.currentTarget

@@ -44,6 +44,17 @@ export interface InkStrokeProps
 export const InkDrivenContext = React.createContext<boolean>(false);
 InkDrivenContext.displayName = 'InkDrivenContext';
 
+/**
+ * True when an animation event belongs to play `cycle`. Plays alternate between two identical
+ * keyframe names (…A on odd cycles, …B on even), so an `animationend` that arrives after `play`
+ * has changed still says which play it finished. The browser delivers `animationend`
+ * asynchronously, so it can land after the consumer has stopped or replayed: a stopped play still
+ * reports its completion, and a superseded play's late event never ends the newer one.
+ */
+export function isInkCycleEvent(animationName: string, prefix: string, cycle: number): boolean {
+  return cycle > 0 && animationName === `${prefix}${cycle % 2 ? 'A' : 'B'}`;
+}
+
 /** Clamps a pose count to the legal 1–24 range (integers). */
 export function clampPoses(poses: number): number {
   if (!Number.isFinite(poses)) return 6;
@@ -88,6 +99,7 @@ export const InkStroke = React.forwardRef<SVGPathElement, InkStrokeProps>(functi
   // A cycle is consumed when it finishes drawing or when motion resolves to cut mid-draw. Only a
   // new false → true change of `play` draws again; re-enabling motion never replays it.
   const [ended, setEnded] = React.useState<number>(0);
+  const endedRef = React.useRef<number>(0);
   if (!driven && resolved === 'cut' && play && cycle > 0 && ended !== cycle) setEnded(cycle);
   const playing = !driven && play && cycle > 0 && ended !== cycle && resolved !== 'cut';
 
@@ -110,10 +122,13 @@ export const InkStroke = React.forwardRef<SVGPathElement, InkStrokeProps>(functi
       onAnimationEnd={(e) => {
         onAnimationEnd?.(e);
         if (
-          playing &&
+          !driven &&
           e.target === e.currentTarget &&
-          e.animationName.startsWith('f12InkDraw')
+          isInkCycleEvent(e.animationName, 'f12InkDraw', cycle) &&
+          ended !== cycle &&
+          endedRef.current !== cycle
         ) {
+          endedRef.current = cycle;
           setEnded(cycle);
           onEnd?.();
         }
