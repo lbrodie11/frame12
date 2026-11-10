@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next';
 import '@/styles/frame12.css';
 import './site.css';
 import { SiteShell } from '@/components/site-shell';
+import { STORED_TEMPOS, TEMPO_STORAGE_KEY } from '@/lib/tempo-storage';
 
 const delaGothicOne = localFont({
   src: '../src/fonts/dela-gothic-one-400.woff2',
@@ -52,9 +53,9 @@ export const metadata: Metadata = {
 };
 
 // Runs before first paint: applies the stored theme, and marks <html data-f12-tempo> with the stored
-// tempo (key `frame12-tempo`, see TEMPO_STORAGE_KEY in site-shell.tsx) so a stored `still` shows no
+// tempo (TEMPO_STORAGE_KEY, shared with the site's TempoProvider) so a stored `still` shows no
 // motion even before React hydrates (frame12.css). Invalid values read as `auto`.
-const FOUC_SCRIPT = `try{var s=localStorage.getItem("color-scheme");var d=(s==="light"||s==="dark")?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");var m=document.querySelector('meta[name="color-scheme"]');if(m)m.content=(s==="light"||s==="dark")?s:"light dark";document.documentElement.setAttribute("data-theme",d);}catch(e){}try{var t=localStorage.getItem("frame12-tempo");document.documentElement.setAttribute("data-f12-tempo",(t==="twos"||t==="ones"||t==="still")?t:"auto");}catch(e){document.documentElement.setAttribute("data-f12-tempo","auto");}`;
+const FOUC_SCRIPT = `try{var s=localStorage.getItem("color-scheme");var d=(s==="light"||s==="dark")?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");var m=document.querySelector('meta[name="color-scheme"]');if(m)m.content=(s==="light"||s==="dark")?s:"light dark";document.documentElement.setAttribute("data-theme",d);}catch(e){}try{var t=localStorage.getItem(${JSON.stringify(TEMPO_STORAGE_KEY)});document.documentElement.setAttribute("data-f12-tempo",${JSON.stringify(STORED_TEMPOS)}.indexOf(t)>=0?t:"auto");}catch(e){document.documentElement.setAttribute("data-f12-tempo","auto");}`;
 
 export default function RootLayout({
   children,

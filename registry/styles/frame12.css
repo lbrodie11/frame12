@@ -916,9 +916,6 @@
   outline-offset: 2px;
   z-index: 1;
 }
-.f12-tempo-opt:has(.f12-tempo-input:checked:focus-visible) {
-  outline-color: var(--f-ink);
-}
 .f12-tempo:disabled .f12-tempo-opt {
   cursor: not-allowed;
   opacity: 0.55;

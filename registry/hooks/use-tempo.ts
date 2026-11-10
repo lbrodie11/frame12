@@ -134,8 +134,10 @@ export interface TempoState extends TempoContextValue {
 export function useTempo(): TempoState {
   const ctx = React.useContext(TempoContext);
   const reduced = useReducedMotion();
-  const effectiveTempo: Tempo = reduced || ctx.ancestorStill ? 'still' : ctx.tempo;
-  return { ...ctx, reduced, effectiveTempo };
+  return React.useMemo(
+    () => ({ ...ctx, reduced, effectiveTempo: reduced || ctx.ancestorStill ? 'still' : ctx.tempo }),
+    [ctx, reduced],
+  );
 }
 
 /** The motion a component with this `base` should play here (see `resolveMotion`). */

@@ -221,6 +221,36 @@ const motionClassOf = (page, id) =>
   await ctx.close();
 }
 {
+  // Only the outermost persisted provider owns <html data-f12-tempo> (set by a first-paint script),
+  // and it never rewrites it with its default before the stored value is read.
+  const { ctx, page } = await openFixture(browser, html, {
+    clock: false,
+    init: () => localStorage.setItem('fx-outer', 'still'),
+  });
+  // What the first-paint script does before React mounts.
+  await page.evaluate(() => {
+    document.documentElement.setAttribute('data-f12-tempo', localStorage.getItem('fx-outer'));
+    window.__htmlTempo = [];
+    new MutationObserver(() => window.__htmlTempo.push(document.documentElement.getAttribute('data-f12-tempo')))
+      .observe(document.documentElement, { attributes: true, attributeFilter: ['data-f12-tempo'] });
+  });
+  await page.evaluate(() => window.__render('nested-storage'));
+  await settle(page);
+  const afterMount = await page.evaluate(() => [...window.__htmlTempo]);
+  await page.locator('#inner-ones').check();
+  await settle(page);
+  const afterInner = await page.evaluate(() => document.documentElement.getAttribute('data-f12-tempo'));
+  await page.locator('#outer-twos').check();
+  await settle(page);
+  const afterOuter = await page.evaluate(() => document.documentElement.getAttribute('data-f12-tempo'));
+  check(
+    afterMount.every((v) => v === 'still') && afterInner === 'still' && afterOuter === 'twos',
+    'provider: only the outermost persisted provider updates <html data-f12-tempo>; a stored still is never flipped to the default on mount; a nested persisted provider leaves it alone',
+    { afterMount, afterInner, afterOuter },
+  );
+  await ctx.close();
+}
+{
   // asChild layout neutrality: child boxes identical with no provider, asChild, and the wrapper.
   const { ctx, page } = await openFixture(browser, html, { clock: false });
   await page.evaluate(() => window.__render('as-child'));

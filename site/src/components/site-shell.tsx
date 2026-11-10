@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { SegmentedControl, Tag, TempoProvider, TempoControl, TEMPO_OPTIONS } from '@/components/frame12';
 import { TEMPOS, useResolvedMotion, useTempo, type Tempo } from '@/hooks/use-tempo';
 import { NAV_ITEMS, resolveNavOwnership } from '@/lib/nav-ownership';
+import { TEMPO_STORAGE_KEY } from '@/lib/tempo-storage';
 import { startFocusRestoration, startFocusTracking } from '@/lib/history-focus';
 
 export type ThemeMode = 'light' | 'dark';
@@ -31,8 +32,6 @@ const THEME_OPTIONS: Array<{ value: ThemeMode; label: string; unit: string }> = 
   { value: 'dark', label: 'Dark', unit: 'ink' },
 ];
 
-/** Where the site persists the viewer's tempo. The first-paint script in app/layout.tsx reads it too. */
-export const TEMPO_STORAGE_KEY = 'frame12-tempo';
 
 /** `M` cycles auto → twos → ones → still. */
 export function nextTempo(t: Tempo): Tempo {

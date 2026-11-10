@@ -8,12 +8,10 @@ import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+import { REGISTRY_ROOT, REPO_ROOT } from './lib.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-export const REGISTRY_ROOT = resolve(__dirname, '..');
-export const REPO_ROOT = resolve(REGISTRY_ROOT, '..');
+export { REGISTRY_ROOT, REPO_ROOT };
 
 const REACT_BASES = {
   18: createRequire(resolve(REGISTRY_ROOT, 'package.json')),

@@ -96,6 +96,8 @@ export function TempoProvider({
   }
 
   const [internal, setInternal] = React.useState<Tempo>(() => normalizeTempo(defaultValue));
+  // True once the persisted value has been read (set in the same batch as `internal`).
+  const [loaded, setLoaded] = React.useState(false);
 
   // The server and the hydrating client render `defaultValue` (or `auto`); the stored choice is
   // read before the first paint, so there is no hydration mismatch and no flash of the default.
@@ -103,6 +105,7 @@ export function TempoProvider({
     if (controlled || !storageKey) return;
     const stored = readStored(storageKey);
     if (stored) setInternal(stored);
+    setLoaded(true);
     const onStorage = (e: StorageEvent) => {
       if (e.key !== null && e.key !== storageKey) return;
       setInternal(readStored(storageKey) ?? normalizeTempo(defaultValue));
@@ -113,9 +116,14 @@ export function TempoProvider({
 
   const tempo: Tempo = controlled ? normalizeTempo(value) : internal;
 
+  // Only the outermost persisted provider owns the page-wide <html data-f12-tempo> (a nested
+  // provider must not turn motion off for the whole page). It syncs only once the stored value has
+  // been read: before that `tempo` still holds the default, and syncing would briefly flip a stored
+  // `still` (already written by the first-paint script) back to `auto`.
+  const ownsDocument = Boolean(storageKey) && !controlled && !parent.inProvider;
   useIsoLayoutEffect(() => {
-    if (storageKey) syncDocumentTempo(tempo);
-  }, [storageKey, tempo]);
+    if (ownsDocument && loaded) syncDocumentTempo(tempo);
+  }, [ownsDocument, loaded, tempo]);
 
   const onChangeRef = React.useRef(onChange);
   onChangeRef.current = onChange;

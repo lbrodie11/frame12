@@ -208,7 +208,20 @@ function MetricLive({ tempo }: { tempo?: Tempo }) {
   );
 }
 
+/** Two persisted providers: only the outer one may own <html data-f12-tempo>. */
+function NestedStorage() {
+  return (
+    <TempoProvider storageKey="fx-outer">
+      <TempoControl idPrefix="outer" />
+      <TempoProvider storageKey="fx-inner">
+        <TempoControl idPrefix="inner" />
+      </TempoProvider>
+    </TempoProvider>
+  );
+}
+
 const SCENARIOS: Record<string, (p: never) => React.ReactElement> = {
+  'nested-storage': NestedStorage,
   controlled: Controlled,
   uncontrolled: Uncontrolled,
   both: () => (

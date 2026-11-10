@@ -2699,9 +2699,10 @@ function WorkspaceSettingsInner({
                     motion={effectiveChartMotion}
                   />
                   <p className="f12-mono-note">
-                    {draft.motion.mode === 'stepped'
+                    {/* What actually plays: the draft mode resolved against the viewer's tempo and the OS. */}
+                    {resolvedSheetMotion === 'stepped'
                       ? 'Active grammar: 12fps On Twos (83.33ms per drawing). State updates snap immediately; decorative motion holds discrete poses.'
-                      : draft.motion.mode === 'smooth'
+                      : resolvedSheetMotion === 'smooth'
                         ? 'Active grammar: 60fps continuous cubic-bezier interpolation.'
                         : 'Active grammar: 0ms hard cut. Zero decorative animation.'}
                   </p>

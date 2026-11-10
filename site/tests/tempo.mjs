@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
+import { sampleAt60Hz } from '../../registry/tests/harness.mjs';
 
 const SITE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const KEY = 'frame12-tempo';
@@ -72,19 +73,6 @@ const choose = async (page, t) => {
 };
 /** Pauses the page's fake clock a little ahead of its own current time. */
 const pause = async (page) => page.clock.pauseAt((await page.evaluate(() => Date.now())) + 200);
-async function samples(page, ms, read) {
-  const out = [];
-  let elapsed = 0;
-  for (let i = 0; i * (1000 / 60) <= ms; i++) {
-    const target = Math.round((i * 1000) / 60);
-    if (target > elapsed) {
-      await page.clock.runFor(target - elapsed);
-      elapsed = target;
-    }
-    out.push(await read());
-  }
-  return out;
-}
 
 // Records every CSS animation/transition start from the first script on, plus <html data-f12-tempo>.
 const RECORD_MOTION = () => {
@@ -180,7 +168,7 @@ try {
       const target = ['90', '7', '30'][range++];
       await page.click(`#metric-light-metric-rng-${target}`);
       await page.waitForTimeout(80);
-      const values = await samples(page, 900, metric);
+      const values = await sampleAt60Hz(page, 900, metric);
       const ind = await indicator();
       const anims = await page.evaluate(() => document.getAnimations().filter((a) => a.effect?.target?.closest?.('.f12-preview-frame')).length);
       result[t] = { poses: new Set(values).size, tf: ind.tf, dur: ind.dur, anims };
@@ -197,7 +185,7 @@ try {
       await pause(page);
       await page.waitForSelector('.site-root[data-hydrated="true"]');
       await page.waitForTimeout(100);
-      const offsets = await samples(page, 700, () =>
+      const offsets = await sampleAt60Hz(page, 700, () =>
         page.evaluate(() => [...document.querySelectorAll('.f12-preview-frame .f12-ghost-wire mask *')].map((n) => n.getAttribute('stroke-dashoffset')).join('|')),
       );
       result[t].wire = new Set(offsets).size;
@@ -226,7 +214,7 @@ try {
     await page.waitForTimeout(80);
     const settled = await metric();
     const target = await final();
-    const after = await samples(page, 300, metric);
+    const after = await sampleAt60Hz(page, 300, metric);
     check(mid !== target && settled === target && after.every((v) => v === target),
       'site live safety: enabling OS reduced motion mid-tween settles the count-up immediately', { mid, settled, target });
     await page.clock.resume();
@@ -239,7 +227,7 @@ try {
     await pause(page);
     await page.click('#metric-light-metric-rng-7');
     await page.waitForTimeout(80);
-    const vals = await samples(page, 700, metric);
+    const vals = await sampleAt60Hz(page, 700, metric);
     check(st.stored === 'twos' && st.note.includes('0 · your system setting') && new Set(vals).size === 1,
       'site live safety: selecting 12 under reduced motion keeps the stored preference and shows "0 · your system setting", but nothing moves', { ...st, distinct: new Set(vals).size });
     await ctx.close();
