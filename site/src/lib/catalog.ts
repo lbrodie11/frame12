@@ -2833,7 +2833,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "scroll",
         "type": "boolean",
         "defaultValue": "false",
-        "description": "Lets scroll position drive the poses where animation-timeline: view() is supported and motion is not cut. Enabled after mount; the first play detaches it."
+        "description": "Lets scroll position drive the poses where animation-timeline: view() is supported and motion is not cut. Attached after mount once the drawing has been out of view (hydration never swaps a finished drawing on screen for a scroll pose); the first play detaches it."
       },
       {
         "name": "motion",

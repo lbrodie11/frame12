@@ -196,7 +196,7 @@ export interface InkLandProps extends React.SVGProps<SVGGElement> {
 - **Finished at rest.** `rest` is the default, SSR and no-JS state. `still` tempo, OS reduced motion, print and forced colors always show the finished drawing.
 - **Tokens only.** Strokes use `currentColor` from `--f-ink` / `--f-rule` (main line) and `--f-ink-2` (pencil, decorative, `aria-hidden`). Widths: `--f-stroke-pencil` (1px), `--f-stroke-detail` (1.5px), `--f-stroke` (2.5px). No opacity fades: every pose has the finished line's contrast.
 - **Deterministic pencil.** `inkPencil(segments, seed?, wobble?)` is a pure function of geometry and a seed (mulberry32); no `Math.random`.
-- **Scroll driver.** `scroll` attaches `animation-timeline: view()` (or a named timeline via `--f12-ink-timeline`) after mount where `@supports (animation-timeline: view())`; poses are quantized with `steps()`. Native scroll only: no scroll listeners, no `scroll-snap`.
+- **Scroll driver.** `scroll` attaches `animation-timeline: view()` (or a named timeline via `--f12-ink-timeline`) after mount, once the drawing has been out of view (an IntersectionObserver, not a scroll listener), where `@supports (animation-timeline: view())`; poses are quantized with `steps()`. Native scroll only: no scroll listeners, no `scroll-snap`.
 - **When not to use ink:** never on data that updates, never more than one `InkSequence` per page, and `InkReveal` only on a panel's first user-triggered appearance.
 - **Panel:** the measured frame polygon carries `pathLength="1"` (additive). The SSR `viewBox` polygon (`vector-effect: non-scaling-stroke`) is never dashed.
 

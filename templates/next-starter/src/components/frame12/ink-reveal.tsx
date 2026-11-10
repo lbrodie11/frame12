@@ -58,24 +58,25 @@ export function InkReveal({ play = false, motion = 'stepped', onEnd, children }:
   // and the events arrive before React re-renders, hence a ref rather than state.
   const endedRef = React.useRef<number>(0);
   const ref = React.useRef<HTMLDivElement | null>(null);
-  const [start, setStart] = React.useState<{ cycle: number; rtl: boolean; at: number }>({
-    cycle: 0,
-    rtl: false,
-    at: 0,
-  });
+  const [start, setStart] = React.useState<{ cycle: number; rtl: boolean }>({ cycle: 0, rtl: false });
   // The animation only starts once this play's start corner is known (same commit, before paint).
   const ready = start.cycle === cycle;
 
-  // Read once per play, on the user's action (never per frame): direction and the top-right
-  // corner's position along the frame, so an RTL stroke starts there.
+  // Read once per play, on the user's action (never per frame): direction, and each frame's own
+  // top-right corner position along its outline (a PanelPair's two panels have different shapes),
+  // written to that polygon so its RTL stroke starts at its own corner.
   const useIso = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
   useIso(() => {
     if (!playing || ready || !ref.current) return;
     const rtl = getComputedStyle(ref.current).direction === 'rtl';
-    const polygon = ref.current.querySelector<SVGPolygonElement>(
+    for (const polygon of ref.current.querySelectorAll<SVGPolygonElement>(
       '.f12-panel-frame polygon:not([vector-effect])',
-    );
-    setStart({ cycle, rtl, at: rtl ? topRightFraction(polygon) : 0 });
+    )) {
+      const at = rtl ? topRightFraction(polygon) : 0;
+      polygon.style.setProperty('--f12-ink-from', String(-at));
+      polygon.style.setProperty('--f12-ink-to', String(1 - at));
+    }
+    setStart({ cycle, rtl });
   }, [playing, ready, cycle]);
 
   return (
@@ -84,7 +85,6 @@ export function InkReveal({ play = false, motion = 'stepped', onEnd, children }:
       className={`f12-ink-reveal f12-m-${resolved}`}
       data-ink={playing && ready ? (cycle % 2 ? 'a' : 'b') : undefined}
       data-ink-dir={start.rtl ? 'rtl' : 'ltr'}
-      style={{ '--f12-ink-from': -start.at, '--f12-ink-to': 1 - start.at } as React.CSSProperties}
       onAnimationEnd={(e) => {
         const target = e.target as Element;
         if (

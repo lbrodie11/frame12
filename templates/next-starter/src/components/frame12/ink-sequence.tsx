@@ -26,7 +26,8 @@ export interface InkSequenceProps extends React.HTMLAttributes<HTMLDivElement> {
   play?: boolean;
   /**
    * Lets the scroll position drive the poses where `animation-timeline: view()` is supported and
-   * resolved motion is not `cut`. Enabled after mount only; the first `play` detaches it.
+   * resolved motion is not `cut`. Attaches after mount, once the drawing has been out of view (so
+   * hydration never swaps a finished drawing on screen for a scroll pose); the first `play` detaches it.
    */
   scroll?: boolean;
   /** The sequence's own motion, resolved against the viewer's tempo and OS reduced motion. */
@@ -91,9 +92,34 @@ export const InkSequence = React.forwardRef<HTMLDivElement, InkSequenceProps>(fu
   const [ended, setEnded] = React.useState<number>(0);
   const [canScroll, setCanScroll] = React.useState<boolean>(false);
 
+  // The scroll driver attaches only while the drawing is out of view, so hydration never swaps a
+  // finished drawing the visitor is looking at (a reload restoring the scroll position, a tall
+  // viewport) for a scroll pose. One IntersectionObserver callback, no scroll listener.
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
-    setCanScroll(supportsScrollTimeline());
-  }, []);
+    if (!scroll || !supportsScrollTimeline()) return;
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setCanScroll(true);
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => !e.isIntersecting)) {
+        setCanScroll(true);
+        io.disconnect();
+      }
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [scroll]);
+  const setRefs = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      rootRef.current = node;
+      if (typeof ref === 'function') ref(node);
+      else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    },
+    [ref],
+  );
 
   // Tempo or reduced motion turning `cut` mid-play finishes the play; it never resumes later.
   if (resolved === 'cut' && play && cycle > 0 && ended !== cycle) setEnded(cycle);
@@ -109,8 +135,11 @@ export const InkSequence = React.forwardRef<HTMLDivElement, InkSequenceProps>(fu
           ? 'scrubbing'
           : 'rest';
 
+  // Keyed on the pose values, not the array's identity: an inline `beats={[12, 12]}` must not
+  // rebuild the context (and re-render every InkBeat) on each parent render.
+  const beatsKey = beats.join(',');
   const info = React.useMemo<SequenceInfo>(() => {
-    const clean = beats.map(clampPoses);
+    const clean = beatsKey === '' ? [] : beatsKey.split(',').map((v) => clampPoses(Number(v)));
     const starts: number[] = [];
     let sum = 0;
     for (const p of clean) {
@@ -118,7 +147,7 @@ export const InkSequence = React.forwardRef<HTMLDivElement, InkSequenceProps>(fu
       sum += p;
     }
     return { starts, beats: clean };
-  }, [beats]);
+  }, [beatsKey]);
   const total = info.beats.reduce((a, b) => a + b, 0) || 1;
 
   const lastState = React.useRef<InkSequenceState>(state);
@@ -132,7 +161,7 @@ export const InkSequence = React.forwardRef<HTMLDivElement, InkSequenceProps>(fu
   return (
     <div
       {...rest}
-      ref={ref}
+      ref={setRefs}
       className={`f12-ink-seq f12-m-${resolved}${className ? ` ${className}` : ''}`}
       data-ink={playing ? (cycle % 2 ? 'a' : 'b') : undefined}
       data-ink-state={state}

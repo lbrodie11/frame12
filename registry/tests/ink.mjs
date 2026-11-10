@@ -267,6 +267,36 @@ for (const engine of BROWSERS) {
       `${tag} hydration of SSR markup with play={true}: no hydration warnings, no time-driven drawing, measured polygon gets pathLength="1"`,
       { hyd, errors },
     );
+    // The sequence is on screen at hydration: it must stay finished (rest), never jump to a scroll
+    // pose. Once scrolled out of view, the scroll driver may attach (where supported).
+    await page.waitForTimeout(150);
+    const inView = await page.evaluate(() => ({
+      state: document.getElementById('ssr-seq').dataset.inkState,
+      dash: getComputedStyle(document.getElementById('ssr-stroke')).strokeDasharray,
+      supports: CSS.supports('animation-timeline: view()'),
+    }));
+    await page.evaluate(() => {
+      const spacer = document.createElement('div');
+      spacer.id = 'spacer';
+      spacer.style.height = '4000px';
+      document.body.append(spacer);
+      window.scrollTo(0, 3000);
+    });
+    let outOfView = '';
+    for (let i = 0; i < 40; i++) {
+      outOfView = await page.evaluate(() => document.getElementById('ssr-seq').dataset.inkState);
+      if (outOfView === 'scrubbing' || !inView.supports) break;
+      await page.waitForTimeout(50);
+    }
+    await page.evaluate(() => {
+      document.getElementById('spacer').remove();
+      window.scrollTo(0, 0);
+    });
+    check(
+      inView.state === 'rest' && inView.dash === 'none' && outOfView === (inView.supports ? 'scrubbing' : 'rest'),
+      `${tag} scroll driver never attaches while the hydrated drawing is on screen (finished, rest); it attaches once the drawing has been out of view${inView.supports ? '' : ' (no scroll-timeline support here: stays rest)'}`,
+      { inView, outOfView },
+    );
     // SSR polygon: even forced into a playing reveal, the viewBox polygon never receives dashes.
     const ssrPoly = await page.evaluate((h) => {
       const host = document.createElement('div');
@@ -427,6 +457,31 @@ for (const engine of BROWSERS) {
         { endsDone, afterDone, content, afterCut, afterReduced, replay, errors },
       );
     }
+    // RTL PanelPair: each frame starts at its own top-right corner (the two shapes differ).
+    await page.evaluate(() => window.__render('reveal', { tempo: 'twos', pair: true, dir: 'rtl' }));
+    await settle(page);
+    await page.evaluate(() => window.__toggle());
+    await settle(page);
+    await seek(page, 1);
+    const rtlPair = await page.evaluate(() =>
+      [...document.querySelectorAll('#panel .f12-panel-frame polygon:not([vector-effect])')].map((poly) => {
+        const n = poly.getAttribute('points').trim().split(/[\s,]+/).map(Number);
+        const pts = [];
+        for (let i = 0; i + 1 < n.length; i += 2) pts.push([n[i], n[i + 1]]);
+        const lens = pts.map((p, i) => Math.hypot(pts[(i + 1) % pts.length][0] - p[0], pts[(i + 1) % pts.length][1] - p[1]));
+        const a = lens[0] / lens.reduce((x, y) => x + y, 0);
+        return { a, offset: parseFloat(getComputedStyle(poly).strokeDashoffset) };
+      }),
+    );
+    // Pose 1 of 6: offset = p − a with p = 1/6, using each polygon's own a.
+    check(
+      rtlPair.length === 2 && Math.abs(rtlPair[0].a - rtlPair[1].a) > 1e-4 &&
+        rtlPair.every((r) => Math.abs(r.offset - (1 / 6 - r.a)) < 1e-3),
+      `${tag} InkReveal rtl around a PanelPair: each frame's stroke starts at its own top-right corner (per-polygon start, the two slanted shapes differ)`,
+      rtlPair,
+    );
+    await seek(page, 2000);
+    await settle(page);
     // PanelPair: two panel bodies, one completion per reveal.
     await page.evaluate(() => window.__render('reveal', { tempo: 'twos', pair: true }));
     await settle(page);
