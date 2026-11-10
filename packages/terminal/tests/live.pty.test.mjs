@@ -196,6 +196,20 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
     assert.equal(exitLine(app.raw)?.[1], 'false');
   });
 
+  it('writes the masthead and every completed cut once, above the live region, during the run (fourth review)', async () => {
+    // Events arrive after the view mounts (10 ms apart); results are not printed until exit, so
+    // anything found here came from <Static>.
+    const app = spawnApp(['--scenario', 'hold']);
+    await app.waitFor(ready);
+    const screen = app.screen();
+    assert.equal(screen.split('· Investigate coupling in payments-service').length - 1, 1, `masthead once:\n${screen}`);
+    for (const c of ['C-01 · RESOLVE WORKSPACE', 'C-02 · READ HISTORY', 'C-03 · PAIR CHANGES']) {
+      assert.equal(screen.split(c).length - 1, 1, `${c} once:\n${screen}`);
+    }
+    app.child.write('\u0003');
+    await app.exited;
+  });
+
   it('q never forces: the first cancels, the second finishes and says what it has', async () => {
     const app = spawnApp(['--scenario', 'ignore-cancel']);
     await app.waitFor(ready);
