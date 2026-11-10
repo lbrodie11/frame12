@@ -57,13 +57,16 @@ export function TempoControl({
   }, [inProvider]);
 
   // The OS (or an outer `still`) wins: show the effective state, keep the stored choice editable.
+  // The reduced-motion note is always rendered inside a provider and shown by a
+  // `prefers-reduced-motion` media query, so its space exists from first paint (the server cannot
+  // know the OS setting; inserting it after hydration would shift the layout).
+  const REDUCED_NOTE = '0 · your system setting. Your choice applies when your system allows motion.';
   const note = !inProvider
     ? 'Unavailable: no tempo provider on this page.'
-    : reduced
-      ? '0 · your system setting. Your choice applies when your system allows motion.'
-      : ancestorStill
-        ? '0 · set for this whole page. Your choice applies when that allows motion.'
-        : null;
+    : ancestorStill && !reduced
+      ? '0 · set for this whole page. Your choice applies when that allows motion.'
+      : null;
+  const describedBy = note || reduced ? noteId : undefined;
 
   return (
     <fieldset
@@ -87,7 +90,7 @@ export function TempoControl({
                 value={value}
                 checked={tempo === value}
                 onChange={() => setTempo(value)}
-                aria-describedby={note ? noteId : undefined}
+                aria-describedby={describedBy}
               />
               <span className="f12-rng-n" aria-hidden="true">
                 {opt.label}
@@ -100,9 +103,13 @@ export function TempoControl({
           );
         })}
       </div>
-      {note && (
+      {note ? (
         <p className="f12-tempo-note" id={noteId}>
           {note}
+        </p>
+      ) : (
+        <p className="f12-tempo-note f12-tempo-note-reduced" id={noteId}>
+          {REDUCED_NOTE}
         </p>
       )}
     </fieldset>
