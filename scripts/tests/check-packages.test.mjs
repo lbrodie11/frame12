@@ -20,6 +20,7 @@ import {
   extractPackageChangelog,
   rewriteInternalDependencies,
   runStandalonePackageSmokeTest,
+  runTerminalInkSmoke,
   validatePackages,
   validateSinglePackage,
 } from '../check-packages.mjs';
@@ -725,6 +726,20 @@ function makeValidTokensPkgJson(overrides = {}) {
       extractedMissing === null,
     'release-packages unit: tag parser, git tag commit SHA verification, Node >= 22.14.0 & npm >= 11.5.1 guard, tag-to-package.json version match, npm internal dependency gate, and changelog section extractor pass',
   );
+}
+
+// ./ink smoke path: the peer versions come from the package's own devDependencies, never guessed.
+{
+  let threw = '';
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'f12-ink-smoke-'));
+  try {
+    runTerminalInkSmoke(tmp, [], { pkgJson: { devDependencies: { ink: '8.0.0', react: '19.3.1' } } });
+  } catch (err) {
+    threw = err.message;
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  check(threw.includes('must pin ink-testing-library'), 'runTerminalInkSmoke refuses to guess an unpinned peer version', threw);
 }
 
 if (failures > 0) {

@@ -745,6 +745,13 @@ export const out = [caps.columns, bad];
       parsed.results.terminal = { ...parsed.results.terminal, typesResolve: true };
     }
 
+    // ./ink: a second, separate consumer with the peers a live view needs (ink, react) and
+    // ink-testing-library, at the exact versions the package is developed against.
+    const terminalTarball = tarballs.find((t) => t.pkg.name === '@frame12/terminal');
+    if (terminalTarball && options.ink !== false && fs.existsSync(path.join(terminalTarball.pkg.dir, 'dist/ink/index.js'))) {
+      parsed.results.terminalInk = runTerminalInkSmoke(tmpRoot, tarballs, terminalTarball.pkg);
+    }
+
     if (!options.silent) {
       console.log(
         `PASS  standalone package smoke test (${parsed.verified.join(', ')}): packed, installed with zero external deps, and verified exports  ${JSON.stringify(parsed.results)}`,
@@ -765,6 +772,84 @@ export const out = [caps.columns, bad];
       fs.rmSync(tmpRoot, { recursive: true, force: true });
     }
   }
+}
+
+/**
+ * `@frame12/terminal/ink` in a project that installs its optional peers: ink@8 and react@19.3 (the
+ * versions in the package's devDependencies), plus ink-testing-library to render one frame of the
+ * live view without a terminal. Exactly one copy of React may be installed (`npm ls react`).
+ * The registry is needed for the three peers; the @frame12 packages come from the tarballs.
+ */
+export function runTerminalInkSmoke(tmpRoot, tarballs, terminalPkg) {
+  const dev = terminalPkg.pkgJson.devDependencies ?? {};
+  const peers = ['ink', 'react', 'ink-testing-library'].map((name) => {
+    if (!dev[name]) throw new Error(`@frame12/terminal must pin ${name} in devDependencies for the ./ink smoke test`);
+    return `${name}@${dev[name]}`;
+  });
+  const dir = path.join(tmpRoot, 'consumer-ink');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, 'package.json'),
+    JSON.stringify({ name: 'frame12-terminal-ink-consumer', private: true, version: '0.0.0', type: 'module' }, null, 2) + '\n',
+  );
+  execFileSync(
+    'npm',
+    ['install', '--no-audit', '--no-fund', '--ignore-scripts', ...tarballs.map((t) => t.tgzPath), ...peers],
+    { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  const ls = JSON.parse(
+    execFileSync('npm', ['ls', 'react', '--all', '--json'], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }),
+  );
+  const reactVersions = new Set();
+  (function walk(node) {
+    for (const [name, child] of Object.entries(node.dependencies ?? {})) {
+      if (name === 'react' && child.version) reactVersions.add(child.version);
+      walk(child);
+    }
+  })(ls);
+  if (reactVersions.size !== 1) {
+    throw new Error(`./ink consumer must resolve exactly one React, found: ${[...reactVersions].join(', ') || 'none'}`);
+  }
+  // Physical copies too: deduped entries share one folder, a nested node_modules/react would not.
+  const copies = [];
+  (function find(nm) {
+    if (!fs.existsSync(nm)) return;
+    for (const e of fs.readdirSync(nm)) {
+      if (e.startsWith('.')) continue;
+      const scoped = e.startsWith('@') ? fs.readdirSync(path.join(nm, e)).map((x) => path.join(e, x)) : [e];
+      for (const name of scoped) {
+        if (name === 'react') copies.push(path.join(nm, name));
+        find(path.join(nm, name, 'node_modules'));
+      }
+    }
+  })(path.join(dir, 'node_modules'));
+  if (copies.length !== 1) throw new Error(`./ink consumer has ${copies.length} copies of react on disk: ${copies.join(', ')}`);
+
+  const script = path.join(dir, 'verify-ink.mjs');
+  fs.writeFileSync(
+    script,
+    `import assert from 'node:assert/strict';
+import * as React from 'react';
+import { render } from 'ink-testing-library';
+import { createDirector, stripAnsi } from '@frame12/terminal';
+import { Storyboard } from '@frame12/terminal/ink';
+import { fixture } from '@frame12/terminal/testing';
+
+const director = createDirector({ caps: { interactive: true }, motion: 'still' });
+for (const ev of fixture('success').events) director.push(ev);
+director.flush();
+const rc = { style: 'none', unicode: true, ambiguousWide: false, links: false, columns: 80 };
+const app = render(React.createElement(Storyboard, { director, rc, rows: 30, onQuit() {}, onInterrupt() {} }));
+await new Promise((r) => setTimeout(r, 50));
+const frame = stripAnsi(app.lastFrame() ?? '');
+app.unmount();
+assert.match(frame, /FINDINGS 3/, 'the live view must list the fixture findings');
+assert.match(frame, /C-01 · RESOLVE WORKSPACE/, 'completed cuts must be written');
+process.stdout.write(JSON.stringify({ frameLines: frame.split('\\n').length }));
+`,
+  );
+  const out = JSON.parse(execFileSync(process.execPath, [script], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+  return { peers, react: [...reactVersions][0], reactCopies: copies.length, ...out };
 }
 
 const isMain =

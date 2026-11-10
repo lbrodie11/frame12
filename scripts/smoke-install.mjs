@@ -12,6 +12,11 @@
 //      with `tsc --noEmit`, then runs the installed components on the repo's React 19 runtime.
 //   7. Installs the full kit + 3 blocks into an isolated React 18 + Vite consumer (real npm install)
 //      and verifies tsc, SSR, vite build, and hydration/interaction in Chromium on React 18.3.1.
+//   8. Packs every publishable package into a consumer with no other dependencies (also
+//      `--packages-only`). For @frame12/terminal: core, ./testing and ./render run the gallery
+//      fixture with no React installed; then a second consumer adds ink@8, react@19.3 and
+//      ink-testing-library, renders one frame of the ./ink live view, and requires exactly one
+//      copy of React (`npm ls react`).
 
 import http from 'node:http';
 import { chromium } from 'playwright';
