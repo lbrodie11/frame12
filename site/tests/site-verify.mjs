@@ -395,7 +395,9 @@ try {
   });
 
   // 1d. The favicon.ico artwork is the site icon: each entry matches app/icon.svg rendered at the
-  // same size (mean per-channel difference, tolerant of rasterizer anti-aliasing only).
+  // same size. The ICO is rasterized by Chromium too, so an up-to-date icon measures 0; the < 1
+  // mean per-channel difference only absorbs anti-aliasing drift across Chromium versions. (For
+  // scale: recoloring the yellow #ffd60a → #ffc000 measures ~3.4, moving one panel edge ~4.5.)
   {
     const svgB64 = readFileSync(resolve(SITE_ROOT, 'app/icon.svg')).toString('base64');
     const page = await browser.newPage();
@@ -433,8 +435,8 @@ try {
     }
     await page.close();
     check(
-      diffs.length === 3 && diffs.every((d) => d.meanDiff < 8),
-      'site /favicon.ico artwork matches app/icon.svg at 16, 32 and 48 px',
+      diffs.length === 3 && diffs.every((d) => d.meanDiff < 1),
+      'site /favicon.ico artwork matches app/icon.svg at 16, 32 and 48 px (regenerate with npm run build:favicon)',
       JSON.stringify(diffs.map((d) => ({ ...d, meanDiff: +d.meanDiff.toFixed(2) }))),
     );
   }
