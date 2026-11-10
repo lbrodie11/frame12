@@ -5,6 +5,8 @@
  * packages/terminal/.pty (see .github/workflows/ci.yml) and sets F12_REQUIRE_PTY=1, which makes a
  * missing node-pty a failure. Locally the suite is skipped unless .pty is installed:
  *   cd packages/terminal && mkdir -p .pty && cd .pty && echo '{"private":true}' > package.json && npm i node-pty@1.1.0
+ * On macOS also run `chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper` there: node-pty
+ * 1.1.0 ships it without the execute bit, and every spawn fails with "posix_spawnp failed".
  */
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
