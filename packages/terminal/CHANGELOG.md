@@ -46,6 +46,12 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     no spinner). The grammar as pure functions (`masthead`, `cut`, `panel`, `panelPair`,
     `evidenceCard`, `compactFinding`, `receiptList`, `toneBar`, `metricRows`, `hintBar`), the
     `GLYPHS` table with ASCII twins, width tiers, and one marker chip per render.
+  - **Director and live view** (F12-13 PR 3): `createDirector` (core) with immediate, coalesced
+    and tempo-paced publishing and bounded memory; `@frame12/terminal/ink` (`startLive`,
+    `Storyboard`, `Cut`, `Inspector`, `HintBar`) on optional `ink@^8` / `react@^19.3` peers, with
+    keys, Ctrl-C/SIGINT/SIGTERM/SIGHUP handling, exit codes, terminal restoration on every exit
+    path, EPIPE handling, a linear fallback, and reflow-aware resizing;
+    `@frame12/terminal/process` (`spawnLogged`, `openUrl`).
   - Contract: optional `Finding.relation` (`history-only | direct | indirect`) for typed connectors;
     the stream validator rejects a second `snapshot` (`duplicate-snapshot`).
   - `@frame12/terminal/testing`: `createEventFactory` (injected clock), `fakeStreams`, and seven

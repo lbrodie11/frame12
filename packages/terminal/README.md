@@ -4,10 +4,9 @@ FRAME/12's interface language for the command line. A long-running command reads
 of **cuts** (`C-01`, `C-02`…), the finding that matters comes first as a **frame** (`F-01`), and
 every claim carries **receipts** (`E-01`).
 
-> **Status: 0.1.0 in progress (F12-13 PRs 1–2).** The core (event contract, validation,
-> capabilities, motion, safety, width, tokens) and the zero-dependency linear renderers
-> (`./render`) are in. The live Ink view (`./ink`), `spawnLogged` (`./process`) and the
-> `frame12-term` CLI arrive in later pull requests and are not exported yet.
+> **Status: 0.1.0 in progress (F12-13 PRs 1–3).** The core, the zero-dependency linear renderers
+> (`./render`), the Director, the live Ink view (`./ink`) and `spawnLogged` (`./process`) are in.
+> The `frame12-term` CLI arrives in PR 4.
 
 ```sh
 npm install @frame12/terminal
@@ -158,6 +157,52 @@ FINDINGS  3 (1 top, 2 primary)
 terminal view. Add `-- --png` for light and dark PNGs rendered through `@xterm/headless` (a real
 terminal parser) in Playwright. The committed `.txt`/`.ansi` files are the test goldens.
 
+## Live view (`@frame12/terminal/ink`)
+
+`./ink` needs the optional peers `ink@^8` and `react@^19.3`; nothing else in the package loads them.
+
+```ts
+import { detectCapabilities, resolveTerminalMotion } from '@frame12/terminal';
+import { startLive } from '@frame12/terminal/ink';
+
+const caps = detectCapabilities(process.env, process, process.argv);
+const { tempo } = resolveTerminalMotion({ argv: process.argv, env: process.env, caps });
+const run = startLive({ caps, motion: tempo, onCancel: () => job.abort() });
+for await (const event of job.events()) run.push(event);
+process.exitCode = await run.end();
+```
+
+- **The Director** (`createDirector`, in core, no React) validates, sanitizes and folds events
+  into one `RunState`. Errors, warnings, cut and run endings, the snapshot, cancellation and key
+  echo publish immediately; everything else coalesces to one publish per frame (newest wins);
+  only the decorative pose follows the tempo (83.33 ms at `twos`, never at `still`), and only while
+  a cut is running. Memory is bounded (500-line log ring, 200 warnings, events counted past 5,000).
+- **Keys:** `j`/`k` or arrows move, `Enter` inspects (every receipt), `Esc` closes, `o` opens the
+  focused receipt's link after a `y/N` confirmation (https only), `?` toggles help, `q` quits.
+- **Ctrl-C:** the first cancels gracefully (running cuts become `canceled`, results print, exit
+  code 130); a second within 2 s forces exit. SIGTERM and SIGHUP cancel like one Ctrl-C.
+- **Exit codes:** `completed` 0, `failed` 1, `canceled` 130. EPIPE on stdout (`| head`) exits 0.
+- **The terminal is always restored** (cursor, raw mode, alternate screen) on every exit path,
+  including uncaught exceptions and unhandled rejections.
+- **Linear fallback:** the live view runs only when stdin and stdout are terminals, outside CI,
+  without a screen reader, with 10+ rows. Otherwise the same run is narrated as append-only lines
+  and one line says why. `--screen-reader` prints plain, self-describing lines.
+- **Results are printed linearly** when the live view closes, so nothing important exists only in
+  a redraw. The alternate screen is opt-in (`fullscreen: true`) because it loses scrollback.
+- **Resizing** re-lays out without leftovers, including terminals that re-wrap what is on screen.
+- **Foreign output:** `console.*` lands above the live region. A direct `process.stdout.write` or a
+  child process writing to the terminal corrupts the live view: run children through
+  `spawnLogged`, or use `--plain`. In development a stray write is reported once in the view.
+
+```ts
+import { spawnLogged } from '@frame12/terminal/process';
+
+const { code } = await spawnLogged(run.director, 'npm', ['test'], { cut: 'test' });
+```
+
+`spawnLogged` never uses a shell, logs each stdout line as `info` and stderr line as `warn`
+(sanitized and redacted), kills the child when the run is canceled, and resolves with the exit code.
+
 ## Capabilities
 
 ```ts
@@ -271,7 +316,7 @@ an injected clock), `fakeStreams`, `toNdjson`, and seven v1 fixtures: `success`,
 | OS | macOS 14+ (Terminal.app, iTerm2, Ghostty, WezTerm, kitty), Linux (GNOME Terminal/VTE, Konsole, xterm, Alacritty), Windows 11 (Windows Terminal, VS Code; legacy conhost: `plain` only) | Detection rules only (table tests); renderers arrive in PR 2 |
 | Multiplexers | tmux 3.x, GNU screen (no links by default) | Detection rules only |
 | Remote and CI | SSH; GitHub Actions, GitLab CI and Buildkite logs (non-interactive) | Detection rules only |
-| Ink adapter | `ink@8.0.x` + `react@19.3.x` | Arrives in PR 3 |
+| Ink adapter | `ink@8.0.x` + `react@19.3.x` | `ink@8.0.0` + `react@19.3.1`, with real-pty tests (node-pty + @xterm/headless) on ubuntu, macOS and Windows (ConPTY; POSIX-signal tests skipped there) |
 
 Bun and Deno: best effort, not guaranteed.
 
