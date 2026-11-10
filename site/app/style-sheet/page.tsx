@@ -32,7 +32,6 @@ import {
   fmtPP,
   type RangeDays,
 } from '@/lib/data';
-import { useSiteSettings } from '@/components/site-shell';
 import { GrammarDiagram, FilmStripDiagram } from '@/components/diagrams';
 
 const RANGE_OPTIONS = RANGES.map((r) => ({
@@ -64,14 +63,13 @@ const PALETTE: Array<{
 ];
 
 export default function StyleSheetPage() {
-  const { motion } = useSiteSettings();
   const [range, setRange] = React.useState<RangeDays>(30);
   const s7 = SUMMARIES[7];
   const s30 = SUMMARIES[30];
   const s90 = SUMMARIES[90];
 
   return (
-    <Sheet autoCut pegs motion={motion}>
+    <Sheet autoCut pegs>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">

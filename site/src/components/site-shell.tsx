@@ -3,9 +3,10 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SegmentedControl, Tag } from '@/components/frame12';
-import { type MotionMode } from '@/hooks/use-on-twos';
+import { SegmentedControl, Tag, TempoProvider, TempoControl, TEMPO_OPTIONS } from '@/components/frame12';
+import { TEMPOS, useResolvedMotion, useTempo, type Tempo } from '@/hooks/use-tempo';
 import { NAV_ITEMS, resolveNavOwnership } from '@/lib/nav-ownership';
+import { TEMPO_STORAGE_KEY } from '@/lib/tempo-storage';
 import { startFocusRestoration, startFocusTracking } from '@/lib/history-focus';
 
 export type ThemeMode = 'light' | 'dark';
@@ -14,16 +15,12 @@ export interface SiteSettingsContextValue {
   theme: ThemeMode;
   themeOverride?: ThemeMode;
   setTheme: (theme: ThemeMode) => void;
-  motion: MotionMode;
-  setMotion: (motion: MotionMode) => void;
 }
 
 const SiteSettingsContext = React.createContext<SiteSettingsContextValue>({
   theme: 'light',
   themeOverride: undefined,
   setTheme: () => {},
-  motion: 'stepped',
-  setMotion: () => {},
 });
 
 export function useSiteSettings(): SiteSettingsContextValue {
@@ -35,21 +32,97 @@ const THEME_OPTIONS: Array<{ value: ThemeMode; label: string; unit: string }> = 
   { value: 'dark', label: 'Dark', unit: 'ink' },
 ];
 
-const MOTION_OPTIONS: Array<{ value: MotionMode; label: string; unit: string }> = [
-  { value: 'stepped', label: '12', unit: 'fps' },
-  { value: 'smooth', label: '60', unit: 'fps' },
-  { value: 'cut', label: '0', unit: 'cut' },
-];
+
+/** `M` cycles auto → twos → ones → still. */
+export function nextTempo(t: Tempo): Tempo {
+  return TEMPOS[(TEMPOS.indexOf(t) + 1) % TEMPOS.length];
+}
+
+function tempoAnnouncement(t: Tempo): string {
+  const opt = TEMPO_OPTIONS.find((o) => o.value === t)!;
+  return `Animation tempo: ${opt.label}, ${opt.meaning}`;
+}
 
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
+/** Single-key shortcuts never fire while typing, in a menu/listbox, or in an open dialog. */
+function isShortcutEvent(e: KeyboardEvent): boolean {
+  if (e.defaultPrevented || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return false;
+  if (document.querySelector('[role="listbox"], [role="menu"], dialog[open]')) return false;
+  const target = e.target as HTMLElement | null;
+  if (
+    target &&
+    (target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable ||
+      Boolean(
+        target.closest(
+          'input, textarea, select, [contenteditable="true"], [role="combobox"], [role="textbox"], [role="listbox"], [role="menu"]',
+        ),
+      ))
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * The site's root element, rendered inside the site TempoProvider (`asChild` puts the provider's
+ * `data-f12-tempo` and class here, so the root's grid, spacing and scrolling are unchanged). Its
+ * own motion class is the resolved FRAME/12 default (`stepped`), so CSS-only consumers anywhere
+ * on the site follow the tempo. Owns the `M` shortcut and its polite announcement.
+ */
+function SiteRoot({
+  hydrated,
+  className,
+  children,
+  ...rest
+}: {
+  hydrated: boolean;
+  className?: string;
+  children: React.ReactNode;
+  'data-f12-tempo'?: string;
+}) {
+  const motion = useResolvedMotion('stepped');
+  const { tempo, setTempo } = useTempo();
+  const [announcement, setAnnouncement] = React.useState('');
+  const tempoRef = React.useRef(tempo);
+  tempoRef.current = tempo;
+
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!isShortcutEvent(e)) return;
+      if (e.key === 'm' || e.key === 'M') {
+        const next = nextTempo(tempoRef.current);
+        setTempo(next);
+        setAnnouncement(tempoAnnouncement(next));
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [setTempo]);
+
+  return (
+    <div
+      {...rest}
+      className={`site-root f12-m-${motion}${className ? ` ${className}` : ''}`}
+      data-hydrated={hydrated ? 'true' : undefined}
+    >
+      {children}
+      <p className="f12-sr-only" role="status" aria-live="polite" id="site-tempo-status">
+        {announcement}
+      </p>
+    </div>
+  );
+}
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '/';
   const [theme, setThemeState] = React.useState<ThemeMode>('light');
   const [themeOverride, setThemeOverride] = React.useState<ThemeMode | undefined>(undefined);
   const [hydrated, setHydrated] = React.useState(false);
-  const [motion, setMotion] = React.useState<MotionMode>('stepped');
   const navListRef = React.useRef<HTMLUListElement | null>(null);
   const ownership = resolveNavOwnership(pathname);
   const [navOverflow, setNavOverflow] = React.useState({ start: false, end: false });
@@ -256,33 +329,15 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const ctxValue = React.useMemo(
-    () => ({ theme, themeOverride, setTheme, motion, setMotion }),
-    [theme, themeOverride, setTheme, motion],
+    () => ({ theme, themeOverride, setTheme }),
+    [theme, themeOverride, setTheme],
   );
 
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (document.querySelector('[role="listbox"], [role="menu"], dialog[open]')) return;
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable ||
-          Boolean(
-            target.closest(
-              'input, textarea, select, [contenteditable="true"], [role="combobox"], [role="textbox"], [role="listbox"], [role="menu"]',
-            ),
-          ))
-      ) {
-        return;
-      }
+      if (!isShortcutEvent(e)) return;
       if (e.key === 't' || e.key === 'T') {
         setTheme(theme === 'light' ? 'dark' : 'light');
-      } else if (e.key === 'm' || e.key === 'M') {
-        setMotion((prev) => (prev === 'stepped' ? 'smooth' : prev === 'smooth' ? 'cut' : 'stepped'));
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -291,98 +346,91 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SiteSettingsContext.Provider value={ctxValue}>
-      <div
-        className={`site-root f12-m-${motion}`}
-        data-hydrated={hydrated ? 'true' : undefined}
-      >
-        <a href="#main-content" className="skip-link">
-          Skip to main content
-        </a>
+      <TempoProvider asChild storageKey={TEMPO_STORAGE_KEY}>
+        <SiteRoot hydrated={hydrated}>
+          <a href="#main-content" className="skip-link">
+            Skip to main content
+          </a>
 
-        <header className="site-header">
-          <div className="site-header-inner">
-            <div className="site-brand-row">
-              <Link href="/" className="site-brand" id="site-brand-link">
-                <span className="site-brand-mark">FRAME/12</span>
-                <Tag>v0.2 · On Twos</Tag>
-              </Link>
+          <header className="site-header">
+            <div className="site-header-inner">
+              <div className="site-brand-row">
+                <Link href="/" className="site-brand" id="site-brand-link">
+                  <span className="site-brand-mark">FRAME/12</span>
+                  <Tag>v0.2 · On Twos</Tag>
+                </Link>
 
-              <div className="site-controls" role="group" aria-label="Theme and motion controls">
-                <SegmentedControl
-                  idPrefix="site-theme"
-                  ariaLabel="Color theme"
-                  options={THEME_OPTIONS}
-                  value={theme}
-                  onChange={setTheme}
-                />
-                <SegmentedControl
-                  idPrefix="site-motion"
-                  ariaLabel="Motion grammar"
-                  options={MOTION_OPTIONS}
-                  value={motion}
-                  onChange={setMotion}
-                />
+                <div className="site-controls" role="group" aria-label="Theme and motion controls">
+                  <SegmentedControl
+                    idPrefix="site-theme"
+                    ariaLabel="Color theme"
+                    options={THEME_OPTIONS}
+                    value={theme}
+                    onChange={setTheme}
+                  />
+                  <TempoControl idPrefix="site-tempo" />
+                </div>
               </div>
+
+              <nav
+                aria-label="Primary"
+                className="site-nav"
+                data-overflow-start={navOverflow.start ? 'true' : undefined}
+                data-overflow-end={navOverflow.end ? 'true' : undefined}
+              >
+                <ul className="site-nav-list" role="list" ref={navListRef}>
+                  {NAV_ITEMS.map((item) => {
+                    const current = ownership?.id === item.id ? ownership.current : undefined;
+                    const className = [
+                      'site-nav-link',
+                      current ? 'active' : '',
+                      current === 'page' ? 'is-page' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ');
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          id={item.id}
+                          className={className}
+                          aria-current={current}
+                        >
+                          {item.label}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <span className="site-nav-cue site-nav-cue-start" aria-hidden="true">
+                  <span className="site-nav-cue-glyph">‹</span>
+                </span>
+                <span className="site-nav-cue site-nav-cue-end" aria-hidden="true">
+                  <span className="site-nav-cue-glyph">›</span>
+                </span>
+              </nav>
             </div>
+          </header>
 
-            <nav
-              aria-label="Primary"
-              className="site-nav"
-              data-overflow-start={navOverflow.start ? 'true' : undefined}
-              data-overflow-end={navOverflow.end ? 'true' : undefined}
-            >
-              <ul className="site-nav-list" role="list" ref={navListRef}>
-                {NAV_ITEMS.map((item) => {
-                  const current = ownership?.id === item.id ? ownership.current : undefined;
-                  const className = [
-                    'site-nav-link',
-                    current ? 'active' : '',
-                    current === 'page' ? 'is-page' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ');
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        id={item.id}
-                        className={className}
-                        aria-current={current}
-                      >
-                        {item.label}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-              <span className="site-nav-cue site-nav-cue-start" aria-hidden="true">
-                <span className="site-nav-cue-glyph">‹</span>
-              </span>
-              <span className="site-nav-cue site-nav-cue-end" aria-hidden="true">
-                <span className="site-nav-cue-glyph">›</span>
-              </span>
-            </nav>
-          </div>
-        </header>
+          <main id="main-content" className="site-main" tabIndex={-1}>
+            {children}
+          </main>
 
-        <main id="main-content" className="site-main" tabIndex={-1}>
-          {children}
-        </main>
-
-        <footer className="site-footer">
-          <div className="site-footer-inner">
-            <p className="site-footer-copy">
-              <strong>FRAME/12</strong> · Interface design system built from page composition and
-              cel-animation production craft: ink-framed panels, 12/20/32px gutter grammar, 45° SVG
-              screentone, and motion held on twos (12fps, 83.33ms per pose).
-            </p>
-            <p className="site-footer-meta">
-              Fernwood Supply Co. and all figures are fictional. No named artist, studio, or
-              franchise work is reproduced; every element is original.
-            </p>
-          </div>
-        </footer>
-      </div>
+          <footer className="site-footer">
+            <div className="site-footer-inner">
+              <p className="site-footer-copy">
+                <strong>FRAME/12</strong> · Interface design system built from page composition and
+                cel-animation production craft: ink-framed panels, 12/20/32px gutter grammar, 45° SVG
+                screentone, and motion held on twos (12fps, 83.33ms per pose).
+              </p>
+              <p className="site-footer-meta">
+                Fernwood Supply Co. and all figures are fictional. No named artist, studio, or
+                franchise work is reproduced; every element is original.
+              </p>
+            </div>
+          </footer>
+        </SiteRoot>
+      </TempoProvider>
     </SiteSettingsContext.Provider>
   );
 }

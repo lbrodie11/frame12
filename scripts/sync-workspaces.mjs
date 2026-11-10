@@ -55,11 +55,15 @@ if (fs.existsSync(blocksDir)) {
   }
 }
 
-// 2. registry/hooks/use-on-twos.ts -> templates/next-starter/src/hooks/use-on-twos.ts
-FILE_MAPPINGS.push({
-  src: path.join(ROOT, 'registry/hooks/use-on-twos.ts'),
-  dest: path.join(ROOT, 'templates/next-starter/src/hooks/use-on-twos.ts'),
-});
+// 2. registry/hooks/*.ts (use-on-twos.ts, use-tempo.ts) -> templates/next-starter/src/hooks/*
+for (const entry of fs.readdirSync(path.join(ROOT, 'registry/hooks'))) {
+  if (entry.endsWith('.ts')) {
+    FILE_MAPPINGS.push({
+      src: path.join(ROOT, 'registry/hooks', entry),
+      dest: path.join(ROOT, 'templates/next-starter/src/hooks', entry),
+    });
+  }
+}
 
 // 3. registry/styles/* -> templates/next-starter/src/styles/*
 for (const styleFile of ['frame12.css', 'frame12-tokens.css', 'frame12-tailwind.css']) {

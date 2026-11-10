@@ -27,7 +27,7 @@ import {
   TableCaption,
 } from '@/components/frame12';
 import { useChanged } from '@/hooks/use-on-twos';
-import { useSiteSettings } from '@/components/site-shell';
+import { useResolvedMotion } from '@/hooks/use-tempo';
 import {
   type ApprovalScenarioId,
   type ClockPresetId,
@@ -100,7 +100,8 @@ function renderSoftBreakUnderscores(text: string): React.ReactNode {
 }
 
 function AgentApprovalInboxContent() {
-  const { motion } = useSiteSettings();
+  // Programmatic scrolls follow the viewer's tempo and the OS (smooth unless cut).
+  const motion = useResolvedMotion('stepped');
   const toast = useOptionalToast();
 
   const [requests, setRequests] = React.useState<ExperimentalToolApprovalRequest[]>(
@@ -340,7 +341,7 @@ function AgentApprovalInboxContent() {
     (selectedEvaluated.mismatches.length > 0 && !ackChecked);
 
   return (
-    <Sheet autoCut pegs motion={motion} id="exp-agent-approval-sheet">
+    <Sheet autoCut pegs id="exp-agent-approval-sheet">
       <header className="f12-hd">
         <div className="f12-stack-pair">
           <Breadcrumb

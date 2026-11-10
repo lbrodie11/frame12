@@ -808,6 +808,7 @@ export function renderBlockHtml() {
       existsSync(join(singleDir, 'src/components/frame12/alert.tsx')) &&
       existsSync(join(singleDir, 'src/components/frame12/pagination.tsx')) &&
       existsSync(join(singleDir, 'src/hooks/use-on-twos.ts')) &&
+      existsSync(join(singleDir, 'src/hooks/use-tempo.ts')) &&
       existsSync(join(singleDir, 'src/styles/frame12.css'));
     symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(singleDir, 'node_modules'), 'dir');
     writeFileSync(
@@ -903,6 +904,64 @@ export function renderSingleHtml() {
     }
   } finally {
     rmSync(singleDir, { recursive: true, force: true });
+  }
+
+  // 7b. `metric` installed ALONE (F12-08): registryDependencies must bring hooks/use-tempo.ts
+  // (imported by use-on-twos.ts), and a consumer that adds a TempoProvider must type-check.
+  const metricDir = mkdtempSync(join(tmpdir(), 'frame12-metric-only-'));
+  try {
+    mkdirSync(join(metricDir, 'src/app'), { recursive: true });
+    mkdirSync(join(metricDir, '.shim-bin'), { recursive: true });
+    writeFileSync(join(metricDir, '.shim-bin/npm'), '#!/bin/sh\nexit 0\n');
+    chmodSync(join(metricDir, '.shim-bin/npm'), 0o755);
+    writeFileSync(join(metricDir, 'src/app/globals.css'), '/* host globals */\n');
+    writeFileSync(join(metricDir, 'src/global.d.ts'), CSS_MODULE_DECL);
+    for (const f of ['package.json', 'package-lock.json', 'tsconfig.json', 'components.json']) {
+      writeFileSync(join(metricDir, f), readFileSync(join(tempDir, f), 'utf8'));
+    }
+    const env = { ...process.env, CI: 'true', PATH: `${join(metricDir, '.shim-bin')}:${process.env.PATH || ''}` };
+    const metricAdd = await runAsync(
+      'npx',
+      ['--yes', 'shadcn', 'add', `http://127.0.0.1:${port}/r/metric.json`, '--yes', '--overwrite'],
+      { cwd: metricDir, env },
+    );
+    const metricFiles = ['src/components/frame12/metric.tsx', 'src/hooks/use-on-twos.ts', 'src/hooks/use-tempo.ts', 'src/styles/frame12.css'];
+    const missing = metricFiles.filter((f) => !existsSync(join(metricDir, f)));
+    const tempoAdd = await runAsync(
+      'npx',
+      ['--yes', 'shadcn', 'add', `http://127.0.0.1:${port}/r/tempo.json`, '--yes', '--overwrite'],
+      { cwd: metricDir, env },
+    );
+    symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(metricDir, 'node_modules'), 'dir');
+    writeFileSync(
+      join(metricDir, 'src/app/metric-check.tsx'),
+      `import * as React from 'react';
+import { Metric } from '@/components/frame12/metric';
+import { TempoProvider } from '@/components/frame12/tempo';
+import { useTempo } from '@/hooks/use-tempo';
+export function MetricCheck() {
+  return (
+    <TempoProvider defaultValue="twos">
+      <Metric label="Revenue" value={42} />
+    </TempoProvider>
+  );
+}
+export function useCurrentTempo() {
+  return useTempo().tempo;
+}
+`,
+    );
+    const metricTsc = spawnSync(tscBin, ['--noEmit', '-p', join(metricDir, 'tsconfig.json')], {
+      cwd: metricDir,
+      encoding: 'utf8',
+    });
+    check(
+      metricAdd.status === 0 && missing.length === 0 && tempoAdd.status === 0 && metricTsc.status === 0,
+      'Individual install of /r/metric.json alone brings hooks/use-tempo.ts (via use-on-twos and its own registryDependencies); adding /r/tempo.json shares that one module and passes tsc --noEmit',
+      missing.length ? `missing: ${missing.join(', ')}` : metricTsc.status !== 0 ? `${metricTsc.stdout}\n${metricTsc.stderr}` : '',
+    );
+  } finally {
+    rmSync(metricDir, { recursive: true, force: true });
   }
 
   // 8. React 18 consumer (Vite). The repo hoists React 19, so React 18 support is proven in an

@@ -635,9 +635,11 @@ try {
       () => document.documentElement.getAttribute('data-theme') === 'dark',
     );
     await page.keyboard.press('t');
+    // M cycles the tempo auto → twos → ones → still → auto (F12-08); four presses restore auto.
+    await page.keyboard.press('m');
     await page.keyboard.press('m');
     const isSmoothViaShortcut = await page.evaluate(() =>
-      Boolean(document.querySelector('.site-root.f12-m-smooth')),
+      Boolean(document.querySelector('.site-root.f12-m-smooth[data-f12-tempo="ones"]')),
     );
     await page.keyboard.press('m');
     await page.keyboard.press('m');
@@ -1259,11 +1261,12 @@ try {
     await page.click('#site-theme-light');
     await page.waitForTimeout(40);
 
-    // Initial synchronized posture + host motion toggle ('M') does not mark draft dirty
-    await page.keyboard.press('m');
-    await page.waitForTimeout(40);
-    await page.keyboard.press('m');
-    await page.waitForTimeout(40);
+    // Initial synchronized posture + host tempo shortcut ('M') does not mark draft dirty
+    // (four presses: a full auto → twos → ones → still → auto cycle)
+    for (let i = 0; i < 4; i++) {
+      await page.keyboard.press('m');
+      await page.waitForTimeout(40);
+    }
     const initialPosture = await page.evaluate(() => {
       const bar = document.querySelector('#ws-settings-persistence-bar');
       const saveBtn = document.querySelector('#ws-settings-save-btn');
@@ -1705,9 +1708,12 @@ try {
     );
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const headerReducedMotionOk = await page.evaluate(() => {
+      // F12-08: the theme SegmentedControl keeps its indicator; the TempoControl has none (the
+      // control that sets motion does not itself move), so the header has exactly one.
       const headerInds = [...document.querySelectorAll('.site-header .f12-rng-ind')];
       return (
-        headerInds.length >= 2 &&
+        headerInds.length === 1 &&
+        !document.querySelector('.site-header .f12-tempo .f12-rng-ind') &&
         headerInds.every((el) => getComputedStyle(el).transitionDuration === '0s')
       );
     });
@@ -1731,7 +1737,7 @@ try {
         afterLoadingWsBreadcrumb.activeElementId === 'ws-settings-tabs-tab-profile' &&
         overflow320 &&
         headerReducedMotionOk,
-      'site /blocks/workspace-settings (Empty/Error/Loading states, Breadcrumb navigation + same-section typing, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb ancestors are buttons/text (never #hash links) that return to 01 · Profile and focus its tab (also in LOAD state) without touching the URL or stealing focus during subsequent typing, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
+      'site /blocks/workspace-settings (Empty/Error/Loading states, Breadcrumb navigation + same-section typing, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb ancestors are buttons/text (never #hash links) that return to 01 · Profile and focus its tab (also in LOAD state) without touching the URL or stealing focus during subsequent typing, site header theme indicator respects prefers-reduced-motion (TempoControl has none), and 320px has zero horizontal overflow',
       JSON.stringify({
         emptyCheck,
         seatsAfterZeroInvite,
@@ -2956,7 +2962,7 @@ try {
               });
               await coldPage.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
               const beforeFont = await coldPage.evaluate(() => {
-                const groups = [...document.querySelectorAll('.site-controls > .f12-rng')].map((g) =>
+                const groups = [...document.querySelectorAll('.site-controls > .f12-rng, .site-controls > .f12-tempo')].map((g) =>
                   g.getBoundingClientRect(),
                 );
                 const navTop = document.querySelector('.site-nav')?.getBoundingClientRect().top ?? 0;
@@ -2977,7 +2983,7 @@ try {
               await coldPage.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
               await coldPage.waitForTimeout(80);
               const afterFont = await coldPage.evaluate(() => {
-                const groups = [...document.querySelectorAll('.site-controls > .f12-rng')].map((g) =>
+                const groups = [...document.querySelectorAll('.site-controls > .f12-rng, .site-controls > .f12-tempo')].map((g) =>
                   g.getBoundingClientRect(),
                 );
                 const navTop = document.querySelector('.site-nav')?.getBoundingClientRect().top ?? 0;
@@ -2994,7 +3000,9 @@ try {
                 };
               });
               const navDelta = Math.abs(afterFont.navTop - beforeFont.navTop);
-              const expectedStacked = vw === 320;
+              // F12-08: the header holds the theme switch and the 4-option TempoControl (44px
+              // targets), which need ~420px side by side, so both phone widths stack (≤ 460px).
+              const expectedStacked = vw === 320 || vw === 390;
               if (
                 heldFonts === 0 ||
                 beforeFont.loadedWoff2 > 0 ||
@@ -3011,7 +3019,7 @@ try {
             }
             check(
               coldFontShifts.length === 0,
-              `site [${engineName}] cold-font (.woff2 gated) .site-controls row placement deterministic at 320px (stacked) and 390px (single-row) with 0px nav jump`,
+              `site [${engineName}] cold-font (.woff2 gated) .site-controls row placement deterministic at 320px and 390px (stacked) with 0px nav jump`,
               coldFontShifts.join('; '),
             );
           }

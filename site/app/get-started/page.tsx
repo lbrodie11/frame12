@@ -11,7 +11,6 @@ import {
   Tag,
   Badge,
 } from '@/components/frame12';
-import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 
@@ -98,11 +97,10 @@ export default [
 ];`;
 
 export default function GetStartedPage() {
-  const { motion } = useSiteSettings();
   const [track, setTrack] = React.useState<SetupTrack>('new');
 
   return (
-    <Sheet autoCut pegs motion={motion}>
+    <Sheet autoCut pegs>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">

@@ -52,6 +52,8 @@ const PRIMARY_INTERFACE_BY_SLUG = {
   tooltip: 'TooltipProps',
   'dropdown-menu': 'DropdownMenuTriggerProps',
   table: 'TableProps',
+  tempo: 'TempoProviderProps',
+  'tempo-control': 'TempoControlProps',
   'developer-console': 'DeveloperConsoleProps',
   'workspace-settings': 'WorkspaceSettingsProps',
   'analytics-dashboard': 'AnalyticsDashboardProps',

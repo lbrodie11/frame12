@@ -869,6 +869,74 @@
   outline-color: currentColor;
 }
 
+/* ===================================================================== Tempo Control
+   Native radios in the segmented appearance (.f12-rng / .f12-rng-btn). No indicator slide:
+   the control that sets motion does not itself move. */
+.f12-tempo {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+.f12-tempo-legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--f-ink);
+}
+.f12-tempo .f12-tempo-opt {
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  align-content: center;
+  padding: 6px 10px 5px;
+}
+.f12-tempo-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.f12-tempo-opt:has(.f12-tempo-input:checked) {
+  background: var(--f-ink);
+  color: var(--f-panel);
+}
+.f12-tempo-opt:has(.f12-tempo-input:focus-visible) {
+  outline: 3px solid var(--f-ink);
+  outline-offset: 2px;
+  z-index: 1;
+}
+.f12-tempo:disabled .f12-tempo-opt {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.f12-tempo-note-reduced {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .f12-tempo-note-reduced {
+    display: block;
+  }
+}
+.f12-tempo-note {
+  margin: 0;
+  max-width: 32ch;
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--f-ink);
+}
+
 /* ===================================================================== Button & Input */
 .f12-btn {
   display: inline-flex;
@@ -3545,6 +3613,19 @@ dialog.f12-dialog > .f12-cut {
   --f12-burst-animation: f12BurstStep 250ms step-end;
 }
 .f12-m-cut {
+  --f12-rng-ind-transition: none;
+  --f12-switch-thumb-transition: none;
+  --f12-skeleton-animation: none;
+  --f12-enter-animation: none;
+  --f12-pop-animation: none;
+  --f12-burst-animation: none;
+}
+/* First paint only: a stored `still` tempo (set on <html> by the first-paint script before React
+   hydrates) never shows motion, even before the TempoProvider resolves it in JS. Safety
+   direction only: it can turn motion off, never on. */
+html[data-f12-tempo="still"],
+html[data-f12-tempo="still"] .f12-m-stepped,
+html[data-f12-tempo="still"] .f12-m-smooth {
   --f12-rng-ind-transition: none;
   --f12-switch-thumb-transition: none;
   --f12-skeleton-animation: none;

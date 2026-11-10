@@ -1,8 +1,11 @@
 'use client';
 
 import * as React from 'react';
+import { useResolvedMotion } from '@/hooks/use-tempo';
 import {
   Sheet,
+  TempoProvider,
+  TempoControl,
   Scene,
   Panel,
   PanelPair,
@@ -79,12 +82,18 @@ import { SUMMARIES, fmtMoney, fmtMoneyShort, fmtPP, type RangeDays } from '@/lib
 export interface ComponentPreviewProps {
   slug: string;
   previewTheme: 'light' | 'dark';
-  motion: MotionMode;
+  /** The demo's own motion. The site's tempo (and the OS) resolve it; defaults to on twos. */
+  motion?: MotionMode;
 }
 
 const BREADCRUMB_DEMO_PATH = ['Workspace', 'Storyboards', 'Cut C-04 Ledger'] as const;
 
-export function ComponentPreview({ slug, previewTheme, motion }: ComponentPreviewProps) {
+export function ComponentPreview({
+  slug,
+  previewTheme,
+  motion: baseMotion = 'stepped',
+}: ComponentPreviewProps) {
+  const motion = useResolvedMotion(baseMotion);
   const [range, setRange] = React.useState<RangeDays>(7);
   const [selectedRow, setSelectedRow] = React.useState<string | null>('cart');
   const [channel, setChannel] = React.useState('cart');
@@ -715,6 +724,31 @@ export function ComponentPreview({ slug, previewTheme, motion }: ComponentPrevie
                 Step value ({range}d)
               </Button>
             </div>
+          </div>
+        );
+
+      case 'tempo':
+      case 'tempo-control':
+        // A nested, unpersisted provider: the demo never changes the site's own tempo, and the
+        // site's 0 (still) or your OS reduced-motion setting still stops it.
+        return (
+          <div className="f12-preview-sheet">
+            <TempoProvider defaultValue="auto">
+              <div className="f12-stack-pair">
+                <TempoControl idPrefix={`${pfx}-tempo`} legend="Demo tempo" showLegend />
+                <div className="f12-row-between">
+                  <Metric label="Recovered revenue" value={s.revenue} format={fmtMoney} range={range} />
+                  <Button
+                    id={`${pfx}-tempo-step`}
+                    variant="marker"
+                    size="sm"
+                    onClick={() => setRange((r) => (r === 7 ? 90 : r === 90 ? 30 : 7))}
+                  >
+                    Change value ({range}d)
+                  </Button>
+                </div>
+              </div>
+            </TempoProvider>
           </div>
         );
 

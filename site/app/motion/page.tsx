@@ -13,6 +13,7 @@ import {
   Tag,
   Badge,
   Table,
+  TempoProvider,
   TableHeader,
   TableBody,
   TableRow,
@@ -25,6 +26,7 @@ import {
   useChanged,
   type MotionMode,
 } from '@/hooks/use-on-twos';
+import { useResolvedMotion, useTempo } from '@/hooks/use-tempo';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 import {
   SUMMARIES,
@@ -34,7 +36,6 @@ import {
   fmtMoneyShort,
   type RangeDays,
 } from '@/lib/data';
-import { useSiteSettings } from '@/components/site-shell';
 import { FilmStripDiagram } from '@/components/diagrams';
 import { CopyCommand } from '@/components/copy-command';
 
@@ -65,6 +66,37 @@ const POSES = [
   { frame: 'F7–8', ms: '250 ms', ratio: 'Settled' },
 ];
 
+/**
+ * A comparison stage's scene. It sits inside `<TempoProvider value="auto">`, so it shows its
+ * declared mode whatever the viewer's 12/60 choice; `still` and OS reduced motion still stop it.
+ */
+function StageScene({ base, children }: { base: MotionMode; children: React.ReactNode }) {
+  const resolved = useResolvedMotion(base);
+  return (
+    <div className={`f12-stack-scene f12-m-${resolved}`} data-stage-motion={resolved}>
+      {children}
+    </div>
+  );
+}
+
+/** Exposure-sheet readout driven by the stepped stage's own (resolved) progress. */
+function PoseStrip({ tweenKey }: { tweenKey: string }) {
+  const steppedProgress = useOnTwos(tweenKey, 333, 'stepped');
+  const activePoseIndex =
+    steppedProgress < 0.45 ? 0 : steppedProgress < 0.78 ? 1 : steppedProgress < 0.99 ? 2 : 3;
+  return (
+    <div className="pose-strip" role="status" aria-label="Exposure sheet pose readout">
+      {POSES.map((pose, idx) => (
+        <div key={pose.frame} className={`pose-cell${idx === activePoseIndex ? ' active' : ''}`}>
+          <span className="pose-cell-frame">{pose.frame}</span>
+          <span className="pose-cell-val">{pose.ms}</span>
+          <span className="pose-cell-ms">{pose.ratio}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function MotionPage() {
   const [range, setRange] = React.useState<RangeDays>(DEFAULT_RANGE);
   const [stageKind, setStageKind] = React.useState<StageFocusMode>('all');
@@ -73,16 +105,9 @@ export default function MotionPage() {
   const timersRef = React.useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
   const changed = useChanged(`${range}-${playCount}`);
-  const steppedProgress = useOnTwos(`${range}-${playCount}`, 333, 'stepped');
-
-  const activePoseIndex =
-    steppedProgress < 0.45
-      ? 0
-      : steppedProgress < 0.78
-        ? 1
-        : steppedProgress < 0.99
-          ? 2
-          : 3;
+  // `still` (anywhere above) or OS reduced motion stops both stages: say so on the page.
+  const { effectiveTempo } = useTempo();
+  const motionOff = effectiveTempo === 'still';
 
   const triggerPlayComparison = () => {
     timersRef.current.forEach(clearTimeout);
@@ -157,185 +182,183 @@ export default function MotionPage() {
             Play comparison (7 → 90 → 30)
           </Button>
         </div>
+        {motionOff && (
+          <p className="f12-mono-note" id="motion-off-note" role="note">
+            Motion is off (your setting). The timing values below still apply.
+          </p>
+        )}
       </header>
 
       <Scene gutter="scene" layout="equal">
         <Panel label="Stepped on twos (12fps)">
-          <div className="f12-stack-scene f12-m-stepped">
-            <div className="f12-row-between">
-              <div className="f12-stack-pair">
-                <div className="f12-row-pair">
-                  <Badge pop={changed} burst>
-                    Stepped · 12fps
-                  </Badge>
-                  <span className="f12-mono-note">83.33ms per held pose · steps(3, end)</span>
+          <TempoProvider value="auto">
+            <StageScene base="stepped">
+              <div className="f12-row-between">
+                <div className="f12-stack-pair">
+                  <div className="f12-row-pair">
+                    <Badge pop={changed} burst>
+                      Stepped · 12fps
+                    </Badge>
+                    <span className="f12-mono-note">83.33ms per held pose · steps(3, end)</span>
+                  </div>
+                  <h2 className="f12-section-title">On twos (FRAME/12 default)</h2>
                 </div>
-                <h2 className="f12-section-title">On twos (FRAME/12 default)</h2>
+                <SegmentedControl
+                  idPrefix="stage-stepped-rng"
+                  ariaLabel="Stepped stage date range"
+                  options={RANGE_OPTIONS}
+                  value={range}
+                  onChange={setRange}
+                />
               </div>
-              <SegmentedControl
-                idPrefix="stage-stepped-rng"
-                ariaLabel="Stepped stage date range"
-                options={RANGE_OPTIONS}
-                value={range}
-                onChange={setRange}
-              />
-            </div>
 
-            <div className="pose-strip" role="status" aria-label="Exposure sheet pose readout">
-              {POSES.map((pose, idx) => (
-                <div
-                  key={pose.frame}
-                  className={`pose-cell${idx === activePoseIndex ? ' active' : ''}`}
-                >
-                  <span className="pose-cell-frame">{pose.frame}</span>
-                  <span className="pose-cell-val">{pose.ms}</span>
-                  <span className="pose-cell-ms">{pose.ratio}</span>
-                </div>
-              ))}
-            </div>
+              <PoseStrip tweenKey={`${range}-${playCount}`} />
 
-            {(stageKind === 'all' || stageKind === 'tabs') && (
-              <Metric
-                label="Recovered revenue (stepped count-up)"
-                value={s.revenue}
-                format={fmtMoney}
-                delta={s.revenueDelta}
-                deltaKind="pct"
-                range={range}
-                motion="stepped"
-                big
-              />
-            )}
+              {(stageKind === 'all' || stageKind === 'tabs') && (
+                <Metric
+                  label="Recovered revenue (stepped count-up)"
+                  value={s.revenue}
+                  format={fmtMoney}
+                  delta={s.revenueDelta}
+                  deltaKind="pct"
+                  range={range}
+                  motion="stepped"
+                  big
+                />
+              )}
 
-            {(stageKind === 'all' || stageKind === 'chart') && (
-              <ToneAreaChart
-                data={chartData}
-                seriesLabel="Stepped revenue wipe"
-                labelColumnHeader="Date"
-                formatValue={fmtMoney}
-                formatShort={fmtMoneyShort}
-                motion="stepped"
-                height={200}
-                tableSummary="Show stepped stage data table"
-              />
-            )}
+              {(stageKind === 'all' || stageKind === 'chart') && (
+                <ToneAreaChart
+                  data={chartData}
+                  seriesLabel="Stepped revenue wipe"
+                  labelColumnHeader="Date"
+                  formatValue={fmtMoney}
+                  formatShort={fmtMoneyShort}
+                  motion="stepped"
+                  height={200}
+                  tableSummary="Show stepped stage data table"
+                />
+              )}
 
-            {(stageKind === 'all' || stageKind === 'badge') && (
-              <ToneBarList
-                title="Top interventions (two-frame impact burst)"
-                subtitle={`Last ${s.range} days · 4-pose popStep + 2-frame SVG burst`}
-                items={topThreeItems}
-                motion="stepped"
-                changed={changed}
-                idPrefix="stepped-stage"
-              />
-            )}
-          </div>
+              {(stageKind === 'all' || stageKind === 'badge') && (
+                <ToneBarList
+                  title="Top interventions (two-frame impact burst)"
+                  subtitle={`Last ${s.range} days · 4-pose popStep + 2-frame SVG burst`}
+                  items={topThreeItems}
+                  motion="stepped"
+                  changed={changed}
+                  idPrefix="stepped-stage"
+                />
+              )}
+            </StageScene>
+          </TempoProvider>
         </Panel>
 
         <Panel label="Comparison stage: Smooth (60fps) or Cut (0ms)">
-          <div className={`f12-stack-scene f12-m-${compareMotion}`}>
-            <div className="f12-row-between">
-              <div className="f12-stack-pair">
-                <div className="f12-row-pair">
-                  <Tag>
-                    {compareMotion === 'smooth' ? 'Smooth · 60fps' : 'Cut · 0ms Instant'}
-                  </Tag>
-                  <SegmentedControl
-                    idPrefix="stage-compare-mode"
-                    ariaLabel="Comparison motion mode"
-                    options={COMPARE_MODE_OPTIONS}
-                    value={compareMotion}
-                    onChange={setCompareMotion}
-                  />
+          <TempoProvider value="auto">
+            <StageScene base={compareMotion}>
+              <div className="f12-row-between">
+                <div className="f12-stack-pair">
+                  <div className="f12-row-pair">
+                    <Tag>
+                      {compareMotion === 'smooth' ? 'Smooth · 60fps' : 'Cut · 0ms Instant'}
+                    </Tag>
+                    <SegmentedControl
+                      idPrefix="stage-compare-mode"
+                      ariaLabel="Comparison motion mode"
+                      options={COMPARE_MODE_OPTIONS}
+                      value={compareMotion}
+                      onChange={setCompareMotion}
+                    />
+                  </div>
+                  <h2 className="f12-section-title">
+                    {compareMotion === 'smooth'
+                      ? 'Continuous 60fps easing'
+                      : 'Editorial hard cut (0ms)'}
+                  </h2>
                 </div>
-                <h2 className="f12-section-title">
-                  {compareMotion === 'smooth'
-                    ? 'Continuous 60fps easing'
-                    : 'Editorial hard cut (0ms)'}
-                </h2>
+                <SegmentedControl
+                  idPrefix="stage-compare-rng"
+                  ariaLabel="Comparison stage date range"
+                  options={RANGE_OPTIONS}
+                  value={range}
+                  onChange={setRange}
+                />
               </div>
-              <SegmentedControl
-                idPrefix="stage-compare-rng"
-                ariaLabel="Comparison stage date range"
-                options={RANGE_OPTIONS}
-                value={range}
-                onChange={setRange}
-              />
-            </div>
 
-            <div className="pose-strip" aria-label="Comparison timing readout">
-              <div className="pose-cell">
-                <span className="pose-cell-frame">SAMPLING</span>
-                <span className="pose-cell-val">
-                  {compareMotion === 'smooth' ? '16.7 ms' : '0 ms'}
-                </span>
-                <span className="pose-cell-ms">
-                  {compareMotion === 'smooth' ? 'Continuous RAF' : 'Immediate state'}
-                </span>
+              <div className="pose-strip" aria-label="Comparison timing readout">
+                <div className="pose-cell">
+                  <span className="pose-cell-frame">SAMPLING</span>
+                  <span className="pose-cell-val">
+                    {compareMotion === 'smooth' ? '16.7 ms' : '0 ms'}
+                  </span>
+                  <span className="pose-cell-ms">
+                    {compareMotion === 'smooth' ? 'Continuous RAF' : 'Immediate state'}
+                  </span>
+                </div>
+                <div className="pose-cell">
+                  <span className="pose-cell-frame">INDICATOR</span>
+                  <span className="pose-cell-val">
+                    {compareMotion === 'smooth' ? 'cubic-bezier' : 'none'}
+                  </span>
+                  <span className="pose-cell-ms">
+                    {compareMotion === 'smooth' ? '260ms glide' : 'Instant snap'}
+                  </span>
+                </div>
+                <div className="pose-cell">
+                  <span className="pose-cell-frame">CHART WIPE</span>
+                  <span className="pose-cell-val">
+                    {compareMotion === 'smooth' ? '45 frames' : '1 frame'}
+                  </span>
+                  <span className="pose-cell-ms">
+                    {compareMotion === 'smooth' ? '750ms easeOut' : 'No wipe'}
+                  </span>
+                </div>
+                <div className="pose-cell">
+                  <span className="pose-cell-frame">REDUCED MOTION</span>
+                  <span className="pose-cell-val">Auto Cut</span>
+                  <span className="pose-cell-ms">OS preference</span>
+                </div>
               </div>
-              <div className="pose-cell">
-                <span className="pose-cell-frame">INDICATOR</span>
-                <span className="pose-cell-val">
-                  {compareMotion === 'smooth' ? 'cubic-bezier' : 'none'}
-                </span>
-                <span className="pose-cell-ms">
-                  {compareMotion === 'smooth' ? '260ms glide' : 'Instant snap'}
-                </span>
-              </div>
-              <div className="pose-cell">
-                <span className="pose-cell-frame">CHART WIPE</span>
-                <span className="pose-cell-val">
-                  {compareMotion === 'smooth' ? '45 frames' : '1 frame'}
-                </span>
-                <span className="pose-cell-ms">
-                  {compareMotion === 'smooth' ? '750ms easeOut' : 'No wipe'}
-                </span>
-              </div>
-              <div className="pose-cell">
-                <span className="pose-cell-frame">REDUCED MOTION</span>
-                <span className="pose-cell-val">Auto Cut</span>
-                <span className="pose-cell-ms">OS preference</span>
-              </div>
-            </div>
 
-            {(stageKind === 'all' || stageKind === 'tabs') && (
-              <Metric
-                label={`Recovered revenue (${compareMotion} mode)`}
-                value={s.revenue}
-                format={fmtMoney}
-                delta={s.revenueDelta}
-                deltaKind="pct"
-                range={range}
-                motion={compareMotion}
-                big
-              />
-            )}
+              {(stageKind === 'all' || stageKind === 'tabs') && (
+                <Metric
+                  label={`Recovered revenue (${compareMotion} mode)`}
+                  value={s.revenue}
+                  format={fmtMoney}
+                  delta={s.revenueDelta}
+                  deltaKind="pct"
+                  range={range}
+                  motion={compareMotion}
+                  big
+                />
+              )}
 
-            {(stageKind === 'all' || stageKind === 'chart') && (
-              <ToneAreaChart
-                data={chartData}
-                seriesLabel="Comparison revenue wipe"
-                labelColumnHeader="Date"
-                formatValue={fmtMoney}
-                formatShort={fmtMoneyShort}
-                motion={compareMotion}
-                height={200}
-                tableSummary="Show comparison stage data table"
-              />
-            )}
+              {(stageKind === 'all' || stageKind === 'chart') && (
+                <ToneAreaChart
+                  data={chartData}
+                  seriesLabel="Comparison revenue wipe"
+                  labelColumnHeader="Date"
+                  formatValue={fmtMoney}
+                  formatShort={fmtMoneyShort}
+                  motion={compareMotion}
+                  height={200}
+                  tableSummary="Show comparison stage data table"
+                />
+              )}
 
-            {(stageKind === 'all' || stageKind === 'badge') && (
-              <ToneBarList
-                title="Top interventions (comparison)"
-                subtitle={`Last ${s.range} days · ${compareMotion} transition`}
-                items={topThreeItems}
-                motion={compareMotion}
-                changed={changed}
-                idPrefix="compare-stage"
-              />
-            )}
-          </div>
+              {(stageKind === 'all' || stageKind === 'badge') && (
+                <ToneBarList
+                  title="Top interventions (comparison)"
+                  subtitle={`Last ${s.range} days · ${compareMotion} transition`}
+                  items={topThreeItems}
+                  motion={compareMotion}
+                  changed={changed}
+                  idPrefix="compare-stage"
+                />
+              )}
+            </StageScene>
+          </TempoProvider>
         </Panel>
       </Scene>
 
@@ -356,6 +379,67 @@ export default function MotionPage() {
               crosses inverts cleanly at every held drawing without blurry sub-pixel anti-aliasing.
             </p>
             <FilmStripDiagram idPrefix="motion-film" />
+          </div>
+        </Panel>
+      </Scene>
+
+      <Scene gutter="scene" layout="stack">
+        <Panel label="Tempo precedence">
+          <div className="f12-stack-pair">
+            <div className="f12-row-pair">
+              <Tag>Tempo</Tag>
+              <span className="f12-mono-note">AUTO · 12 · 60 · 0 in the header, or press M</span>
+            </div>
+            <h2 className="f12-section-title">One motion preference for every animation</h2>
+            <p className="f12-body-copy">
+              The header&rsquo;s tempo applies to every FRAME/12 animation on the site. AUTO keeps
+              each component&rsquo;s own motion; 12 holds poses on twos; 60 is smooth, continuous
+              motion (it follows your display, so &ldquo;60&rdquo; names the style); 0 turns
+              non-essential motion off. The two stages above always show their declared modes.
+            </p>
+            <Table>
+              <TableCaption>
+                How a component&rsquo;s motion is resolved, first matching rule wins.
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Rule</TableHead>
+                  <TableHead scope="col">When</TableHead>
+                  <TableHead scope="col">Result</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>1</TableCell>
+                  <TableCell>Your system asks for reduced motion</TableCell>
+                  <TableCell>Cut (no motion)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>2</TableCell>
+                  <TableCell>Tempo 0, here or anywhere above</TableCell>
+                  <TableCell>Cut (no motion)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>3</TableCell>
+                  <TableCell>The component says cut (a prop, a quiet Metric)</TableCell>
+                  <TableCell>Cut: tempo never turns motion on</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>4</TableCell>
+                  <TableCell>Tempo 12 or 60</TableCell>
+                  <TableCell>Stepped on twos, or smooth</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>5</TableCell>
+                  <TableCell>Tempo AUTO</TableCell>
+                  <TableCell>The component&rsquo;s own motion</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+            <p className="f12-muted-copy">
+              Never stepped at any tempo: pointer tracking, dragging, scrolling, typing and focus
+              movement. Static HTML reports (@frame12/static) have no motion to set.
+            </p>
           </div>
         </Panel>
       </Scene>

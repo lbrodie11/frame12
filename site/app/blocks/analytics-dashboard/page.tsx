@@ -4,18 +4,15 @@ import * as React from 'react';
 import Link from 'next/link';
 import { Panel, Badge, Tag } from '@/components/frame12';
 import { AnalyticsDashboard } from '@/components/frame12/blocks/analytics-dashboard';
-import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
 import { BlockDocumentationSection } from '@/components/block-doc-footer';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 
 export default function AnalyticsDashboardShowcasePage() {
-  const { motion } = useSiteSettings();
 
   return (
     <AnalyticsDashboard
       idPrefix="analytics"
-      motion={motion}
       footerSlot={
         <div className="f12-stack-scene">
           <Panel variant="quiet" label="Install Revenue Recovery Analytics registry block">

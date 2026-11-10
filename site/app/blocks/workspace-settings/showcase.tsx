@@ -11,7 +11,7 @@ import { REGISTRY_BASE_URL } from '@/lib/config';
 import { useBlockSection } from '@/lib/use-block-section';
 
 export function WorkspaceSettingsShowcase() {
-  const { motion, themeOverride } = useSiteSettings();
+  const { themeOverride } = useSiteSettings();
 
   const tab = useBlockSection<SettingsSection>('workspace-settings');
 
@@ -21,7 +21,6 @@ export function WorkspaceSettingsShowcase() {
       defaultSection={tab.section}
       onSectionChange={tab.onSectionChange}
       idPrefix="ws-settings"
-      motion={motion}
       theme={themeOverride}
       footerSlot={
         <div className="f12-stack-scene">
