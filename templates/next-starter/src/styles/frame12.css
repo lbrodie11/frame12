@@ -460,6 +460,11 @@
   background: var(--f-sheet);
   color: var(--f-ink);
 }
+/* <Sheet autoCut> also sets --f12-autocut-display inline; this attribute rule keeps cut labels
+   numbered where a strict CSP blocks inline style attributes (static pages in webviews). */
+.f12-sheet[data-autocut] {
+  --f12-autocut-display: block;
+}
 .f12-cut[data-autocut] {
   display: var(--f12-autocut-display, none);
   counter-increment: f12-cut;
@@ -2356,6 +2361,8 @@ button.f12-breadcrumb-link {
 }
 .f12-balloon-gap {
   position: absolute;
+  /* Centred default (tail offset 0); <Balloon> sets the exact offset inline. */
+  left: calc(50% - 5px);
   bottom: -2px;
   width: 10px;
   height: 3px;
@@ -2548,25 +2555,37 @@ button.f12-breadcrumb-link {
   height: 12px;
   border-width: 1.5px;
 }
-.f12-int-row[aria-pressed="true"] {
+.f12-int-row[aria-pressed="true"],
+.f12-int-row[aria-current="true"] {
   background: var(--f-ink);
   color: var(--f-panel);
 }
 .f12-int-row[aria-pressed="true"]:focus-visible {
   outline-color: var(--f-panel);
 }
-.f12-int-row[aria-pressed="true"] .f12-int-bar {
+.f12-int-row[aria-pressed="true"] .f12-int-bar,
+.f12-int-row[aria-current="true"] .f12-int-bar {
   border-color: var(--f-panel);
 }
-.f12-int-row[aria-pressed="true"] .f12-int-fill {
+.f12-int-row[aria-pressed="true"] .f12-int-fill,
+.f12-int-row[aria-current="true"] .f12-int-fill {
   background: var(--f-marker);
   border-right-color: var(--f-panel);
 }
-.f12-int-row[aria-pressed="true"] .f12-int-share {
+.f12-int-row[aria-pressed="true"] .f12-int-share,
+.f12-int-row[aria-current="true"] .f12-int-share {
   color: var(--f-panel);
 }
-.f12-int-row[aria-pressed="true"] .f12-badge {
+.f12-int-row[aria-pressed="true"] .f12-badge,
+.f12-int-row[aria-current="true"] .f12-badge {
   border-color: var(--f-panel);
+}
+/* Non-interactive rows (rendered by @frame12/static): same layout, no pointer affordance. */
+.f12-int-row[data-static] {
+  cursor: default;
+}
+.f12-int-row[data-static]:hover .f12-int-name {
+  text-decoration: none;
 }
 .f12-int-val {
   display: flex;
@@ -3798,6 +3817,7 @@ dialog.f12-dialog > .f12-cut {
   }
   .f12-rng-btn[aria-pressed="true"],
   .f12-int-row[aria-pressed="true"],
+  .f12-int-row[aria-current="true"],
   .f12-select-item[data-state="checked"],
   .f12-tabs-trigger[aria-selected="true"],
   .f12-pagination-link[aria-current="page"],
