@@ -65,6 +65,7 @@ Every violation carries a stable `rule` ID (`RuleId`), `file`, 1-based `line` an
 | [`explicit-cut-in-autocut`](#explicit-cut-in-autocut) | Forbid explicit `cut` props on `Panel`/`PanelPair` inside `<Sheet autoCut>` where cuts are numbered automatically. |
 | [`raw-shadcn-import`](#raw-shadcn-import) | Forbid raw `@/components/ui/*`, `@radix-ui/*`, or third-party chart/motion imports where a FRAME/12 component or adapter exists. |
 | [`unsafe-html`](#unsafe-html) | Forbid external resource loads (`<script src>`, `<link href>`, `<img src>`, CSS `@import`/`url()`), embedded frames (`<iframe>`, `<object>`, `<embed>`, `srcdoc`), `<meta http-equiv="refresh">`, `<base href>`, inline `on*=` handlers, and `javascript:` URLs in generated HTML. |
+| [`ink-autoplay`](#ink-autoplay) | Forbid `play` on `InkStroke`, `InkReveal`, or `InkSequence` that is the literal `true` or a value constant at mount (a `true` constant, an unchanging `useState(true)`, or state set to `true` in a mount effect); ink draws only after a user action. |
 
 ---
 
@@ -213,6 +214,27 @@ Active in `lintHtml()` (and when linting `.html` / `.htm` files via `lintFiles()
 <a href="#details">Link</a>
 ```
 
+
+---
+
+### `ink-autoplay`
+
+Active in `.tsx` / `.jsx` / `.ts` / `.js` sources (TypeScript AST, with a regex fallback for the literal forms when `typescript` is not installed). FRAME/12 line art never draws on initial load (rule 5: the sheet is complete at rest). `play` on `InkStroke`, `InkReveal`, and `InkSequence` must change after mount through a user action (or `useChanged`). Flagged: the shorthand `play`, `play={true}` (and `!0`, `!false`), an identifier bound to a `true` constant, a `useState(true)` whose setter is never used, and state set to `true` inside a mount effect (`useEffect(() => …, [])` or an effect without deps).
+
+**Bad:**
+```tsx
+<InkSequence beats={[12, 12]} play />
+const [mounted, setMounted] = useState(false);
+useEffect(() => setMounted(true), []);
+<InkStroke d={d} play={mounted} />
+```
+
+**Good:**
+```tsx
+const [playing, setPlaying] = useState(false);
+<button type="button" aria-pressed={playing} onClick={() => setPlaying((p) => !p)}>Watch it get made</button>
+<InkSequence beats={[12, 12]} play={playing} onEnd={() => setPlaying(false)} />
+```
 ---
 
 ## `lintHtml()` Scanner Scope & Limits

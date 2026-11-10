@@ -52,10 +52,11 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
     'explicit-cut-in-autocut',
     'raw-shadcn-import',
     'unsafe-html',
+    'ink-autoplay',
   ];
   check(
     expectedRuleIds.every((id) => typeof RULES[id] === 'string' && RULES[id].length > 10),
-    'exports: RULES defines all 7 rule IDs with descriptions',
+    'exports: RULES defines all 8 rule IDs with descriptions',
   );
   check(
     FORBIDDEN_SHADCN_MODULES instanceof Set && FORBIDDEN_SHADCN_MODULES.has('button'),
@@ -100,7 +101,7 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
     { cwd: REPO_ROOT, encoding: 'utf8' },
   );
   check(
-    repoWrapperOut === 'PASS  check-frame12: 98 file(s) checked, 0 violations.\n' &&
+    repoWrapperOut === 'PASS  check-frame12: 103 file(s) checked, 0 violations.\n' &&
       repoBinOut === repoWrapperOut,
     'CLI parity: repo default check output is byte-identical to baseline',
     `Got: ${JSON.stringify(repoWrapperOut)}`,
@@ -625,6 +626,43 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
       ),
     'npm pack --dry-run: ships only dist/, LICENSE, README.md, package.json (no src/scripts/tests)',
     `Files: ${packedPaths.join(', ')}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 9. ink-autoplay: ink never draws on load (rule 5)
+// ---------------------------------------------------------------------------
+{
+  const fx = (name) => readFileSync(join(__dirname, 'fixtures', name), 'utf8');
+  const lit = lintSource(fx('ink-autoplay-literal.tsx'), 'ink-autoplay-literal.tsx').filter(
+    (v) => v.rule === 'ink-autoplay',
+  );
+  check(
+    lit.length === 4 && lit.map((v) => v.line).join(',') === '8,9,11,14',
+    'ink-autoplay: literal `play`, `play={true}`, `play={!0}` on InkStroke, InkReveal and InkSequence are flagged with line numbers',
+    JSON.stringify(lit.map((v) => [v.line, v.column])),
+  );
+  const mount = lintSource(fx('ink-autoplay-mount.tsx'), 'ink-autoplay-mount.tsx').filter(
+    (v) => v.rule === 'ink-autoplay',
+  );
+  check(
+    mount.length === 3 &&
+      /constant `true`/.test(mount[0].message) &&
+      /useState\(true\)/.test(mount[1].message) &&
+      /mount effect/.test(mount[2].message),
+    'ink-autoplay: values constant at mount (a `true` const, an unchanging useState(true), state set to true in a mount effect) are flagged',
+    JSON.stringify(mount.map((v) => v.message)),
+  );
+  const clean = lintSource(fx('ink-autoplay-clean.tsx'), 'ink-autoplay-clean.tsx');
+  check(clean.length === 0, 'ink-autoplay: play driven by a user action, `false` or a prop passes', JSON.stringify(clean));
+  const fb = lintSource(fx('ink-autoplay-literal.tsx'), 'ink-autoplay-literal.tsx', {
+    disableTypeScript: true,
+    quietFallbackWarning: true,
+  }).filter((v) => v.rule === 'ink-autoplay');
+  check(
+    fb.length === 3 && fb.map((v) => v.line).join(',') === '8,9,14',
+    'ink-autoplay (regex fallback without typescript): shorthand and `play={true}` are flagged',
+    JSON.stringify(fb.map((v) => v.line)),
   );
 }
 
