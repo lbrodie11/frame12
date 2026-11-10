@@ -3,8 +3,8 @@
 //   - src/lib/return-context.ts  `?from=` origin-token grammar and return-target table
 //   - src/lib/history-focus.ts   focus-record parsing
 import { build } from 'esbuild';
-import { mkdirSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { mkdirSync, readdirSync } from 'node:fs';
+import { resolve, dirname, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -79,6 +79,36 @@ const hf = await load('src/lib/history-focus.ts');
   check(
     nav.NAV_ITEMS.every((item) => nav.resolveNavOwnership(item.href)?.current === 'page'),
     'nav-ownership: every nav item is aria-current="page" on its own href',
+  );
+}
+
+// ---------------------------------------------------------------- every app page is owned
+{
+  // Pages that deliberately highlight no nav item. Adding a page means adding it to
+  // NAV_OWNERSHIP in src/lib/nav-ownership.ts or listing it here.
+  const UNOWNED = new Set([]);
+  const appDir = resolve(SITE_ROOT, 'app');
+  const pages = [];
+  const walk = (dir) => {
+    for (const ent of readdirSync(dir, { withFileTypes: true })) {
+      const p = resolve(dir, ent.name);
+      if (ent.isDirectory()) walk(p);
+      else if (/^page\.(tsx|ts|jsx|js|mdx)$/.test(ent.name)) pages.push(p);
+    }
+  };
+  walk(appDir);
+  const routes = pages.map((p) => {
+    const segs = relative(appDir, dirname(p))
+      .split(sep)
+      .filter((x) => x && !/^\(.*\)$/.test(x)) // route groups don't appear in URLs
+      .map((x) => (/^\[.*\]$/.test(x) ? 'sample' : x));
+    return `/${segs.join('/')}`;
+  });
+  const orphans = routes.filter((r) => !UNOWNED.has(r) && nav.resolveNavOwnership(r) === null);
+  check(
+    routes.length >= 10 && orphans.length === 0,
+    `nav-ownership: all ${routes.length} app pages are owned by a nav item (or explicitly unowned)`,
+    orphans.join(', '),
   );
 }
 

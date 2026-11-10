@@ -447,9 +447,10 @@ async function runEngine(engineName, engine) {
       page.__errors.length = 0;
       await goto(page, `${CONSOLE}?section=bogus`);
       const bogusTab = await selectedTab(page);
+      await page.waitForURL(`${base}${CONSOLE}`);
       check(
         bogusTab === 'dev-console-tab-overview' && page.__errors.length === 0,
-        T('?section=bogus gives Overview and no error'),
+        T('?section=bogus gives Overview, no error, and the bogus parameter is removed'),
         `tab=${bogusTab} errors=${page.__errors.join('; ')}`,
       );
       await ctx.close();
@@ -459,26 +460,31 @@ async function runEngine(engineName, engine) {
     {
       const ctx = await newCtx();
       const page = await open(ctx, `${CONSOLE}?section=request-logs`);
-      const seed = (rec) =>
-        page.evaluate((r) => {
-          const url = window.location.href;
-          window.history.replaceState({ ...window.history.state, f12Focus: { url, ...r } }, '', url);
-        }, rec);
-      await seed({ id: 'block-developer-console-dep-gone', fallbackId: DEP_HEADING });
-      await page.click('#nav-components');
-      await page.waitForURL(/\/components$/);
-      await hydrated(page);
-      await back(page);
+      // Leave through a real dependency link whose id (and fallback) we rename first, so the
+      // recorded target no longer exists when we come back.
+      const leaveVia = async (fallbackId) => {
+        await page.locator(`#${DEP_ID}`).scrollIntoViewIfNeeded();
+        await page.evaluate(
+          ([id, fb]) => {
+            const a = document.getElementById(id);
+            a.id = 'block-developer-console-dep-gone';
+            a.setAttribute('data-f12-focus-fallback', fb);
+          },
+          [DEP_ID, fallbackId],
+        );
+        await page.click('#block-developer-console-dep-gone');
+        await page.waitForURL(/\/components\/use-on-twos/);
+        await hydrated(page);
+        await back(page);
+        await page.waitForURL(/section=request-logs$/);
+      };
+      await leaveVia(DEP_HEADING);
       const heading = await waitForFocus(page, DEP_HEADING);
-      await seed({ id: 'block-developer-console-dep-gone', fallbackId: 'heading-gone' });
-      await page.click('#nav-components');
-      await page.waitForURL(/\/components$/);
-      await hydrated(page);
-      await back(page);
+      await page.evaluate(() => document.activeElement?.blur());
+      await leaveVia('heading-gone');
       await page.waitForTimeout(800);
       const nothing = await activeId(page);
-      // "Nothing" means we leave focus wherever the browser put it (here: the nav link that was
-      // clicked to leave, which persists in the shell) and never move it into the page.
+      // "Nothing" means we leave focus wherever the browser put it and never move it into the page.
       check(
         heading &&
           nothing !== DEP_HEADING &&
@@ -486,6 +492,85 @@ async function runEngine(engineName, engine) {
           page.__errors.length === 0,
         T('missing target: falls back to the section heading, then to nothing, without errors'),
         `heading=${heading} then=${nothing} ${page.__errors.join('; ')}`,
+      );
+      await ctx.close();
+    }
+
+    // ---------------------------------------------------------------- stale focus target (review #1)
+    {
+      const ctx = await newCtx();
+      const page = await open(ctx, `${CONSOLE}?section=request-logs`);
+      await page.locator(`#${DEP_ID}`).scrollIntoViewIfNeeded();
+      await page.click(`#${DEP_ID}`);
+      await page.waitForURL(/\/components\/use-on-twos/);
+      await hydrated(page);
+      await back(page);
+      const restored = await waitForFocus(page, DEP_ID);
+      // Leave the same entry another way: scroll to the top and use the primary nav.
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.locator('#nav-motion').focus();
+      await page.keyboard.press('Enter');
+      await page.waitForURL(/\/motion$/);
+      await hydrated(page);
+      await back(page);
+      await page.waitForURL(/section=request-logs$/);
+      await page.waitForTimeout(800);
+      const after = await activeId(page);
+      const visible = await page.evaluate(() => {
+        const el = document.activeElement;
+        if (!el || el === document.body) return true;
+        const r = el.getBoundingClientRect();
+        return r.bottom > 0 && r.top < window.innerHeight;
+      });
+      check(
+        restored && after !== DEP_ID && visible,
+        T('stale target: after leaving through the nav, Back does not pull focus to the old dependency link'),
+        `restored=${restored} after=${after} visible=${visible}`,
+      );
+
+      // Modified clicks (new tab / window) record nothing on the current entry.
+      await page.evaluate(() => {
+        const { f12Focus, ...rest } = window.history.state ?? {};
+        void f12Focus;
+        window.history.replaceState(rest, '', window.location.href);
+      });
+      const popup = ctx.waitForEvent('page', { timeout: 4000 }).catch(() => null);
+      await page.locator(`#${DEP_ID}`).click({ modifiers: ['Control'] });
+      const opened = await popup;
+      await opened?.close();
+      await page.waitForTimeout(150);
+      const recorded = await page.evaluate(() => Boolean(window.history.state?.f12Focus));
+      check(
+        !recorded && page.url().includes('section=request-logs'),
+        T('modified (Ctrl) click on a dependency link records no focus target'),
+        `recorded=${recorded}`,
+      );
+      await ctx.close();
+    }
+
+    // ---------------------------------------------------------------- unsaved-changes guard + ?section= (review #2)
+    {
+      const ctx = await newCtx();
+      const page = await open(ctx, '/blocks/workspace-settings');
+      await page.fill('#ws-settings-profile-name', 'Draft Operator Name');
+      await page.click('#ws-settings-tabs-tab-team');
+      await page.waitForURL(/section=team/);
+      await page.click('#nav-workspace-settings');
+      await page.waitForURL(/\/blocks\/workspace-settings$/);
+      await page.waitForTimeout(300);
+      const dialog = await page.locator('dialog[open]').count();
+      const tab = await selectedTab(page);
+      const value = await page.inputValue('#ws-settings-profile-name');
+      check(
+        dialog === 0 && tab === 'ws-settings-tabs-tab-profile' && value === 'Draft Operator Name',
+        T('workspace settings: a same-page link with an unsaved draft and ?section= shows no guard and keeps the draft'),
+        `dialog=${dialog} tab=${tab} value=${value}`,
+      );
+      await page.click('#nav-motion');
+      await page.waitForTimeout(300);
+      check(
+        (await page.locator('dialog[open]').count()) === 1 && page.url().includes('/blocks/workspace-settings'),
+        T('workspace settings: leaving for another page with an unsaved draft still shows the guard'),
       );
       await ctx.close();
     }

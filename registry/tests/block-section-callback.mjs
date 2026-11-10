@@ -2,7 +2,8 @@
 // on React 18.3 (this workspace's pinned devDependency) and React 19 (the repo root):
 //   1. fires exactly once per section change with the new value, never on mount, also under
 //      <StrictMode> (which replays effects);
-//   2. re-selecting the active tab does not fire;
+//   2. re-selecting the active tab does not fire; the breadcrumb and validation-jump call sites
+//      fire too;
 //   3. without a callback, the React 18 server-rendered markup is byte-identical to the pre-change
 //      block (SHA-256 snapshot of DeveloperConsole and WorkspaceSettings HTML at commit d168c47), and
 //      passing a callback does not change markup either.
@@ -192,6 +193,30 @@ for (const [label, reactRoot] of Object.entries(REACT_ROOTS)) {
       `${label} WorkspaceSettings onSectionChange fires once per change with the new value`,
       JSON.stringify(calls.settings),
     );
+    // Other internal call sites: the breadcrumb (console) and the cross-section validation jump
+    // (settings: an invalid Profile field while on Team, then Save, jumps back to Profile).
+    await page.click('#cb-console-tab-services');
+    await page
+      .locator('#cb-console-sheet nav[aria-label="Console hierarchy"] button')
+      .first()
+      .click();
+    await page.click('#cb-settings-tabs-tab-profile');
+    await page.fill('#cb-settings-profile-name', 'x');
+    await page.click('#cb-settings-tabs-tab-team');
+    await page.click('#cb-settings-save-btn');
+    await page.waitForTimeout(150);
+    const more = await page.evaluate(() => window.__calls);
+    check(
+      JSON.stringify(more.console.slice(3)) === '["services","overview"]',
+      `${label} DeveloperConsole onSectionChange fires for the breadcrumb section change`,
+      JSON.stringify(more.console),
+    );
+    check(
+      JSON.stringify(more.settings.slice(1)) === '["profile","team","profile"]',
+      `${label} WorkspaceSettings onSectionChange fires for the validation jump`,
+      JSON.stringify(more.settings),
+    );
+
     const plainSelected = await page.getAttribute('#cb-plain-tab-api-keys', 'aria-selected');
     check(
       plainSelected === 'true' && errors.length === 0,
