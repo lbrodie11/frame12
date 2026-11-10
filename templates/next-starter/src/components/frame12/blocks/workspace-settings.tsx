@@ -990,10 +990,12 @@ function WorkspaceSettingsInner({
       }
       try {
         const dest = new URL(anchor.href, window.location.href);
+        // A same-page link (only the query or hash differs, e.g. a `?section=` tab URL) keeps
+        // this block mounted or restores the cached draft, so it needs no guard. A hard
+        // reload of the same page is still covered by the `beforeunload` guard above.
         if (
           dest.origin === window.location.origin &&
-          dest.pathname === window.location.pathname &&
-          dest.search === window.location.search
+          dest.pathname === window.location.pathname
         ) {
           return;
         }
