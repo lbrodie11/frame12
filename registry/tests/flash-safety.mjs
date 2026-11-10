@@ -289,6 +289,22 @@ for (const { tempo, name } of jobs) {
     `flash safety [${tempo}] ${name}: ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region across 3 state changes`,
     { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, errors: v.errors });
 }
+
+// --------------------------------------------------------------- ink line art (F12-14): full play
+// The whole InkSequence (4 beats × 12 poses = 4.0 s at twos; the same duration smooth at ones),
+// started by a user action at frame 0 and captured to the end.
+const inkHtml = await bundlePage(resolve(REGISTRY_ROOT, 'tests/fixtures/ink-fixture.tsx'));
+for (const tempo of ['twos', 'ones']) {
+  const { ctx, page, errors } = await openFixture(browser, inkHtml, { w: VW, h: VH });
+  await page.evaluate((t) => window.__render('sequence', { tempo: t }), tempo);
+  await page.waitForTimeout(100);
+  const frames = await capture(page, decoder, { frames: 252, actions: { 0: () => page.evaluate(() => window.__toggle()) } });
+  const v = verdict(frames);
+  check(v.general.maxPerSecond <= 3 && v.red.maxPerSecond <= 3 && v.changedFrames > 0 && errors.length === 0,
+    `flash safety [${tempo}] ink-sequence: full 48-pose play, ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region`,
+    { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, errors });
+  await ctx.close();
+}
 await Promise.all(decoders.slice(1).map((d) => d.close()));
 await decoder.close();
 await browser.close();
