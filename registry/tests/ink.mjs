@@ -45,8 +45,9 @@ const seek = (page, t) =>
       a.currentTime = t;
     }
   }, t);
+// Ink's own time-driven animations (the fixture's #spin is panel content, not ink).
 const timeAnimations = (page) =>
-  page.evaluate(() => document.getAnimations().filter((a) => a.timeline === document.timeline).length);
+  page.evaluate(() => document.getAnimations().filter((a) => a.timeline === document.timeline && a.effect?.target?.id !== 'spin').length);
 const settle = (page) => page.waitForTimeout(60); // React commits on a real-time task; the clock is paused.
 const strokeStyle = (page, id = 'ink') =>
   page.evaluate((id) => {
@@ -444,6 +445,53 @@ for (const engine of BROWSERS) {
     const second = await page.evaluate(() => window.__ends);
     check(bodies === 2 && first === 1 && second === 2,
       `${tag} InkReveal around a PanelPair (2 panel bodies): onEnd fires exactly once per reveal (1, then 2 after a replay)`, { bodies, first, second });
+    await ctx.close();
+  }
+
+  // ------------------------------------------- forced colors and print: finished look, onEnd still fires
+  for (const media of [{ forcedColors: 'active' }, { media: 'print' }]) {
+    const label = media.media ? 'print' : 'forced colors';
+    const { ctx, page, errors } = await open();
+    await page.emulateMedia(media);
+    const shot = (sel) => page.locator(sel).screenshot();
+    // InkStroke: mid-draw it already looks finished; the draw still ends and calls onEnd once.
+    await page.evaluate(() => window.__render('plain-stroke', { tempo: 'twos' }));
+    await settle(page);
+    const plainStroke = await shot('#stage');
+    await page.evaluate(() => window.__render('stroke', { tempo: 'twos' }));
+    await settle(page);
+    await page.evaluate(() => window.__toggle());
+    await settle(page);
+    await seek(page, 2 * POSE + 1);
+    const midStroke = await shot('#stage');
+    const strokeDash = await strokeStyle(page);
+    await seek(page, 2000);
+    await settle(page);
+    const strokeEnds = await page.evaluate(() => window.__ends);
+    // InkReveal: content visible mid-reveal; one onEnd; the content's own animation untouched.
+    await page.evaluate(() => window.__render('reveal', { tempo: 'twos' }));
+    await settle(page);
+    const spinBefore = await page.evaluate(() => document.getElementById('spin').getAnimations().length);
+    await page.evaluate(() => window.__toggle());
+    await settle(page);
+    await seek(page, 2 * POSE + 1);
+    const mid = await page.evaluate(() => ({
+      body: getComputedStyle(document.querySelector('#panel .f12-panel-body')).visibility,
+      cut: getComputedStyle(document.querySelector('#panel .f12-cut')).visibility,
+      dash: getComputedStyle(document.querySelector('#panel .f12-panel-frame polygon')).strokeDasharray,
+    }));
+    await seek(page, 2000);
+    await settle(page);
+    const revealEnds = await page.evaluate(() => window.__ends);
+    const spinAfter = await page.evaluate(() => document.getElementById('spin').getAnimations().length);
+    const strokeDiff = await dec.diff(plainStroke, midStroke);
+    check(
+      strokeDash.a === 'none' && strokeDiff === 0 && strokeEnds === 1 &&
+        mid.body === 'visible' && mid.cut === 'visible' && mid.dash === 'none' && revealEnds === 1 &&
+        spinBefore === 1 && spinAfter === 1 && errors.length === 0,
+      `${tag} ${label}: a play in flight already looks finished (stroke pixel-identical to a plain path mid-draw, reveal content visible), still ends and calls onEnd once, and content's own CSS animations keep running`,
+      { strokeDash: strokeDash.a, strokeDiff, strokeEnds, mid, revealEnds, spinBefore, spinAfter, errors },
+    );
     await ctx.close();
   }
 

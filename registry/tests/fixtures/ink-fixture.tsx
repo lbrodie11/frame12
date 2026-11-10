@@ -74,7 +74,11 @@ function RevealPanel({ wrapped, dir, width, pair }: { wrapped?: boolean; dir?: '
     />
   ) : (
     <Panel id="panel" cut="C-01" label="Revealed">
-      <p id="content">Panel content</p>
+      <p id="content">
+        Panel content
+        {/* Content's own CSS animation: ink's fallbacks must never remove it. */}
+        <span id="spin" style={{ display: 'inline-block', animation: 'f12InkClockA 1000ms linear infinite' }} />
+      </p>
     </Panel>
   );
   return (

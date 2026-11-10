@@ -4012,19 +4012,43 @@ html[data-f12-tempo="still"] .f12-m-smooth {
 @keyframes f12InkClockB {
   0%, 100% { min-width: 0; }
 }
-/* Still tempo (first paint), OS reduced motion and print: the sheet is complete at rest. */
+/* Still tempo (first paint) and OS reduced motion: the sheet is complete at rest. Motion also
+   resolves to cut in JS there, so no play is ever in flight. Only the reveal's own parts are
+   named: animations of content inside a revealed panel are not ink's to remove. */
 html[data-f12-tempo="still"] .f12-ink,
 html[data-f12-tempo="still"] .f12-ink-wipe,
 html[data-f12-tempo="still"] .f12-ink-land,
-html[data-f12-tempo="still"] .f12-ink-reveal * {
+html[data-f12-tempo="still"] .f12-ink-reveal .f12-panel-frame polygon,
+html[data-f12-tempo="still"] .f12-ink-reveal .f12-cut,
+html[data-f12-tempo="still"] .f12-ink-reveal .f12-panel-body {
   animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .f12-ink,
   .f12-ink-wipe,
   .f12-ink-land,
-  .f12-ink-reveal * {
+  .f12-ink-reveal .f12-panel-frame polygon,
+  .f12-ink-reveal .f12-cut,
+  .f12-ink-reveal .f12-panel-body {
     animation: none !important;
+  }
+}
+/* Forced colors and print show the finished drawing, but motion does not resolve to cut there, so
+   a play may be in flight. Its animations keep running (they still end and fire onEnd) while
+   !important declarations, which win over animations, pin every animated property to rest. */
+@media (forced-colors: active), print {
+  .f12-ink,
+  .f12-ink-reveal .f12-panel-frame polygon {
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+  .f12-ink-wipe {
+    clip-path: none !important;
+  }
+  .f12-ink-land,
+  .f12-ink-reveal .f12-cut,
+  .f12-ink-reveal .f12-panel-body {
+    visibility: visible !important;
   }
 }
 
@@ -4039,12 +4063,6 @@ html[data-f12-tempo="still"] .f12-ink-reveal * {
   .f12-ink-detail,
   .f12-ink-pencil {
     stroke: CanvasText;
-  }
-  .f12-ink,
-  .f12-ink-wipe,
-  .f12-ink-land,
-  .f12-ink-reveal * {
-    animation: none !important;
   }
   .f12-panel.f12-panel-quiet,
   .f12-console-kv-item,
@@ -4237,12 +4255,6 @@ html[data-f12-tempo="still"] .f12-ink-reveal * {
 @media print {
   .f12-toast-viewport {
     display: none !important;
-  }
-  .f12-ink,
-  .f12-ink-wipe,
-  .f12-ink-land,
-  .f12-ink-reveal * {
-    animation: none !important;
   }
   .f12-tag,
   .f12-badge,
