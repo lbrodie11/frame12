@@ -4,10 +4,9 @@
 (`C-01`…), the finding that matters is a **frame** (`F-01`) shown first, and evidence is
 **receipts** (`E-01`). Those labels are presentation: your events carry stable ids.
 
-> **0.1.0 is the foundation.** It exports the core (contract, validation, capabilities, motion,
-> safety, width, tokens) and `./testing`. The `./render` renderers, the `./ink` live view,
-> `./process` (`spawnLogged`) and the `frame12-term` CLI arrive in later releases. Don't import
-> them yet.
+> **0.1.0** exports the core (contract, validation, capabilities, motion, safety, width,
+> tokens), the linear renderers (`./render`) and `./testing`. The `./ink` live view, `./process`
+> (`spawnLogged`) and the `frame12-term` CLI arrive in later releases. Don't import them yet.
 
 ## Install
 
@@ -51,6 +50,13 @@ styleLevel(colorLevel, attributes): StyleLevel;
 paint(text: string, role: Role, level: StyleLevel): string;
 GUTTER_CELLS = { pair: 1, scene: 2, change: 3 };
 ```
+
+// Linear renderers (@frame12/terminal/render): sanitize their input, never write themselves.
+renderJson(snapshot: Snapshot): string;
+renderPlain(snapshot: Snapshot, o?: { product?; nextSteps?: NextStep[]; safety? }): string;
+renderRich(snapshot: Snapshot, rc: RenderCaps, o?: { product?; nextSteps?; safety? }): string;
+renderCapsFor(caps: Capabilities, stream?: 'stdout' | 'stderr', o?: { verbose?: boolean }): RenderCaps;
+createLinearWriter(o: { format: 'rich' | 'plain' | 'json'; caps: Capabilities; stdout; stderr; verbose?; nextSteps?; safety?; validation? }): { write(raw: unknown): void; end(): LinearResult };
 
 ## Rules
 

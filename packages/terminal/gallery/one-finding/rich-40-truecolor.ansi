@@ -1,0 +1,40 @@
+[2mFRAME/12 · [22m[1mInvestigate coupling in[22m
+[1m           payments-service[22m
+[2m────────────────────────────────────────[22m
+
+[2mRUN · [22m[1m4 CUTS[22m           [1m✓ completed[22m  [2m4.3s[22m
+
+
+[1mFINDINGS[22m  [2m1 (1 top)[22m
+
+[1;48;2;255;214;10;38;2;18;18;18m F-01 [22;39;49m  [1mSettlement runner moves with the[22m
+[1m        ledger reconciler[22m
+[1m┃[22m [1mneeds review · top finding · pair-001[22m
+[1m┃[22m 9 of 10 changes to one side also
+[1m┃[22m changed the other.
+[1m┃[22m src/module-1/runner.ts
+[1m┃[22m [2m  ⇢ changes with it, no code link[22m
+[1m┃[22m src/module-1/ledger.ts
+[1m┃[22m [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m92%[22m [2m(range 74–99%)[22m
+[1m┃[22m [2mfollow-up rate (historical activity,[22m
+[1m┃[22m [2mnot correctness)[22m
+[1m┃[22m [2mE-01[22m  8947a15  [2m2026-10-28[22m  change 1 t…
+[1m┃[22m [2mE-02[22m  8125f33  [2m2026-10-27[22m  change 2 t…
+[1m┃[22m [2mE-03[22m  444a006  [2m2026-10-26[22m  change 3 t…
+[1m┃[22m [2m+1 more receipt[22m
+
+
+[1mMETRICS[22m
+  [2mCommits read[22m  [1m400[22m
+  [2mFiles seen  [22m  [1m212[22m
+  [2mFindings    [22m  [1m1[22m
+
+
+[1mNEXT STEPS[22m
+  [1mrepo-archaeology explain \[22m
+  [1msrc/module-1/runner.ts[22m
+    [2mShow the commits behind the top[22m
+    [2mfinding.[22m
+  [1mframe12-term render --from \[22m
+  [1mrun.f12rec --replay[22m
+    [2mReplay this run.[22m

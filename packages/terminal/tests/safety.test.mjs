@@ -25,10 +25,10 @@ const PIECES = [
   `${ESC}]52;c;cm0gLXJmIH4=\u0007`, `${ESC}]52;p;?${ESC}\\`, `${ESC}]0;window title\u0007`, `${ESC}]1337;File=x`, `${ESC}]`,
   `${ESC}P1$r0m${ESC}\\`, `${ESC}Pq#0;2;0;0;0`, '\u0090payload\u009c', `${ESC}_apc${ESC}\\`, `${ESC}^pm\u0007`, `${ESC}Xsos${ESC}\\`, '\u009fapc', '\u009epm', '\u0098sos',
   `${ESC}c`, `${ESC}7`, `${ESC}8`, `${ESC}(B`, `${ESC}#8`, `${ESC}`, `${ESC}${ESC}`,
-  '\r', '\r\n', '\n', '\b', '\b\b\b', '\u007f', '\u0000', '\u0007', '\u000b', '\u000c', '\u0085', ' ', ' ', '\t',
-  '‮', '‭', '⁦', '⁧', '⁨', '⁩', '‎', '‏', '؜', '‪', '‬',
-  '​', '‌', '‍', '⁠', '﻿', '­', 'ㅤ',
-  'hello', 'src/a b/c.ts', 'rm -rf /', '漢字', 'ｶﾀｶﾅ', '👨‍👩‍👧', '🇯🇵', '👍🏽', 'é', '❤️', '─', ' ', '/', 'ghp_' + 'A'.repeat(36),
+  '\r', '\r\n', '\n', '\b', '\b\b\b', '\u007f', '\u0000', '\u0007', '\u000b', '\u000c', '\u0085', '\u2028', '\u2029', '\t',
+  '\u202e', '\u202d', '\u2066', '\u2067', '\u2068', '\u2069', '\u200e', '\u200f', '\u061c', '\u202a', '\u202c',
+  '\u200b', '\u200c', '\u200d', '\u2060', '\ufeff', '\u00ad', '\u3164',
+  'hello', 'src/a b/c.ts', 'rm -rf /', '漢字', 'ｶﾀｶﾅ', '👨\u200d👩\u200d👧', '🇯🇵', '👍🏽', 'é', '❤️', '─', ' ', '/', 'ghp_' + 'A'.repeat(36),
 ];
 
 function fuzzString(r) {
@@ -73,7 +73,7 @@ describe('safety: seeded fuzz over every escape family (10,000 cases)', () => {
 
   it('only package-emitted OSC 8 links survive, and only for safe URLs', () => {
     const r = rng(52);
-    const hrefs = ['https://example.com/a', 'http://example.com', 'javascript:alert(1)', 'https://u:p@example.com/x', `https://e.com/${ESC}]52;c;x\u0007`, 'file:///etc/passwd', 'https://exa‮mple.com', '', 'data:text/html,x'];
+    const hrefs = ['https://example.com/a', 'http://example.com', 'javascript:alert(1)', 'https://u:p@example.com/x', `https://e.com/${ESC}]52;c;x\u0007`, 'file:///etc/passwd', 'https://exa\u202emple.com', '', 'data:text/html,x'];
     for (let i = 0; i < 2000; i++) {
       const text = sanitizeText(fuzzString(r));
       const href = r.pick(hrefs);
@@ -108,18 +108,18 @@ describe('safety: specific attacks', () => {
   });
 
   it('makes Trojan Source bidi controls visible', () => {
-    const out = sanitizeText('access_level != "user‮ ⁦// Check if admin⁩ ⁦"');
+    const out = sanitizeText('access_level != "user\u202e \u2066// Check if admin\u2069 \u2066"');
     assert.match(out, /\\u\{202e\}/);
     assert.match(out, /\\u\{2066\}/);
-    assert.ok(!/[‪-‮⁦-⁩]/.test(out));
+    assert.ok(!/[\u202a-\u202e\u2066-\u2069]/.test(out));
   });
 
   it('shows zero-width characters in identifiers, keeps emoji ZWJ sequences and shaping joiners', () => {
-    assert.equal(sanitizeText('src/ad​min.ts', { mode: 'identifier' }), 'src/ad\\u{200b}min.ts');
-    assert.equal(sanitizeText('src/ad​min.ts', { mode: 'text' }), 'src/admin.ts');
-    assert.equal(sanitizeText('family-👨‍👩‍👧.png', { mode: 'identifier' }), 'family-👨‍👩‍👧.png');
-    assert.equal(sanitizeText('a‍b', { mode: 'identifier' }), 'a\\u{200d}b');
-    assert.equal(sanitizeText('می‌خواهم', { mode: 'text' }), 'می‌خواهم', 'ZWNJ shapes Persian text');
+    assert.equal(sanitizeText('src/ad\u200bmin.ts', { mode: 'identifier' }), 'src/ad\\u{200b}min.ts');
+    assert.equal(sanitizeText('src/ad\u200bmin.ts', { mode: 'text' }), 'src/admin.ts');
+    assert.equal(sanitizeText('family-👨\u200d👩\u200d👧.png', { mode: 'identifier' }), 'family-👨\u200d👩\u200d👧.png');
+    assert.equal(sanitizeText('a\u200db', { mode: 'identifier' }), 'a\\u{200d}b');
+    assert.equal(sanitizeText('می\u200cخواهم', { mode: 'text' }), 'می\u200cخواهم', 'ZWNJ shapes Persian text');
   });
 
   it('expands tabs at fixed stops and caps lines with a visible marker', () => {
@@ -129,7 +129,7 @@ describe('safety: specific attacks', () => {
     assert.equal(sanitizeText('漢\tb'), '漢  b', 'tab stops are measured in cells');
     assert.equal(sanitizeText('x'.repeat(30), { maxLineLength: 10 }), `${'x'.repeat(10)}…+20 chars`);
     assert.equal(sanitizeText('x'.repeat(30), { maxLineLength: 10, ascii: true }), `${'x'.repeat(10)}...+20 chars`);
-    assert.equal(sanitizeText('👨‍👩‍👧'.repeat(5), { maxLineLength: 2 }), '👨‍👩‍👧👨‍👩‍👧…+3 chars', 'counts graphemes, never splits one');
+    assert.equal(sanitizeText('👨\u200d👩\u200d👧'.repeat(5), { maxLineLength: 2 }), '👨\u200d👩\u200d👧👨\u200d👩\u200d👧…+3 chars', 'counts graphemes, never splits one');
   });
 
   it('never throws and turns non-strings into text or nothing', () => {
@@ -172,10 +172,15 @@ describe('safety: review regressions (PR #31)', () => {
 });
 
 describe('safety: source hygiene', () => {
-  it('the sanitizer source contains no literal bidi or invisible characters (they are \\u escapes)', async () => {
+  it('no source file contains literal bidi, invisible or control characters (use \\u escapes)', async () => {
     const fs = await import('node:fs');
-    const src = fs.readFileSync(new URL('../src/core/safety.ts', import.meta.url), 'utf8');
-    assert.ok(!/[\u00ad\u034f\u061c\u115f\u1160\u180e\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060-\u2069\u3164\ufeff\uffa0]/.test(src));
+    const path = await import('node:path');
+    const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+    const root = new URL('../src', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+    for (const file of walk(root)) {
+      const src = fs.readFileSync(file, 'utf8');
+      assert.ok(!/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u00ad\u034f\u061c\u115f\u1160\u180e\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060-\u2069\u3164\ufeff\uffa0]/.test(src), file);
+    }
   });
 });
 
@@ -196,7 +201,7 @@ describe('safety: links', () => {
   it('strips credentials and rejects control, bidi and zero-width characters', () => {
     assert.equal(safeLink('https://user:hunter2@example.com/p?q=1#f'), 'https://example.com/p?q=1#f');
     assert.equal(safeLink('https://token@example.com/'), 'https://example.com/');
-    for (const bad of [`https://e.com/${ESC}]52;c;x`, 'https://e.com/\u0007', 'https://exa‮mple.com', 'https://e​xample.com', 'https://e.com/a b', `https://e.com/${'a'.repeat(2100)}`]) {
+    for (const bad of [`https://e.com/${ESC}]52;c;x`, 'https://e.com/\u0007', 'https://exa\u202emple.com', 'https://e\u200bxample.com', 'https://e.com/a b', `https://e.com/${'a'.repeat(2100)}`]) {
       assert.equal(safeLink(bad), undefined, JSON.stringify(bad).slice(0, 60));
     }
   });
@@ -283,7 +288,7 @@ describe('safety: redaction', () => {
   });
 
   it('cannot be undone by a hook: hook output is sanitized again, and a throwing hook redacts everything', () => {
-    const evil = createSanitizer({ redact: () => `${ESC}]52;c;ZXZpbA==\u0007‮` });
+    const evil = createSanitizer({ redact: () => `${ESC}]52;c;ZXZpbA==\u0007\u202e` });
     assert.equal(evil.text('x'), '\\u{202e}');
     const broken = createSanitizer({ redact: () => { throw new Error('bug'); } });
     assert.equal(broken.text('secret'), REDACTED);
@@ -298,10 +303,10 @@ describe('safety: event and snapshot sanitizer', () => {
     const ev = f.next('finding', {
       finding: {
         id: 'pair-1',
-        title: `Deploy ${ESC}[2J${ESC}]52;c;cm0gLXJm\u0007‮evil`,
+        title: `Deploy ${ESC}[2J${ESC}]52;c;cm0gLXJm\u0007\u202eevil`,
         summary: 'line one\rline two',
         subject: [
-          { kind: 'file', label: 'src/ad​min.ts', href: 'javascript:alert(1)' },
+          { kind: 'file', label: 'src/ad\u200bmin.ts', href: 'javascript:alert(1)' },
           { kind: 'file', label: 'src/ok.ts', href: 'https://user:pw@example.com/src/ok.ts' },
         ],
         strength: { value: 0.5, label: `rate${ESC}[33m` },
@@ -313,7 +318,7 @@ describe('safety: event and snapshot sanitizer', () => {
     assert.ok(validateEvent(ev).ok, 'the hostile event is schema-valid');
     const clean = createSanitizer().event(ev);
     const all = JSON.stringify(clean);
-    assert.ok(!all.includes('\\u001b') && !all.includes('\\u0007') && !all.includes('‮'), all);
+    assert.ok(!all.includes('\\u001b') && !all.includes('\\u0007') && !all.includes('\u202e'), all);
     assert.equal(clean.finding.title, 'Deploy \\u{202e}evil');
     assert.equal(clean.finding.summary, 'line one line two');
     assert.equal(clean.finding.subject[0].label, 'src/ad\\u{200b}min.ts', 'subject labels are identifiers');

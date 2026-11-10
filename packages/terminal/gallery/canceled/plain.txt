@@ -1,0 +1,11 @@
+FRAME/12 run "Investigate coupling in payments-service" (run-canceled): canceled
+Run started 2026-11-10T09:00:00.000Z, finished 2026-11-10T09:00:08.325Z.
+Cut C-01 resolve-workspace "Resolve workspace": done in 0.14s
+Cut C-02 read-history "Read history": done in 2.4s
+Cut C-03 pair-changes "Pair changes": canceled in 1.7s
+Cut C-03 note: Canceled by the user (SIGINT).
+Cut C-04 rank-findings "Rank findings": skipped in 0.10s
+Findings: none
+Metric commits-read "Commits read": 400
+Next step: frame12-term render --from run.f12rec --replay (Replay this run.)
+End of results: 0 findings, 0 warnings, run canceled.

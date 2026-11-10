@@ -1,0 +1,391 @@
+FRAME/12 run "Investigate coupling in payments-service" (run-forty): completed
+Run started 2026-11-10T09:00:00.000Z, finished 2026-11-10T09:00:53.325Z.
+Cut C-01 resolve-workspace "Resolve workspace": done in 0.14s
+Cut C-02 read-history "Read history": done in 2.4s
+Cut C-03 pair-changes "Pair changes": warning in 1.7s
+Cut C-03 note: 312 pairs below the noise floor were dropped.
+Cut C-04 rank-findings "Rank findings": done in 0.10s
+Findings: 40 (1 top, 9 primary, 30 secondary)
+Finding F-01 pair-001 (top finding, needs review): Settlement runner moves with the ledger reconciler
+Finding F-01 summary: 9 of 10 changes to one side also changed the other.
+Finding F-01 subject 1 (file): src/module-1/runner.ts
+Finding F-01 subject 2 (file): src/module-1/ledger.ts
+Finding F-01 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-01 strength: 92% (range 74-99%), follow-up rate (historical activity, not correctness)
+Receipt E-01 for F-01 (commit): 8947a1508ddf29b0f66cde497e3b0b35011109ac 2026-10-28: change 1 touching both sides of pair 1
+Finding F-02 pair-002 (primary, needs review): Module 2 moves with its neighbor
+Finding F-02 summary: 9 of 10 changes to one side also changed the other.
+Finding F-02 subject 1 (file): src/module-2/runner.ts
+Finding F-02 subject 2 (file): src/module-2/ledger.ts
+Finding F-02 relation (direct): subject 1 references subject 2 directly
+Finding F-02 strength: 91% (range 73-98%), follow-up rate (historical activity, not correctness)
+Receipt E-02 for F-02 (commit): 8949ffc5ab98c43203c77cee4b9b9e752a93a189 2026-10-27: change 1 touching both sides of pair 2
+Receipt E-03 for F-02 (commit): a2bc833eb2f0cb58584952377442d5c9de29ad9e 2026-10-26: change 2 touching both sides of pair 2
+Finding F-03 pair-003 (primary, needs review): Module 3 moves with its neighbor
+Finding F-03 summary: 9 of 10 changes to one side also changed the other.
+Finding F-03 subject 1 (file): src/module-3/runner.ts
+Finding F-03 subject 2 (file): src/module-3/ledger.ts
+Finding F-03 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-03 strength: 89% (range 71-96%), follow-up rate (historical activity, not correctness)
+Receipt E-04 for F-03 (commit): d7ba2462f265156c968ee31f5f7993999de869da 2026-10-26: change 1 touching both sides of pair 3
+Receipt E-05 for F-03 (commit): bf84d569c2b8493291b6d2666a93d5e57d1c89d5 2026-10-25: change 2 touching both sides of pair 3
+Receipt E-06 for F-03 (commit): 3e1c3b948c210c84e715c34d8b23d9d55ebbccf8 2026-10-24: change 3 touching both sides of pair 3
+Finding F-04 pair-004 (primary, warning): Module 4 moves with its neighbor
+Finding F-04 summary: 9 of 10 changes to one side also changed the other.
+Finding F-04 subject 1 (file): src/module-4/runner.ts
+Finding F-04 subject 2 (file): src/module-4/ledger.ts
+Finding F-04 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-04 strength: 88% (range 70-95%), follow-up rate (historical activity, not correctness)
+Receipt E-07 for F-04 (commit): 873c2c575efd35fa4e1a96dcc498f199f5c4468f 2026-10-25: change 1 touching both sides of pair 4
+Receipt E-08 for F-04 (commit): 909b0ee83ba303b03edee8b1f5cdbd55b9b596a4 2026-10-24: change 2 touching both sides of pair 4
+Receipt E-09 for F-04 (commit): 322aea8da374c562a6e3e6c2ab4924b5e0283491 2026-10-23: change 3 touching both sides of pair 4
+Receipt E-10 for F-04 (commit): 2a60072639583d74bcdcce176074b0e134d20ace 2026-10-22: change 4 touching both sides of pair 4
+Finding F-05 pair-005 (primary, needs review): Module 5 moves with its neighbor
+Finding F-05 summary: 9 of 10 changes to one side also changed the other.
+Finding F-05 subject 1 (file): src/module-5/runner.ts
+Finding F-05 subject 2 (file): src/module-5/ledger.ts
+Finding F-05 relation (direct): subject 1 references subject 2 directly
+Finding F-05 strength: 86% (range 68-93%), follow-up rate (historical activity, not correctness)
+Receipt E-11 for F-05 (commit): 06e5d7544bada280107b79c5fff7300dcc9a7d90 2026-10-24: change 1 touching both sides of pair 5
+Receipt E-12 for F-05 (commit): dd5fb2f359e7580e6961e3207650bc095632839b 2026-10-23: change 2 touching both sides of pair 5
+Receipt E-13 for F-05 (commit): a083c0226c5e9a08998aae97ca5aad39c0486f92 2026-10-22: change 3 touching both sides of pair 5
+Receipt E-14 for F-05 (commit): 884e7129ed812f2a996cc9aa560de2bd0e25aaad 2026-10-21: change 4 touching both sides of pair 5
+Receipt E-15 for F-05 (commit): 223125002bca35106e465639d84dc2b51de55cdc 2026-10-20: change 5 touching both sides of pair 5
+Finding F-06 pair-006 (primary, needs review): Module 6 moves with its neighbor
+Finding F-06 summary: 9 of 10 changes to one side also changed the other.
+Finding F-06 subject 1 (file): src/module-6/runner.ts
+Finding F-06 subject 2 (file): src/module-6/ledger.ts
+Finding F-06 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-06 strength: 85% (range 67-92%), follow-up rate (historical activity, not correctness)
+Receipt E-16 for F-06 (commit): 35519869236612da15c3b3faafe6bb2d54ef053d 2026-10-23: change 1 touching both sides of pair 6
+Receipt E-17 for F-06 (commit): 4d86e762a219d80896259eb307f288d954bb6362 2026-10-22: change 2 touching both sides of pair 6
+Receipt E-18 for F-06 (commit): 8a62da3373e97432341409942a7ff2394c4c545b 2026-10-21: change 3 touching both sides of pair 6
+Receipt E-19 for F-06 (commit): b3e8fe9470a941dc364fd3bde21996a5fdfe3ca8 2026-10-20: change 4 touching both sides of pair 6
+Receipt E-20 for F-06 (commit): f0c4f1653beb0bf2155bd2feadcef8150fd13749 2026-10-19: change 5 touching both sides of pair 6
+Receipt E-21 for F-06 (commit): 0a3774de6f49d228c1acd0cfa1e92211f37f26c6 2026-10-18: change 6 touching both sides of pair 6
+Finding F-07 pair-007 (primary, needs review): Module 7 moves with its neighbor
+Finding F-07 summary: 8 of 10 changes to one side also changed the other.
+Finding F-07 subject 1 (file): src/module-7/runner.ts
+Finding F-07 subject 2 (file): src/module-7/ledger.ts
+Finding F-07 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-07 strength: 83% (range 65-90%), follow-up rate (historical activity, not correctness)
+Receipt E-22 for F-07 (commit): a3da56162ba9d4d4e155bb0bfff20c596c60588e 2026-10-22: change 1 touching both sides of pair 7
+Finding F-08 pair-008 (primary, needs review): Module 8 moves with its neighbor
+Finding F-08 summary: 8 of 10 changes to one side also changed the other.
+Finding F-08 subject 1 (file): src/module-8/runner.ts
+Finding F-08 subject 2 (file): src/module-8/ledger.ts
+Finding F-08 relation (direct): subject 1 references subject 2 directly
+Finding F-08 strength: 82% (range 64-89%), follow-up rate (historical activity, not correctness)
+Receipt E-23 for F-08 (commit): 96e5882bc9c5ece2ed2fd4183c1d32a978bc41f3 2026-10-21: change 1 touching both sides of pair 8
+Receipt E-24 for F-08 (commit): 206c43acd9c836a095743a2dd36ad86dacd06a28 2026-10-20: change 2 touching both sides of pair 8
+Finding F-09 pair-009 (primary, needs review): Module 9 moves with its neighbor
+Finding F-09 summary: 8 of 10 changes to one side also changed the other.
+Finding F-09 subject 1 (file): src/module-9/runner.ts
+Finding F-09 subject 2 (file): src/module-9/ledger.ts
+Finding F-09 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-09 strength: 80% (range 62-87%), follow-up rate (historical activity, not correctness)
+Receipt E-25 for F-09 (commit): b693b2288dea41406ed7fe21e01efca5e760a154 2026-10-20: change 1 touching both sides of pair 9
+Receipt E-26 for F-09 (commit): ad34cf97dd4fe566a9d4273423cb7511073fc6c7 2026-10-19: change 2 touching both sides of pair 9
+Receipt E-27 for F-09 (commit): 5058aa66e185fc98e0e022b3832060117feff85e 2026-10-18: change 3 touching both sides of pair 9
+Finding F-10 pair-010 (primary, needs review): Module 10 moves with its neighbor
+Finding F-10 summary: 8 of 10 changes to one side also changed the other.
+Finding F-10 subject 1 (file): src/module-10/runner.ts
+Finding F-10 subject 2 (file): src/module-10/ledger.ts
+Finding F-10 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-10 strength: 79% (range 61-86%), follow-up rate (historical activity, not correctness)
+Receipt E-28 for F-10 (commit): b2a908fdb15582b2dbb00d165c4a8375d07d0dc1 2026-10-19: change 1 touching both sides of pair 10
+Receipt E-29 for F-10 (commit): ac1b5a162067b6a80af0a6fff3d0980994de97a6 2026-10-18: change 2 touching both sides of pair 10
+Receipt E-30 for F-10 (commit): 08f77f47af23e9da51d735c0e3ac2d61e62b5137 2026-10-17: change 3 touching both sides of pair 10
+Receipt E-31 for F-10 (commit): 925598586f6abaecdf384051dac82ab501bdfc74 2026-10-16: change 4 touching both sides of pair 10
+Finding F-11 pair-011 (secondary, warning): Module 11 moves with its neighbor
+Finding F-11 summary: 8 of 10 changes to one side also changed the other.
+Finding F-11 subject 1 (file): src/module-11/runner.ts
+Finding F-11 subject 2 (file): src/module-11/ledger.ts
+Finding F-11 relation (direct): subject 1 references subject 2 directly
+Finding F-11 strength: 77% (range 59-84%), follow-up rate (historical activity, not correctness)
+Receipt E-32 for F-11 (commit): 3996f22f5a11d5c28d7fabf648c245cda81552fb 2026-10-18: change 1 touching both sides of pair 11
+Receipt E-33 for F-11 (commit): c2f50b4031ac005e5012b511a79effd595409bbc 2026-10-17: change 2 touching both sides of pair 11
+Receipt E-34 for F-11 (commit): e485b06556a25cf236c16f58116d8a9df9e20221 2026-10-16: change 3 touching both sides of pair 11
+Receipt E-35 for F-11 (commit): fdf833de8855378eb1475d8b222000f5b3651b7a 2026-10-15: change 4 touching both sides of pair 11
+Receipt E-36 for F-11 (commit): 7e2399335fbc6772f753b75ad1443765750ea11f 2026-10-14: change 5 touching both sides of pair 11
+Finding F-12 pair-012 (secondary, needs review): Module 12 moves with its neighbor
+Finding F-12 summary: 8 of 10 changes to one side also changed the other.
+Finding F-12 subject 1 (file): src/module-12/runner.ts
+Finding F-12 subject 2 (file): src/module-12/ledger.ts
+Finding F-12 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-12 strength: 76% (range 58-83%), follow-up rate (historical activity, not correctness)
+Receipt E-37 for F-12 (commit): 30747dfad757c9da6e4122279b3c0d0133a0e3a2 2026-10-17: change 1 touching both sides of pair 12
+Receipt E-38 for F-12 (commit): 1701fa81aef9542a55f30970e71837390b696699 2026-10-16: change 2 touching both sides of pair 12
+Receipt E-39 for F-12 (commit): 76d662ccb50d476ef6c7cf415d67cc91d58ba914 2026-10-15: change 3 touching both sides of pair 12
+Receipt E-40 for F-12 (commit): 6d5070cbbfec67def54d73d2e3c58509291805d3 2026-10-14: change 4 touching both sides of pair 12
+Receipt E-41 for F-12 (commit): cbe7a496f89099325d256d3385550a5939a55136 2026-10-13: change 5 touching both sides of pair 12
+Receipt E-42 for F-12 (commit): d275537db2a4fe920d04870c49531a51af0b7b7d 2026-10-12: change 6 touching both sides of pair 12
+Finding F-13 pair-013 (secondary, needs review): Module 13 moves with its neighbor
+Finding F-13 summary: 7 of 10 changes to one side also changed the other.
+Finding F-13 subject 1 (file): src/module-13/runner.ts
+Finding F-13 subject 2 (file): src/module-13/ledger.ts
+Finding F-13 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-13 strength: 74% (range 56-81%), follow-up rate (historical activity, not correctness)
+Receipt E-43 for F-13 (commit): 5511269d60e9a3122d05896c02189b4dedc13769 2026-10-16: change 1 touching both sides of pair 13
+Finding F-14 pair-014 (secondary, needs review): Module 14 moves with its neighbor
+Finding F-14 summary: 7 of 10 changes to one side also changed the other.
+Finding F-14 subject 1 (file): src/module-14/runner.ts
+Finding F-14 subject 2 (file): src/module-14/ledger.ts
+Finding F-14 relation (direct): subject 1 references subject 2 directly
+Finding F-14 strength: 73% (range 55-80%), follow-up rate (historical activity, not correctness)
+Receipt E-44 for F-14 (commit): 7479d4c887251f92efa4b8ed04247bd90558ad90 2026-10-15: change 1 touching both sides of pair 14
+Receipt E-45 for F-14 (commit): 6b1af23744138b5e6fe3030a8b4cf7b92b0ae387 2026-10-14: change 2 touching both sides of pair 14
+Finding F-15 pair-015 (secondary, needs review): Module 15 moves with its neighbor
+Finding F-15 summary: 7 of 10 changes to one side also changed the other.
+Finding F-15 subject 1 (file): src/module-15/runner.ts
+Finding F-15 subject 2 (file): src/module-15/ledger.ts
+Finding F-15 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-15 strength: 71% (range 53-78%), follow-up rate (historical activity, not correctness)
+Receipt E-46 for F-15 (commit): b37eee237ea6bb22f9c602da37c7fbb5e626bbff 2026-10-14: change 1 touching both sides of pair 15
+Receipt E-47 for F-15 (commit): dd05128477dc72be5633389d803c304571bbc2b8 2026-10-13: change 2 touching both sides of pair 15
+Receipt E-48 for F-15 (commit): 5d3077d99100d9e20bd7879c3f21869dafcd478d 2026-10-12: change 3 touching both sides of pair 15
+Finding F-16 pair-016 (secondary, needs review): Module 16 moves with its neighbor
+Finding F-16 summary: 7 of 10 changes to one side also changed the other.
+Finding F-16 subject 1 (file): src/module-16/runner.ts
+Finding F-16 subject 2 (file): src/module-16/ledger.ts
+Finding F-16 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-16 strength: 70% (range 52-77%), follow-up rate (historical activity, not correctness)
+Receipt E-49 for F-16 (commit): 804bcb6ec17a181a3164ed8b87ba84f179053426 2026-10-13: change 1 touching both sides of pair 16
+Receipt E-50 for F-16 (commit): 66d947f58afb20b22b17b64c11abecc18fb088b5 2026-10-12: change 2 touching both sides of pair 16
+Receipt E-51 for F-16 (commit): c5496c50861247e67d226bc5ce326f0994c27ee0 2026-10-11: change 3 touching both sides of pair 16
+Receipt E-52 for F-16 (commit): bd27be3fdb9f9056b552876683b83b699dfe6657 2026-10-10: change 4 touching both sides of pair 16
+Finding F-17 pair-017 (secondary, needs review): Module 17 moves with its neighbor
+Finding F-17 summary: 7 of 10 changes to one side also changed the other.
+Finding F-17 subject 1 (file): src/module-17/runner.ts
+Finding F-17 subject 2 (file): src/module-17/ledger.ts
+Finding F-17 relation (direct): subject 1 references subject 2 directly
+Finding F-17 strength: 68% (range 50-75%), follow-up rate (historical activity, not correctness)
+Receipt E-53 for F-17 (commit): ef7d63018fde697274b0d2c07077f9756aefb85d 2026-10-12: change 1 touching both sides of pair 17
+Receipt E-54 for F-17 (commit): 08efe67ad6cc35b2e7f0426721c361fd8dcb3f56 2026-10-11: change 2 touching both sides of pair 17
+Receipt E-55 for F-17 (commit): 45cbd94b663c7842fbb0e57ebd802f8597c93257 2026-10-10: change 3 touching both sides of pair 17
+Receipt E-56 for F-17 (commit): 4f51cb4ca79645026b4b872df432019dc0fbb428 2026-10-09: change 4 touching both sides of pair 17
+Receipt E-57 for F-17 (commit): aaf0bbfd06d5b81249df69c40cdbf345d3d12731 2026-10-08: change 5 touching both sides of pair 17
+Finding F-18 pair-018 (secondary, warning): Module 18 moves with its neighbor
+Finding F-18 summary: 7 of 10 changes to one side also changed the other.
+Finding F-18 subject 1 (file): src/module-18/runner.ts
+Finding F-18 subject 2 (file): src/module-18/ledger.ts
+Finding F-18 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-18 strength: 67% (range 49-74%), follow-up rate (historical activity, not correctness)
+Receipt E-58 for F-18 (commit): 94bf3c8cd971c092a20791c1d9b140092070ccf4 2026-10-11: change 1 touching both sides of pair 18
+Receipt E-59 for F-18 (commit): 8b394a8b2df3651eb61e020691b1b2d110d69163 2026-10-10: change 2 touching both sides of pair 18
+Receipt E-60 for F-18 (commit): 4e5d57ba45a7a8d637895487ef3f31e9cc441692 2026-10-09: change 3 touching both sides of pair 18
+Receipt E-61 for F-18 (commit): 34ead4418446fbe2970166d4267626f1de9ccf39 2026-10-08: change 4 touching both sides of pair 18
+Receipt E-62 for F-18 (commit): d00abc98f2db1b2274cb502d78662ec952843a10 2026-10-07: change 5 touching both sides of pair 18
+Receipt E-63 for F-18 (commit): 46aca38752e86a46596f5772f6b38a41a826470f 2026-10-06: change 6 touching both sides of pair 18
+Finding F-19 pair-019 (secondary, needs review): Module 19 moves with its neighbor
+Finding F-19 summary: 7 of 10 changes to one side also changed the other.
+Finding F-19 subject 1 (file): src/module-19/runner.ts
+Finding F-19 subject 2 (file): src/module-19/ledger.ts
+Finding F-19 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-19 strength: 65% (range 47-72%), follow-up rate (historical activity, not correctness)
+Receipt E-64 for F-19 (commit): 9a3fe27702a4f802213a0c0eb2e7d69d766d40a3 2026-10-10: change 1 touching both sides of pair 19
+Finding F-20 pair-020 (secondary, needs review): Module 20 moves with its neighbor
+Finding F-20 summary: 6 of 10 changes to one side also changed the other.
+Finding F-20 subject 1 (file): src/module-20/runner.ts
+Finding F-20 subject 2 (file): src/module-20/ledger.ts
+Finding F-20 relation (direct): subject 1 references subject 2 directly
+Finding F-20 strength: 64% (range 46-71%), follow-up rate (historical activity, not correctness)
+Receipt E-65 for F-20 (commit): 36a1fc02eee3df2a9759721f784bd001e4ba10da 2026-10-09: change 1 touching both sides of pair 20
+Receipt E-66 for F-20 (commit): 1d2f78894e9b646a89c94cd87fef38e9024bd991 2026-10-08: change 2 touching both sides of pair 20
+Finding F-21 pair-021 (secondary, needs review): Module 21 moves with its neighbor
+Finding F-21 summary: 6 of 10 changes to one side also changed the other.
+Finding F-21 subject 1 (file): src/module-21/runner.ts
+Finding F-21 subject 2 (file): src/module-21/ledger.ts
+Finding F-21 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-21 strength: 62% (range 44-69%), follow-up rate (historical activity, not correctness)
+Receipt E-67 for F-21 (commit): add0c6d67206bc9ec4382e43e94cf335e6e9cab2 2026-10-08: change 1 touching both sides of pair 21
+Receipt E-68 for F-21 (commit): b45e75bd09d28092065d1e50158e978d01b20289 2026-10-07: change 2 touching both sides of pair 21
+Receipt E-69 for F-21 (commit): 940b051856dd784e2404a729320b785562c82494 2026-10-06: change 3 touching both sides of pair 21
+Finding F-22 pair-022 (secondary, needs review): Module 22 moves with its neighbor
+Finding F-22 summary: 6 of 10 changes to one side also changed the other.
+Finding F-22 subject 1 (file): src/module-22/runner.ts
+Finding F-22 subject 2 (file): src/module-22/ledger.ts
+Finding F-22 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-22 strength: 61% (range 43-68%), follow-up rate (historical activity, not correctness)
+Receipt E-70 for F-22 (commit): c47b1ceb1d0ac396b4c9eea2881efe71efd6f42b 2026-10-07: change 1 touching both sides of pair 22
+Receipt E-71 for F-22 (commit): 4e01d86ca6a78f6eb7f2f549601565e9fe57a81c 2026-10-06: change 2 touching both sides of pair 22
+Receipt E-72 for F-22 (commit): ef6aa4a1f1e930aacac26608f2b90761e3d79eb1 2026-10-05: change 3 touching both sides of pair 22
+Receipt E-73 for F-22 (commit): 08dd281a397eccf25b6945e76af15ec91658011a 2026-10-04: change 4 touching both sides of pair 22
+Finding F-23 pair-023 (secondary, needs review): Module 23 moves with its neighbor
+Finding F-23 summary: 6 of 10 changes to one side also changed the other.
+Finding F-23 subject 1 (file): src/module-23/runner.ts
+Finding F-23 subject 2 (file): src/module-23/ledger.ts
+Finding F-23 relation (direct): subject 1 references subject 2 directly
+Finding F-23 strength: 59% (range 41-66%), follow-up rate (historical activity, not correctness)
+Receipt E-74 for F-23 (commit): af7d271499516d82d81d2965d91718ed38bb6e80 2026-10-06: change 1 touching both sides of pair 23
+Receipt E-75 for F-23 (commit): 85f702b345f21022046dee16b8da91ed86766a17 2026-10-05: change 2 touching both sides of pair 23
+Receipt E-76 for F-23 (commit): 491b0fe2d6309e42bc9cc48fd57e22158d3ed146 2026-10-04: change 3 touching both sides of pair 23
+Receipt E-77 for F-23 (commit): 30e5c0e9a1e3aa2a4629f54022d0dea58a35e495 2026-10-03: change 4 touching both sides of pair 23
+Receipt E-78 for F-23 (commit): cac874c0209b5f8a198fe8211d464f4da6583804 2026-10-02: change 5 touching both sides of pair 23
+Finding F-24 pair-024 (secondary, needs review): Module 24 moves with its neighbor
+Finding F-24 summary: 6 of 10 changes to one side also changed the other.
+Finding F-24 subject 1 (file): src/module-24/runner.ts
+Finding F-24 subject 2 (file): src/module-24/ledger.ts
+Finding F-24 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-24 strength: 58% (range 40-65%), follow-up rate (historical activity, not correctness)
+Receipt E-79 for F-24 (commit): 0fc78529d5fa325a34b3b18c12f1dba1937e4829 2026-10-05: change 1 touching both sides of pair 24
+Receipt E-80 for F-24 (commit): 27fcd4220ea2fb1ef1dadd57943bb761d31b47fa 2026-10-04: change 2 touching both sides of pair 24
+Receipt E-81 for F-24 (commit): 64d8c6f3df4a3546f995bc368bbcb6d978ddc0fb 2026-10-03: change 3 touching both sides of pair 24
+Receipt E-82 for F-24 (commit): 8e5eeb54ba7c3332fd5dd0d17ba4d6597885b224 2026-10-02: change 4 touching both sides of pair 24
+Receipt E-83 for F-24 (commit): cb3ade2550b0c7f265e49d1098866521d162c145 2026-10-28: change 5 touching both sides of pair 24
+Receipt E-84 for F-24 (commit): e4ad619e459c306ebeb1044b5f1f4491ac5bd136 2026-10-27: change 6 touching both sides of pair 24
+Finding F-25 pair-025 (secondary, warning): Module 25 moves with its neighbor
+Finding F-25 summary: 6 of 10 changes to one side also changed the other.
+Finding F-25 subject 1 (file): src/module-25/runner.ts
+Finding F-25 subject 2 (file): src/module-25/ledger.ts
+Finding F-25 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-25 strength: 56% (range 38-63%), follow-up rate (historical activity, not correctness)
+Receipt E-85 for F-25 (commit): bf671722a1340cde7850aedf5b1edec5e9c9f9d6 2026-10-04: change 1 touching both sides of pair 25
+Finding F-26 pair-026 (secondary, needs review): Module 26 moves with its neighbor
+Finding F-26 summary: 6 of 10 changes to one side also changed the other.
+Finding F-26 subject 1 (file): src/module-26/runner.ts
+Finding F-26 subject 2 (file): src/module-26/ledger.ts
+Finding F-26 relation (direct): subject 1 references subject 2 directly
+Finding F-26 strength: 55% (range 37-62%), follow-up rate (historical activity, not correctness)
+Receipt E-86 for F-26 (commit): a79abb17abb97f565496f89ef24ddb094214541f 2026-10-03: change 1 touching both sides of pair 26
+Receipt E-87 for F-26 (commit): b0f99da8abc65a860f313b5d656da049d19ab628 2026-10-02: change 2 touching both sides of pair 26
+Finding F-27 pair-027 (secondary, needs review): Module 27 moves with its neighbor
+Finding F-27 summary: 5 of 10 changes to one side also changed the other.
+Finding F-27 subject 1 (file): src/module-27/runner.ts
+Finding F-27 subject 2 (file): src/module-27/ledger.ts
+Finding F-27 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-27 strength: 53% (range 35-60%), follow-up rate (historical activity, not correctness)
+Receipt E-88 for F-27 (commit): d097dd107cfa069a42a77a21d545c7fd0121bd44 2026-10-02: change 1 touching both sides of pair 27
+Receipt E-89 for F-27 (commit): c8762eff0a3807821b53f3baf0fc9bd51ad48f23 2026-10-28: change 2 touching both sides of pair 27
+Receipt E-90 for F-27 (commit): 8b9a3c2e6516d12a9424c2fb7f7bb97d537a2102 2026-10-27: change 3 touching both sides of pair 27
+Finding F-28 pair-028 (secondary, needs review): Module 28 moves with its neighbor
+Finding F-28 summary: 5 of 10 changes to one side also changed the other.
+Finding F-28 subject 1 (file): src/module-28/runner.ts
+Finding F-28 subject 2 (file): src/module-28/ledger.ts
+Finding F-28 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-28 strength: 52% (range 34-59%), follow-up rate (historical activity, not correctness)
+Receipt E-91 for F-28 (commit): a9a88e85a05976b290f7ed28c42ce8b9a3e0f48d 2026-10-28: change 1 touching both sides of pair 28
+Receipt E-92 for F-28 (commit): c31b11fe4059f836ae3b532bea945aa179d32746 2026-10-27: change 2 touching both sides of pair 28
+Receipt E-93 for F-28 (commit): fff704cf5b51f696167de2226b025139fb346757 2026-10-26: change 3 touching both sides of pair 28
+Receipt E-94 for F-28 (commit): 0955e7602ba9719a824322bd9e25e3e18ca8e6b8 2026-10-25: change 4 touching both sides of pair 28
+Finding F-29 pair-029 (secondary, needs review): Module 29 moves with its neighbor
+Finding F-29 summary: 5 of 10 changes to one side also changed the other.
+Finding F-29 subject 1 (file): src/module-29/runner.ts
+Finding F-29 subject 2 (file): src/module-29/ledger.ts
+Finding F-29 relation (direct): subject 1 references subject 2 directly
+Finding F-29 strength: 50% (range 32-57%), follow-up rate (historical activity, not correctness)
+Receipt E-95 for F-29 (commit): 10d0390ec244f29e01312c3bd777e895b8e5b04a 2026-10-27: change 1 touching both sides of pair 29
+Receipt E-96 for F-29 (commit): f89aea1598a82272f539a7d8e669fb5d98a3f721 2026-10-26: change 2 touching both sides of pair 29
+Receipt E-97 for F-29 (commit): d70a44f012e7d9defd6b8011f78cf0a5183f5a9c 2026-10-25: change 3 touching both sides of pair 29
+Receipt E-98 for F-29 (commit): cdab625f62186202c79011f69da1c17dfc0d690b 2026-10-24: change 4 touching both sides of pair 29
+Receipt E-99 for F-29 (commit): 555ce012dd39111681ef948f604fefcd6efe16ee 2026-10-23: change 5 touching both sides of pair 29
+Finding F-30 pair-030 (secondary, needs review): Module 30 moves with its neighbor
+Finding F-30 summary: 5 of 10 changes to one side also changed the other.
+Finding F-30 subject 1 (file): src/module-30/runner.ts
+Finding F-30 subject 2 (file): src/module-30/ledger.ts
+Finding F-30 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-30 strength: 49% (range 31-56%), follow-up rate (historical activity, not correctness)
+Receipt E-100 for F-30 (commit): 03189bc3375660262518b3ba631410110469d483 2026-10-26: change 1 touching both sides of pair 30
+Receipt E-101 for F-30 (commit): 2b618ba45380e00ead3d956191601c4994804644 2026-10-25: change 2 touching both sides of pair 30
+Receipt E-102 for F-30 (commit): acca257999532c1a888f1a50bc628c810f6cbd09 2026-10-24: change 3 touching both sides of pair 30
+Receipt E-103 for F-30 (commit): c63ca8f2266a1aa2f5d74ddf87ef27f94ab32b92 2026-10-23: change 4 touching both sides of pair 30
+Receipt E-104 for F-30 (commit): be8bf4bf25535036e8b371d6859f668969ffa4f7 2026-10-22: change 5 touching both sides of pair 30
+Receipt E-105 for F-30 (commit): c6ada2d0c04dba5ebca0ab4d466ea1b1f0d85c88 2026-10-21: change 6 touching both sides of pair 30
+Finding F-31 pair-031 (secondary, needs review): Module 31 moves with its neighbor
+Finding F-31 summary: 5 of 10 changes to one side also changed the other.
+Finding F-31 subject 1 (file): src/module-31/runner.ts
+Finding F-31 subject 2 (file): src/module-31/ledger.ts
+Finding F-31 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-31 strength: 47% (range 29-54%), follow-up rate (historical activity, not correctness)
+Receipt E-106 for F-31 (commit): 71eeb955a0960e723f82c71827774f7d98979311 2026-10-25: change 1 touching both sides of pair 31
+Finding F-32 pair-032 (secondary, warning): Module 32 moves with its neighbor
+Finding F-32 summary: 5 of 10 changes to one side also changed the other.
+Finding F-32 subject 1 (file): src/module-32/runner.ts
+Finding F-32 subject 2 (file): src/module-32/ledger.ts
+Finding F-32 relation (direct): subject 1 references subject 2 directly
+Finding F-32 strength: 46% (range 28-53%), follow-up rate (historical activity, not correctness)
+Receipt E-107 for F-32 (commit): 9afc75a0872a975ec7af87558fe1614909ce80f8 2026-10-24: change 1 touching both sides of pair 32
+Receipt E-108 for F-32 (commit): 919d930f7b9069ce14810076e1dc8e01f4776717 2026-10-23: change 2 touching both sides of pair 32
+Finding F-33 pair-033 (secondary, needs review): Module 33 moves with its neighbor
+Finding F-33 summary: 4 of 10 changes to one side also changed the other.
+Finding F-33 subject 1 (file): src/module-33/runner.ts
+Finding F-33 subject 2 (file): src/module-33/ledger.ts
+Finding F-33 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-33 strength: 44% (range 26-51%), follow-up rate (historical activity, not correctness)
+Receipt E-109 for F-33 (commit): 7f054de7e5888172af843ec255f183c5dd351d9b 2026-10-23: change 1 touching both sides of pair 33
+Receipt E-110 for F-33 (commit): 8726fbf86825397a7867f6f92f8b22a5d46d6924 2026-10-22: change 2 touching both sides of pair 33
+Receipt E-111 for F-33 (commit): 28b6d79d822c25b29457e364da4fcc3da2185899 2026-10-21: change 3 touching both sides of pair 33
+Finding F-34 pair-034 (secondary, needs review): Module 34 moves with its neighbor
+Finding F-34 summary: 4 of 10 changes to one side also changed the other.
+Finding F-34 subject 1 (file): src/module-34/runner.ts
+Finding F-34 subject 2 (file): src/module-34/ledger.ts
+Finding F-34 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-34 strength: 43% (range 25-50%), follow-up rate (historical activity, not correctness)
+Receipt E-112 for F-34 (commit): fba084b2986ac6be1c2742574beb3c59cf45b502 2026-10-22: change 1 touching both sides of pair 34
+Receipt E-113 for F-34 (commit): e22e0139695929ea1901886c55ee54a98af21dc1 2026-10-21: change 2 touching both sides of pair 34
+Receipt E-114 for F-34 (commit): 60c567647b61792a566d3fc9e9fefec16014eb9c 2026-10-20: change 3 touching both sides of pair 34
+Receipt E-115 for F-34 (commit): 387c77832f2fb3eef84952ce99385a4134c59873 2026-10-19: change 4 touching both sides of pair 34
+Finding F-35 pair-035 (secondary, needs review): Module 35 moves with its neighbor
+Finding F-35 summary: 4 of 10 changes to one side also changed the other.
+Finding F-35 subject 1 (file): src/module-35/runner.ts
+Finding F-35 subject 2 (file): src/module-35/ledger.ts
+Finding F-35 relation (direct): subject 1 references subject 2 directly
+Finding F-35 strength: 41% (range 23-48%), follow-up rate (historical activity, not correctness)
+Receipt E-116 for F-35 (commit): f5ed7df9e321f17273c8cea4b4b6fb3d52e81ecd 2026-10-21: change 1 touching both sides of pair 35
+Receipt E-117 for F-35 (commit): 0f6001721bec113e94525a2f224fdd3d4253c7ae 2026-10-20: change 2 touching both sides of pair 35
+Receipt E-118 for F-35 (commit): 4c3bf443fe9f30d2e1537ca2ea6286650b2dd1af 2026-10-19: change 3 touching both sides of pair 35
+Receipt E-119 for F-35 (commit): 7484e4240d1d8bc6c877b7fd5a6c804563006458 2026-10-18: change 4 touching both sides of pair 35
+Receipt E-120 for F-35 (commit): b160d6f57da8c0323531e400b3b32d4551728c29 2026-10-17: change 5 touching both sides of pair 35
+Finding F-36 pair-036 (secondary, needs review): Module 36 moves with its neighbor
+Finding F-36 summary: 4 of 10 changes to one side also changed the other.
+Finding F-36 subject 1 (file): src/module-36/runner.ts
+Finding F-36 subject 2 (file): src/module-36/ledger.ts
+Finding F-36 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-36 strength: 40% (range 22-47%), follow-up rate (historical activity, not correctness)
+Receipt E-121 for F-36 (commit): d4362e24f290c7c625e47c6190538ca1d03ce374 2026-10-20: change 1 touching both sides of pair 36
+Receipt E-122 for F-36 (commit): abed3e4362a154eeac3a3b5ae7e8c36154117e0b 2026-10-19: change 2 touching both sides of pair 36
+Receipt E-123 for F-36 (commit): 6f114b72bf4ad8a24a55011fa40116999aecfe1a 2026-10-18: change 3 touching both sides of pair 36
+Receipt E-124 for F-36 (commit): 559ec7f9dd26f5a216a4a99849ca280930476bd9 2026-10-17: change 4 touching both sides of pair 36
+Receipt E-125 for F-36 (commit): 6f8245500a3bb10e3d481595029509390320f258 2026-10-16: change 5 touching both sides of pair 36
+Receipt E-126 for F-36 (commit): 6760973fd4cca596dc59d7dee5cd8b6948c7d99f 2026-10-15: change 6 touching both sides of pair 36
+Finding F-37 pair-037 (secondary, needs review): Module 37 moves with its neighbor
+Finding F-37 summary: 4 of 10 changes to one side also changed the other.
+Finding F-37 subject 1 (file): src/module-37/runner.ts
+Finding F-37 subject 2 (file): src/module-37/ledger.ts
+Finding F-37 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-37 strength: 38% (range 20-45%), follow-up rate (historical activity, not correctness)
+Receipt E-127 for F-37 (commit): 93571abb89dff5b2d0805e3e5875b9256b0a3a67 2026-10-19: change 1 touching both sides of pair 37
+Finding F-38 pair-038 (secondary, needs review): Module 38 moves with its neighbor
+Finding F-38 summary: 4 of 10 changes to one side also changed the other.
+Finding F-38 subject 1 (file): src/module-38/runner.ts
+Finding F-38 subject 2 (file): src/module-38/ledger.ts
+Finding F-38 relation (direct): subject 1 references subject 2 directly
+Finding F-38 strength: 37% (range 19-44%), follow-up rate (historical activity, not correctness)
+Receipt E-128 for F-38 (commit): 0808cd2681ff39c61fd01b5360a79bf12d76e67e 2026-10-18: change 1 touching both sides of pair 38
+Receipt E-129 for F-38 (commit): 0fd3b08d56206e12f83972006c24e50974948be5 2026-10-17: change 2 touching both sides of pair 38
+Finding F-39 pair-039 (secondary, warning): Module 39 moves with its neighbor
+Finding F-39 summary: 4 of 10 changes to one side also changed the other.
+Finding F-39 subject 1 (file): src/module-39/runner.ts
+Finding F-39 subject 2 (file): src/module-39/ledger.ts
+Finding F-39 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-39 strength: 35% (range 17-42%), follow-up rate (historical activity, not correctness)
+Receipt E-130 for F-39 (commit): f667e68dc501ea82fc1863d02789812d1b4620e9 2026-10-17: change 1 touching both sides of pair 39
+Receipt E-131 for F-39 (commit): ee9d03260fc065be10e305c3a396c20583ae76b2 2026-10-16: change 2 touching both sides of pair 39
+Receipt E-132 for F-39 (commit): 4b792857808917c29fdc351e05be7a2d72c2f833 2026-10-15: change 3 touching both sides of pair 39
+Finding F-40 pair-040 (secondary, needs review): Module 40 moves with its neighbor
+Finding F-40 summary: 3 of 10 changes to one side also changed the other.
+Finding F-40 subject 1 (file): src/module-40/runner.ts
+Finding F-40 subject 2 (file): src/module-40/ledger.ts
+Finding F-40 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-40 strength: 34% (range 16-41%), follow-up rate (historical activity, not correctness)
+Receipt E-133 for F-40 (commit): 8f99ef783d67cd1e62ad5d5dcea99ac98ac50690 2026-10-16: change 1 touching both sides of pair 40
+Receipt E-134 for F-40 (commit): 877841670201ce0e4b6c487efe720ee18c0a017f 2026-10-15: change 2 touching both sides of pair 40
+Receipt E-135 for F-40 (commit): aa9ce5b6c4d742526b56e98b36f796198824a72e 2026-10-14: change 3 touching both sides of pair 40
+Receipt E-136 for F-40 (commit): 3129cb1dc38931e28568b5745da9acf10511f525 2026-10-13: change 4 touching both sides of pair 40
+Metric commits-read "Commits read": 400
+Metric files-seen "Files seen": 212
+Metric findings "Findings": 40
+Warning: 312 low-signal pairs were dropped; pass --include-noise to keep them.
+Next step: repo-archaeology explain src/module-1/runner.ts (Show the commits behind the top finding.)
+Next step: frame12-term render --from run.f12rec --replay (Replay this run.)
+End of results: 40 findings, 1 warning, run completed.

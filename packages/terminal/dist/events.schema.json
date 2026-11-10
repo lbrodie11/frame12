@@ -201,6 +201,13 @@
         "strength": {
           "$ref": "#/$defs/Strength"
         },
+        "relation": {
+          "enum": [
+            "history-only",
+            "direct",
+            "indirect"
+          ]
+        },
         "receipts": {
           "type": "array",
           "items": {

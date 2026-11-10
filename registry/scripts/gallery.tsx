@@ -2814,24 +2814,40 @@ if (rootEl) {
     document.body.appendChild(hostB);
     const rootA = RD.createRoot(hostA);
     const rootB = RD.createRoot(hostB);
+    const flushSync = (window as unknown as { ReactDOM?: { flushSync?: (fn: () => void) => void } }).ReactDOM?.flushSync;
+    const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
     try {
-      rootA.render(
-        <Sheet pegs={false} motion="stepped">
-          <GhostWire id="fixture-gw-mount" from="src/a.ts" to="src/b.ts" />
-        </Sheet>,
-      );
-      rootB.render(
-        <Sheet pegs={false} motion="stepped">
-          <GhostWire id="fixture-gw-mount" from="src/a.ts" to="src/b.ts" />
-        </Sheet>,
-      );
-      await new Promise((r) => requestAnimationFrame(r));
-      const revealLine = hostA.querySelector('#fixture-gw-mount line.f12-ghost-wire-reveal');
+      // createRoot().render() commits asynchronously. Measuring after a fixed single frame raced
+      // the commit on loaded CI runners (the line did not exist yet: offset read as the '0'
+      // fallback, masks as missing). Commit synchronously, then wait for the element itself.
+      const renderBoth = () => {
+        rootA.render(
+          <Sheet pegs={false} motion="stepped">
+            <GhostWire id="fixture-gw-mount" from="src/a.ts" to="src/b.ts" />
+          </Sheet>,
+        );
+        rootB.render(
+          <Sheet pegs={false} motion="stepped">
+            <GhostWire id="fixture-gw-mount" from="src/a.ts" to="src/b.ts" />
+          </Sheet>,
+        );
+      };
+      if (flushSync) flushSync(renderBoth);
+      else renderBoth();
+      const deadline = performance.now() + 3000;
+      let revealLine = hostA.querySelector('#fixture-gw-mount line.f12-ghost-wire-reveal');
+      while (!revealLine && performance.now() < deadline) {
+        await nextFrame();
+        revealLine = hostA.querySelector('#fixture-gw-mount line.f12-ghost-wire-reveal');
+      }
+      await nextFrame();
       const firstFrameOffset = Number(revealLine?.getAttribute('stroke-dashoffset') ?? '0');
       const maskA = hostA.querySelector('mask')?.getAttribute('id') ?? '';
       const maskB = hostB.querySelector('mask')?.getAttribute('id') ?? '';
       const multiRootDistinctMasks = Boolean(maskA && maskB && maskA !== maskB);
-      await new Promise((r) => setTimeout(r, 480));
+      // The reveal runs on twos (83.33 ms poses); wait for it to settle instead of a fixed 480 ms,
+      // which a throttled runner can outlast. A reveal that never finishes still fails (deadline).
+      while (Number(revealLine?.getAttribute('stroke-dashoffset') ?? '-1') !== 0 && performance.now() < deadline) await nextFrame();
       const finalOffset = Number(revealLine?.getAttribute('stroke-dashoffset') ?? '-1');
       return { firstFrameOffset, finalOffset, multiRootDistinctMasks };
     } finally {

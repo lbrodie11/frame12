@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "runId": "run-canceled",
+  "title": "Investigate coupling in payments-service",
+  "status": "canceled",
+  "startedAt": "2026-11-10T09:00:00.000Z",
+  "finishedAt": "2026-11-10T09:00:08.325Z",
+  "cuts": [
+    {
+      "cut": "resolve-workspace",
+      "title": "Resolve workspace",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 140
+    },
+    {
+      "cut": "read-history",
+      "title": "Read history",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 2380
+    },
+    {
+      "cut": "pair-changes",
+      "title": "Pair changes",
+      "status": "canceled",
+      "scene": "analysis",
+      "durationMs": 1710,
+      "summary": "Canceled by the user (SIGINT)."
+    },
+    {
+      "cut": "rank-findings",
+      "title": "Rank findings",
+      "status": "skipped",
+      "scene": "analysis",
+      "durationMs": 95
+    }
+  ],
+  "metrics": [
+    {
+      "name": "commits-read",
+      "label": "Commits read",
+      "value": 400
+    }
+  ],
+  "findings": [],
+  "warnings": []
+}

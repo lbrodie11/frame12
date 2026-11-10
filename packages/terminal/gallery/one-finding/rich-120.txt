@@ -1,0 +1,32 @@
+FRAME/12 · Investigate coupling in payments-service
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+RUN · 4 CUTS                        ✓ completed  4.3s
+
+
+FINDINGS  1 (1 top)
+
+ F-01   Settlement runner moves with the ledger reconciler
+┃ needs review · top finding · pair-001
+┃ 9 of 10 changes to one side also changed the other.
+┃ src/module-1/runner.ts
+┃   ⇢ changes with it, no code link
+┃ src/module-1/ledger.ts
+┃ ▰▰▰▰▰▰▰▱ 92% (range 74–99%)
+┃ follow-up rate (historical activity, not correctness)
+┃ E-01  8947a15  2026-10-28  change 1 touching both sides of pair 1
+┃ E-02  8125f33  2026-10-27  change 2 touching both sides of pair 1
+┃ E-03  444a006  2026-10-26  change 3 touching both sides of pair 1
+┃ +1 more receipt
+
+
+METRICS
+  Commits read  400    Files seen    212
+  Findings      1
+
+
+NEXT STEPS
+  repo-archaeology explain src/module-1/runner.ts
+    Show the commits behind the top finding.
+  frame12-term render --from run.f12rec --replay
+    Replay this run.

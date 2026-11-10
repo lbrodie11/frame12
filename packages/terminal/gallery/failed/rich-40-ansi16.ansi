@@ -1,0 +1,28 @@
+[2mFRAME/12 · [22m[1mInvestigate coupling in[22m
+[1m           payments-service[22m
+[2m────────────────────────────────────────[22m
+
+[2mRUN · [22m[1m4 CUTS[22m              [1;7m✕ failed[22;27m  [2m4.3s[22m
+[2mC-02 · [22m[1mREAD HISTORY[22m       [1;7m✕ failed[22;27m  [2m2.4s[22m
+[2mC-03 · [22m[1mPAIR CHANGES[22m      [2m○ skipped[22m  [2m1.7s[22m
+[2mC-04 · [22m[1mRANK FINDINGS[22m    [2m○ skipped[22m  [2m0.10s[22m
+
+[1mERROR[22m
+  [1;7mHistory could not be read: object[22;27m
+  [1;7m3f9a2c1 is missing (shallow clone?).[22;27m
+
+
+[1mFINDINGS[22m  [2mnone[22m
+  [2mThe run failed before producing[22m
+  [2mfindings.[22m
+
+
+[1mWARNINGS[22m
+  [1m▲ warning: Results are incomplete: 2[22m
+  [1m  cuts were skipped.[22m
+
+
+[1mNEXT STEPS[22m
+  [1mframe12-term render --from \[22m
+  [1mrun.f12rec --replay[22m
+    [2mReplay this run.[22m

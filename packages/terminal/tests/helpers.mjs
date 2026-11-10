@@ -74,4 +74,4 @@ export function schemaErrors(schema, value, root = schema, path = '$') {
 }
 
 /** Characters that must never survive sanitization. */
-export const FORBIDDEN_OUTPUT = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f؜‎‏‪-‮⁦-⁩]/u;
+export const FORBIDDEN_OUTPUT = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u;

@@ -9,3 +9,4 @@ export * from './core/motion.js';
 export * from './core/safety.js';
 export * from './core/width.js';
 export * from './core/tokens.js';
+export * from './core/glyphs.js';

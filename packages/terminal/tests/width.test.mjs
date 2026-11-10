@@ -31,13 +31,13 @@ describe('width: golden tables', () => {
     ['halfwidth Katakana', 'ｶﾀｶﾅ', 4, 4],
     ['CJK punctuation', '「」、。', 8, 8],
     ['emoji (presentation)', '😀', 2, 2],
-    ['emoji ZWJ family', '👨‍👩‍👧‍👦', 2, 2],
-    ['emoji ZWJ profession', '🧑‍💻', 2, 2],
-    ['rainbow flag (VS16 + ZWJ)', '🏳️‍🌈', 2, 2],
+    ['emoji ZWJ family', '👨\u200d👩\u200d👧\u200d👦', 2, 2],
+    ['emoji ZWJ profession', '🧑\u200d💻', 2, 2],
+    ['rainbow flag (VS16 + ZWJ)', '🏳️\u200d🌈', 2, 2],
     ['flag (regional indicators)', '🇯🇵', 2, 2],
     ['two flags', '🇯🇵🇺🇸', 4, 4],
     ['skin-tone modifier', '👍🏽', 2, 2],
-    ['skin-tone ZWJ sequence', '👩🏽‍🚀', 2, 2],
+    ['skin-tone ZWJ sequence', '👩🏽\u200d🚀', 2, 2],
     ['text-default pictograph', '❤', 1, 1],
     ['text-default pictograph + VS16', '❤️', 2, 2],
     ['emoji-default + VS15 (text)', '⌚︎', 1, 1],
@@ -45,8 +45,8 @@ describe('width: golden tables', () => {
     ['combining acute (NFD é)', 'é', 1, 1],
     ['stacked combining marks', 'à́̂', 1, 1],
     ['Devanagari with virama', 'क्षि', 1, 1],
-    ['zero-width space', 'a​b', 2, 2],
-    ['soft hyphen', 'a­b', 2, 2],
+    ['zero-width space', 'a\u200bb', 2, 2],
+    ['soft hyphen', 'a\u00adb', 2, 2],
     ['box drawing (ambiguous)', '─┃', 2, 4],
     ['black up-pointing triangle (ambiguous)', '▲', 1, 2],
     ['ellipsis (ambiguous)', '…', 1, 2],
@@ -95,7 +95,7 @@ describe('width: truncation', () => {
 
   it('never splits a grapheme and never exceeds the limit (property, 3,000 cases)', () => {
     const r = rng(11);
-    const atoms = ['a', '/', '漢', '👨‍👩‍👧', '🇯🇵', 'é', '👍🏽', '─', 'ｶ', '.ts'];
+    const atoms = ['a', '/', '漢', '👨\u200d👩\u200d👧', '🇯🇵', 'é', '👍🏽', '─', 'ｶ', '.ts'];
     for (let i = 0; i < 3000; i++) {
       const text = Array.from({ length: r.int(0, 30) }, () => r.pick(atoms)).join('');
       const opts = { ambiguousWide: r.next() < 0.5, ellipsis: r.next() < 0.5 ? '…' : '...' };
@@ -133,7 +133,7 @@ describe('width: wrapping', () => {
 
   it('never exceeds the width (property, 3,000 cases, CJK and emoji included)', () => {
     const r = rng(29);
-    const atoms = ['word', 'a', ' ', ' ', 'src/a/b/c.ts', 'https://e.com/x/y', '漢字かな', '👨‍👩‍👧', '🇯🇵', 'é', '─', 'x'.repeat(50)];
+    const atoms = ['word', 'a', ' ', ' ', 'src/a/b/c.ts', 'https://e.com/x/y', '漢字かな', '👨\u200d👩\u200d👧', '🇯🇵', 'é', '─', 'x'.repeat(50)];
     for (let i = 0; i < 3000; i++) {
       const text = Array.from({ length: r.int(0, 25) }, () => r.pick(atoms)).join(r.next() < 0.8 ? ' ' : '');
       const width = r.int(2, 80);
@@ -147,7 +147,7 @@ describe('width: wrapping', () => {
 
   it('pads by cells, not code units', () => {
     assert.equal(padEnd('漢', 4), '漢  ');
-    assert.equal(stringWidth(padEnd('👨‍👩‍👧', 5)), 5);
+    assert.equal(stringWidth(padEnd('👨\u200d👩\u200d👧', 5)), 5);
     assert.equal(padEnd('toolong', 3), 'toolong');
   });
 });

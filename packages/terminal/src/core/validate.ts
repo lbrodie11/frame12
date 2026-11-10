@@ -45,6 +45,7 @@ export const VALIDATION_CODES = [
   'unknown-finding',
   'missing-run-end',
   'forbidden-key',
+  'duplicate-snapshot',
 ] as const;
 export type ValidationCode = (typeof VALIDATION_CODES)[number];
 
@@ -348,6 +349,7 @@ export function createStreamValidator(options: StreamValidatorOptions = {}): Str
   let runId: string | undefined;
   let lastSeq = 0;
   let ended = false;
+  let snapshotSeen = false;
   const lifecycle = options.lifecycle !== false;
   let started = false;
   const ids = new Set<string>();
@@ -410,6 +412,9 @@ export function createStreamValidator(options: StreamValidatorOptions = {}): Str
       if (ev.seq <= lastSeq) out.push(issue('seq-not-increasing', 'seq', `seq ${ev.seq} must be greater than the previous seq ${lastSeq}.`));
       if (ids.has(ev.id)) out.push(issue('duplicate-id', 'id', `Event id "${ev.id}" was already used in this run.`));
       if (ended && ev.type !== 'snapshot') out.push(issue('after-run-end', 'type', `"${ev.type}" arrived after run-end.`));
+      // One run has one authoritative result: a second snapshot would print results twice (and
+      // make --json output two documents). Always enforced, lifecycle or not.
+      if (ev.type === 'snapshot' && snapshotSeen) out.push(issue('duplicate-snapshot', 'type', 'A second snapshot arrived; a run has exactly one authoritative result.'));
       if (ev.type === 'cut-progress' && ev.done !== undefined) {
         const prev = progress.get(ev.cut);
         if (prev !== undefined && ev.done < prev) {
@@ -431,6 +436,7 @@ export function createStreamValidator(options: StreamValidatorOptions = {}): Str
       remember(ids, ev.id);
       if (ev.type === 'cut-progress' && ev.done !== undefined) progress.set(ev.cut, ev.done);
       if (ev.type === 'run-end') ended = true;
+      if (ev.type === 'snapshot') snapshotSeen = true;
       return res;
     },
   };

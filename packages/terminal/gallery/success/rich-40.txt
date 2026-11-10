@@ -1,0 +1,66 @@
+FRAME/12 · Investigate coupling in
+           payments-service
+────────────────────────────────────────
+
+RUN · 4 CUTS           ✓ completed  4.3s
+
+
+FINDINGS  3 (1 top, 2 primary)
+
+ F-01   Settlement runner moves with the
+        ledger reconciler
+┃ needs review · top finding · pair-001
+┃ 9 of 10 changes to one side also
+┃ changed the other.
+┃ src/module-1/runner.ts
+┃   ⇢ changes with it, no code link
+┃ src/module-1/ledger.ts
+┃ ▰▰▰▰▰▰▰▱ 92% (range 74–99%)
+┃ follow-up rate (historical activity,
+┃ not correctness)
+┃ E-01  8947a15  2026-10-28  change 1 t…
+┃ E-02  8125f33  2026-10-27  change 2 t…
+┃ E-03  444a006  2026-10-26  change 3 t…
+┃ +3 more receipts
+
+F-02  Module 2 moves with its neighbor
+  needs review · primary · pair-002
+  7 of 10 changes to one side also
+  changed the other.
+  src/module-2/runner.ts
+    → references it directly
+  src/module-2/ledger.ts
+  ▰▰▰▰▰▰▱▱ 72% (range 54–79%)
+  follow-up rate (historical activity,
+  not correctness)
+  E-07  8949ffc  2026-10-27  change 1 t…
+  E-08  a2bc833  2026-10-26  change 2 t…
+  E-09  df98760  2026-10-25  change 3 t…
+
+F-03  Module 3 moves with its neighbor
+  needs review · primary · pair-003
+  5 of 10 changes to one side also
+  changed the other.
+  src/module-3/runner.ts
+    ⇢ changes with it, no code link
+  src/module-3/ledger.ts
+  ▰▰▰▰▱▱▱▱ 52% (range 34–59%)
+  follow-up rate (historical activity,
+  not correctness)
+  E-10  d7ba246  2026-10-26  change 1 t…
+
+
+METRICS
+  Commits read  400
+  Files seen    212
+  Findings      3
+
+
+NEXT STEPS
+  repo-archaeology explain \
+  src/module-1/runner.ts
+    Show the commits behind the top
+    finding.
+  frame12-term render --from \
+  run.f12rec --replay
+    Replay this run.

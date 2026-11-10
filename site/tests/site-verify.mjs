@@ -896,7 +896,18 @@ try {
     );
 
     // Overview: time range switching, SLO breach badge on 7d/30d vs 24h within budget, & ranked service selection
-    const slo24hOk = await page.evaluate(() => {
+    // Wait for an expected UI state instead of reading it at a fixed moment: React commits and focus
+    // moves after a click are asynchronous, and a loaded CI runner stretches them past fixed sleeps.
+    // The predicate is unchanged; a state that never arrives still fails (false after the deadline).
+    const settle = async (predicate) => {
+      try {
+        await page.waitForFunction(predicate, null, { timeout: 3000 });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const slo24hOk = await settle(() => {
       const text = document.getElementById('dev-console-sheet')?.textContent || '';
       const tag = document.getElementById('dev-console-slo-status-tag');
       return (
@@ -935,8 +946,14 @@ try {
     const overlayKeyboardFocusOk = await page.evaluate(
       () => document.activeElement?.id === 'int-dev-console-svc-bar-svc-inventory-ledger',
     );
+    // If this check fails again, report where focus actually went and which service overlay the
+    // Overview shows (the original flake was a late refocus from the retry step; see above).
+    const focusDiagnostics = await page.evaluate(() => ({
+      activeElementId: document.activeElement?.id || document.activeElement?.tagName || null,
+      overlayLabel: (document.getElementById('dev-console-sheet')?.textContent || '').match(/OVERLAY: [A-Z0-9-]+/)?.[0] ?? null,
+    }));
     await page.click('#dev-console-range-7d');
-    const overviewUpdated = await page.evaluate(() => {
+    const overviewUpdated = await settle(() => {
       const text = document.getElementById('dev-console-sheet')?.textContent || '';
       const tag = document.getElementById('dev-console-slo-status-tag');
       return (
@@ -953,7 +970,7 @@ try {
       );
     });
     await page.click('#dev-console-range-30d');
-    const slo30dOk = await page.evaluate(() => {
+    const slo30dOk = await settle(() => {
       const text = document.getElementById('dev-console-sheet')?.textContent || '';
       const tag = document.getElementById('dev-console-slo-status-tag');
       return (
@@ -971,7 +988,7 @@ try {
     check(
       slo24hOk && overlayKeyboardFocusOk && overviewUpdated && slo30dOk,
       'site /blocks/developer-console Overview: 24h/7d/30d SLO status badge accuracy, range-reconciled footers, keyboard overlay focus, and ranked service overlay selection',
-      JSON.stringify({ slo24hOk, overlayKeyboardFocusOk, overviewUpdated, slo30dOk }),
+      JSON.stringify({ slo24hOk, overlayKeyboardFocusOk, overviewUpdated, slo30dOk, ...(overlayKeyboardFocusOk && overviewUpdated ? {} : { focusDiagnostics }) }),
     );
 
     // Services & Endpoints: circuit-breaker switch, search empty state, and filter reset

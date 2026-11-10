@@ -49,6 +49,14 @@ export type FindingStatus = (typeof FINDING_STATUSES)[number];
 export const RECEIPT_KINDS = ['commit', 'file', 'link', 'log', 'test', 'tool-call'] as const;
 export type ReceiptKind = (typeof RECEIPT_KINDS)[number];
 
+/**
+ * How the first two subjects of a finding are connected. `history-only`: they change together
+ * with no code link (a ghost wire). `direct`: one references the other. `indirect`: connected
+ * through other modules.
+ */
+export const RELATIONS = ['history-only', 'direct', 'indirect'] as const;
+export type Relation = (typeof RELATIONS)[number];
+
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
@@ -89,6 +97,8 @@ export interface Finding {
   strength?: Strength;
   prominence: Prominence;
   status: FindingStatus;
+  /** How `subject[0]` and `subject[1]` are connected; renderers draw a typed connector. */
+  relation?: Relation;
   receipts?: ReceiptRef[];
 }
 
@@ -296,6 +306,7 @@ export const OBJECT_SPEC: Record<ObjectName, ObjectSpec> = {
     optional: {
       summary: text,
       strength: { kind: 'object', ref: 'Strength' },
+      relation: enumOf(RELATIONS),
       receipts: { kind: 'array', items: { kind: 'object', ref: 'ReceiptRef' } },
     },
   },

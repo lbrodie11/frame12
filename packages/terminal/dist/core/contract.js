@@ -33,6 +33,12 @@ export const RUN_STATUSES = ['completed', 'failed', 'canceled'];
 export const PROMINENCES = ['hero', 'primary', 'secondary'];
 export const FINDING_STATUSES = ['review', 'info', 'ok', 'warning', 'danger'];
 export const RECEIPT_KINDS = ['commit', 'file', 'link', 'log', 'test', 'tool-call'];
+/**
+ * How the first two subjects of a finding are connected. `history-only`: they change together
+ * with no code link (a ghost wire). `direct`: one references the other. `indirect`: connected
+ * through other modules.
+ */
+export const RELATIONS = ['history-only', 'direct', 'indirect'];
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'];
 export const LOG_STREAMS = ['stdout', 'stderr'];
 /** Ids are stable domain identifiers: 1–128 chars, no whitespace or control characters. */
@@ -85,6 +91,7 @@ export const OBJECT_SPEC = {
         optional: {
             summary: text,
             strength: { kind: 'object', ref: 'Strength' },
+            relation: enumOf(RELATIONS),
             receipts: { kind: 'array', items: { kind: 'object', ref: 'ReceiptRef' } },
         },
     },

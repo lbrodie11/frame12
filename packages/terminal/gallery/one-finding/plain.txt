@@ -1,0 +1,23 @@
+FRAME/12 run "Investigate coupling in payments-service" (run-one): completed
+Run started 2026-11-10T09:00:00.000Z, finished 2026-11-10T09:00:10.325Z.
+Cut C-01 resolve-workspace "Resolve workspace": done in 0.14s
+Cut C-02 read-history "Read history": done in 2.4s
+Cut C-03 pair-changes "Pair changes": done in 1.7s
+Cut C-04 rank-findings "Rank findings": done in 0.10s
+Findings: 1 (1 top)
+Finding F-01 pair-001 (top finding, needs review): Settlement runner moves with the ledger reconciler
+Finding F-01 summary: 9 of 10 changes to one side also changed the other.
+Finding F-01 subject 1 (file): src/module-1/runner.ts
+Finding F-01 subject 2 (file): src/module-1/ledger.ts
+Finding F-01 relation (history-only): subject 1 changes together with subject 2, with no code link between them
+Finding F-01 strength: 92% (range 74-99%), follow-up rate (historical activity, not correctness)
+Receipt E-01 for F-01 (commit): 8947a1508ddf29b0f66cde497e3b0b35011109ac 2026-10-28: change 1 touching both sides of pair 1
+Receipt E-02 for F-01 (commit): 8125f33f60e0ff069b0353dc0ead4ff170adbd2f 2026-10-27: change 2 touching both sides of pair 1
+Receipt E-03 for F-01 (commit): 444a006ebb4b9468b63bb0cb800f32e10e401896 2026-10-26: change 3 touching both sides of pair 1
+Receipt E-04 for F-01 (commit): 2ad77cf5d0cb2d326d12fe1e009f3bc54198b0a9 2026-10-25: change 4 touching both sides of pair 1
+Metric commits-read "Commits read": 400
+Metric files-seen "Files seen": 212
+Metric findings "Findings": 1
+Next step: repo-archaeology explain src/module-1/runner.ts (Show the commits behind the top finding.)
+Next step: frame12-term render --from run.f12rec --replay (Replay this run.)
+End of results: 1 finding, 0 warnings, run completed.

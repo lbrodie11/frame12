@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "runId": "run-empty",
+  "title": "Investigate coupling in payments-service",
+  "status": "completed",
+  "startedAt": "2026-11-10T09:00:00.000Z",
+  "finishedAt": "2026-11-10T09:00:09.075Z",
+  "cuts": [
+    {
+      "cut": "resolve-workspace",
+      "title": "Resolve workspace",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 140
+    },
+    {
+      "cut": "read-history",
+      "title": "Read history",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 2380
+    },
+    {
+      "cut": "pair-changes",
+      "title": "Pair changes",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 1710
+    },
+    {
+      "cut": "rank-findings",
+      "title": "Rank findings",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 95
+    }
+  ],
+  "metrics": [
+    {
+      "name": "commits-read",
+      "label": "Commits read",
+      "value": 400
+    },
+    {
+      "name": "files-seen",
+      "label": "Files seen",
+      "value": 212
+    },
+    {
+      "name": "findings",
+      "label": "Findings",
+      "value": 0
+    }
+  ],
+  "findings": [],
+  "warnings": []
+}

@@ -90,7 +90,7 @@ export function fakeStreams(options: FakeStreamOptions = {}): Required<Streams> 
 
 // --------------------------------------------------------------------------------- fixtures
 
-export const FIXTURE_NAMES = ['success', 'failed', 'canceled', 'empty', 'one-finding', 'forty-findings', 'repo-archaeology'] as const;
+export const FIXTURE_NAMES = ['success', 'failed', 'canceled', 'empty', 'one-finding', 'forty-findings', 'repo-archaeology', 'long-values'] as const;
 export type FixtureName = (typeof FIXTURE_NAMES)[number];
 
 export interface Fixture {
@@ -129,11 +129,24 @@ const PIPELINE: ReadonlyArray<Omit<CutPlan, 'status' | 'durationMs'>> = [
   { cut: 'rank-findings', title: 'Rank findings' },
 ];
 
+/** A deterministic, realistic-looking 40-hex SHA (FNV-1a chained; not a real commit). */
+function fakeSha(seed: string): string {
+  let h = 0x811c9dc5;
+  let out = '';
+  for (let round = 0; out.length < 40; round++) {
+    for (const ch of `${seed}:${round}`) {
+      h ^= ch.charCodeAt(0);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    out += h.toString(16).padStart(8, '0');
+  }
+  return out.slice(0, 40);
+}
+
 function receipt(i: number, j: number): ReceiptRef {
-  const hex = ((i * 7919 + j * 104729) >>> 0).toString(16).padStart(8, '0');
   return {
     kind: 'commit',
-    value: `${hex}${'0123456789abcdef0123456789abcdef'.slice(0, 32)}`,
+    value: fakeSha(`pair-${i}-change-${j}`),
     at: new Date(Date.UTC(2026, 9, 28 - ((i + j) % 27))).toISOString(),
     note: `change ${j + 1} touching both sides of pair ${i + 1}`,
   };
@@ -153,6 +166,7 @@ function finding(i: number, total: number, receipts: number): Finding {
     strength: { value, low: Math.max(0, Math.round((value - 0.18) * 100) / 100), high: Math.min(1, Math.round((value + 0.07) * 100) / 100), label: 'follow-up rate (historical activity, not correctness)' },
     prominence,
     status: i % 7 === 3 ? 'warning' : 'review',
+    relation: i % 3 === 1 ? 'direct' : 'history-only',
     receipts: Array.from({ length: receipts }, (_, j) => receipt(i, j)),
   };
 }
@@ -285,6 +299,7 @@ function repoArchaeologyPlan(): RunPlan {
       ],
       strength: { value: p.confidence, label: 'follow-up rate (historical activity, not correctness)' },
       prominence: p.relationship === 'ghost' ? 'hero' : 'primary',
+      relation: p.relationship === 'ghost' ? 'history-only' : p.relationship,
       status: p.relationship === 'ghost' ? 'review' : 'info',
       receipts: p.evidence.map(([sha, date, subject]) => ({ kind: 'commit', value: sha, at: `${date}T00:00:00.000Z`, note: subject })),
     }))
@@ -312,11 +327,56 @@ function repoArchaeologyPlan(): RunPlan {
   };
 }
 
+/**
+ * A stress fixture for layout: non-commit receipts with long values, long metric labels and values,
+ * findings without a relation, and very long titles and paths. Every renderer must keep every line
+ * within the terminal width at every width from 20 columns up.
+ */
+function longValuesPlan(): RunPlan {
+  const deep = 'packages/very/deep/directory/structure/with/many/levels/of/nesting/and/a/long/file-name-that-keeps-going.generated.ts';
+  const base = finding(0, 2, 0);
+  const findings: Finding[] = [
+    {
+      ...base,
+      id: 'build-step-cache-miss',
+      title: 'The build cache misses on every run because the lockfile hash includes a timestamp written by the install step',
+      subject: [
+        { kind: 'file', label: deep },
+        { kind: 'file', label: 'scripts/ci/compute-cache-key-from-lockfile-and-node-version.mjs' },
+      ],
+      relation: undefined,
+      receipts: [
+        { kind: 'file', value: deep, note: 'generated on every install' },
+        { kind: 'tool-call', value: 'node scripts/ci/compute-cache-key-from-lockfile-and-node-version.mjs --lockfile package-lock.json --node 22.23.4 --verbose' },
+        { kind: 'link', value: 'https://ci.example.com/acme/payments/runs/12345678/jobs/98765432/steps/7', href: 'https://ci.example.com/acme/payments/runs/12345678/jobs/98765432/steps/7' },
+        { kind: 'test', value: 'cache key is stable across identical installs (tests/cache-key.test.mjs:42)' },
+      ],
+    },
+    { ...finding(1, 2, 2), id: 'unrelated-pair', relation: undefined, prominence: 'secondary' },
+  ];
+  delete findings[0]!.relation;
+  delete findings[1]!.relation;
+  return {
+    name: 'long-values',
+    description: 'A layout stress test: long paths, tool-call and link receipts, long metrics, and findings with no stated relation.',
+    title: 'Investigate why the continuous-integration cache misses on every single run of the payments-service pipeline',
+    runId: 'run-long-values',
+    cuts: pipeline(['ok', 'ok', 'warning', 'canceled'], { 2: 'Some pairs could not be classified because the history was shallow; rerun with a full clone.' }),
+    metrics: [
+      { name: 'cache-hit-rate', label: 'Cache hit rate across the last thirty days of pipeline runs', value: '0.0% (0 of 1,284 runs)' },
+      { name: 'bytes-downloaded', label: 'Bytes downloaded', value: 48_211_337_412, unit: 'bytes' },
+    ],
+    findings,
+    warnings: ['The repository is a shallow clone (depth 50); history older than 50 commits was not read, so rates may be overstated.'],
+    status: 'canceled',
+  };
+}
+
 function plan(name: FixtureName): RunPlan {
   switch (name) {
     case 'success': {
       const findings = [finding(0, 3, 6), finding(1, 3, 3), finding(2, 3, 1)];
-      return { name, description: 'A completed run with a hero, a primary and a secondary finding.', title: 'Investigate coupling in payments-service', runId: 'run-success', cuts: pipeline(['ok', 'ok', 'ok', 'ok']), metrics: metrics(3), findings, warnings: [], status: 'completed' };
+      return { name, description: 'A completed run with a top finding and two primary findings.', title: 'Investigate coupling in payments-service', runId: 'run-success', cuts: pipeline(['ok', 'ok', 'ok', 'ok']), metrics: metrics(3), findings, warnings: [], status: 'completed' };
     }
     case 'failed': {
       const error = 'History could not be read: object 3f9a2c1 is missing (shallow clone?).';
@@ -334,6 +394,8 @@ function plan(name: FixtureName): RunPlan {
     }
     case 'repo-archaeology':
       return repoArchaeologyPlan();
+    case 'long-values':
+      return longValuesPlan();
   }
 }
 

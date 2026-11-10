@@ -1,0 +1,23 @@
+FRAME/12 · Investigate coupling in
+           payments-service
+────────────────────────────────────────
+
+RUN · 4 CUTS            ⊘ canceled  4.3s
+C-03 · PAIR CHANGES     ⊘ canceled  1.7s
+  Canceled by the user (SIGINT).
+C-04 · RANK FINDINGS    ○ skipped  0.10s
+
+
+FINDINGS  none
+  The run canceled before producing
+  findings.
+
+
+METRICS
+  Commits read  400
+
+
+NEXT STEPS
+  frame12-term render --from \
+  run.f12rec --replay
+    Replay this run.

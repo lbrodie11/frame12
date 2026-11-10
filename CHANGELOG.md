@@ -4,6 +4,10 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Flaky browser tests:** the registry GhostWire mount-pose check measured one animation frame after `createRoot().render()`, which commits asynchronously; on loaded CI runners the line did not exist yet (`firstFrameOffset: 0`, `finalOffset: -1`). It now renders with `flushSync`, waits for the element, and waits for the on-twos reveal to settle (3 s deadline) instead of fixed 480/560 ms windows. Under DevTools CPU throttling the old check failed 16/20 (4×) and 20/20 (10×, 20×); the new one passes 60/60. The site developer-console SLO check's root cause (a late refocus from the retry step) was fixed on `main` in lbrodie11/frame12#35; on top of that, its 24h/7d/30d reads now wait for each expected state (`waitForFunction`, 3 s) instead of reading immediately after a click, and a failure reports where focus went.
+
 ### Added
 
 - **Navigation Continuity on frame12.dev (F12-12):** Back, contextual return links and focus now land where the visitor was.
@@ -19,6 +23,7 @@ All notable changes to **FRAME/12** are documented in this file.
   - New publishable workspace package (`0.1.0`, unreleased; Node 22+) whose only runtime dependency is `@frame12/tokens` (exact `0.2.0`). The core never loads React, Ink, Git or `node:child_process`; a loader-hook test enforces it.
   - Event contract v1 (`schemaVersion: 1`): `run-start`, `scene-start`, `cut-start`, `cut-progress`, `metric`, `finding`, `receipt`, `log`, `warning`, `cut-end`, `scene-end`, `run-end` and the authoritative `snapshot`, with generic findings (`subject`, `strength`, `prominence`, `status`, `receipts`). `validateEvent`, `validateSnapshot` and `createStreamValidator` return typed issues and never throw; 8 KiB / 1 MiB caps; unknown event types are ignored with a warning; unknown fields are preserved; presentation labels are rejected as ids; the run lifecycle is checked. `schema/events.schema.json` (`@frame12/terminal/schema.json`) is generated from the same declarative spec as the validator.
   - `detectCapabilities(env, streams, argv)` (pure; Repo Archaeology's color precedence plus `--color`, unicode, ambiguous width, OSC 8 links, size, interactivity, screen reader, CI), `resolveTerminalMotion` (Tempo `auto | twos | ones | still`, honoring `NO_MOTION` / `REDUCED_MOTION`), one merged sanitizer (escape sequences incl. OSC 52, CR/BS tricks, bidi, zero-width, tabs, idempotent line caps, `https:`-only links, default token redaction on every text field plus a hook), grapheme- and UAX #11-correct width helpers (Unicode 17.0.0), and terminal tokens derived at build time (truecolor, computed nearest 256, hand-tuned 16, mono, none).
+  - Linear renderers (F12-13 PR 2, `@frame12/terminal/render`): `renderJson`, `renderPlain`, `renderRich` and `createLinearWriter` (narration on stderr, results on stdout, append-only), the grammar as pure functions, the `GLYPHS` table with ASCII twins, width tiers, and a design-review gallery (`npm run gallery`, PNGs via `@xterm/headless`, a dev-only dependency).
   - `@frame12/terminal/testing`: deterministic event factory, fake streams and seven v1 fixtures, including PR #2's Repo Archaeology fixture converted once to v1. `packages/terminal/docs/pr2-port-map.md` maps every PR #2 file and test to its destination.
   - Tests: 224, including a 10,000-case seeded sanitizer fuzz, wrap and truncation property tests, and capability and motion precedence tables. A new CI job runs them on ubuntu, macOS and Windows with Node 22 and 24, and the standalone tarball smoke test now verifies `@frame12/terminal` with no React installed.
 - **`@frame12/static` Framework-Free HTML Renderers (`packages/static/`, F12-04):**
