@@ -84,15 +84,23 @@ export declare function panel(input: PanelInput, rc: RenderCaps): string;
 export declare function panelInner(rc: RenderCaps): number;
 /** Two subjects stacked with a typed connector line between them. */
 export declare function panelPair(top: Subject, bottom: Subject, relation: Relation | undefined, rc: RenderCaps, width?: number): string[];
-/** `▰▰▰▰▰▱▱▱ 62% (range 41–79%)`: bounded strength in glyphs, with the number always printed. */
-export declare function toneBar(strength: Pick<Strength, 'value' | 'low' | 'high'>, rc: RenderCaps, cells?: number): string;
+/**
+ * `▰▰▰▰▰▱▱▱ 62% (range 41–79%)`: bounded strength in glyphs, with the number always printed.
+ * Fits `width`: the bar shrinks (to no bar at all), and the range moves to its own line, before
+ * any number is dropped. Returns one or two lines joined by `\n`.
+ */
+export declare function toneBar(strength: Pick<Strength, 'value' | 'low' | 'high'>, rc: RenderCaps, width?: number, cells?: number): string;
 export interface LabeledReceipt {
     label: string;
     receipt: ReceiptRef;
 }
 /** Short id: a commit SHA becomes 7 characters; other values are kept. */
 export declare function shortValue(r: ReceiptRef): string;
-/** `E-01  1a2b3c4  2026-10-28  note`, one line each, links when the terminal supports them. */
+/**
+ * `E-01  1a2b3c4  2026-10-28  note`, one line each, links when the terminal supports them. Every
+ * line fits `width`: the date and note are dropped before the value, and a long value (a path, a
+ * tool call) is middle-truncated, with the full value on its own line under `verbose`.
+ */
 export declare function receiptList(items: LabeledReceipt[], rc: RenderCaps, width?: number, more?: number): string[];
 export interface CardLabels {
     frame: string;
@@ -107,7 +115,11 @@ export declare const MAX_CARD_RECEIPTS = 3;
 export declare function evidenceCard(finding: Finding, labels: CardLabels, rc: RenderCaps): string;
 /** A secondary finding in three short lines: label and title, then status facts, then subjects. */
 export declare function compactFinding(finding: Finding, frame: string, rc: RenderCaps): string;
-/** Metrics; two columns per row when they fit (80+ columns). */
+/**
+ * Metrics, aligned in label/value columns; two pairs per row when they fit (80+ columns). When a
+ * label and its value do not fit side by side, they stack: label line, then the value wrapped
+ * beneath it. Values are never truncated.
+ */
 export declare function metricRows(metrics: Metric[], rc: RenderCaps): string[];
 export interface NextStep {
     /** A command to run, printed as-is (sanitized). */
@@ -117,6 +129,12 @@ export interface NextStep {
     /** The key that does it in the live view (live only). */
     key?: string;
 }
+/**
+ * Splits a shell command into lines of at most `width` cells joined by ` \` continuations, so the
+ * copied text still runs. Breaks between words; a word longer than a line is split with a trailing
+ * `\` (backslash-newline joins the word back together in POSIX shells). Never truncates.
+ */
+export declare function wrapCommand(command: string, width: number, rc: RenderCaps): string[];
 /** In linear output the hint bar is printed once at the end as "Next steps" commands. */
 export declare function hintBar(steps: NextStep[], rc: RenderCaps): string[];
 export declare function sectionLabel(text: string, rc: RenderCaps): string;

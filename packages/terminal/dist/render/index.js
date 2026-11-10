@@ -6,6 +6,11 @@ import { wrap } from '../core/width.js';
 import { CUT_STATUS_WORDS, FINDING_STATUS_WORDS, RELATION_SENTENCES, RUN_STATUS_WORDS, compactFinding, cut, evidenceCard, formatDuration, hintBar, label, masthead, metricRows, pct, renderCapsFor, sectionLabel, tidy, widthTier, } from './grammar.js';
 export * from './grammar.js';
 export { GLYPHS, glyph } from '../core/glyphs.js';
+/** Cut labels for a snapshot: narration's labels first, then the rest in snapshot order. */
+export function labelCuts(cuts, known) {
+    let next = (known?.size ?? 0) + 1;
+    return cuts.map((c) => known?.get(c.cut) ?? label('C', next++));
+}
 // Characters JSON.stringify leaves raw that a terminal could act on or reorder: DEL, C1 controls,
 // line/paragraph separators and bidi controls. Escaping them keeps the JSON identical in meaning.
 const JSON_UNSAFE = /[\u007f-\u009f\u2028\u2029\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
@@ -38,18 +43,20 @@ const RUN_TO_CUT = { completed: 'ok', failed: 'error', canceled: 'canceled' };
  * line, every receipt and full path printed. Stable for diffing (independent of terminal width).
  */
 export function renderPlain(snapshot, options = {}) {
-    const s = createSanitizer({ ...options.safety, ascii: true }).snapshot(snapshot);
+    const san = createSanitizer({ ...options.safety, ascii: true });
+    const s = san.snapshot(snapshot);
     const out = [];
-    const product = options.product ?? 'FRAME/12';
+    const product = san.text(options.product ?? 'FRAME/12');
+    const cutLabel = labelCuts(s.cuts, options.cutLabels);
     if (s.replay)
         out.push('Replay: this output was recorded earlier; it is not a live run.');
     out.push(`${product} run "${s.title}" (${s.runId}): ${RUN_STATUS_WORDS[s.status]}`);
     out.push(`Run started ${s.startedAt}, finished ${s.finishedAt}.`);
     s.cuts.forEach((c, i) => {
         const d = formatDuration(c.durationMs);
-        out.push(`Cut ${label('C', i + 1)} ${c.cut} "${c.title}": ${CUT_STATUS_WORDS[c.status]}${d ? ` in ${d}` : ''}`);
+        out.push(`Cut ${cutLabel[i]} ${c.cut} "${c.title}": ${CUT_STATUS_WORDS[c.status]}${d ? ` in ${d}` : ''}`);
         if (c.summary)
-            out.push(`Cut ${label('C', i + 1)} note: ${c.summary}`);
+            out.push(`Cut ${cutLabel[i]} note: ${c.summary}`);
     });
     if (s.error)
         out.push(`Error: ${s.error}`);
@@ -60,8 +67,9 @@ export function renderPlain(snapshot, options = {}) {
         if (f.summary)
             out.push(`Finding ${frame} summary: ${f.summary}`);
         f.subject.forEach((sub, i) => out.push(`Finding ${frame} subject ${i + 1} (${sub.kind}): ${sub.label}${sub.href ? ` <${sub.href}>` : ''}`));
-        if (f.subject.length >= 2)
-            out.push(`Finding ${frame} relation (${f.relation ?? 'history-only'}): subject 1 ${RELATION_SENTENCES[f.relation ?? 'history-only']}`);
+        // A relation is stated only when the producer gave one; plain never invents it.
+        if (f.subject.length >= 2 && f.relation)
+            out.push(`Finding ${frame} relation (${f.relation}): subject 1 ${RELATION_SENTENCES[f.relation]}`);
         if (f.strength) {
             const range = f.strength.low !== undefined && f.strength.high !== undefined ? ` (range ${Math.round(f.strength.low * 100)}-${pct(f.strength.high)})` : '';
             out.push(`Finding ${frame} strength: ${pct(f.strength.value)}${range}, ${f.strength.label}`);
@@ -76,7 +84,7 @@ export function renderPlain(snapshot, options = {}) {
     for (const wn of s.warnings)
         out.push(`Warning: ${wn}`);
     for (const step of options.nextSteps ?? [])
-        out.push(`Next step: ${createSanitizer(options.safety).text(step.command)} (${createSanitizer(options.safety).text(step.description)})`);
+        out.push(`Next step: ${san.text(step.command)} (${san.text(step.description)})`);
     out.push(`End of results: ${s.findings.length} finding${s.findings.length === 1 ? '' : 's'}, ${s.warnings.length} warning${s.warnings.length === 1 ? '' : 's'}, run ${RUN_STATUS_WORDS[s.status]}.`);
     return `${out.join('\n')}\n`;
 }
@@ -89,14 +97,15 @@ export function renderRich(snapshot, rc, options = {}) {
     const blank = (n) => Array(n).fill('');
     const out = [];
     const narrow = widthTier(rc.columns) === 'narrow';
-    out.push(masthead({ product: options.product ?? 'FRAME/12', title: s.title, ...(s.replay ? { replay: true } : {}) }, rc));
+    out.push(masthead({ product: san.text(options.product ?? 'FRAME/12'), title: s.title, ...(s.replay ? { replay: true } : {}) }, rc));
+    const cutLabel = labelCuts(s.cuts, options.cutLabels);
     // Run line: status word, cut count, total time. Cuts are listed only when something went wrong.
     const total = s.cuts.reduce((acc, c) => acc + (c.durationMs ?? 0), 0);
     const runCut = cut({ label: 'RUN', title: `${s.cuts.length} cut${s.cuts.length === 1 ? '' : 's'}`, status: RUN_TO_CUT[s.status], word: RUN_STATUS_WORDS[s.status], ...(total ? { durationMs: total } : {}) }, rc);
     out.push(...blank(1), runCut);
     s.cuts.forEach((c, i) => {
         if (c.status !== 'ok')
-            out.push(cut({ label: label('C', i + 1), title: c.title, status: c.status, ...(c.durationMs !== undefined ? { durationMs: c.durationMs } : {}), ...(c.summary ? { summary: c.summary } : {}) }, rc));
+            out.push(cut({ label: cutLabel[i], title: c.title, status: c.status, ...(c.durationMs !== undefined ? { durationMs: c.durationMs } : {}), ...(c.summary ? { summary: c.summary } : {}) }, rc));
     });
     if (s.error) {
         out.push(...blank(1), sectionLabel('ERROR', rc));
@@ -235,12 +244,13 @@ export function createLinearWriter(options) {
                     // On a terminal, separate narration from results with one blank line (pair gutter).
                     if (narrated && options.format !== 'json' && options.caps.stderrIsTTY && options.caps.isTTY)
                         say('');
+                    const withLabels = { ...options, cutLabels: cutLabels };
                     if (options.format === 'json')
                         options.stdout.write(renderJson(snapshot));
                     else if (options.format === 'plain')
-                        options.stdout.write(renderPlain(snapshot, options));
+                        options.stdout.write(renderPlain(snapshot, withLabels));
                     else
-                        options.stdout.write(renderRich(snapshot, out, options));
+                        options.stdout.write(renderRich(snapshot, out, withLabels));
                     return;
                 }
                 default:

@@ -171,6 +171,14 @@ async function main() {
       const p = path.join(OUT, rel);
       if (!fs.existsSync(p) || fs.readFileSync(p, 'utf8') !== body) drift.push(rel);
     }
+    // Goldens left behind by a removed fixture, width or level are drift too.
+    for (const dir of fs.readdirSync(OUT, { withFileTypes: true })) {
+      if (!dir.isDirectory() || dir.name === 'review') continue;
+      for (const f of fs.readdirSync(path.join(OUT, dir.name))) {
+        const rel = `${dir.name}/${f}`;
+        if (!files.has(rel)) drift.push(`${rel} (stale)`);
+      }
+    }
     if (drift.length) {
       console.error(`Gallery goldens differ (${drift.length}): ${drift.slice(0, 8).join(', ')}${drift.length > 8 ? ', …' : ''}\nReview the change, then run: npm run gallery --workspace=@frame12/terminal`);
       process.exit(1);
@@ -178,7 +186,7 @@ async function main() {
     console.log(`Gallery goldens match (${files.size} files).`);
     return;
   }
-  for (const name of GALLERY_FIXTURES) fs.rmSync(path.join(OUT, name), { recursive: true, force: true });
+  for (const dir of fs.existsSync(OUT) ? fs.readdirSync(OUT) : []) if (dir !== 'review') fs.rmSync(path.join(OUT, dir), { recursive: true, force: true });
   for (const [rel, body] of files) {
     fs.mkdirSync(path.dirname(path.join(OUT, rel)), { recursive: true });
     fs.writeFileSync(path.join(OUT, rel), body);

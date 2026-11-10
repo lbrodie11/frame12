@@ -31,8 +31,10 @@ METRICS
 
 
 NEXT STEPS
-  repo-archaeology explain src/module-1…
+  repo-archaeology explain \
+  src/module-1/runner.ts
     Show the commits behind the top
     finding.
-  frame12-term render --from run.f12rec…
+  frame12-term render --from \
+  run.f12rec --replay
     Replay this run.

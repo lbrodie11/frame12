@@ -33,7 +33,7 @@ export interface FakeStreamOptions {
 }
 /** Stream doubles for `detectCapabilities`. */
 export declare function fakeStreams(options?: FakeStreamOptions): Required<Streams>;
-export declare const FIXTURE_NAMES: readonly ["success", "failed", "canceled", "empty", "one-finding", "forty-findings", "repo-archaeology"];
+export declare const FIXTURE_NAMES: readonly ["success", "failed", "canceled", "empty", "one-finding", "forty-findings", "repo-archaeology", "long-values"];
 export type FixtureName = (typeof FIXTURE_NAMES)[number];
 export interface Fixture {
     name: FixtureName;

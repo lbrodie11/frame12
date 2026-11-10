@@ -17,7 +17,7 @@
 [1m┃[22m src/module-1/runner.ts
 [1m┃[22m [2m  ⇢ changes with it, no code link[22m
 [1m┃[22m src/module-1/ledger.ts
-[1m┃[22m [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m92%[22m[2m (range 74–99%)[22m
+[1m┃[22m [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m92%[22m [2m(range 74–99%)[22m
 [1m┃[22m [2mfollow-up rate (historical activity, not correctness)[22m
 [1m┃[22m [2mE-01[22m  8947a15  [2m2026-10-28[22m  change 1 touching both sides of pair 1
 [1m┃[22m [2mE-02[22m  8125f33  [2m2026-10-27[22m  change 2 touching both sides of pair 1

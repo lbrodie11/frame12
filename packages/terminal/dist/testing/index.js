@@ -44,7 +44,7 @@ export function fakeStreams(options = {}) {
     return { stdin, stdout: out(), stderr: out() };
 }
 // --------------------------------------------------------------------------------- fixtures
-export const FIXTURE_NAMES = ['success', 'failed', 'canceled', 'empty', 'one-finding', 'forty-findings', 'repo-archaeology'];
+export const FIXTURE_NAMES = ['success', 'failed', 'canceled', 'empty', 'one-finding', 'forty-findings', 'repo-archaeology', 'long-values'];
 const PIPELINE = [
     { cut: 'resolve-workspace', title: 'Resolve workspace' },
     { cut: 'read-history', title: 'Read history', progress: { total: 400, unit: 'commits' } },
@@ -244,6 +244,50 @@ function repoArchaeologyPlan() {
         status: 'completed',
     };
 }
+/**
+ * A stress fixture for layout: non-commit receipts with long values, long metric labels and values,
+ * findings without a relation, and very long titles and paths. Every renderer must keep every line
+ * within the terminal width at every width from 20 columns up.
+ */
+function longValuesPlan() {
+    const deep = 'packages/very/deep/directory/structure/with/many/levels/of/nesting/and/a/long/file-name-that-keeps-going.generated.ts';
+    const base = finding(0, 2, 0);
+    const findings = [
+        {
+            ...base,
+            id: 'build-step-cache-miss',
+            title: 'The build cache misses on every run because the lockfile hash includes a timestamp written by the install step',
+            subject: [
+                { kind: 'file', label: deep },
+                { kind: 'file', label: 'scripts/ci/compute-cache-key-from-lockfile-and-node-version.mjs' },
+            ],
+            relation: undefined,
+            receipts: [
+                { kind: 'file', value: deep, note: 'generated on every install' },
+                { kind: 'tool-call', value: 'node scripts/ci/compute-cache-key-from-lockfile-and-node-version.mjs --lockfile package-lock.json --node 22.23.4 --verbose' },
+                { kind: 'link', value: 'https://ci.example.com/acme/payments/runs/12345678/jobs/98765432/steps/7', href: 'https://ci.example.com/acme/payments/runs/12345678/jobs/98765432/steps/7' },
+                { kind: 'test', value: 'cache key is stable across identical installs (tests/cache-key.test.mjs:42)' },
+            ],
+        },
+        { ...finding(1, 2, 2), id: 'unrelated-pair', relation: undefined, prominence: 'secondary' },
+    ];
+    delete findings[0].relation;
+    delete findings[1].relation;
+    return {
+        name: 'long-values',
+        description: 'A layout stress test: long paths, tool-call and link receipts, long metrics, and findings with no stated relation.',
+        title: 'Investigate why the continuous-integration cache misses on every single run of the payments-service pipeline',
+        runId: 'run-long-values',
+        cuts: pipeline(['ok', 'ok', 'warning', 'canceled'], { 2: 'Some pairs could not be classified because the history was shallow; rerun with a full clone.' }),
+        metrics: [
+            { name: 'cache-hit-rate', label: 'Cache hit rate across the last thirty days of pipeline runs', value: '0.0% (0 of 1,284 runs)' },
+            { name: 'bytes-downloaded', label: 'Bytes downloaded', value: 48_211_337_412, unit: 'bytes' },
+        ],
+        findings,
+        warnings: ['The repository is a shallow clone (depth 50); history older than 50 commits was not read, so rates may be overstated.'],
+        status: 'canceled',
+    };
+}
 function plan(name) {
     switch (name) {
         case 'success': {
@@ -266,6 +310,8 @@ function plan(name) {
         }
         case 'repo-archaeology':
             return repoArchaeologyPlan();
+        case 'long-values':
+            return longValuesPlan();
     }
 }
 /** One named v1 fixture: its full event stream and the authoritative snapshot. Deterministic. */

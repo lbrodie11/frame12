@@ -46,6 +46,7 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     no spinner). The grammar as pure functions (`masthead`, `cut`, `panel`, `panelPair`,
     `evidenceCard`, `compactFinding`, `receiptList`, `toneBar`, `metricRows`, `hintBar`), the
     `GLYPHS` table with ASCII twins, width tiers, and one marker chip per render.
-  - Contract: optional `Finding.relation` (`history-only | direct | indirect`) for typed connectors.
+  - Contract: optional `Finding.relation` (`history-only | direct | indirect`) for typed connectors;
+    the stream validator rejects a second `snapshot` (`duplicate-snapshot`).
   - `@frame12/terminal/testing`: `createEventFactory` (injected clock), `fakeStreams`, and seven
     deterministic v1 fixtures, including PR #2's Repo Archaeology fixture converted once to v1.

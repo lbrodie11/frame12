@@ -26,6 +26,7 @@ export const VALIDATION_CODES = [
     'unknown-finding',
     'missing-run-end',
     'forbidden-key',
+    'duplicate-snapshot',
 ];
 const EVENT_TYPE_SET = new Set(EVENT_TYPES);
 const ID_RE = new RegExp(ID_PATTERN);
@@ -291,6 +292,7 @@ export function createStreamValidator(options = {}) {
     let runId;
     let lastSeq = 0;
     let ended = false;
+    let snapshotSeen = false;
     const lifecycle = options.lifecycle !== false;
     let started = false;
     const ids = new Set();
@@ -358,6 +360,10 @@ export function createStreamValidator(options = {}) {
                 out.push(issue('duplicate-id', 'id', `Event id "${ev.id}" was already used in this run.`));
             if (ended && ev.type !== 'snapshot')
                 out.push(issue('after-run-end', 'type', `"${ev.type}" arrived after run-end.`));
+            // One run has one authoritative result: a second snapshot would print results twice (and
+            // make --json output two documents). Always enforced, lifecycle or not.
+            if (ev.type === 'snapshot' && snapshotSeen)
+                out.push(issue('duplicate-snapshot', 'type', 'A second snapshot arrived; a run has exactly one authoritative result.'));
             if (ev.type === 'cut-progress' && ev.done !== undefined) {
                 const prev = progress.get(ev.cut);
                 if (prev !== undefined && ev.done < prev) {
@@ -385,6 +391,8 @@ export function createStreamValidator(options = {}) {
                 progress.set(ev.cut, ev.done);
             if (ev.type === 'run-end')
                 ended = true;
+            if (ev.type === 'snapshot')
+                snapshotSeen = true;
             return res;
         },
     };

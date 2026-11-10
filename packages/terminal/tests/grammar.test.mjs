@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { describe, it } from 'node:test';
 import { GLYPHS, stringWidth, stripAnsi, tokenSgr } from '@frame12/terminal';
 import { CUT_STATUS_WORDS, FINDING_STATUS_WORDS, renderRich } from '@frame12/terminal/render';
-import { fixture } from '@frame12/terminal/testing';
+import { fixture, FIXTURE_NAMES } from '@frame12/terminal/testing';
 import { GALLERY_FIXTURES, LEVELS, WIDTHS, galleryFiles } from '../scripts/gallery.mjs';
 
 const files = galleryFiles();
@@ -43,6 +43,23 @@ describe('grammar rules on every gallery render', () => {
         assert.ok(!/ $/.test(stripAnsi(line)), `${key}: trailing space`);
       }
     }
+  });
+
+  it('keeps every line within the terminal at every width from 20 to 130, for every fixture (review of PR #33)', () => {
+    // verbose is excluded on purpose: it prints each truncated path in full on its own line.
+    const steps = [{ command: 'frame12-term render --from run.f12rec --replay --verbose --speed 2 --format rich', description: 'Replay this run.' }];
+    let renders = 0;
+    for (const name of FIXTURE_NAMES) {
+      const snap = fixture(name).snapshot;
+      for (let columns = 20; columns <= 130; columns++) {
+        for (const [unicode, ambiguousWide] of [[true, false], [false, false], [true, true]]) {
+          const out = renderRich(snap, { style: 'truecolor', unicode, ambiguousWide, links: false, columns }, { nextSteps: steps });
+          renders++;
+          for (const line of out.split('\n')) assert.ok(stringWidth(line, { ambiguousWide }) <= columns, `${name}@${columns} unicode=${unicode} wide=${ambiguousWide}: ${JSON.stringify(stripAnsi(line))}`);
+        }
+      }
+    }
+    assert.equal(renders, FIXTURE_NAMES.length * 111 * 3);
   });
 
   it('uses at most one marker chip, and exactly one when there is a top finding (styled levels)', () => {
@@ -104,6 +121,19 @@ describe('grammar rules on every gallery render', () => {
   it('labels a replayed snapshot REPLAY', () => {
     const out = stripAnsi(renderRich({ ...fixture('success').snapshot, replay: true }, { style: 'none', unicode: true, ambiguousWide: false, links: false, columns: 80 }));
     assert.match(out.split('\n')[0], /^REPLAY/);
+  });
+
+  it('gallery --check reports goldens left behind by a removed fixture, width or level (review of PR #33)', async () => {
+    const { spawnSync } = await import('node:child_process');
+    const stale = new URL('../gallery/success/rich-200-truecolor.ansi', import.meta.url);
+    fs.writeFileSync(stale, 'left behind\n');
+    try {
+      const r = spawnSync(process.execPath, ['scripts/gallery.mjs', '--check'], { cwd: new URL('..', import.meta.url), encoding: 'utf8' });
+      assert.equal(r.status, 1);
+      assert.match(r.stderr, /rich-200-truecolor\.ansi \(stale\)/);
+    } finally {
+      fs.rmSync(stale, { force: true });
+    }
   });
 
   it('the committed gallery is current (npm run gallery)', () => {

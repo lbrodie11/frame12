@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { detectCapabilities, stripAnsi } from '@frame12/terminal';
-import { createLinearWriter, orderFindings, renderJson, renderPlain, renderRich, shortValue, MAX_CARD_RECEIPTS } from '@frame12/terminal/render';
+import { detectCapabilities, stringWidth, stripAnsi } from '@frame12/terminal';
+import { createLinearWriter, orderFindings, renderJson, renderPlain, renderRich, shortValue, wrapCommand, MAX_CARD_RECEIPTS } from '@frame12/terminal/render';
 import { createEventFactory, fakeStreams, fixture, FIXTURE_NAMES } from '@frame12/terminal/testing';
 
 const rcAt = (columns, style = 'truecolor') => ({ style, unicode: true, ambiguousWide: false, links: false, columns });
@@ -40,9 +40,14 @@ describe('data integrity (non-negotiable)', () => {
       const plain = renderPlain(snap);
       for (const f of facts(snap, { allReceipts: true })) assert.ok(plain.includes(f), `plain is missing ${JSON.stringify(f)}`);
       for (const c of snap.cuts) assert.ok(plain.includes(c.cut), `plain is missing cut ${c.cut}`);
-      for (const columns of [80, 120]) {
-        const flat = stripAnsi(renderRich(snap, rcAt(columns))).replace(/\n\s*/g, ' ');
-        for (const f of facts(snap, { allReceipts: false })) assert.ok(flat.includes(f), `rich@${columns} is missing ${JSON.stringify(f)}`);
+      // Non-verbose renders middle-truncate what cannot fit; verbose prints every full path and value
+      // on its own line, so integrity is checked in verbose at every width and non-verbose where paths fit.
+      for (const columns of [40, 80, 120]) {
+        for (const verbose of [true, false]) {
+          if (!verbose && (columns < 80 || name === 'long-values')) continue;
+          const flat = stripAnsi(renderRich(snap, { ...rcAt(columns), verbose })).replace(/\n\s*/g, ' ');
+          for (const f of facts(snap, { allReceipts: false })) assert.ok(flat.includes(f), `rich@${columns}${verbose ? ' verbose' : ''} is missing ${JSON.stringify(f)}`);
+        }
       }
       const json = renderJson(snap);
       assert.deepEqual(JSON.parse(json), snap);
@@ -61,6 +66,82 @@ describe('data integrity (non-negotiable)', () => {
     const json = renderJson(snap);
     for (const ch of [rlo, nel, ls]) assert.ok(!json.includes(ch));
     assert.deepEqual(JSON.parse(json), snap);
+  });
+});
+
+describe('review regressions (PR #33)', () => {
+  it('a missing relation is never turned into a claim (rich and plain)', () => {
+    const snap = fixture('long-values').snapshot;
+    assert.equal(snap.findings[0].relation, undefined);
+    const plain = renderPlain(snap);
+    assert.ok(!/no code link|references subject 2|relation \(/.test(plain), 'plain states no relation');
+    const rich = stripAnsi(renderRich(snap, rcAt(120)));
+    assert.ok(!/no code link|references it directly|connected through/.test(rich), 'rich draws no typed connector');
+  });
+
+  it('sanitizes the product name in every renderer', () => {
+    const product = 'Acme\u001b]52;c;ZXZpbA==\u0007\u001b[2J';
+    const snap = fixture('empty').snapshot;
+    assert.ok(!renderPlain(snap, { product }).includes('\u001b'));
+    assert.ok(stripAnsi(renderRich(snap, rcAt(80), { product })).startsWith('FRAME/12'.replace('FRAME/12', 'Acme')));
+    for (const out of [renderRich(snap, rcAt(80), { product })]) assert.ok(!/\u001b\](?!8;)|\u001b\[2J|\u0007/.test(out));
+  });
+
+  it('wraps next-step commands with shell continuations, never truncating them', () => {
+    const command = 'frame12-term render --from run.f12rec --replay --verbose --format rich --token-file /very/long/path/to/a/credentials-file-that-is-longer-than-a-narrow-terminal.json';
+    for (const columns of [20, 24, 40, 80]) {
+      const lines = wrapCommand(command, columns - 2, rcAt(columns));
+      for (const l of lines) assert.ok(stringWidth(l) <= columns - 2, `${columns}: ${l}`);
+      // Rejoin the way a POSIX shell reads it: " \\\n" between words, "\\\n" inside a word.
+      assert.equal(lines.join('\n').replace(/ \\\n/g, ' ').replace(/\\\n/g, ''), command, `${columns}: the command survives copy-paste`);
+    }
+    // Plain's own text is ASCII: a next step long enough to be capped gets the ASCII marker.
+    const plain = renderPlain(fixture('success').snapshot, { nextSteps: [{ command, description: 'x'.repeat(2100) }] });
+    assert.ok(plain.includes(command));
+    const step = plain.split('\n').find((l) => l.startsWith('Next step'));
+    assert.match(step, /\.\.\.\+\d+ chars/);
+    assert.match(step, /^[\x20-\x7e]+$/, 'plain next steps are ASCII');
+  });
+
+  it('results reuse narration cut labels when cuts run in parallel', () => {
+    const f = createEventFactory({ runId: 'par' });
+    const snap = { ...fixture('failed').snapshot, runId: 'par', cuts: [
+      { cut: 'lint', title: 'Lint', status: 'error', durationMs: 900 },
+      { cut: 'build', title: 'Build', status: 'ok', durationMs: 1200 },
+    ] };
+    const events = [
+      f.next('run-start', { title: 'T' }),
+      f.next('cut-start', { cut: 'build', title: 'Build' }),
+      f.next('cut-start', { cut: 'lint', title: 'Lint' }),
+      f.next('cut-end', { cut: 'lint', status: 'error', durationMs: 900 }),
+      f.next('cut-end', { cut: 'build', status: 'ok', durationMs: 1200 }),
+      f.next('run-end', { status: 'failed' }),
+      f.next('snapshot', { snapshot: snap }),
+    ];
+    for (const format of ['rich', 'plain']) {
+      const caps = detectCapabilities({}, fakeStreams({ tty: false }), [], { platform: 'linux' });
+      let out = '';
+      let err = '';
+      const w = createLinearWriter({ format, caps, stdout: { write: (s) => void (out += s) }, stderr: { write: (s) => void (err += s) } });
+      for (const ev of events) w.write(ev);
+      w.end();
+      assert.match(err, /C-02 . LINT|Cut C-02 lint/, `${format}: narration calls lint C-02 (it started second)`);
+      assert.match(out, /C-02 . LINT|Cut C-02 lint/, `${format}: results call lint C-02 too, though the snapshot lists it first`);
+      assert.match(out, /Cut C-01 build|^(?![\s\S]*C-01 . LINT)/, `${format}: build keeps C-01`);
+    }
+  });
+
+  it('--json stays one valid JSON document when a producer sends two snapshots', () => {
+    const evs = fixture('success').events;
+    const last = evs.at(-1);
+    const caps = detectCapabilities({}, fakeStreams({ tty: false }), [], { platform: 'linux' });
+    let out = '';
+    let err = '';
+    const w = createLinearWriter({ format: 'json', caps, stdout: { write: (s) => void (out += s) }, stderr: { write: (s) => void (err += s) } });
+    for (const ev of [...evs, { ...last, seq: last.seq + 1, id: `${last.id}-b` }]) w.write(ev);
+    w.end();
+    assert.deepEqual(JSON.parse(out), last.snapshot);
+    assert.match(err, /second snapshot/);
   });
 });
 

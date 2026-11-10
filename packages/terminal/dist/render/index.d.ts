@@ -24,7 +24,15 @@ export interface RenderOptions {
     nextSteps?: NextStep[];
     /** Sanitizer options (redaction hook, link policy). */
     safety?: SafetyOptions;
+    /**
+     * Cut labels already shown in narration (cut id → `C-02`), so results use the same numbers when
+     * cuts ran in parallel or the snapshot lists them in another order. Unlisted cuts are numbered
+     * after the listed ones.
+     */
+    cutLabels?: ReadonlyMap<string, string>;
 }
+/** Cut labels for a snapshot: narration's labels first, then the rest in snapshot order. */
+export declare function labelCuts(cuts: Snapshot['cuts'], known?: ReadonlyMap<string, string>): string[];
 /** The snapshot verbatim (2-space JSON, trailing newline). Re-rendering parsed output is byte-identical. */
 export declare function renderJson(snapshot: Snapshot): string;
 /** Findings in reading order (hero, primary, secondary; stable), with frame and receipt numbers. */

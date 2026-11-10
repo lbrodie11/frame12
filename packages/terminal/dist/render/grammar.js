@@ -1,7 +1,7 @@
 import { glyph } from '../core/glyphs.js';
 import { formatLink } from '../core/safety.js';
 import { paint, styleLevel } from '../core/tokens.js';
-import { padEnd, stringWidth, truncateEnd, truncateMiddle, wrap } from '../core/width.js';
+import { graphemes, padEnd, stringWidth, truncateEnd, truncateMiddle, wrap } from '../core/width.js';
 /** Render capabilities for stdout (results) or stderr (narration). */
 export function renderCapsFor(caps, stream = 'stdout', options = {}) {
     const out = stream === 'stdout';
@@ -106,8 +106,10 @@ export function masthead(input, rc) {
             lines.push(p(l, 'strong', rc));
         return lines.join('\n');
     }
-    const head = `${replay}${product}${sep}`;
-    const titleLines = wrap(input.title, rc.columns - w(head, rc), { ...rc, indent: ' '.repeat(w(head, rc)) });
+    const head = fit(`${replay}${product}`, Math.floor(rc.columns / 2), rc) + sep;
+    const headW = w(head, rc);
+    const [firstTitle = '', ...restTitle] = wrap(input.title, rc.columns - headW, rc);
+    const titleLines = [firstTitle, ...restTitle.map((l) => ' '.repeat(headW) + l)];
     lines.push(`${p(head, 'ink2', rc)}${p(titleLines[0] ?? '', 'strong', rc)}`);
     for (const l of titleLines.slice(1))
         lines.push(p(l, 'strong', rc));
@@ -128,7 +130,10 @@ export function cut(input, rc) {
     const lines = [];
     if (widthTier(rc.columns) === 'narrow') {
         lines.push(`${p(input.label, 'strong', rc)} ${p(fit(input.title.toUpperCase(), rc.columns - input.label.length - 1, rc), 'strong', rc)}`);
-        lines.push(`  ${status}${duration ? `  ${p(duration, 'ink2', rc)}` : ''}`);
+        const fitsTogether = duration && 2 + statusW + 2 + duration.length <= rc.columns;
+        lines.push(`  ${status}${fitsTogether ? `  ${p(duration, 'ink2', rc)}` : ''}`);
+        if (duration && !fitsTogether)
+            lines.push(`  ${p(duration, 'ink2', rc)}`);
     }
     else {
         // A fixed status column (cell 36, or as far right as fits) keeps every cut line aligned.
@@ -163,38 +168,58 @@ export function panelPair(top, bottom, relation, rc, width = panelInner(rc)) {
             lines.push(p(s.label, 'ink2', rc));
     };
     subjectLine(top);
-    const kind = relation ?? 'history-only';
-    const arrow = g(kind === 'direct' ? 'directLink' : 'historyLink', rc);
-    lines.push(p(`  ${arrow} ${fit(RELATION_WORDS[kind], width - 3 - w(arrow, rc), rc)}`, 'ink2', rc));
+    // Only draw a typed connector when the producer said how the subjects relate; never invent one.
+    if (relation) {
+        const arrow = g(relation === 'direct' ? 'directLink' : 'historyLink', rc);
+        lines.push(p(`  ${arrow} ${fit(RELATION_WORDS[relation], width - 3 - w(arrow, rc), rc)}`, 'ink2', rc));
+    }
     subjectLine(bottom);
     return lines;
 }
-/** `▰▰▰▰▰▱▱▱ 62% (range 41–79%)`: bounded strength in glyphs, with the number always printed. */
-export function toneBar(strength, rc, cells = 8) {
+/**
+ * `▰▰▰▰▰▱▱▱ 62% (range 41–79%)`: bounded strength in glyphs, with the number always printed.
+ * Fits `width`: the bar shrinks (to no bar at all), and the range moves to its own line, before
+ * any number is dropped. Returns one or two lines joined by `\n`.
+ */
+export function toneBar(strength, rc, width = panelInner(rc), cells = 8) {
     const v = Math.min(1, Math.max(0, strength.value));
-    const on = Math.round(v * cells);
-    const bar = p(g('toneOn', rc).repeat(on), 'strong', rc) + p(g('toneOff', rc).repeat(cells - on), 'ink2', rc);
-    const range = strength.low !== undefined && strength.high !== undefined
-        ? ` (range ${Math.round(strength.low * 100)}${g('rangeDash', rc)}${pct(strength.high)})`
-        : '';
-    return `${bar} ${p(pct(v), 'strong', rc)}${p(range, 'ink2', rc)}`;
+    const number = pct(v);
+    const range = strength.low !== undefined && strength.high !== undefined ? `(range ${Math.round(strength.low * 100)}${g('rangeDash', rc)}${pct(strength.high)})` : '';
+    const n = Math.max(0, Math.min(cells, width - number.length - 1));
+    const on = Math.round(v * n);
+    const bar = n >= 3 ? `${p(g('toneOn', rc).repeat(on), 'strong', rc)}${p(g('toneOff', rc).repeat(n - on), 'ink2', rc)} ` : '';
+    const first = `${bar}${p(number, 'strong', rc)}`;
+    if (!range)
+        return first;
+    if (w(first, rc) + 1 + range.length <= width)
+        return `${first} ${p(range, 'ink2', rc)}`;
+    return [first, ...wrap(range, width, rc).map((l) => p(l, 'ink2', rc))].join('\n');
 }
 /** Short id: a commit SHA becomes 7 characters; other values are kept. */
 export function shortValue(r) {
     return r.kind === 'commit' && /^[0-9a-f]{8,64}$/i.test(r.value) ? r.value.slice(0, 7) : r.value;
 }
-/** `E-01  1a2b3c4  2026-10-28  note`, one line each, links when the terminal supports them. */
+/**
+ * `E-01  1a2b3c4  2026-10-28  note`, one line each, links when the terminal supports them. Every
+ * line fits `width`: the date and note are dropped before the value, and a long value (a path, a
+ * tool call) is middle-truncated, with the full value on its own line under `verbose`.
+ */
 export function receiptList(items, rc, width = panelInner(rc), more = 0) {
-    const lines = items.map(({ label: l, receipt: r }) => {
-        const id = formatLink(shortValue(r), r.href, rc.links);
-        const date = r.at ? r.at.slice(0, 10) : '';
-        const head = `${l}  ${shortValue(r)}${date ? `  ${date}` : ''}`;
+    const lines = [];
+    for (const { label: l, receipt: r } of items) {
+        const short = shortValue(r);
+        const avail = width - l.length - 2;
+        const date = r.at && avail - w(short, rc) >= 12 ? r.at.slice(0, 10) : '';
+        const value = pathText(short, avail - (date ? 12 : 0), rc);
+        const head = `${l}  ${value.text}${date ? `  ${date}` : ''}`;
         const room = width - w(head, rc) - 2;
         const note = r.note && room >= 8 ? `  ${fit(r.note, room, rc)}` : '';
-        return `${p(l, 'ink2', rc)}  ${id}${date ? `  ${p(date, 'ink2', rc)}` : ''}${note}`;
-    });
+        lines.push(`${p(l, 'ink2', rc)}  ${formatLink(value.text, r.href, rc.links)}${date ? `  ${p(date, 'ink2', rc)}` : ''}${note}`);
+        if (value.truncated && rc.verbose)
+            lines.push(p(short, 'ink2', rc));
+    }
     if (more > 0)
-        lines.push(p(`+${more} more receipt${more === 1 ? '' : 's'}`, 'ink2', rc));
+        lines.push(p(fit(`+${more} more receipt${more === 1 ? '' : 's'}`, width, rc), 'ink2', rc));
     return lines;
 }
 /** Up to 3 receipts per card; the rest are counted. */
@@ -209,9 +234,11 @@ export function evidenceCard(finding, labels, rc) {
     const statusWord = FINDING_STATUS_WORDS[finding.status];
     const top = finding.prominence === 'hero' ? 'top finding' : finding.prominence;
     const meta = `${statusWord} ${g('dot', rc)} ${top} ${g('dot', rc)} ${finding.id}`;
-    const titleLines = wrap(finding.title, rc.columns - chipW - 2, { ...rc, indent: ' '.repeat(chipW + 2) });
+    const [firstTitle = '', ...restTitle] = wrap(finding.title, rc.columns - chipW - 2, rc);
+    const titleLines = [firstTitle, ...restTitle.map((l) => ' '.repeat(chipW + 2) + l)];
     const header = [`${chip}  ${p(titleLines[0] ?? '', 'strong', rc)}`, ...titleLines.slice(1).map((l) => p(l, 'strong', rc))];
-    const body = [p(fit(meta, inner, rc), `status-${finding.status}`, rc)];
+    // Wrapped, never truncated: the id is data the reader may need to quote.
+    const body = wrap(meta, inner, rc).map((l) => p(l, `status-${finding.status}`, rc));
     if (finding.summary)
         for (const l of wrap(finding.summary, inner, rc))
             body.push(l);
@@ -223,7 +250,7 @@ export function evidenceCard(finding, labels, rc) {
     for (const s of rest)
         body.push(formatLink(pathText(s.label, inner, rc).text, s.href, rc.links));
     if (finding.strength) {
-        body.push(toneBar(finding.strength, rc));
+        body.push(...toneBar(finding.strength, rc, inner).split('\n'));
         for (const l of wrap(finding.strength.label, inner, rc))
             body.push(p(l, 'ink2', rc));
     }
@@ -242,41 +269,89 @@ export function compactFinding(finding, frame, rc) {
     const facts = [strength, `${count} receipt${count === 1 ? '' : 's'}`, FINDING_STATUS_WORDS[finding.status], finding.id]
         .filter(Boolean)
         .join(dot);
-    const lines = [`${p(frame, 'strong', rc)}  ${fit(finding.title, rc.columns - frame.length - 2, rc)}`, `  ${p(fit(facts, inner, rc), 'ink2', rc)}`];
+    const lines = [`${p(frame, 'strong', rc)}  ${fit(finding.title, rc.columns - frame.length - 2, rc)}`, ...wrap(facts, inner, rc).map((l) => `  ${p(l, 'ink2', rc)}`)];
     const [a, b] = finding.subject;
     if (a) {
-        const arrow = b ? ` ${g(finding.relation === 'direct' ? 'directLink' : 'historyLink', rc)} ` : '';
-        const half = b ? Math.floor((inner - w(arrow, rc)) / 2) : inner;
-        const left = pathText(a.label, half, rc).text;
-        const right = b ? pathText(b.label, inner - w(left, rc) - w(arrow, rc), rc).text : '';
-        lines.push(`  ${p(`${left}${arrow}${right}`, 'ink2', rc)}`);
+        const link = finding.relation ? g(finding.relation === 'direct' ? 'directLink' : 'historyLink', rc) : g('dot', rc);
+        const arrow = b ? ` ${link} ` : '';
+        const together = w(a.label, rc) + w(arrow, rc) + (b ? w(b.label, rc) : 0);
+        if (!b || together <= inner) {
+            lines.push(`  ${p(`${a.label}${arrow}${b ? b.label : ''}`, 'ink2', rc)}`);
+        }
+        else {
+            // Two paths that do not fit side by side are stacked rather than both mangled.
+            lines.push(`  ${p(pathText(a.label, inner, rc).text, 'ink2', rc)}`);
+            lines.push(`  ${p(`${arrow.trimStart()}${pathText(b.label, inner - w(arrow.trimStart(), rc), rc).text}`, 'ink2', rc)}`);
+        }
     }
     return lines.join('\n');
 }
-/** Metrics; two columns per row when they fit (80+ columns). */
+/**
+ * Metrics, aligned in label/value columns; two pairs per row when they fit (80+ columns). When a
+ * label and its value do not fit side by side, they stack: label line, then the value wrapped
+ * beneath it. Values are never truncated.
+ */
 export function metricRows(metrics, rc) {
     if (metrics.length === 0)
         return [];
-    const cell = (m) => [m.label ?? m.name, `${m.value}${m.unit ? ` ${m.unit}` : ''}`];
-    const cells = metrics.map(cell);
+    const inner = panelInner(rc);
+    const cells = metrics.map((m) => [m.label ?? m.name, `${m.value}${m.unit ? ` ${m.unit}` : ''}`]);
     const labelW = Math.max(...cells.map(([l]) => w(l, rc)));
     const valueW = Math.max(...cells.map(([, v]) => w(v, rc)));
     const colW = labelW + 2 + valueW;
-    const two = widthTier(rc.columns) !== 'narrow' && widthTier(rc.columns) !== 'standard' && 2 + colW * 2 + 4 <= rc.columns;
-    const fmt = ([l, v]) => widthTier(rc.columns) === 'narrow' ? [`${p(fit(l, rc.columns - 2, rc), 'ink2', rc)}`, `  ${p(v, 'strong', rc)}`] : [`${p(padEnd(fit(l, labelW, rc), labelW), 'ink2', rc)}  ${p(padEnd(v, valueW), 'strong', rc)}`];
+    const tier = widthTier(rc.columns);
     const lines = [];
-    if (two) {
-        for (let i = 0; i < cells.length; i += 2) {
-            const left = fmt(cells[i])[0];
-            const right = cells[i + 1] ? `    ${fmt(cells[i + 1])[0]}` : '';
-            lines.push(`  ${left}${right}`.trimEnd());
+    if (tier === 'narrow' || colW > inner) {
+        for (const [l, v] of cells) {
+            for (const x of wrap(l, inner, rc))
+                lines.push(`  ${p(x, 'ink2', rc)}`);
+            for (const x of wrap(v, inner - 2, rc))
+                lines.push(`    ${p(x, 'strong', rc)}`);
         }
+        return lines;
     }
-    else {
-        for (const c of cells)
-            for (const l of fmt(c))
-                lines.push(widthTier(rc.columns) === 'narrow' ? l : `  ${l}`.trimEnd());
+    const pair = ([l, v]) => `${p(padEnd(l, labelW), 'ink2', rc)}  ${p(padEnd(v, valueW), 'strong', rc)}`;
+    const two = tier !== 'standard' && 2 + colW * 2 + 4 <= rc.columns;
+    for (let i = 0; i < cells.length; i += two ? 2 : 1) {
+        const right = two && cells[i + 1] ? `    ${pair(cells[i + 1])}` : '';
+        lines.push(`  ${pair(cells[i])}${right}`);
     }
+    return lines;
+}
+/**
+ * Splits a shell command into lines of at most `width` cells joined by ` \` continuations, so the
+ * copied text still runs. Breaks between words; a word longer than a line is split with a trailing
+ * `\` (backslash-newline joins the word back together in POSIX shells). Never truncates.
+ */
+export function wrapCommand(command, width, rc) {
+    const max = Math.max(4, width);
+    const lines = [];
+    let line = '';
+    const push = (text) => lines.push(text);
+    for (const word of command.split(' ')) {
+        const candidate = line === '' ? word : `${line} ${word}`;
+        if (w(candidate, rc) + 2 <= max || (line === '' && w(word, rc) <= max)) {
+            line = candidate;
+            continue;
+        }
+        if (line !== '')
+            push(`${line} \\`);
+        line = '';
+        let rest = word;
+        while (w(rest, rc) > max) {
+            let head = '';
+            for (const ch of graphemes(rest)) {
+                if (w(head + ch, rc) + 1 > max)
+                    break;
+                head += ch;
+            }
+            push(`${head}\\`);
+            rest = rest.slice(head.length);
+        }
+        line = rest;
+    }
+    if (line !== '')
+        push(line);
     return lines;
 }
 /** In linear output the hint bar is printed once at the end as "Next steps" commands. */
@@ -285,7 +360,8 @@ export function hintBar(steps, rc) {
         return [];
     const lines = [sectionLabel('NEXT STEPS', rc)];
     for (const s of steps) {
-        lines.push(`  ${p(fit(s.command, rc.columns - 2, rc), 'strong', rc)}`);
+        for (const l of wrapCommand(s.command, rc.columns - 2, rc))
+            lines.push(`  ${p(l, 'strong', rc)}`);
         for (const l of wrap(s.description, rc.columns - 4, rc))
             lines.push(`    ${p(l, 'ink2', rc)}`);
     }

@@ -46,7 +46,7 @@ function eventOf(type, extra = {}) {
 
 describe('contract v1: fixtures', () => {
   it('ships every gallery fixture plus the converted PR #2 fixture', () => {
-    assert.deepEqual([...FIXTURE_NAMES], ['success', 'failed', 'canceled', 'empty', 'one-finding', 'forty-findings', 'repo-archaeology']);
+    assert.deepEqual([...FIXTURE_NAMES], ['success', 'failed', 'canceled', 'empty', 'one-finding', 'forty-findings', 'repo-archaeology', 'long-values']);
   });
 
   for (const f of fixtures()) {
@@ -301,6 +301,18 @@ describe('contract v1: stream rules', () => {
     assert.ok(v.push(f.next('receipt', { finding: 'f9', receipt: { kind: 'log', value: 'x' } })).ok, 'recent findings are remembered');
     assert.equal(v.push(f.next('receipt', { finding: 'f0', receipt: { kind: 'log', value: 'x' } })).issues[0].code, 'unknown-finding', 'old ones are forgotten');
     assert.equal(v.push(f.next('cut-start', { cut: 'c9', title: 'again' })).issues[0].code, 'cut-already-started');
+  });
+
+  it('rejects a second snapshot, even with lifecycle checks off (review of PR #33)', () => {
+    for (const lifecycle of [true, false]) {
+      const evs = fixture('success').events;
+      const v = createStreamValidator({ lifecycle });
+      for (const ev of evs) assert.ok(v.push(ev).ok);
+      const last = evs.at(-1);
+      const again = v.push({ ...last, seq: last.seq + 1, id: `${last.id}-again` });
+      assert.equal(again.ok, false);
+      assert.equal(again.issues[0].code, 'duplicate-snapshot');
+    }
   });
 
   it('bounds id memory', () => {

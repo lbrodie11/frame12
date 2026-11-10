@@ -23,5 +23,6 @@ WARNINGS
 
 
 NEXT STEPS
-  frame12-term render --from run.f12rec…
+  frame12-term render --from \
+  run.f12rec --replay
     Replay this run.

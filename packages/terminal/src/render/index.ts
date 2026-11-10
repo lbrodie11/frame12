@@ -49,6 +49,18 @@ export interface RenderOptions {
   nextSteps?: NextStep[];
   /** Sanitizer options (redaction hook, link policy). */
   safety?: SafetyOptions;
+  /**
+   * Cut labels already shown in narration (cut id → `C-02`), so results use the same numbers when
+   * cuts ran in parallel or the snapshot lists them in another order. Unlisted cuts are numbered
+   * after the listed ones.
+   */
+  cutLabels?: ReadonlyMap<string, string>;
+}
+
+/** Cut labels for a snapshot: narration's labels first, then the rest in snapshot order. */
+export function labelCuts(cuts: Snapshot['cuts'], known?: ReadonlyMap<string, string>): string[] {
+  let next = (known?.size ?? 0) + 1;
+  return cuts.map((c) => known?.get(c.cut) ?? label('C', next++));
 }
 
 // Characters JSON.stringify leaves raw that a terminal could act on or reorder: DEL, C1 controls,
@@ -89,16 +101,18 @@ const RUN_TO_CUT: Record<RunStatus, CutStatus> = { completed: 'ok', failed: 'err
  * line, every receipt and full path printed. Stable for diffing (independent of terminal width).
  */
 export function renderPlain(snapshot: Snapshot, options: RenderOptions = {}): string {
-  const s = createSanitizer({ ...options.safety, ascii: true }).snapshot(snapshot);
+  const san = createSanitizer({ ...options.safety, ascii: true });
+  const s = san.snapshot(snapshot);
   const out: string[] = [];
-  const product = options.product ?? 'FRAME/12';
+  const product = san.text(options.product ?? 'FRAME/12');
+  const cutLabel = labelCuts(s.cuts, options.cutLabels);
   if (s.replay) out.push('Replay: this output was recorded earlier; it is not a live run.');
   out.push(`${product} run "${s.title}" (${s.runId}): ${RUN_STATUS_WORDS[s.status]}`);
   out.push(`Run started ${s.startedAt}, finished ${s.finishedAt}.`);
   s.cuts.forEach((c, i) => {
     const d = formatDuration(c.durationMs);
-    out.push(`Cut ${label('C', i + 1)} ${c.cut} "${c.title}": ${CUT_STATUS_WORDS[c.status]}${d ? ` in ${d}` : ''}`);
-    if (c.summary) out.push(`Cut ${label('C', i + 1)} note: ${c.summary}`);
+    out.push(`Cut ${cutLabel[i]} ${c.cut} "${c.title}": ${CUT_STATUS_WORDS[c.status]}${d ? ` in ${d}` : ''}`);
+    if (c.summary) out.push(`Cut ${cutLabel[i]} note: ${c.summary}`);
   });
   if (s.error) out.push(`Error: ${s.error}`);
   out.push(s.findings.length === 0 ? 'Findings: none' : `Findings: ${s.findings.length} (${countBy(s.findings)})`);
@@ -107,7 +121,8 @@ export function renderPlain(snapshot: Snapshot, options: RenderOptions = {}): st
     out.push(`Finding ${frame} ${f.id} (${top}, ${FINDING_STATUS_WORDS[f.status]}): ${f.title}`);
     if (f.summary) out.push(`Finding ${frame} summary: ${f.summary}`);
     f.subject.forEach((sub, i) => out.push(`Finding ${frame} subject ${i + 1} (${sub.kind}): ${sub.label}${sub.href ? ` <${sub.href}>` : ''}`));
-    if (f.subject.length >= 2) out.push(`Finding ${frame} relation (${f.relation ?? 'history-only'}): subject 1 ${RELATION_SENTENCES[f.relation ?? 'history-only']}`);
+    // A relation is stated only when the producer gave one; plain never invents it.
+    if (f.subject.length >= 2 && f.relation) out.push(`Finding ${frame} relation (${f.relation}): subject 1 ${RELATION_SENTENCES[f.relation]}`);
     if (f.strength) {
       const range = f.strength.low !== undefined && f.strength.high !== undefined ? ` (range ${Math.round(f.strength.low * 100)}-${pct(f.strength.high)})` : '';
       out.push(`Finding ${frame} strength: ${pct(f.strength.value)}${range}, ${f.strength.label}`);
@@ -119,7 +134,7 @@ export function renderPlain(snapshot: Snapshot, options: RenderOptions = {}): st
   }
   for (const m of s.metrics) out.push(`Metric ${m.name}${m.label ? ` "${m.label}"` : ''}: ${m.value}${m.unit ? ` ${m.unit}` : ''}`);
   for (const wn of s.warnings) out.push(`Warning: ${wn}`);
-  for (const step of options.nextSteps ?? []) out.push(`Next step: ${createSanitizer(options.safety).text(step.command)} (${createSanitizer(options.safety).text(step.description)})`);
+  for (const step of options.nextSteps ?? []) out.push(`Next step: ${san.text(step.command)} (${san.text(step.description)})`);
   out.push(`End of results: ${s.findings.length} finding${s.findings.length === 1 ? '' : 's'}, ${s.warnings.length} warning${s.warnings.length === 1 ? '' : 's'}, run ${RUN_STATUS_WORDS[s.status]}.`);
   return `${out.join('\n')}\n`;
 }
@@ -135,7 +150,8 @@ export function renderRich(snapshot: Snapshot, rc: RenderCaps, options: RenderOp
   const out: string[] = [];
   const narrow = widthTier(rc.columns) === 'narrow';
 
-  out.push(masthead({ product: options.product ?? 'FRAME/12', title: s.title, ...(s.replay ? { replay: true } : {}) }, rc));
+  out.push(masthead({ product: san.text(options.product ?? 'FRAME/12'), title: s.title, ...(s.replay ? { replay: true } : {}) }, rc));
+  const cutLabel = labelCuts(s.cuts, options.cutLabels);
 
   // Run line: status word, cut count, total time. Cuts are listed only when something went wrong.
   const total = s.cuts.reduce((acc, c) => acc + (c.durationMs ?? 0), 0);
@@ -145,7 +161,7 @@ export function renderRich(snapshot: Snapshot, rc: RenderCaps, options: RenderOp
   );
   out.push(...blank(1), runCut);
   s.cuts.forEach((c, i) => {
-    if (c.status !== 'ok') out.push(cut({ label: label('C', i + 1), title: c.title, status: c.status, ...(c.durationMs !== undefined ? { durationMs: c.durationMs } : {}), ...(c.summary ? { summary: c.summary } : {}) }, rc));
+    if (c.status !== 'ok') out.push(cut({ label: cutLabel[i]!, title: c.title, status: c.status, ...(c.durationMs !== undefined ? { durationMs: c.durationMs } : {}), ...(c.summary ? { summary: c.summary } : {}) }, rc));
   });
   if (s.error) {
     out.push(...blank(1), sectionLabel('ERROR', rc));
@@ -308,9 +324,10 @@ export function createLinearWriter(options: LinearWriterOptions): LinearWriter {
           if (!snapshot) return;
           // On a terminal, separate narration from results with one blank line (pair gutter).
           if (narrated && options.format !== 'json' && options.caps.stderrIsTTY && options.caps.isTTY) say('');
+          const withLabels = { ...options, cutLabels: cutLabels };
           if (options.format === 'json') options.stdout.write(renderJson(snapshot));
-          else if (options.format === 'plain') options.stdout.write(renderPlain(snapshot, options));
-          else options.stdout.write(renderRich(snapshot, out, options));
+          else if (options.format === 'plain') options.stdout.write(renderPlain(snapshot, withLabels));
+          else options.stdout.write(renderRich(snapshot, out, withLabels));
           return;
         }
         default:

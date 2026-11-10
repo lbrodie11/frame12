@@ -141,8 +141,15 @@ FINDINGS  3 (1 top, 2 primary)
   twin. Ambiguous-width glyphs switch to their twins when ambiguous characters render wide (CJK
   locales, `FRAME12_AMBIGUOUS_WIDE=1`); wide and emoji-capable glyphs are never used.
 - **Width tiers.** Under 40 columns: one fact per line, no rules. 40–79: standard. 80–119:
-  two-column metrics. 120+: wider truncation only. No line is ever wider than the terminal, and
-  paths are middle-truncated, never wrapped (`verbose` prints the full path on its own line).
+  two-column metrics. 120+: wider truncation only. No line is ever wider than the terminal, at
+  any width from 20 columns (tested at every width from 20 to 130). Paths and receipt values are
+  middle-truncated, never wrapped; `verbose` prints each truncated one in full on its own line,
+  the one place a line may be wider than the terminal. Ids, numbers and metric values wrap
+  instead of being cut, and next-step commands wrap with ` \` continuations so a copied command
+  still runs.
+- **Nothing is invented.** A typed connector is drawn only when a finding states its `relation`;
+  results reuse the cut labels narration printed; a run has exactly one snapshot (a second one is
+  rejected, so `--json` output is always one document).
 
 ### Gallery
 

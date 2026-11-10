@@ -18,5 +18,6 @@
 
 
 [1mNEXT STEPS[22m
-  [1mframe12-term render --from run.f12rec…[22m
+  [1mframe12-term render --from \[22m
+  [1mrun.f12rec --replay[22m
     [2mReplay this run.[22m
