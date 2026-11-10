@@ -334,7 +334,7 @@ for (const engine of BROWSERS) {
       const page = await ctx.newPage();
       await page.addInitScript(() => {
         window.__cspViolations = [];
-        document.addEventListener('securitypolicyviolation', (e) => window.__cspViolations.push(`${e.violatedDirective}`));
+        document.addEventListener('securitypolicyviolation', (e) => window.__cspViolations.push(`${e.violatedDirective} ${e.blockedURI}`));
       });
       const files = {
         '/tokens.css': fs.readFileSync(path.join(REPO_ROOT, 'packages/tokens/dist/tokens.css'), 'utf8'),
@@ -366,7 +366,10 @@ for (const engine of BROWSERS) {
         const sceneW = scene.getBoundingClientRect().width;
         const panelWidths = [...scene.children].filter((c) => c.matches('.f12-panel, .f12-pair')).map((c) => c.getBoundingClientRect().width / sceneW);
         const gapEl = document.querySelector('.f12-balloon-gap');
-        return { fills, visibleCuts, autoCuts, sheetBg, gapCentre: parseFloat(gap) + 5 - gapEl.offsetParent.clientWidth / 2, areas, panelWidths, violations: window.__cspViolations };
+        // Firefox requests /favicon.ico for every page, which default-src 'none' blocks (img-src); that
+        // request comes from the browser, not the page, so it is the one report excluded.
+        const violations = window.__cspViolations.filter((v) => !/^img-src \S*\/favicon\.ico$/.test(v));
+        return { fills, visibleCuts, autoCuts, sheetBg, gapCentre: parseFloat(gap) + 5 - gapEl.offsetParent.clientWidth / 2, areas, panelWidths, violations };
       });
       const tag2 = `${tag} CSP ${policy}`;
       check(r.sheetBg !== 'rgba(0, 0, 0, 0)' && r.sheetBg !== '', `${tag2}: linked tokens.css + static.css load and style the page`, r.sheetBg);
@@ -382,7 +385,7 @@ for (const engine of BROWSERS) {
         check(r.violations.length === 0, `${tag2}: zero CSP violations`, r.violations.join(', '));
         check(r.areas.includes('summary') && r.panelWidths.every((w) => w < 0.7), `${tag2}: named areas are placed (inline custom properties allowed)`, `${r.areas} ${r.panelWidths.map((w) => w.toFixed(2))}`);
       } else {
-        check(r.violations.length > 0 && r.violations.every((v) => /style-src/.test(v)), `${tag2}: only style attributes are blocked (${r.violations.length} reports, all style-src)`, [...new Set(r.violations)].join(', '));
+        check(r.violations.length > 0 && r.violations.every((v) => /^style-src/.test(v)), `${tag2}: only style attributes are blocked (${r.violations.length} reports, all style-src)`, [...new Set(r.violations)].join(', '));
         check(r.areas === 'none' && r.panelWidths.length === 4 && r.panelWidths.every((w) => w > 0.99), `${tag2}: documented degradation: named areas fall back to one full-width column in DOM order`, `${r.areas} ${r.panelWidths.map((w) => w.toFixed(2))}`);
       }
       await ctx.close();
