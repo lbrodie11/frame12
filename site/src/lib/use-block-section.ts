@@ -22,13 +22,16 @@ export function useBlockSection<S extends string>(block: BlockSlug) {
   const searchParams = useSearchParams();
   const rawSection = searchParams?.get('section') ?? null;
   const urlSection = (parseBlockSection(block, rawSection) ?? defaultSection) as S;
-  const invalidParam = rawSection !== null && rawSection !== urlSection;
+  // An unknown value (`?section=bogus`) and the default itself (`?section=overview`) both render
+  // the default tab, so the parameter carries no information.
+  const redundantParam =
+    rawSection !== null && (rawSection !== urlSection || urlSection === defaultSection);
 
-  // `?section=bogus` (or `?section=overview`, the default) renders the default tab; drop the
-  // meaningless parameter from the address bar so it is never shared or bookmarked.
+  // Drop the redundant parameter from the address bar so it is never shared or bookmarked
+  // (URLs we generate already omit the default, see `blockHref`).
   React.useEffect(() => {
-    if (invalidParam) replaceSectionParam(null, defaultSection);
-  }, [invalidParam, defaultSection]);
+    if (redundantParam) replaceSectionParam(null, defaultSection);
+  }, [redundantParam, defaultSection]);
 
   const knownRef = React.useRef<S>(urlSection);
   const [epoch, setEpoch] = React.useState(0);
