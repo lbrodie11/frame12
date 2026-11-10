@@ -1430,6 +1430,18 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
 
 const INK_TAGS = new Set(['InkStroke', 'InkReveal', 'InkSequence']);
 const EFFECT_HOOKS = new Set(['useEffect', 'useLayoutEffect', 'useInsertionEffect']);
+/** Calls whose callback runs by itself soon after it is scheduled (no user action involved). */
+const SELF_RUNNING_CALLBACKS = new Set([
+  'setTimeout',
+  'setInterval',
+  'requestAnimationFrame',
+  'requestIdleCallback',
+  'queueMicrotask',
+  'startTransition',
+  'then',
+  'finally',
+  'flushSync',
+]);
 
 /**
  * `ink-autoplay` (TypeScript AST): `play` on an ink primitive must change after mount through a
@@ -1555,15 +1567,33 @@ function lintInkAutoplayWithTypeScript(ts, content, filePath, violations) {
     return { kind: 'unknown' };
   }
 
-  /** Every reference to the `setter` declaration (by binding, not just by name), with whether it sits in a mount-only effect. */
+  /** True for a function passed as the callback of a mount effect or of a call that runs it without a user action. */
+  const runsOnItsOwn = (fn) => {
+    const call = fn.parent;
+    // The callback is the first argument (`.then(cb)` and `.finally(cb)` included).
+    if (!call || !ts.isCallExpression(call) || call.arguments[0] !== fn) return false;
+    const name = calleeName(call) ?? '';
+    return EFFECT_HOOKS.has(name) || SELF_RUNNING_CALLBACKS.has(name);
+  };
+
+  /**
+   * Every reference to the `setter` declaration (by binding, not just by name), with whether it
+   * runs at mount: directly in a mount effect's callback, or in a timer/microtask/promise callback
+   * scheduled from it. A function the effect only registers (an event listener, a subscription)
+   * runs on a later event, not at mount, so calls inside it never count as mount calls.
+   */
   function setterUses(setter) {
     const uses = [];
     const visit = (n, inMountEffect) => {
       let mount = inMountEffect;
+      if (ts.isFunctionLike(n) && !runsOnItsOwn(n)) mount = false;
       if (ts.isCallExpression(n) && EFFECT_HOOKS.has(calleeName(n) ?? '')) {
         const deps = n.arguments[1] && unwrap(n.arguments[1]);
-        if (deps && ts.isArrayLiteralExpression(deps) && deps.elements.length === 0) mount = true;
-        else if (!deps) mount = true; // no deps: runs on mount (and every render)
+        const mountOnly = deps ? ts.isArrayLiteralExpression(deps) && deps.elements.length === 0 : true; // no deps: runs on mount (and every render)
+        if (n.arguments[0]) visit(n.arguments[0], mountOnly);
+        for (const arg of n.arguments.slice(1)) visit(arg, mount);
+        visit(n.expression, mount);
+        return;
       }
       if (ts.isIdentifier(n) && n !== setter && n.text === setter.text && findDeclaration(n, n.text) === setter) {
         const call = ts.isCallExpression(n.parent) && n.parent.expression === n ? n.parent : null;

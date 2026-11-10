@@ -65,3 +65,26 @@ export function FromConstant() {
     </svg>
   );
 }
+
+// F: clean. The mount effect only registers a keyboard shortcut; the setter runs on a key press.
+export function KeyboardShortcut() {
+  const [playing, setPlaying] = React.useState(false);
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'p') setPlaying(true);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  return <InkSequence beats={[6]} play={playing} />;
+}
+
+// G: genuine autoplay. A timer scheduled at mount fires by itself, with no user action.
+export function TimerAtMount() {
+  const [playing, setPlaying] = React.useState(false);
+  React.useEffect(() => {
+    const t = setTimeout(() => setPlaying(true), 0);
+    return () => clearTimeout(t);
+  }, []);
+  return <InkSequence beats={[6]} play={playing} />;
+}
