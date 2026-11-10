@@ -57,6 +57,21 @@ function aliasPlugin(
   };
 }
 
+// The design fonts, inlined so text metrics (and every text-dependent layout) are identical in any
+// environment: system fonts differ between machines and CI images.
+const FONT_FACES = [
+  ['Dela Gothic One', 'dela-gothic-one', [400]],
+  ['Zen Kaku Gothic New', 'zen-kaku-gothic-new', [400, 500, 700]],
+  ['M PLUS 1 Code', 'm-plus-1-code', [400, 500, 700]],
+]
+  .flatMap(([family, file, weights]) =>
+    weights.map((w) => {
+      const b64 = readFileSync(resolve(REPO_ROOT, `site/src/fonts/${file}-${w}.woff2`)).toString('base64');
+      return `@font-face{font-family:"${family}";font-weight:${w};font-style:normal;font-display:block;src:url(data:font/woff2;base64,${b64}) format("woff2")}`;
+    }),
+  )
+  .join('');
+
 const HOST_RESET =
   ':root{color-scheme:light}body{margin:0;background:var(--f-desk);color:var(--f-ink);font:15px/1.5 var(--font-f-body)}[hidden]{display:none!important}';
 
@@ -80,7 +95,7 @@ export async function bundlePage(
   if (returnJs) return res.outputFiles[0].text;
   const js = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const css = readFileSync(resolve(REGISTRY_ROOT, 'styles/frame12.css'), 'utf8');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>fixture</title>${head}<style>${HOST_RESET}</style><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>fixture</title>${head}<style>${FONT_FACES}</style><style>${HOST_RESET}</style><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`;
 }
 
 /** Bundles `entry` for Node (React external) and returns its module exports. */
@@ -133,6 +148,11 @@ export async function openFixture(
   if (init) await page.addInitScript(init);
   if (clock) await page.clock.install({ time: 0 });
   await page.goto('http://f12.test/index.html');
+  // Fonts are inline data: URLs; make sure every face is loaded before anything is measured.
+  await page.evaluate(async () => {
+    await Promise.all([...document.fonts].map((f) => f.load().catch(() => {})));
+    await document.fonts.ready;
+  });
   // The fake clock flows in real time until paused; pause it so every sample is deterministic.
   if (clock) await page.clock.pauseAt(5000);
   return { ctx, page, errors, warnings };

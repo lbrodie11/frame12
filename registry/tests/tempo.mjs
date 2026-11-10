@@ -88,7 +88,9 @@ const browser = await launch('chromium');
   check(
     names.length === 13 && diffs.length === 0 && Object.keys(now).length === names.length,
     `no-provider compatibility: SSR HTML, settled DOM and 60 Hz animation timelines of all ${names.length} fixtures (9 motion consumer files) identical to the pre-tempo baseline`,
-    diffs.join(', '),
+    diffs
+      .map((n) => `${n}: ${Object.keys(baseline[n]).filter((k) => JSON.stringify(baseline[n][k]) !== JSON.stringify(now[n]?.[k])).join('/')}`)
+      .join(', '),
   );
 }
 
@@ -426,9 +428,10 @@ for (const [label, w] of [['320px', 320], ['390px', 390], ['200% zoom of 1280px 
     const targets = [...fs.querySelectorAll('label')].map((l) => l.getBoundingClientRect()).map((r) => [Math.round(r.width), Math.round(r.height)]);
     return { width: Math.round(rng.width), targets, docOverflow: document.documentElement.scrollWidth > window.innerWidth };
   });
-  const fitsHeader = m.width <= 320 - 32;
+  // The site header insets its content 10px on each side at 320px (site/tests/tempo.mjs measures it).
+  const fitsHeader = m.width <= 320 - 20;
   check(fitsHeader && !m.docOverflow && m.targets.every(([tw, th]) => tw >= 44 && th >= 44),
-    `control layout at ${label}: ${m.width}px wide (fits a 320px header with 16px gutters), no overflow, every target ≥ 44×44 (SC 2.5.5; ≥ 24×24 SC 2.5.8)`, m);
+    `control layout at ${label}: ${m.width}px wide (fits a 320px header with 10px insets), no overflow, every target ≥ 44×44 (SC 2.5.5; ≥ 24×24 SC 2.5.8)`, m);
   await ctx.close();
 }
 

@@ -1,6 +1,13 @@
-// Re-records registry/tests/fixtures/no-provider-baseline.json. The committed file was recorded
-// BEFORE tempo existed (F12-08); only re-record when a deliberate, reviewed visual change lands.
-//   node registry/tests/record-no-provider-baseline.mjs
+// Re-records registry/tests/fixtures/no-provider-baseline.json. The committed file must come from
+// the PRE-tempo source (F12-08), so record it from a worktree of the commit before the change,
+// with this harness (fonts are inlined, so the result is the same on any machine or CI image):
+//   git worktree add --detach /tmp/pre-tempo 7d638b1
+//   cp registry/tests/{harness,no-provider-capture,record-no-provider-baseline,lib}.mjs /tmp/pre-tempo/registry/tests/
+//   ln -s "$PWD/node_modules" /tmp/pre-tempo/node_modules
+//   ln -s "$PWD/registry/node_modules" /tmp/pre-tempo/registry/node_modules
+//   (cd /tmp/pre-tempo && node registry/tests/record-no-provider-baseline.mjs)
+//   cp /tmp/pre-tempo/registry/tests/fixtures/no-provider-baseline.json registry/tests/fixtures/
+// Only re-record when a deliberate, reviewed visual change lands.
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { launch } from './lib.mjs';
