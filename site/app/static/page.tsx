@@ -3,7 +3,8 @@ import { CopyCommand } from '@/components/copy-command';
 import { PrReportReact } from '@/components/pr-report-react';
 import { renderStaticPrReport } from '@/lib/pr-report';
 
-const USAGE_SNIPPET = `import { document, sheet, scene, panel, metric, ghostWire, receiptList, fragment } from '@frame12/static';
+const USAGE_SNIPPET = `import fs from 'node:fs';
+import { document, sheet, scene, panel, metric, fragment } from '@frame12/static';
 
 const body = sheet({
   autoCut: true, // panels without a cut are numbered C-01, C-02… by the stylesheet
@@ -17,12 +18,16 @@ const body = sheet({
 });
 
 // A self-contained page: tokens + static CSS inlined, no scripts or external requests.
-const html = document({ title: pr.title, body });`;
+// Renderers return Html objects; String() gives the markup to write or send.
+fs.writeFileSync('report.html', String(document({ title: pr.title, body })));`;
 
 const CSP_SNIPPET = `// CSP-restricted hosts (e.g. VS Code webviews): don't inline CSS, load both stylesheets as resources.
-const page = document({ title, body, inlineCss: false });
+const page = String(document({ title, body, inlineCss: false }));
 // <link rel="stylesheet" href="…/@frame12/tokens/tokens.css">
-// <link rel="stylesheet" href="…/@frame12/static/static.css">`;
+// <link rel="stylesheet" href="…/@frame12/static/static.css">
+// Recommended policy: style-src <host>; style-src-attr 'unsafe-inline'
+// Fully strict style-src also works: cuts, bar lengths and seams keep rendering;
+// named areas fall back to one column in DOM order.`;
 
 /** Side-by-side: the React kit and @frame12/static rendering the same pull-request report. */
 export default function StaticPage() {
@@ -70,7 +75,7 @@ export default function StaticPage() {
         <section id="static-compare-static" aria-labelledby="static-compare-static-h" className="f12-static-compare-col" data-renderer="static">
           <h2 id="static-compare-static-h" className="f12-static-compare-h">@frame12/static</h2>
           {/* renderStaticPrReport() returns escaped, deterministic markup built only from the report data. */}
-          <div dangerouslySetInnerHTML={{ __html: staticReport }} />
+          <div dangerouslySetInnerHTML={{ __html: String(staticReport) }} />
         </section>
       </div>
     </>
