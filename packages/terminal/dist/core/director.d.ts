@@ -23,6 +23,7 @@ import type { CutStatus, Finding, LogLevel, Metric, RunStatus, Snapshot, Termina
 import { type Tempo } from './motion.js';
 import { type SafetyOptions } from './safety.js';
 import { type StreamValidatorOptions } from './validate.js';
+import { type RecordSink } from './recording.js';
 export interface CutState {
     cut: string;
     /** Presentation label, numbered in the order cuts started (`C-01`). */
@@ -109,6 +110,12 @@ export interface DirectorOptions {
     safety?: SafetyOptions;
     validation?: StreamValidatorOptions;
     scheduler?: Scheduler;
+    /**
+     * Records the run as `.f12rec` lines (see `recording.ts`): every accepted event, sanitized and
+     * redacted (links too), timed by the scheduler's clock, ending with the snapshot; then
+     * `end()`. Deterministic with an injected scheduler.
+     */
+    record?: RecordSink;
 }
 export type Listener = (state: Readonly<RunState>) => void;
 /**
@@ -120,14 +127,17 @@ export interface AbortSignalLike {
     readonly reason: unknown;
 }
 export interface Director {
-    /** Accepts one event (parsed JSON). Never throws. */
-    push(raw: unknown): void;
+    /**
+     * Accepts one event (parsed JSON). Never throws. `where` names it in a dropped-event warning
+     * (`line 12`); by default it is counted (`event 12`).
+     */
+    push(raw: unknown, where?: string): void;
     /**
      * Sees every pushed event, raw and before validation, ahead of the fold and any publish; returns
      * an unsubscribe function. For renderers that validate on their own (the linear view), so events
      * pushed to a shared Director directly reach them too.
      */
-    tap(listener: (raw: unknown) => void): () => void;
+    tap(listener: (raw: unknown, where?: string) => void): () => void;
     /** Subscribes to published states; returns an unsubscribe function. */
     subscribe(listener: Listener): () => void;
     /** The current state (also between publishes). */

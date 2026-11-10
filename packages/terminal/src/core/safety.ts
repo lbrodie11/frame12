@@ -199,7 +199,8 @@ export function formatLink(text: string, href: unknown, enabled: boolean, policy
 
 // ---------------------------------------------------------------------------------- redaction
 
-export type RedactField = 'log' | 'receipt' | 'text' | 'identifier';
+/** `link`: a URL (a remote), seen by the hook only when a run is recorded. */
+export type RedactField = 'log' | 'receipt' | 'text' | 'identifier' | 'link';
 
 export interface RedactContext {
   /** What kind of field this string came from. */

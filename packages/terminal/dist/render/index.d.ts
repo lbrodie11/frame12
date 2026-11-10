@@ -73,8 +73,11 @@ export interface LinearResult {
     ignored: number;
 }
 export interface LinearWriter {
-    /** Accepts one event (parsed JSON). Never throws. */
-    write(raw: unknown): void;
+    /**
+     * Accepts one event (parsed JSON). Never throws. `where` names it in a dropped-event warning
+     * (`line 12`); by default it is counted (`event 12`).
+     */
+    write(raw: unknown, where?: string): void;
     /**
      * Narrates a log line that did not arrive as an event (the host's own, or a child process's
      * through `spawnLogged`), exactly like a `log` event: errors and warnings always, the rest only

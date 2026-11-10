@@ -201,7 +201,7 @@ export function createLinearWriter(options) {
         log(level, text) {
             narrateLog(level, san.text(text, 'log', 'log'));
         },
-        write(raw) {
+        write(raw, where) {
             seen++;
             const r = stream.push(raw);
             if (!r.ok) {
@@ -209,7 +209,7 @@ export function createLinearWriter(options) {
                     ignored++;
                 else
                     invalid++;
-                warn(`${r.ignorable ? 'ignored' : 'dropped'} event ${seen}: ${describeIssues(r.issues)}`);
+                warn(`${r.ignorable ? 'ignored' : 'dropped'} ${where ?? `event ${seen}`}: ${describeIssues(r.issues)}`);
                 return;
             }
             const ev = san.event(r.value);

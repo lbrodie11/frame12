@@ -4,9 +4,9 @@ FRAME/12's interface language for the command line. A long-running command reads
 of **cuts** (`C-01`, `C-02`…), the finding that matters comes first as a **frame** (`F-01`), and
 every claim carries **receipts** (`E-01`).
 
-> **Status: 0.1.0 in progress (F12-13 PRs 1–3).** The core, the zero-dependency linear renderers
-> (`./render`), the Director, the live Ink view (`./ink`) and `spawnLogged` (`./process`) are in.
-> The `frame12-term` CLI arrives in PR 4.
+> **Status: 0.1.0 in progress (F12-13 PRs 1–4).** The core, the zero-dependency linear renderers
+> (`./render`), the Director, the live Ink view (`./ink`), `spawnLogged` (`./process`) and the
+> `frame12-term` CLI with `.f12rec` recordings are in.
 
 ```sh
 npm install @frame12/terminal
@@ -217,6 +217,147 @@ dropped, and one line says how many characters were not logged; carriage-return 
 only its latest text. Once the child exits, its output gets `drainMs` (default 500) to arrive, so a
 grandchild that inherited the pipes cannot keep the promise pending. In the linear view these lines are narrated like log events (errors and
 warnings always), so a child's failure reason reaches CI logs too.
+
+## The `frame12-term` CLI
+
+Any program that can print JSON lines gets FRAME/12 output: emit contract v1 events, one per line,
+and pipe them in.
+
+```sh
+my-tool --events | npx frame12-term render              # rich (default), plain, json or live
+my-tool --events | npx frame12-term render --record run.f12rec
+npx frame12-term render --from run.f12rec --replay --speed 2
+```
+
+| Option | |
+| --- | --- |
+| `--from <file>` | Read events from a file instead of stdin (`.ndjson` or `.f12rec`) |
+| `--format rich\|plain\|json\|live` | `rich` is the default; `--plain` and `--json` are shorthands. `live` needs the optional `ink`/`react` peers, and reads keys only when the events come from `--from` (stdin is then free for the keyboard); with events on stdin it falls back to the linear view |
+| `--strict` | Stop at the first malformed line or invalid event, with exit code 2 |
+| `--replay` | Play with the original timing (recording offsets, or event timestamps), labeled `REPLAY` |
+| `--speed <n>` | Replay speed, default ×4. No wait between two events is longer than 1 s |
+| `--record <file>` | Write the run as a `.f12rec` recording |
+| `--verbose` | Also narrate `info` and `debug` log lines |
+
+Capability flags (`--color`, `--no-color`, `--ascii`, `--links`, `--screen-reader`, `--motion`,
+`--columns`, `--rows`) and environment variables work as everywhere else in the package. Exit
+codes: `0` completed, `1` failed or incomplete, `2` usage error or `--strict` failure, `130`
+canceled. Narration goes to stderr and results to stdout, as with the linear writer.
+
+**Input limits.** A line longer than 64 KiB, or one that is not JSON, is reported with its line
+number (`line 12: not valid JSON (…) (skipped)`) and skipped without being buffered; an invalid
+event is dropped with a warning naming its line. `--strict` turns the first of these into a stop.
+Everything quoted from the input is sanitized before it is printed.
+
+### Emitters
+
+Each of these prints a complete run (start, one cut, end, snapshot) that `frame12-term render
+--strict` accepts; the package's tests run all three through the CLI.
+
+<!-- emitter: python -->
+```python
+import json
+from datetime import datetime, timezone
+
+seq = 0
+def now(): return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+def emit(type, **fields):
+    global seq
+    seq += 1
+    print(json.dumps({"schemaVersion": 1, "type": type, "runId": "py-1", "seq": seq, "ts": now(), "id": f"py-1-{seq}", **fields}), flush=True)
+
+started = now()
+emit("run-start", title="Build the docs")
+emit("cut-start", cut="compile", title="Compile")
+emit("cut-end", cut="compile", status="ok")
+emit("run-end", status="completed")
+emit("snapshot", snapshot={"schemaVersion": 1, "runId": "py-1", "title": "Build the docs", "status": "completed",
+    "startedAt": started, "finishedAt": now(), "cuts": [{"cut": "compile", "title": "Compile", "status": "ok"}],
+    "metrics": [], "findings": [], "warnings": []})
+```
+
+<!-- emitter: go -->
+```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
+var seq = 0
+
+func now() string { return time.Now().UTC().Format("2006-01-02T15:04:05.000Z") }
+
+func emit(kind string, fields map[string]any) {
+	seq++
+	fields["schemaVersion"], fields["type"], fields["runId"] = 1, kind, "go-1"
+	fields["seq"], fields["ts"], fields["id"] = seq, now(), fmt.Sprintf("go-1-%d", seq)
+	line, _ := json.Marshal(fields)
+	fmt.Println(string(line))
+}
+
+func main() {
+	started := now()
+	emit("run-start", map[string]any{"title": "Build the docs"})
+	emit("cut-start", map[string]any{"cut": "compile", "title": "Compile"})
+	emit("cut-end", map[string]any{"cut": "compile", "status": "ok"})
+	emit("run-end", map[string]any{"status": "completed"})
+	emit("snapshot", map[string]any{"snapshot": map[string]any{"schemaVersion": 1, "runId": "go-1", "title": "Build the docs",
+		"status": "completed", "startedAt": started, "finishedAt": now(), "metrics": []any{}, "findings": []any{}, "warnings": []any{},
+		"cuts": []any{map[string]any{"cut": "compile", "title": "Compile", "status": "ok"}}}})
+}
+```
+
+<!-- emitter: rust -->
+```rust
+use std::time::{SystemTime, UNIX_EPOCH};
+
+// UTC ISO 8601 from the system clock (the standard library has no date formatting).
+fn now() -> String {
+    let ms = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+    let (z, t) = (ms.div_euclid(86_400_000) + 719_468, ms.rem_euclid(86_400_000));
+    let (era, doe) = (z.div_euclid(146_097), z.rem_euclid(146_097));
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let (d, m) = (doy - (153 * mp + 2) / 5 + 1, if mp < 10 { mp + 3 } else { mp - 9 });
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}.{:03}Z", t / 3_600_000, t / 60_000 % 60, t / 1000 % 60, t % 1000)
+}
+
+fn emit(seq: &mut u32, kind: &str, fields: &str) {
+    *seq += 1;
+    println!(r#"{{"schemaVersion":1,"type":"{kind}","runId":"rs-1","seq":{seq},"ts":"{}","id":"rs-1-{seq}"{fields}}}"#, now());
+}
+
+fn main() {
+    let (mut seq, started) = (0, now());
+    emit(&mut seq, "run-start", r#","title":"Build the docs""#);
+    emit(&mut seq, "cut-start", r#","cut":"compile","title":"Compile""#);
+    emit(&mut seq, "cut-end", r#","cut":"compile","status":"ok""#);
+    emit(&mut seq, "run-end", r#","status":"completed""#);
+    let snapshot = format!(r#","snapshot":{{"schemaVersion":1,"runId":"rs-1","title":"Build the docs","status":"completed","startedAt":"{started}","finishedAt":"{}","cuts":[{{"cut":"compile","title":"Compile","status":"ok"}}],"metrics":[],"findings":[],"warnings":[]}}"#, now());
+    emit(&mut seq, "snapshot", &snapshot);
+}
+```
+
+### Recordings (`.f12rec`)
+
+A recording is the run's data, not its screen: NDJSON whose first line is the header
+`{"f12rec":1,"schemaVersion":1}`, then one `{"t":<ms since the first event>,"event":{…}}` line per
+accepted event, ending with the snapshot. Events are recorded after validation and sanitization,
+and links (remotes) also go through the redaction hook (paths already do, as identifiers), so a
+recording never holds what the renderers would not print. Given the same events and clock
+readings, the bytes are identical. A recording always renders labeled `REPLAY`.
+
+- **CLI:** `--record <file>`; play back with `render --from <file>` (add `--replay` for timing).
+- **Live view:** `startLive({ record: 'run.f12rec' })`.
+- **Director:** `createDirector({ record: sink })`, where a sink is `{ write(line), end?() }`. Core
+  has no file system, so it can run in a browser (the docs site plays recordings); in Node, for
+  example `{ write: (l) => fs.appendFileSync(path, l) }`.
+- **Reading:** `isRecordingHeader(value)` and `parseRecordingEntry(value)` from the core.
 
 ## Capabilities
 

@@ -16,6 +16,8 @@ export interface StoryboardProps {
     rows: number;
     product?: string;
     nextSteps?: NextStep[];
+    /** Label the masthead `REPLAY`: this run was recorded earlier. */
+    replay?: boolean;
     /** `q`: finish (the host decides whether a running job is canceled first). */
     onQuit: () => void;
     /** Ctrl-C in raw mode (it arrives as a key, not SIGINT). */
@@ -43,4 +45,4 @@ export declare function Inspector({ finding, frame, firstReceipt, rc, marker }: 
     marker: boolean;
 }): React.JSX.Element;
 /** The live view's root. */
-export declare function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onInterrupt, onOpen }: StoryboardProps): React.JSX.Element;
+export declare function Storyboard({ director, rc, rows, product, nextSteps, replay, onQuit, onInterrupt, onOpen }: StoryboardProps): React.JSX.Element;

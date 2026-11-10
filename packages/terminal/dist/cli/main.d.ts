@@ -1,0 +1,31 @@
+import type { Scheduler } from '../core/director.js';
+import { type LiveOptions, type LiveRun } from '../ink/session.js';
+/** Lines longer than this (in bytes, without the newline) are skipped. */
+export declare const MAX_LINE_BYTES: number;
+/** Default replay speed, and the longest wait between two replayed events. */
+export declare const DEFAULT_SPEED = 4;
+export declare const MAX_REPLAY_GAP_MS = 1000;
+/** Everything the CLI touches, injectable for tests. */
+export interface CliIO {
+    stdin: NodeJS.ReadStream;
+    stdout: NodeJS.WriteStream;
+    stderr: NodeJS.WriteStream;
+    env: Record<string, string | undefined>;
+    /** Opens `--from`. Default: `fs.createReadStream`. */
+    open?: (path: string) => AsyncIterable<Buffer | string> & {
+        destroy?(): void;
+    };
+    /** Waits between replayed events. Default: a timer. */
+    sleep?: (ms: number) => Promise<void>;
+    /** The Director's clock (recording offsets). Default: the real one. */
+    scheduler?: Scheduler;
+    /** Loads the live adapter. Default: `import('../ink/index.js')`. */
+    loadLive?: () => Promise<{
+        startLive(options: LiveOptions): LiveRun;
+    }>;
+    /** Passed to the session (tests turn signals off). */
+    handleSignals?: boolean;
+    exit?: (code: number) => void;
+}
+/** Runs `frame12-term` with `argv` (without node and the script); resolves with the exit code. */
+export declare function main(argv: readonly string[], io: CliIO): Promise<number>;

@@ -39,6 +39,8 @@ export interface StoryboardProps {
   rows: number;
   product?: string;
   nextSteps?: NextStep[];
+  /** Label the masthead `REPLAY`: this run was recorded earlier. */
+  replay?: boolean;
   /** `q`: finish (the host decides whether a running job is canceled first). */
   onQuit: () => void;
   /** Ctrl-C in raw mode (it arrives as a key, not SIGINT). */
@@ -100,7 +102,7 @@ export function Inspector({ finding, frame, firstReceipt, rc, marker }: { findin
 }
 
 /** The live view's root. */
-export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onInterrupt, onOpen }: StoryboardProps) {
+export function Storyboard({ director, rc, rows, product, nextSteps, replay, onQuit, onInterrupt, onOpen }: StoryboardProps) {
   const state = useRunState(director);
   // Only a render trigger for focus moves; the focus itself lives in the refs below.
   const [, setFocus] = React.useState(0);
@@ -116,7 +118,7 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
   const added: Array<{ key: string; text: string }> = [];
   if (!doneIds.current.has(' masthead') && state.title !== undefined) {
     doneIds.current.add(' masthead');
-    added.push({ key: ' masthead', text: masthead({ product: product ?? state.product ?? 'FRAME/12', title: state.title }, rc) });
+    added.push({ key: ' masthead', text: masthead({ product: product ?? state.product ?? 'FRAME/12', title: state.title, ...(replay ? { replay: true } : {}) }, rc) });
   }
   for (const c of state.cuts) {
     if (c.status === 'running' || doneIds.current.has(c.cut)) continue;

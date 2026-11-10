@@ -1,6 +1,7 @@
 import { FRAME_MS, tempoIntervalMs } from './motion.js';
 import { createSanitizer } from './safety.js';
 import { createStreamValidator, describeIssues } from './validate.js';
+import { recordingHeader, recordingLine, redactLinks } from './recording.js';
 const defaultScheduler = {
     now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
     setTimeout: (fn, ms) => {
@@ -267,12 +268,43 @@ export function createDirector(options) {
                 return true;
         }
     };
-    const push = (raw) => {
+    // Recording: header before the first accepted event, then one line per event, closed after the
+    // snapshot (the run's last word) or on dispose. A failing sink stops the recording, not the run.
+    let recordOrigin;
+    let recording = options.record !== undefined;
+    const endRecording = () => {
+        if (!recording)
+            return;
+        recording = false;
+        try {
+            options.record?.end?.();
+        }
+        catch {
+            // Ignore: the run goes on.
+        }
+    };
+    const record = (ev) => {
+        if (!recording)
+            return;
+        try {
+            if (recordOrigin === undefined) {
+                recordOrigin = sched.now();
+                options.record.write(recordingHeader());
+            }
+            options.record.write(recordingLine(sched.now() - recordOrigin, redactLinks(ev, options.safety?.redact, ev.type, options.safety?.links)));
+        }
+        catch {
+            recording = false;
+        }
+        if (ev.type === 'snapshot')
+            endRecording();
+    };
+    const push = (raw, where) => {
         if (disposed)
             return;
         for (const t of [...taps]) {
             try {
-                t(raw);
+                t(raw, where);
             }
             catch {
                 // A failing tap must not lose the event.
@@ -288,11 +320,12 @@ export function createDirector(options) {
             else
                 state.dropped.invalid++;
             // A dropped event is visible: it becomes a warning, published immediately.
-            addWarning(san.text(`${r.ignorable ? 'Ignored' : 'Dropped'} event ${seen}: ${describeIssues(r.issues)}`));
+            addWarning(san.text(`${r.ignorable ? 'Ignored' : 'Dropped'} ${where ?? `event ${seen}`}: ${describeIssues(r.issues)}`));
             publish();
             return;
         }
         const ev = san.event(r.value);
+        record(ev);
         const immediate = fold(ev);
         try {
             options.onEvent?.(ev);
@@ -353,6 +386,7 @@ export function createDirector(options) {
         },
         dispose() {
             disposed = true;
+            endRecording();
             stopPose();
             if (frameTimer !== undefined)
                 sched.clearTimeout(frameTimer);

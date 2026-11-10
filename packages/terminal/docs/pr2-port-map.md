@@ -41,9 +41,9 @@ The F12-13 prompt says PR #2 has 41 tests. `tests/storyboard.test.mjs` at `22a8b
 | 3.1 | identical findings, pairs, counts, ratios and SHAs across all 3 views | Data-integrity test (every number, path and id in plain, rich and live) | PR 2 / PR 3 |
 | 3.2 | SNAPSHOT ONLY notice for events=[]; throws on invalid stream; no Radix bundling | Renderer test (PR 2); HTML report (PR 6) | PR 2 / PR 6 |
 | 4.1 | strips CSI, OSC 8 (keeping the label), CR/BS, bidi; HTML-escapes tags | `tests/safety.test.mjs`: 10,000-case fuzz plus specific attacks | Ported; CR/BS are now **made visible** instead of stripped, so overwritten text can't hide. HTML escaping moves to PR 6 |
-| 5.1 | CLI flags: `--json`, `--events`, `--baseline`, `--replay`, `--exclude`, bounds | `frame12-term` CLI tests | PR 4 |
+| 5.1 | CLI flags: `--json`, `--events`, `--baseline`, `--replay`, `--exclude`, bounds | `tests/cli.test.mjs`: `--json`, `--replay` (timing, ×speed, 1 s cap), the 64 KiB line bound, usage errors | Ported in PR 4; `--events`, `--baseline` and `--exclude` drove the Git workload and move with it to PR 5 |
 | 5.2 | live narration on stderr before step-end; FORCE_COLOR; CJK/emoji wrap at 40/80/120 | Color precedence: `tests/capabilities.test.mjs`; wrap property: `tests/width.test.mjs`; streams test | Partly ported; stderr narration in PR 2 |
-| 5.3 | sanitizes escapes in replay, import and CLI error diagnostics | CLI tests | PR 4 |
+| 5.3 | sanitizes escapes in replay, import and CLI error diagnostics | `tests/cli.test.mjs` (diagnostics quote input through the sanitizer); replayed events go through the same validation and sanitizer as live ones | Ported in PR 4 |
 | 6.1 | single run-end (failed) and exit 1 for a non-git dir or unwritable report path | Lifecycle and exit codes | PR 3 (exit codes), PR 5 (Git) |
 | 6.2 | empty unborn repo vs corrupt HEAD | Reference app | PR 5 |
 | 6.3 | mid-workflow git failure and subprocess timeout | `spawnLogged` and reference app | PR 3 / PR 5 |
@@ -53,5 +53,5 @@ The F12-13 prompt says PR #2 has 41 tests. `tests/storyboard.test.mjs` at `22a8b
 | 9.1 | `check-frame12.mjs` passes on the experiment's src | Grammar tests for terminal output (one marker, no yellow foreground, no boxes, status words) | PR 2; `check-frame12` rules target CSS/TSX, which the terminal core does not contain |
 | 10.1 | Ink components at 40/60/80/120 columns, `--ascii`, NO_COLOR | `tests/ink.test.mjs` (the components draw the width-tested PR 2 grammar) | Ported |
 | 10.2 | 12 fps throttle, no-op redraw skip, immediate lifecycle flush, resize | `tests/director.test.mjs` (pacing, coalescing, immediate paths, idle), `tests/live.pty.test.mjs` (resize, latency, idle bytes) | Ported |
-| 10.3 | `--style auto\|panels\|plain` resolution, exit code 2 for incompatible flags | `--format` resolution | PR 4 |
+| 10.3 | `--style auto\|panels\|plain` resolution, exit code 2 for incompatible flags | `tests/cli.test.mjs`: `--format rich\|plain\|json\|live` (rich default; live falls back to linear when stdin carries the events), exit code 2 for usage errors | Ported in PR 4 |
 | 10.4 | plain output byte-identical to golden; never loads ink in plain/json | Goldens (PR 2); loader hook for `.` and `./render` (`tests/boundaries.test.mjs`) | Partly ported; goldens in PR 2 |
