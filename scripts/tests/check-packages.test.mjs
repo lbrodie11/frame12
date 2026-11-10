@@ -5,7 +5,7 @@
  *   2. Internal dependency-rewrite logic (`rewriteInternalDependencies`).
  *   3. Dynamic discovery of new `packages/<name>` entries in topological order without workflow edits.
  *   4. Dry-run release (`runDryRunRelease`) and standalone tarball install smoke test (`runStandalonePackageSmokeTest`)
- *      across `@frame12/tokens`, `@frame12/lint` (`lintHtml`), and `@frame12/static` (`document`, `renderCard`).
+ *      across `@frame12/tokens`, `@frame12/lint` (`lintHtml`), and `@frame12/static` (every export, `document()`, `static.css`, `.d.ts`).
  *   5. Release tag validation, npm/Node version guard (`>= 11.5.1` / `>= 22.14.0`), and npm dependency order checks.
  */
 
@@ -423,7 +423,7 @@ function makeValidTokensPkgJson(overrides = {}) {
 
 // 4. Multi-package fixture workspace: proves new packages/ entries (lint, static) are picked up
 // automatically in dependency order without workflow edits, pass validatePackages + runDryRunRelease,
-// and pass the standalone zero-dependency tarball install smoke test (cssText, lintHtml, document, renderCard).
+// and pass the standalone zero-dependency tarball install smoke test (cssText, lintHtml, @frame12/static).
 {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'frame12-multi-pkg-fixture-'));
   try {
@@ -516,58 +516,15 @@ function makeValidTokensPkgJson(overrides = {}) {
       `export interface Violation { rule: string; message: string; }\nexport declare function lintHtml(html: string): Violation[];\n`,
     );
 
-    // 4c. Create fixture packages/static (`@frame12/static` depending on `@frame12/tokens` and exporting `document` + `renderCard`)
+    // 4c. Copy the real packages/static (F12-04) into fixtureRoot/packages/static
     const staticDir = path.join(fixtureRoot, 'packages/static');
     fs.mkdirSync(path.join(staticDir, 'dist'), { recursive: true });
-    fs.writeFileSync(
-      path.join(staticDir, 'package.json'),
-      JSON.stringify(
-        {
-          name: '@frame12/static',
-          version: '0.2.0',
-          description: 'FRAME/12 static HTML and SVG card renderer.',
-          license: 'MIT',
-          type: 'module',
-          main: './dist/index.js',
-          types: './dist/index.d.ts',
-          exports: {
-            '.': {
-              types: './dist/index.d.ts',
-              default: './dist/index.js',
-            },
-            './package.json': './package.json',
-          },
-          files: ['dist'],
-          publishConfig: {
-            access: 'public',
-          },
-          dependencies: {
-            '@frame12/tokens': '0.2.0',
-          },
-          repository: {
-            type: 'git',
-            url: 'https://github.com/lbrodie11/frame12.git',
-            directory: 'packages/static',
-          },
-        },
-        null,
-        2,
-      ) + '\n',
-    );
-    fs.writeFileSync(path.join(staticDir, 'README.md'), '# @frame12/static\n');
-    fs.writeFileSync(path.join(staticDir, 'LICENSE'), licenseText);
-    fs.writeFileSync(
-      path.join(staticDir, 'CHANGELOG.md'),
-      '# Changelog\n\n## [0.2.0] - 2026-11-08\n\n- Initial release of `@frame12/static` with `document()` and `renderCard()`.\n',
-    );
-    fs.writeFileSync(
-      path.join(staticDir, 'dist/index.js'),
-      `import { cssText, tokens } from '@frame12/tokens';\nexport function document({ title = 'FRAME/12', body = '' } = {}) {\n  return \`<!doctype html><html data-theme="light"><head><meta charset="utf-8"><title>\${title}</title><style>\${cssText}</style></head><body class="f12-sheet">\${body}</body></html>\`;\n}\nexport function renderCard({ title = 'Card', subtitle = '', value = '' } = {}) {\n  return \`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" stroke="\${tokens.light.rule}"><text x="20" y="40">\${title}</text><text x="20" y="80">\${subtitle}</text><text x="20" y="140">\${value}</text></svg>\`;\n}\n`,
-    );
-    fs.writeFileSync(
-      path.join(staticDir, 'dist/index.d.ts'),
-      `export declare function document(opts?: { title?: string; body?: string }): string;\nexport declare function renderCard(opts?: { title?: string; subtitle?: string; value?: string }): string;\n`,
-    );
+    for (const f of ['package.json', 'README.md', 'LICENSE', 'CHANGELOG.md']) {
+      fs.copyFileSync(path.join(REPO_ROOT, 'packages/static', f), path.join(staticDir, f));
+    }
+    for (const f of fs.readdirSync(path.join(REPO_ROOT, 'packages/static/dist'))) {
+      fs.copyFileSync(path.join(REPO_ROOT, 'packages/static/dist', f), path.join(staticDir, 'dist', f));
+    }
 
     const discovered = discoverPublishablePackages(fixtureRoot);
     const namesOrder = discovered.map((p) => p.shortName);
@@ -633,7 +590,7 @@ function makeValidTokensPkgJson(overrides = {}) {
         missingExportValidation.errors.some((e) =>
           e.includes('export target "./dist/index.js" at exports["."]["default"] does not exist on disk after build'),
         ),
-      'multi-package fixture (tokens, lint, static): discovered automatically in topological order (tokens before static), passes dry-run release + SHA-256 artifact verification, and passes standalone tarball smoke test (cssText, lintHtml clean+color-literal, document, renderCard)',
+      'multi-package fixture (tokens, lint, static): discovered automatically in topological order (tokens before static), passes dry-run release + SHA-256 artifact verification, and passes standalone tarball smoke test (cssText, lintHtml clean+color-literal, every @frame12/static export with fs blocked, document(), static.css, .d.ts)',
       JSON.stringify({
         order: namesOrder,
         tarballs: dryRunRes.manifest.packages.map((p) => p.tarball),

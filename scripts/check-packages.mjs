@@ -480,7 +480,8 @@ export function validatePackages(rootDir = DEFAULT_REPO_ROOT, options = {}) {
  * Packs every discovered package under `<rootDir>/packages/*` with `npm pack`, installs the
  * tarballs into an isolated temporary project with NO other dependencies, and runs standalone
  * verification checks for whichever packages (`@frame12/tokens`, `@frame12/lint`, `@frame12/static`)
- * are present.
+ * are present. For `@frame12/static` it imports every export with `node:fs` blocked, renders a
+ * `document()`, resolves `./static.css`, and type-checks a consumer against the installed `.d.ts`.
  */
 export function runStandalonePackageSmokeTest(rootDir = DEFAULT_REPO_ROOT, options = {}) {
   const packages = discoverPublishablePackages(rootDir);
@@ -594,29 +595,43 @@ if (present.includes('@frame12/lint')) {
 }
 
 if (present.includes('@frame12/static')) {
+  // document() must not touch the filesystem at runtime. Import the package (module loading reads
+  // files), then make every public node:fs entry point throw before rendering anything.
   const staticMod = await import('@frame12/static');
-  assert.equal(typeof staticMod.document, 'function', '@frame12/static must export document()');
-  assert.equal(typeof staticMod.renderCard, 'function', '@frame12/static must export renderCard()');
-  const docHtml = await staticMod.document({
-    title: 'Standalone Smoke Test',
-    subtitle: 'Cut C-01',
-    body: '<div class="f12-panel">Body</div>',
-    content: '<div class="f12-panel">Body</div>',
-    scenes: [],
+  const fsMod = await import('node:fs');
+  const { syncBuiltinESMExports } = await import('node:module');
+  const blocked = [];
+  for (const key of ['readFileSync', 'readFile', 'openSync', 'open', 'statSync', 'existsSync', 'readdirSync', 'createReadStream']) {
+    if (typeof fsMod.default[key] === 'function') {
+      fsMod.default[key] = () => { blocked.push(key); throw new Error('fs.' + key + ' is not available'); };
+    }
+  }
+  for (const key of ['readFile', 'open', 'stat', 'readdir']) {
+    if (fsMod.default.promises && typeof fsMod.default.promises[key] === 'function') {
+      fsMod.default.promises[key] = async () => { blocked.push('promises.' + key); throw new Error('fs.promises.' + key + ' is not available'); };
+    }
+  }
+  syncBuiltinESMExports();
+  const expected = ['document', 'sheet', 'scene', 'sceneArea', 'panel', 'panelPair', 'balloon', 'tag', 'badge', 'metric', 'toneBarList', 'ghostWire', 'receipt', 'receiptList', 'fragment', 'unsafeRaw', 'escapeHtml', 'safeUrl', 'isHtml', 'fmtPct', 'fmtPPAbs', 'fmtMoney'];
+  for (const name of expected) assert.equal(typeof staticMod[name], 'function', '@frame12/static must export ' + name + '()');
+  assert.equal(typeof staticMod.staticCss, 'string', '@frame12/static must export staticCss');
+  const body = staticMod.sheet({
+    autoCut: true,
+    children: staticMod.fragment(
+      staticMod.panel({ label: 'Smoke', children: staticMod.metric({ label: 'Recovered', value: 42000 }) }),
+      staticMod.panel({ children: staticMod.receiptList({ items: [{ kind: 'link', value: 'x', href: 'javascript:alert(1)' }] }) }),
+    ),
   });
+  const docHtml = staticMod.document({ title: 'Standalone <Smoke>', body });
   assert.equal(typeof docHtml, 'string');
-  assert.ok(docHtml.toLowerCase().includes('<!doctype html>'), 'document() must return HTML document');
-  const cardOut = await staticMod.renderCard({
-    title: 'Smoke Card',
-    subtitle: 'Cut C-01',
-    eyebrow: 'FRAME/12',
-    label: 'Smoke Card',
-    value: '42',
-    metrics: [{ label: 'Recovered', value: '$42,000' }],
-  });
-  assert.equal(typeof cardOut, 'string');
-  assert.ok(cardOut.length > 0, 'renderCard() must return non-empty markup');
-  results.static = { docBytes: docHtml.length, cardBytes: cardOut.length };
+  assert.ok(docHtml.startsWith('<!doctype html>'), 'document() must return an HTML document');
+  assert.ok(docHtml.includes('<style data-f12-tokens>') && docHtml.includes('<style data-f12-static>'), 'document() must inline tokens + static CSS');
+  assert.ok(docHtml.includes('Standalone &lt;Smoke&gt;') && !docHtml.includes('javascript:'), 'document() must escape text and drop unsafe hrefs');
+  assert.ok(!/<script/i.test(docHtml), 'document() must not emit scripts');
+  assert.equal(blocked.length, 0, 'document() must not read the filesystem (called: ' + blocked.join(', ') + ')');
+  const cssUrl = import.meta.resolve('@frame12/static/static.css');
+  assert.ok(cssUrl.endsWith('/dist/static.css'), './static.css export must resolve');
+  results.static = { docBytes: docHtml.length, exports: expected.length, cssUrl: cssUrl.split('/').slice(-2).join('/') };
 }
 
 process.stdout.write(JSON.stringify({ verified: present, results }));
@@ -629,6 +644,32 @@ process.stdout.write(JSON.stringify({ verified: present, results }));
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     const parsed = JSON.parse(verifyOut);
+
+    // `.d.ts` resolution: compile a consumer against the installed tarballs with the repo's
+    // TypeScript (the consumer itself has no dependencies besides the @frame12 packages).
+    if (installedNames.has('@frame12/static')) {
+      const tscPath = path.join(rootDir, 'node_modules/typescript/bin/tsc');
+      const realTsc = fs.existsSync(tscPath) ? tscPath : path.join(DEFAULT_REPO_ROOT, 'node_modules/typescript/bin/tsc');
+      fs.writeFileSync(
+        path.join(consumerDir, 'types-check.ts'),
+        `import { document, sheet, panel, metric, fragment, receiptList, type Html, type PanelOpts, type ReceiptOpts } from '@frame12/static';
+import { cssText } from '@frame12/tokens';
+const items: ReceiptOpts[] = [{ kind: 'commit', value: 'abc1234' }];
+const opts: PanelOpts = { cut: false, shape: 'slant-top', children: 'x' };
+const body: Html = sheet({ autoCut: true, children: fragment(panel(opts), metric({ label: 'L', value: 1 }), receiptList({ items })) });
+const page: string = document({ title: 't', body, theme: 'dark' });
+// @ts-expect-error: body must be Html, not a plain string
+document({ title: 't', body: '<p>x</p>' });
+export const out = page.length + cssText.length;
+`,
+      );
+      fs.writeFileSync(
+        path.join(consumerDir, 'tsconfig.json'),
+        JSON.stringify({ compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true, noEmit: true, types: [], lib: ['ES2022'] }, files: ['types-check.ts'] }, null, 2),
+      );
+      execFileSync(process.execPath, [realTsc, '-p', path.join(consumerDir, 'tsconfig.json')], { cwd: consumerDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      parsed.results.static = { ...parsed.results.static, typesResolve: true };
+    }
 
     if (!options.silent) {
       console.log(

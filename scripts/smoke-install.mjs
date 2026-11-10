@@ -1263,7 +1263,7 @@ export default {
   }
 
   // 9. Standalone publishable npm packages (packages/*): npm pack -> install tarballs into a
-  // temp project with NO other dependencies -> verify cssText, lintHtml, document(), renderCard()
+  // temp project with NO other dependencies -> verify cssText, lintHtml, and every @frame12/static export (document() with fs blocked, static.css, .d.ts)
   // for whichever packages are present.
   try {
     const pkgSmokeRes = runStandalonePackageSmokeTest(REPO_ROOT, { silent: true });
