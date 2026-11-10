@@ -75,7 +75,7 @@ async function main(argv) {
         cwd: project,
         cut: step.id,
         signal: abort.signal,
-        env: { ...process.env, BREAK: broken ?? '' },
+        env: stepEnv(broken),
       });
       if (r.code === 0) return { summary: lastLine(run, step.id) };
       return { status: 'error', summary: r.error ?? `npm run ${step.id} exited with ${r.signal ?? r.code}` };
@@ -120,6 +120,17 @@ async function main(argv) {
     },
   });
   return run.end();
+}
+
+/**
+ * The environment a step runs in: this one, minus what would change how its tools behave. A
+ * NODE_TEST_CONTEXT inherited from an outer `node --test` makes the project's own test run report
+ * to that runner instead of failing (exit 0 on a failing test).
+ */
+export function stepEnv(broken) {
+  const env = { ...process.env, BREAK: broken ?? '' };
+  delete env.NODE_TEST_CONTEXT;
+  return env;
 }
 
 /** The last line a step printed, as its cut summary ("test: 3 passed"). */
