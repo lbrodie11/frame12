@@ -31,6 +31,15 @@ function check(ok, label, detail = '') {
 // ------------------------------------------------------------------------- static checks (no browser)
 const tokenSource = JSON.parse(readFileSync(resolve(REPO_ROOT, 'packages/tokens/src/tokens.source.json'), 'utf8'));
 const geometrySrc = readFileSync(resolve(SITE_ROOT, 'src/lib/story-geometry.ts'), 'utf8');
+// The catalog's component count (every entry except motion hooks), as /components shows it.
+const COMPONENT_COUNT = (() => {
+  const ts = createRequire(resolve(REPO_ROOT, 'package.json'))('typescript');
+  const src = readFileSync(resolve(SITE_ROOT, 'src/lib/catalog.ts'), 'utf8');
+  const out = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const mod = { exports: {} };
+  new Function('exports', 'require', 'module', out)(mod.exports, () => ({ REGISTRY_BASE_URL: '' }), mod);
+  return mod.exports.COMPONENT_COUNT;
+})();
 const SCALE = Number(geometrySrc.match(/export const SCALE = ([\d.]+);/)[1]);
 const TOKENS = Object.fromEntries(
   ['pair', 'scene', 'change'].map((k) => [k, tokenSource.gutter[k].$value.value]),
@@ -137,7 +146,7 @@ const CAPTIONS = [
   ['heading', '45° screentone instead of fills'],
   ['heading', 'Cuts are numbered in reading order'],
   ['link', 'Inspect Style Sheet'],
-  ['link', 'Browse 31 Components'],
+  ['link', /^Browse \d+ Components$/],
   ['link', 'Compare 12fps vs 60fps'],
 ];
 
@@ -204,12 +213,14 @@ try {
         await page.waitForTimeout(100);
         let ok = true;
         for (const [role, name] of CAPTIONS) {
-          const loc = page.getByRole(role, { name, exact: true });
+          const loc = page.getByRole(role, typeof name === 'string' ? { name, exact: true } : { name });
           if ((await loc.count()) !== 1 || !(await loc.isVisible())) ok = false;
         }
         seen.push(ok);
       }
       check(seen.every(Boolean), `${tag} captions and links: visible and in the accessibility tree at 0/33/66/100% scroll progress`, seen);
+      const linkText = (await page.locator('#home-link-components').textContent()).trim();
+      check(linkText === `Browse ${COMPONENT_COUNT} Components`, `${tag} "Browse N Components" quotes the live catalog count (${COMPONENT_COUNT}, every entry except motion hooks)`, linkText);
 
       // Scroll driver: poses advance and reverse with scroll, no listeners, no scroll-snap.
       if (supports) {

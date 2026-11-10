@@ -13,6 +13,7 @@ import {
 } from '@/components/frame12';
 import { CopyCommand } from '@/components/copy-command';
 import { REGISTRY_BASE_URL } from '@/lib/config';
+import { COMPONENT_COUNT } from '@/lib/catalog';
 
 type SetupTrack = 'new' | 'existing';
 
@@ -181,7 +182,7 @@ export default function GetStartedPage() {
                   Override --f-* CSS variables in globals.css, mix Expressive hero panels with{' '}
                   &lt;Panel variant=&quot;quiet&quot;&gt; and compact density, load skills/frame12/SKILL.md (or
                   /llms-full.txt) into your AI coding agent, and run node scripts/check-frame12.mjs in
-                  CI. All 31 components and 3 blocks remain free under MIT; see
+                  CI. All {COMPONENT_COUNT} components and 3 blocks remain free under MIT; see
                   docs/roadmap/v0.3-v0.4-roadmap.md and share feedback via GitHub Issues/Discussions.
                 </span>
               </div>
@@ -322,7 +323,7 @@ export default function GetStartedPage() {
                 </p>
               </div>
               <Link href="/components" className="f12-link-btn" id="start-link-components">
-                Browse 31 Components
+                Browse {COMPONENT_COUNT} Components
               </Link>
             </div>
 

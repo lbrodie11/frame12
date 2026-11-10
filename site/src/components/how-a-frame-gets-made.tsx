@@ -4,6 +4,7 @@ import { Panel, Tag } from '@/components/frame12';
 import { InkStroke } from '@/components/frame12/ink';
 import { InkBeat, InkLand } from '@/components/frame12/ink-sequence';
 import { StoryShell } from '@/components/story-shell';
+import { COMPONENT_COUNT } from '@/lib/catalog';
 import {
   AREA,
   BARS,
@@ -112,7 +113,7 @@ const BEATS: {
         carries hierarchy, prints cleanly, and survives grayscale in both themes.
       </>
     ),
-    link: { href: '/components', id: 'home-link-components', label: 'Browse 31 Components' },
+    link: { href: '/components', id: 'home-link-components', label: `Browse ${COMPONENT_COUNT} Components` },
   },
   {
     key: 'cut',

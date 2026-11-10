@@ -4,12 +4,12 @@
     "site/src/components/how-a-frame-gets-made.tsx",
     "registry/ui/ink-pencil.ts"
   ],
-  "sourceHash": "be845a62b96f96f8c4e46703b7b715ecb8518c817ad0f61142d7603014375350",
+  "sourceHash": "ebcf7a688c65282618a53ebf2d12462c5b7e591be144b74c0d8c67a92cf6c743",
   "frames": 84,
   "fps": 12,
   "files": {
-    "story.webm": "22ba0358fbf2d7dd4599b968928fe8f6e25ed1c0e89ee3f0b7ae06ff48f70144",
-    "story.gif": "4c9827d4705005f6a089b408dfd5f852a535da759cb7039dc0b1622aadf8d643",
+    "story.webm": "f96fed445c3da879b97fbdbaf86994c5eec74be1723d4391ee0c5eb27b4816fa",
+    "story.gif": "53c175afb901909014f9b6b54ad954c1e8ab2455340c47d9048cf0101c567374",
     "story-og.png": "7d646fb6d942c9bd3dc09bd90d7d5461f5fab61ba741f4f1a7911e6ed9bb852a"
   }
 }

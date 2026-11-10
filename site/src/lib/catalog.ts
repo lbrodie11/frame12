@@ -3773,3 +3773,9 @@ export function getCatalogEntry(slug: string): CatalogEntry | undefined {
 export function getBlockCatalogEntry(slug: string): BlockCatalogEntry | undefined {
   return BLOCK_CATALOG.find((b) => b.slug === slug);
 }
+
+/**
+ * Components shown on /components (every catalog entry except motion hooks). Derived, so links
+ * and copy that quote it ("Browse N Components") never go stale.
+ */
+export const COMPONENT_COUNT = CATALOG.filter((c) => c.category !== 'Motion Hooks').length;
