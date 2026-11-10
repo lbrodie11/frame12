@@ -912,15 +912,22 @@ try {
         text.includes('peak 248k at 15:00 UTC')
       );
     });
+    // Focus moves and figures count up on the 12fps "on twos" clock (83ms per pose), so wait for
+    // each condition (same assertions) instead of sampling at a fixed moment; a fixed 30ms wait
+    // failed intermittently on slower CI runners.
+    const settles = (fn) =>
+      page.waitForFunction(fn, null, { timeout: 3000 }).then(
+        () => true,
+        () => false,
+      );
     // Keyboard activation of #dev-console-focus-degraded-svc must move focus to persistent #int-dev-console-svc-bar-svc-inventory-ledger
     await page.focus('#dev-console-focus-degraded-svc');
     await page.keyboard.press('Enter');
-    await page.waitForTimeout(30);
-    const overlayKeyboardFocusOk = await page.evaluate(
+    const overlayKeyboardFocusOk = await settles(
       () => document.activeElement?.id === 'int-dev-console-svc-bar-svc-inventory-ledger',
     );
     await page.click('#dev-console-range-7d');
-    const overviewUpdated = await page.evaluate(() => {
+    const overviewUpdated = await settles(() => {
       const text = document.getElementById('dev-console-sheet')?.textContent || '';
       const tag = document.getElementById('dev-console-slo-status-tag');
       return (
@@ -937,7 +944,7 @@ try {
       );
     });
     await page.click('#dev-console-range-30d');
-    const slo30dOk = await page.evaluate(() => {
+    const slo30dOk = await settles(() => {
       const text = document.getElementById('dev-console-sheet')?.textContent || '';
       const tag = document.getElementById('dev-console-slo-status-tag');
       return (
