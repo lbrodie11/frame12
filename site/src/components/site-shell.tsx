@@ -36,6 +36,7 @@ const NAV_ITEMS = [
   { href: '/blocks/workspace-settings', label: 'Workspace Settings', id: 'nav-workspace-settings' },
   { href: '/blocks/analytics-dashboard', label: 'Analytics Block', id: 'nav-analytics-dashboard' },
   { href: '/agents', label: 'Agents', id: 'nav-agents' },
+  { href: '/static', label: 'Static HTML', id: 'nav-static' },
   { href: '/style-sheet', label: 'Style Sheet', id: 'nav-style-sheet' },
   { href: '/get-started', label: 'Get Started', id: 'nav-get-started' },
 ];
