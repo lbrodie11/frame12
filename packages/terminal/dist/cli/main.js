@@ -210,15 +210,26 @@ export async function main(argv, io) {
     let stopped = false;
     let run;
     const start = async () => {
+        let started;
         if (args.format !== 'live')
-            return startSession(options());
-        try {
-            const live = await (io.loadLive ?? (() => import('../ink/index.js')))();
-            return live.startLive(options());
+            started = startSession(options());
+        else {
+            let live;
+            try {
+                live = await (io.loadLive ?? (() => import('../ink/index.js')))();
+            }
+            catch (err) {
+                throw new UsageError(`--format live needs the optional peers ink@^8 and react@^19.3 (${quote(err.message)}). Use --format rich instead.`);
+            }
+            started = live.startLive(options());
         }
-        catch (err) {
-            throw new UsageError(`--format live needs the optional peers ink@^8 and react@^19.3 (${quote(err.message)}). Use --format rich instead.`);
-        }
+        // Once the run is over (its snapshot arrived, or q), stop reading: a producer that keeps its
+        // output open must not keep the CLI waiting.
+        void started.done.then(() => {
+            stopped = true;
+            source.destroy?.();
+        });
+        return started;
     };
     const strictValidator = args.strict ? createStreamValidator() : undefined;
     const sleep = io.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));

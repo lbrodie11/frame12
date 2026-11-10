@@ -61,6 +61,19 @@ describe('frame12-term render: formats and exit codes', () => {
     assert.doesNotMatch(r.out + r.err, /\u001b/);
   });
 
+  it('stops reading once the run is over, even if the producer keeps its output open', async () => {
+    const { PassThrough } = await import('node:stream');
+    const stdin = Object.assign(new PassThrough(), { isTTY: false });
+    stdin.write(ndjson('success')); // never ended
+    const stdout = sink();
+    const result = await Promise.race([
+      main(['render', '--plain'], { stdin, stdout, stderr: sink(), env: {}, handleSignals: false }),
+      new Promise((r) => setTimeout(() => r('still waiting'), 3000)),
+    ]);
+    assert.equal(result, 0);
+    assert.match(stdout.text(), /completed/);
+  });
+
   it('an input that stops early exits 1 and says the snapshot is missing', async () => {
     const r = await cli(['render', '--plain'], toNdjson(fixture('success').events.slice(0, 5)));
     assert.equal(r.code, 1);
