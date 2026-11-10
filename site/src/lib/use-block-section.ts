@@ -20,8 +20,15 @@ export function useBlockSection<S extends string>(block: BlockSlug) {
   const sections = BLOCK_RETURN_TABLE[block].sections;
   const defaultSection = (sections?.[0] ?? '') as S;
   const searchParams = useSearchParams();
-  const urlSection = (parseBlockSection(block, searchParams?.get('section') ?? null) ??
-    defaultSection) as S;
+  const rawSection = searchParams?.get('section') ?? null;
+  const urlSection = (parseBlockSection(block, rawSection) ?? defaultSection) as S;
+  const invalidParam = rawSection !== null && rawSection !== urlSection;
+
+  // `?section=bogus` (or `?section=overview`, the default) renders the default tab; drop the
+  // meaningless parameter from the address bar so it is never shared or bookmarked.
+  React.useEffect(() => {
+    if (invalidParam) replaceSectionParam(null, defaultSection);
+  }, [invalidParam, defaultSection]);
 
   const knownRef = React.useRef<S>(urlSection);
   const [epoch, setEpoch] = React.useState(0);

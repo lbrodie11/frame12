@@ -34,6 +34,19 @@ export const SETTINGS_SECTIONS = [
   'danger-zone',
 ] as const satisfies readonly SettingsSection[];
 
+// Exhaustiveness: `satisfies` only proves each listed value is a real section. These fail to
+// compile if a block gains a section that is missing here (which would otherwise make that tab
+// parse as unknown and bounce the block back to its default tab).
+type Missing<All, Listed> = Exclude<All, Listed>;
+const consoleSectionsComplete: [Missing<ConsoleSection, (typeof CONSOLE_SECTIONS)[number]>] extends [never]
+  ? true
+  : never = true;
+const settingsSectionsComplete: [Missing<SettingsSection, (typeof SETTINGS_SECTIONS)[number]>] extends [never]
+  ? true
+  : never = true;
+void consoleSectionsComplete;
+void settingsSectionsComplete;
+
 export type BlockSlug = 'developer-console' | 'workspace-settings' | 'analytics-dashboard';
 
 interface BlockReturnInfo {
