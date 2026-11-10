@@ -165,14 +165,17 @@ same DOM and classes as the components above: `sheet`, `scene`, `sceneArea`, `pa
 
 - Pass untrusted text (commit subjects, file names, PR text, user input) as **plain strings**.
   Renderers escape them exactly once.
-- Compose with `fragment(...)`, never with `+`. `Html` joined with `+` becomes a plain string and
-  is escaped.
+- Renderers return `Html` objects: compose with `fragment(...)` (never `+`, which gives a plain,
+  escaped string) and write output with `String(html)`.
+- Ids that come from data (file paths, names) go through `toIdent()`; raw values that aren't
+  `^[a-z][a-z0-9-]{0,63}$` throw.
 - **Never** pass untrusted input to `unsafeRaw()`. It is the only escaping bypass, for markup
   you wrote yourself.
 - Links go through `safeUrl()` (`http:`, `https:`, `mailto:`, `#fragment` only). Identifiers
   (`area`, `idPrefix`, ids) must match `^[a-z][a-z0-9-]{0,63}$`, otherwise the renderer throws.
 - In strict-CSP hosts, use `document({ inlineCss: false })` and load `@frame12/tokens/tokens.css`
-  and `@frame12/static/static.css` as stylesheets. Don't loosen the CSP.
+  and `@frame12/static/static.css` as stylesheets. Recommended policy:
+  `style-src <host>; style-src-attr 'unsafe-inline'`. Don't loosen it further.
 
 ---
 

@@ -6,7 +6,7 @@ FRAME/12 distributes its React component kit (`registry/`) through the `shadcn` 
 | --- | --- | --- | --- | --- |
 | `@frame12/tokens` | `packages/tokens` | In tree | Zero-dependency design tokens (`dist/tokens.css`, W3C DTCG 2025.10 `dist/tokens.json`, and TypeScript/JS `tokens` + `cssText`) | None |
 | `@frame12/lint` | `packages/lint` | In tree | Programmatic design-grammar linter (`lintSource`, `lintHtml`, `lintFiles`, `lintDirectory`) and CLI (`frame12-lint`) with an optional `typescript` peer | None |
-| `@frame12/static` | `packages/static` | In tree (F12-04) | Framework-free HTML renderers with the React components' contract: `document`, `sheet`, `scene`, `sceneArea`, `panel`, `panelPair`, `balloon`, `tag` (stamps are `tag({ variant: 'stamp' })`), `badge`, `metric`, `toneBarList`, `ghostWire`, `receipt`, `receiptList`, `fragment`, `unsafeRaw`, `escapeHtml`, `safeUrl`, `fmtPct`/`fmtPPAbs`/`fmtMoney`, plus `./static.css`. The SVG/PNG social-card renderer (`renderCard`) and the `./svg` subpath arrive in F12-05. | `@frame12/tokens` (exact version) |
+| `@frame12/static` | `packages/static` | In tree (F12-04) | Framework-free HTML renderers with the React components' contract: `document`, `sheet`, `scene`, `sceneArea`, `panel`, `panelPair`, `balloon`, `tag` (stamps are `tag({ variant: 'stamp' })`), `badge`, `metric`, `toneBarList`, `ghostWire`, `receipt`, `receiptList`, `fragment`, `unsafeRaw`, `escapeHtml`, `safeUrl`, `isHtml`, `toIdent`, `dedupeIds`, `fmtPct`/`fmtPPAbs`/`fmtMoney`, plus `./static.css`. The SVG/PNG social-card renderer (`renderCard`) and the `./svg` subpath arrive in F12-05. | `@frame12/tokens` (exact version) |
 
 > **Note:** The release pipeline never hard-codes package names. Both [`scripts/check-packages.mjs`](../scripts/check-packages.mjs) and [`scripts/release-packages.mjs`](../scripts/release-packages.mjs) discover publishable packages dynamically from `workspaces` entries in the root [`package.json`](../package.json) that live under `packages/` and do not set `"private": true`, then sort them in topological dependency order (`tokens` → `lint` → `static`). `@frame12/lint` (F12-02) and `@frame12/static` (F12-04) joined the pipeline this way, without workflow edits.
 
@@ -48,7 +48,7 @@ FRAME/12 distributes its React component kit (`registry/`) through the `shadcn` 
 
 - **`@frame12/tokens`:** imports `cssText` and `tokens`, verifying `--f-ink` and `--f-stroke` custom properties and palette tokens.
 - **`@frame12/lint`:** calls `lintHtml` on a sample HTML page, verifying clean grammar passes and a hardcoded hex color triggers `color-literal`.
-- **`@frame12/static`:** imports every export, blocks `node:fs` and renders a full page with `document()` (proving no filesystem reads at runtime), resolves the `./static.css` export, and type-checks a consumer against the installed `.d.ts`. `renderCard()` checks join when F12-05 adds it.
+- **`@frame12/static`:** imports every export, blocks `node:fs` and renders a full page with `document()` (proving no filesystem reads at runtime), checks that `Html` is an object and that equal text is not trusted, resolves the `./static.css` export, and type-checks a consumer against the installed `.d.ts`. `renderCard()` checks join when F12-05 adds it.
 
 ---
 

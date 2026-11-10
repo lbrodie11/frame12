@@ -17,7 +17,7 @@ The only runtime dependency is `@frame12/tokens`.
 ## API
 
 ```ts
-type Html = string & { readonly [brand]: true }; // compile-time aid only, see "Escaping"
+class Html { toString(): string } // frozen object; trust is by identity, String(html) gives the markup
 
 document(o: { title: string; lang?: string; body: Html; theme?: 'auto' | 'light' | 'dark'; variant?: 'expressive' | 'quiet'; inlineCss?: boolean /* default true */ }): Html
 sheet(o: { pegs?: boolean; autoCut?: boolean; theme?: 'light' | 'dark'; children: Html | string }): Html
@@ -37,6 +37,8 @@ fragment(...parts: Array<Html | string | null | undefined | false>): Html
 unsafeRaw(trustedHtml: string): Html // the ONLY way to bypass escaping
 escapeHtml(s: string): string
 safeUrl(u: string): string | null
+toIdent(s: string): string // any string → valid identifier (valid ones unchanged)
+dedupeIds(html: Html): Html // auto-id de-duplication for pages built without document()
 fmtPct, fmtPPAbs, fmtMoney // same output as React (en-US)
 ```
 
@@ -45,7 +47,7 @@ fmtPct, fmtPPAbs, fmtMoney // same output as React (en-US)
 ```js
 import { document, sheet, scene, panel, metric, receiptList, fragment } from '@frame12/static';
 
-const html = document({
+const page = document({
   title: pr.title, // escaped
   body: sheet({
     autoCut: true, // cuts are numbered by CSS: never compute C-01… yourself
@@ -58,6 +60,7 @@ const html = document({
     }),
   }),
 });
+fs.writeFileSync('report.html', String(page)); // Html is an object: String() gives the markup
 ```
 
 ## Escaping rules
@@ -70,8 +73,12 @@ const html = document({
 - `area`, `areas` cells, `idPrefix`, `selectedId` and tone-bar item ids must match
   `^[a-z][a-z0-9-]{0,63}$`. Numbers must be finite and in range. A string `breakpoint` must match
   `^\d{2,4}(px|rem|em)$`. Anything else throws a `TypeError`, and caller strings never reach CSS.
-- `Html` branding is a **compile-time aid, not a security boundary**. At runtime only strings the
-  kit produced are trusted, so a string cast to `Html` is still escaped.
+- `Html` is a frozen object recognised by **identity**, never by text: a string is always
+  escaped, even if it equals earlier output, and look-alike objects are rejected. The TypeScript
+  type is a compile-time aid; the boundary is never passing untrusted input to `unsafeRaw()`.
+- Write output with `String(html)`; `${html}` and `a + b` give plain strings, which renderers
+  escape. Compose with `fragment()`.
+- Ids from data (file paths, names) go through `toIdent()` instead of throwing.
 
 ## `unsafeRaw()` warning
 
@@ -87,8 +94,10 @@ or network input. Pass those as plain strings to a renderer instead. `lintHtml()
 | --- | --- |
 | Hand-write `<div class="f12-panel">…` markup | `panel({ … })` |
 | `panel(a) + panel(b)` | `fragment(panel(a), panel(b))` |
+| `fs.writeFileSync(f, document(…))` | `fs.writeFileSync(f, String(document(…)))` |
+| `toneBarList({ items: files.map((f) => ({ id: f.path, … })) })` | `id: toIdent(f.path)` |
 | `cut: 'C-01'` inside `sheet({ autoCut: true })` | Leave `cut` unset (or `false`) |
 | `unsafeRaw(commit.subject)` | `panel({ children: commit.subject })` |
 | Interpolating ids or classes from data | `idPrefix: 'pr-142'` (validated) |
 | Expecting motion or interactivity | Static output is the resting frame. There are no inert buttons (`toneBarList` rows are `<div data-static>`) |
-| Loosening a webview CSP for inline styles | `document({ inlineCss: false })` + `tokens.css` + `static.css` |
+| Loosening a webview CSP for inline styles | `document({ inlineCss: false })` + `tokens.css` + `static.css`; recommended policy `style-src <host>; style-src-attr 'unsafe-inline'` (fully strict `style-src <host>` still renders correctly, with named areas stacked) |
