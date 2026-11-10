@@ -2548,25 +2548,37 @@ button.f12-breadcrumb-link {
   height: 12px;
   border-width: 1.5px;
 }
-.f12-int-row[aria-pressed="true"] {
+.f12-int-row[aria-pressed="true"],
+.f12-int-row[aria-current="true"] {
   background: var(--f-ink);
   color: var(--f-panel);
 }
 .f12-int-row[aria-pressed="true"]:focus-visible {
   outline-color: var(--f-panel);
 }
-.f12-int-row[aria-pressed="true"] .f12-int-bar {
+.f12-int-row[aria-pressed="true"] .f12-int-bar,
+.f12-int-row[aria-current="true"] .f12-int-bar {
   border-color: var(--f-panel);
 }
-.f12-int-row[aria-pressed="true"] .f12-int-fill {
+.f12-int-row[aria-pressed="true"] .f12-int-fill,
+.f12-int-row[aria-current="true"] .f12-int-fill {
   background: var(--f-marker);
   border-right-color: var(--f-panel);
 }
-.f12-int-row[aria-pressed="true"] .f12-int-share {
+.f12-int-row[aria-pressed="true"] .f12-int-share,
+.f12-int-row[aria-current="true"] .f12-int-share {
   color: var(--f-panel);
 }
-.f12-int-row[aria-pressed="true"] .f12-badge {
+.f12-int-row[aria-pressed="true"] .f12-badge,
+.f12-int-row[aria-current="true"] .f12-badge {
   border-color: var(--f-panel);
+}
+/* Non-interactive rows (rendered by @frame12/static): same layout, no pointer affordance. */
+.f12-int-row[data-static] {
+  cursor: default;
+}
+.f12-int-row[data-static]:hover .f12-int-name {
+  text-decoration: none;
 }
 .f12-int-val {
   display: flex;
@@ -3798,6 +3810,7 @@ dialog.f12-dialog > .f12-cut {
   }
   .f12-rng-btn[aria-pressed="true"],
   .f12-int-row[aria-pressed="true"],
+  .f12-int-row[aria-current="true"],
   .f12-select-item[data-state="checked"],
   .f12-tabs-trigger[aria-selected="true"],
   .f12-pagination-link[aria-current="page"],
