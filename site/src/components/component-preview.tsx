@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useResolvedMotion } from '@/hooks/use-tempo';
+import { ExposurePreview } from '@/components/exposure-demos';
 import {
   Sheet,
   TempoProvider,
@@ -749,6 +750,13 @@ export function ComponentPreview({
                 </div>
               </div>
             </TempoProvider>
+          </div>
+        );
+
+      case 'exposure-scrubber':
+        return (
+          <div className="f12-preview-sheet">
+            <ExposurePreview idPrefix={`${pfx}-xs`} />
           </div>
         );
 

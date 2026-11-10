@@ -19,6 +19,7 @@ import {
 } from '@/components/frame12';
 import type { CatalogEntry } from '@/lib/catalog';
 import { ComponentPreview } from '@/components/component-preview';
+import { ExposureDemos } from '@/components/exposure-demos';
 import { CopyCommand } from '@/components/copy-command';
 import { resolveReturnTarget } from '@/lib/return-context';
 
@@ -143,6 +144,8 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
           </div>
         </Panel>
       </Scene>
+
+      {entry.slug === 'exposure-scrubber' && <ExposureDemos />}
 
       <Scene gutter="scene" layout="equal">
         <Panel variant="quiet" label={`${entry.title} when to use and when not to use`}>

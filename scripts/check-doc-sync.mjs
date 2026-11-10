@@ -54,6 +54,7 @@ const PRIMARY_INTERFACE_BY_SLUG = {
   table: 'TableProps',
   tempo: 'TempoProviderProps',
   'tempo-control': 'TempoControlProps',
+  'exposure-scrubber': 'ExposureScrubberProps',
   'developer-console': 'DeveloperConsoleProps',
   'workspace-settings': 'WorkspaceSettingsProps',
   'analytics-dashboard': 'AnalyticsDashboardProps',

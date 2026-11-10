@@ -850,6 +850,50 @@ export interface ReceiptListProps extends React.HTMLAttributes<HTMLUListElement>
 }
 ```
 
+### `ExposureScrubber` (`ui/exposure-scrubber.tsx`) & `useExposure` (`hooks/use-exposure.ts`)
+- `ExposureScrubber` (`ExposureScrubberProps`): reads a discrete history (an agent run's tool calls, CI steps, an incident timeline) like an animator's exposure sheet. A semantic X-sheet table (`FRAME` · `ACTION` · `TIMING` · `MARK`, explicit ARIA table roles over a CSS-grid layout so rows can use `content-visibility: auto`; every row stays in the DOM up to 5,000 frames), a detail `Panel` (`CURRENT CUT / F-04`, `renderFrame` inside a per-frame error boundary, "Led here from" buttons built only from `causes`, a one-level "Back to F-07"), and a transport (Play with a constant name + `aria-pressed`, a native `<input type="range">` with `aria-valuetext`, rate `SegmentedControl`, timing radios). Three tab regions in order: transport → sheet (one roving stop) → panel; step buttons use `aria-disabled` at the ends and following a cause moves focus to the new frame's title. One polite live region (settle-only, ≤ 1 per second). **Never autoplays.**
+- Timing modes: `even` (`stepMs × hold ÷ rate`, default `1000` ms, min `250`), `elapsed` (the run's real rhythm, `clamp(gap, 250, 3000) ÷ rate`; gap = `durationMs`, else the `at` difference to the next frame; a missing gap falls back to `even`), `flipbook` (`FRAME_MS × hold ÷ rate`, 12 poses per second; the panel shows a `FLIPPING` slate and settles where playback stops; unavailable when `useTempo().effectiveTempo === 'still'`). `useResolvedMotion()` governs only transitions, never reading speed.
+- **Rules:** order is not causality — `causes` must come from your data (unknown, self and forward links are dropped). Never invent durations (no timing data → the column says so once). Redact secrets, tokens and personal data before passing tool payloads to any client component. `renderFrame` must be pure. Exactly one primary marker gets marker yellow.
+- `useExposure(options)` is the headless engine (state, clock, keyboard map, data-change rules, announcements); the planned `TraceTimeline` reuses it (see `docs/architecture/exposure-engine.md`).
+
+```tsx
+export interface ExposureFrame {
+  id: string;            // unique and stable
+  label: string;
+  at?: string;           // ISO 8601; unparseable → missing
+  durationMs?: number;   // ≥ 0, finite
+  kind?: string;
+  status?: 'ok' | 'warn' | 'error' | 'pending';
+  marker?: boolean;
+  causes?: string[];     // ids of EARLIER frames the data says led here; never inferred
+  hold?: number;         // 1–12, default 1
+  detail?: string;       // plain text, readable without JS
+}
+
+export interface ExposureScrubberProps {
+  frames: readonly ExposureFrame[];
+  label: string;
+  renderFrame: (frame: ExposureFrame, index: number, ctx: { scrubbing: boolean; settled: boolean }) => React.ReactNode;
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (id: string, info: { index: number; reason: 'keyboard' | 'pointer' | 'row' | 'marker' | 'cause' | 'playback' | 'data' }) => void;
+  playing?: boolean;
+  onPlayingChange?: (playing: boolean, reason: 'user' | 'end' | 'scrub' | 'hidden' | 'data' | 'tempo' | 'rejected') => void;
+  timing?: 'even' | 'elapsed' | 'flipbook';
+  rate?: 0.5 | 1 | 2 | 4;
+  defaultRate?: 0.5 | 1 | 2 | 4;
+  onRateChange?: (r: 0.5 | 1 | 2 | 4) => void;
+  stepMs?: number;
+  loop?: boolean;
+  primaryMarker?: string;
+  emptyState?: React.ReactNode;
+  idPrefix?: string;
+  density?: 'comfortable' | 'compact';
+  variant?: 'expressive' | 'quiet';
+  className?: string;
+}
+```
+
 ---
 
 ## 6. Primitive Adapters (`Dialog`, `Select`, `Tooltip`, `DropdownMenu`, `Table`)
