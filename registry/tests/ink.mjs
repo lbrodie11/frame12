@@ -249,7 +249,12 @@ for (const engine of BROWSERS) {
     check(attr === null && s.a === 'none' && (await timeAnimations(page)) === 0,
       `${tag} never on load: play={true} at mount does not draw (client render)`);
     await page.evaluate((h) => window.__hydrate(h), ssrHtml);
-    await settle(page);
+    // Hydration commits on a real-time task; poll (≤ 3 s) for the measured polygon instead of
+    // a fixed wait, which a loaded WebKit run can miss.
+    for (let i = 0; i < 60; i++) {
+      if (await page.evaluate(() => document.querySelector('#ssr-panel .f12-panel-frame polygon:not([vector-effect])') !== null)) break;
+      await page.waitForTimeout(50);
+    }
     const hyd = await page.evaluate(() => ({
       state: document.getElementById('ssr-seq').dataset.inkState,
       ink: document.querySelector('#ssr [data-ink]')?.getAttribute('data-ink') ?? null,
