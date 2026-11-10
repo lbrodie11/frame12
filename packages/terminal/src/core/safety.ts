@@ -9,10 +9,12 @@
  * caps lines with a visible `…+N chars`.
  *
  * Links are `https:` only (plus `http:` to localhost when allowed) with credentials removed.
- * A redaction hook runs on every field; the default redactor masks common token shapes in
- * `log` and `receipt` text.
+ * A redaction hook runs on every field, and so does the default redactor, which masks common
+ * token shapes wherever they appear (commands, errors and warnings leak secrets as often as logs).
  */
-import type { TerminalEvent, Snapshot } from './contract.js';
+import { FORBIDDEN_KEYS, type TerminalEvent, type Snapshot } from './contract.js';
+
+const FORBIDDEN = new Set<string>(FORBIDDEN_KEYS);
 import { graphemes, stringWidth, type WidthOptions } from './width.js';
 
 export interface SanitizeOptions extends WidthOptions {
@@ -34,10 +36,13 @@ export interface SanitizeOptions extends WidthOptions {
 export const DEFAULT_MAX_LINE_LENGTH = 2000;
 export const DEFAULT_TAB_WIDTH = 4;
 
-// Terminators: BEL, ST (ESC \ or C1 0x9c), the start of the next escape, or end of input.
-const END = '(?:\\u0007|\\u001b\\\\|\\u009c|(?=\\u001b)|$)';
-const OSC_RE = new RegExp(`(?:\\u001b\\]|\\u009d)[^\\u0007\\u001b\\u009c]*${END}`, 'g');
-const STRING_SEQ_RE = new RegExp(`(?:\\u001b[PX^_]|[\\u0090\\u0098\\u009e\\u009f])[^\\u0007\\u001b\\u009c]*${END}`, 'g');
+// Terminators: BEL, ST (ESC \ or C1 0x9c), the start of the next escape, a line break, or end of
+// input. Stopping at a line break means one unterminated sequence can only consume the rest of its
+// own line, never hide the lines after it (a real terminal would swallow them; we show them).
+const END = '(?:\\u0007|\\u001b\\\\|\\u009c|(?=[\\u001b\\n\\r\\u0085\\u2028\\u2029])|$)';
+const BODY = '[^\\u0007\\u001b\\u009c\\n\\r\\u0085\\u2028\\u2029]*';
+const OSC_RE = new RegExp(`(?:\\u001b\\]|\\u009d)${BODY}${END}`, 'g');
+const STRING_SEQ_RE = new RegExp(`(?:\\u001b[PX^_]|[\\u0090\\u0098\\u009e\\u009f])${BODY}${END}`, 'g');
 const CSI_RE = /(?:\u001b\[|\u009b)[0-?]*[ -/]*[@-~]?/g;
 // nF / Fp / Fe / Fs escapes (ESC ( B, ESC 7, ESC c …) and any lone ESC.
 const ESC_RE = /\u001b[\x20-\x2f]*[\x30-\x7e]?/g;
@@ -101,11 +106,22 @@ function handleInvisible(line: string, mode: 'text' | 'identifier'): string {
     .join('');
 }
 
+/** A cap marker this function wrote: `…+N chars` or `...+N chars` at the end of a line. */
+const CAP_MARKER_RE = /(?:…|\.\.\.)\+(\d+) chars$/;
+
+/**
+ * Caps a line at `max` graphemes with a visible `…+N chars`. Idempotent: a line that already ends
+ * in a marker is measured without it, and if it must be cut again the counts are added, so the
+ * marker always reports every grapheme removed from the original text.
+ */
 function capLine(line: string, max: number, ascii: boolean): string {
   if (!Number.isFinite(max) || line.length <= max) return line;
-  const gs = graphemes(line);
+  const marker = CAP_MARKER_RE.exec(line);
+  const body = marker ? line.slice(0, marker.index) : line;
+  const earlier = marker ? Number(marker[1]) : 0;
+  const gs = graphemes(body);
   if (gs.length <= max) return line;
-  return `${gs.slice(0, max).join('')}${ascii ? '...' : '…'}+${gs.length - max} chars`;
+  return `${gs.slice(0, max).join('')}${ascii ? '...' : '…'}+${gs.length - max + earlier} chars`;
 }
 
 /**
@@ -196,7 +212,7 @@ export type Redactor = (text: string, context: RedactContext) => string;
 
 export const REDACTED = '[redacted]';
 
-/** Token shapes masked by default in `log` and `receipt` text. */
+/** Token shapes masked by default in every string an event or snapshot carries. */
 export const DEFAULT_REDACTION_PATTERNS: ReadonlyArray<{ name: string; pattern: RegExp }> = [
   { name: 'github-token', pattern: /\bgh[pousr]_[A-Za-z0-9]{36,255}\b/g },
   { name: 'github-fine-grained-token', pattern: /\bgithub_pat_[A-Za-z0-9_]{22,255}\b/g },
@@ -219,7 +235,7 @@ export function redactSecrets(text: string): string {
 export interface SafetyOptions extends WidthOptions {
   /** Extra redaction, run on every string field after the default redactor. */
   redact?: Redactor;
-  /** Mask common token shapes in `log` and `receipt` text. Default true. */
+  /** Mask common token shapes in every string field (titles, commands, errors, logs, receipts). Default true. */
   defaultRedaction?: boolean;
   maxLineLength?: number;
   tabWidth?: number;
@@ -264,7 +280,7 @@ export function createSanitizer(options: SafetyOptions = {}): Sanitizer {
       maxLineLength: Number.POSITIVE_INFINITY,
     };
     let s = sanitizeText(value, opts);
-    if (defaults && (field === 'log' || field === 'receipt')) s = redactSecrets(s);
+    if (defaults) s = redactSecrets(s);
     if (options.redact) {
       try {
         s = sanitizeText(options.redact(s, { field, source }), opts);
@@ -301,6 +317,9 @@ export function createSanitizer(options: SafetyOptions = {}): Sanitizer {
     if (value !== null && typeof value === 'object') {
       const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        // Never copy `__proto__` & co.: assignment would swap the copy's prototype and smuggle in
+        // values validation never saw. validateEvent rejects them; this is defense in depth.
+        if (FORBIDDEN.has(k)) continue;
         if (k === 'href') {
           const safe = href(v);
           if (safe !== undefined) out[k] = safe;

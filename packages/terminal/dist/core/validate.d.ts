@@ -4,7 +4,7 @@
  * (forward compatibility), and unknown fields are preserved on the returned value.
  */
 import { type Snapshot, type TerminalEvent } from './contract.js';
-export declare const VALIDATION_CODES: readonly ["not-object", "unsupported-schema-version", "unknown-event-type", "missing-field", "wrong-type", "invalid-value", "presentation-label-id", "too-large", "not-serializable", "duplicate-id", "run-id-mismatch", "seq-not-increasing", "progress-regressed", "after-run-end", "missing-run-start", "cut-not-started", "cut-already-started", "cut-not-ended", "unknown-finding", "missing-run-end"];
+export declare const VALIDATION_CODES: readonly ["not-object", "unsupported-schema-version", "unknown-event-type", "missing-field", "wrong-type", "invalid-value", "presentation-label-id", "too-large", "not-serializable", "duplicate-id", "run-id-mismatch", "seq-not-increasing", "progress-regressed", "after-run-end", "missing-run-start", "cut-not-started", "cut-already-started", "cut-not-ended", "unknown-finding", "missing-run-end", "forbidden-key"];
 export type ValidationCode = (typeof VALIDATION_CODES)[number];
 export interface ValidationIssue {
     code: ValidationCode;

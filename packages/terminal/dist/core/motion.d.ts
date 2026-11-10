@@ -1,13 +1,3 @@
-/**
- * Terminal motion. Values match FRAME/12 Tempo (F12-08): `auto | twos | ones | still`.
- *
- * Terminals have no operating-system reduced-motion signal (there is no `prefers-reduced-motion`
- * for a TTY), so FRAME/12 reads `NO_MOTION` / `REDUCED_MOTION` and turns motion off wherever it
- * cannot help: pipes, CI, screen readers and `TERM=dumb`.
- *
- * Motion only ever paces decoration. Input echo, errors, cut and run endings, and cancellation
- * are always shown immediately, whatever the tempo.
- */
 import type { Capabilities, Env } from './capabilities.js';
 export declare const MOTION_VALUES: readonly ["auto", "twos", "ones", "still"];
 export type MotionValue = (typeof MOTION_VALUES)[number];
@@ -43,6 +33,8 @@ export interface ResolveMotionInput {
  * 4. not interactive, CI, a screen reader, or `TERM=dumb` → `still`
  * 5. `auto` → the component's default (`twos`)
  *
- * An explicit `auto` at step 1 or 2 falls through to steps 3–5.
+ * A valid `--motion` (including `auto`) settles step 1, so `FRAME12_MOTION` is not read: an
+ * explicit `--motion auto` overrides the environment variable and falls through to steps 3–5.
+ * `FRAME12_MOTION=auto` likewise falls through to steps 3–5.
  */
 export declare function resolveTerminalMotion(input: ResolveMotionInput): ResolvedMotion;

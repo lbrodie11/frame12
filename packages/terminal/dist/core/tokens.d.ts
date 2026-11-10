@@ -45,7 +45,12 @@ export interface Sgr {
 }
 /** Escape sequences for a role at a style level. `none` returns empty strings. */
 export declare function roleSgr(role: Role, level: StyleLevel): Sgr;
-/** Wraps already-sanitized text in a role's escape sequences. */
+/**
+ * Wraps already-sanitized text in a role's escape sequences. Nesting is safe: SGR closes are
+ * shared (`22` ends both bold and dim, `0` ends everything), so wherever the text contains a
+ * sequence that would end this role's attributes, the role is opened again right after it.
+ * `paint(\`dim \${paint('bold', 'strong', l)} dim\`, 'ink2', l)` stays dim after the bold part.
+ */
 export declare function paint(text: string, role: Role, level: StyleLevel): string;
 /**
  * FRAME/12's gutter scale translated to terminal cells: a pair (12px) is 1 cell or line, a scene

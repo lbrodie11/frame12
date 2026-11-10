@@ -215,6 +215,17 @@ export interface ObjectSpec {
 export declare const ID_PATTERN = "^[^\\s\\u0000-\\u001f\\u007f-\\u009f]{1,128}$";
 /** Presentation labels (`C-01`, `F-01`, `E-01`) are assigned by renderers and never valid ids. */
 export declare const PRESENTATION_LABEL_PATTERN = "^[CFEcfe]-\\d+$";
+/**
+ * ISO 8601 date-time with an explicit zone (`Z` or `±hh:mm`). The validator and the generated
+ * JSON Schema both use this pattern, so a schema-valid timestamp is always renderer-valid.
+ */
+export declare const TIMESTAMP_PATTERN = "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d{1,9})?)?(?:Z|[+-]\\d{2}:\\d{2})$";
+/**
+ * Keys rejected anywhere in an event or snapshot. `JSON.parse` creates `__proto__` as an own
+ * property, and copying it with assignment would swap the copy's prototype and smuggle in
+ * values validation never saw.
+ */
+export declare const FORBIDDEN_KEYS: readonly ["__proto__", "constructor", "prototype"];
 export type ObjectName = 'Subject' | 'Strength' | 'ReceiptRef' | 'Finding' | 'Metric' | 'CutSummary' | 'Snapshot';
 export declare const OBJECT_SPEC: Record<ObjectName, ObjectSpec>;
 /** Fields on every event, in addition to `type`. */

@@ -133,6 +133,20 @@ describe('tokens: roles obey the grammar', () => {
     }
   });
 
+  it('nests safely: an inner role ending never ends the outer role early (review regression)', () => {
+    for (const level of ['mono', 'ansi16', 'ansi256', 'truecolor']) {
+      const dim = roleSgr('ink2', level);
+      const out = paint(`dim ${paint('bold', 'strong', level)} still dim`, 'ink2', level);
+      const tail = out.slice(out.indexOf('bold'));
+      // After the bold part closes, dim is opened again before " still dim".
+      assert.ok(tail.includes(`\u001b[22m${dim.open} still dim`), `${level}: ${JSON.stringify(out)}`);
+      const marker = roleSgr('marker', level);
+      const chip = paint(`F-01 ${paint('!', 'status-danger', level)} hero`, 'marker', level);
+      assert.ok(chip.slice(chip.indexOf('!')).includes(marker.open), `${level}: the marker chip resumes after a nested status`);
+      assert.equal(paint('plain', 'ink2', level), `${dim.open}plain${dim.close}`, 'no extra sequences without nesting');
+    }
+  });
+
   it('closes what it opens', () => {
     for (const level of LEVELS) {
       for (const role of ROLES) {

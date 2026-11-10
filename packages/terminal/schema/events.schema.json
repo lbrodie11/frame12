@@ -55,7 +55,9 @@
     },
     "Timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "ISO 8601 date-time with an explicit zone; the same pattern validateEvent uses.",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d{1,9})?)?(?:Z|[+-]\\d{2}:\\d{2})$"
     },
     "Subject": {
       "type": "object",

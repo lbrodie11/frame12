@@ -1,3 +1,14 @@
+/**
+ * Terminal motion. Values match FRAME/12 Tempo (F12-08): `auto | twos | ones | still`.
+ *
+ * Terminals have no operating-system reduced-motion signal (there is no `prefers-reduced-motion`
+ * for a TTY), so FRAME/12 reads `NO_MOTION` / `REDUCED_MOTION` and turns motion off wherever it
+ * cannot help: pipes, CI, screen readers and `TERM=dumb`.
+ *
+ * Motion only ever paces decoration. Input echo, errors, cut and run endings, and cancellation
+ * are always shown immediately, whatever the tempo.
+ */
+import { flagValue } from './argv.js';
 import { tokenMotion } from './tokens.generated.js';
 export const MOTION_VALUES = ['auto', 'twos', 'ones', 'still'];
 /** 83.33 ms: FRAME/12 animates "on twos", 12 poses per second. */
@@ -15,19 +26,6 @@ export function tempoIntervalMs(tempo) {
 function isMotionValue(v) {
     return MOTION_VALUES.includes(v);
 }
-function motionFlag(argv) {
-    let found;
-    for (let i = 0; i < argv.length; i++) {
-        const a = argv[i];
-        if (a === '--')
-            break;
-        if (a === '--motion' && i + 1 < argv.length)
-            found = argv[i + 1];
-        else if (a.startsWith('--motion='))
-            found = a.slice('--motion='.length);
-    }
-    return found;
-}
 /**
  * Precedence:
  * 1. `--motion <auto|twos|ones|still>`
@@ -36,30 +34,34 @@ function motionFlag(argv) {
  * 4. not interactive, CI, a screen reader, or `TERM=dumb` → `still`
  * 5. `auto` → the component's default (`twos`)
  *
- * An explicit `auto` at step 1 or 2 falls through to steps 3–5.
+ * A valid `--motion` (including `auto`) settles step 1, so `FRAME12_MOTION` is not read: an
+ * explicit `--motion auto` overrides the environment variable and falls through to steps 3–5.
+ * `FRAME12_MOTION=auto` likewise falls through to steps 3–5.
  */
 export function resolveTerminalMotion(input) {
     const env = input.env ?? {};
     const fallback = input.defaultTempo ?? 'twos';
     const warnings = [];
-    const explicit = (raw, source, label) => {
+    /** A valid value (including `auto`), or undefined with a warning for an invalid one. */
+    const parse = (raw, label) => {
         if (raw === undefined || raw.trim() === '')
             return undefined;
         const v = raw.trim().toLowerCase();
-        if (!isMotionValue(v)) {
-            warnings.push(`Ignored ${label}=${JSON.stringify(raw)}; expected one of ${MOTION_VALUES.join(', ')}.`);
-            return undefined;
-        }
-        if (v === 'auto')
-            return undefined;
-        return v === 'still' ? { tempo: v, source, reason: label, warnings } : { tempo: v, source, warnings };
+        if (isMotionValue(v))
+            return v;
+        warnings.push(`Ignored ${label}=${JSON.stringify(raw)}; expected one of ${MOTION_VALUES.join(', ')}.`);
+        return undefined;
     };
-    const fromFlag = explicit(motionFlag(input.argv ?? []), 'flag', '--motion');
-    if (fromFlag)
-        return fromFlag;
-    const fromEnv = explicit(env.FRAME12_MOTION, 'env', 'FRAME12_MOTION');
-    if (fromEnv)
-        return fromEnv;
+    const settle = (v, source, label) => v === 'still' ? { tempo: v, source, reason: label, warnings } : { tempo: v, source, warnings };
+    const flag = parse(flagValue(input.argv ?? [], '--motion'), '--motion');
+    if (flag !== undefined && flag !== 'auto')
+        return settle(flag, 'flag', '--motion');
+    // An explicit `--motion auto` skips FRAME12_MOTION; only an absent or invalid flag reads it.
+    if (flag === undefined) {
+        const fromEnv = parse(env.FRAME12_MOTION, 'FRAME12_MOTION');
+        if (fromEnv !== undefined && fromEnv !== 'auto')
+            return settle(fromEnv, 'env', 'FRAME12_MOTION');
+    }
     for (const name of ['NO_MOTION', 'REDUCED_MOTION']) {
         // Ported from Repo Archaeology: any non-empty value other than `0` asks for stillness.
         const v = env[name];

@@ -2,6 +2,7 @@
  * Terminal capability detection. `detectCapabilities` is pure: everything it reads is passed in,
  * so tests inject environments instead of depending on the machine running them.
  */
+import { flagValue, hasFlag, lastFlag } from './argv.js';
 
 export type ColorLevel = 0 | 1 | 2 | 3;
 export type Env = Readonly<Record<string, string | undefined>>;
@@ -68,6 +69,7 @@ export interface Capabilities {
 }
 
 /** Known CI provider variables, checked in order. `CI` itself is checked first. */
+
 const CI_PROVIDERS: ReadonlyArray<readonly [string, string]> = [
   ['GITHUB_ACTIONS', 'github-actions'],
   ['GITLAB_CI', 'gitlab'],
@@ -96,25 +98,6 @@ export function envFlag(env: Env, name: string): boolean {
   if (v === undefined) return false;
   const t = v.trim().toLowerCase();
   return t !== '' && t !== '0' && t !== 'false';
-}
-
-/** Last occurrence wins among mutually exclusive flags (`--color` vs `--no-color`). */
-/** Arguments before a `--` terminator; everything after it belongs to someone else. */
-function ownArgs(argv: readonly string[]): readonly string[] {
-  const end = argv.indexOf('--');
-  return end === -1 ? argv : argv.slice(0, end);
-}
-
-function lastFlag(argv: readonly string[], ...names: string[]): string | undefined {
-  const own = ownArgs(argv);
-  for (let i = own.length - 1; i >= 0; i--) {
-    if (names.includes(own[i]!)) return own[i];
-  }
-  return undefined;
-}
-
-function hasFlag(argv: readonly string[], name: string): boolean {
-  return ownArgs(argv).includes(name);
 }
 
 export function detectCi(env: Env): { ci: boolean; provider: string | undefined } {
@@ -258,16 +241,6 @@ function positive(v: unknown): number | undefined {
   return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-function flagValue(argv: readonly string[], name: string): string | undefined {
-  let found: string | undefined;
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i]!;
-    if (a === '--') break;
-    if (a === name && i + 1 < argv.length) found = argv[i + 1];
-    else if (a.startsWith(`${name}=`)) found = a.slice(name.length + 1);
-  }
-  return found;
-}
 
 /**
  * Detects what the terminal can do. Pure: pass `process.env`, `{ stdin, stdout, stderr }` and

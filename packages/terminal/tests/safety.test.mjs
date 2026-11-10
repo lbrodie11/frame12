@@ -63,6 +63,7 @@ describe('safety: seeded fuzz over every escape family (10,000 cases)', () => {
       if (opts.newlines !== 'keep') assert.ok(!out.includes('\n'), `case ${i}: newline in single-line mode`);
       assert.ok(!out.includes('\t'), `case ${i}: tab survived`);
       for (const line of out.split('\n')) assert.ok(graphemes(line).length <= 2000 + 20, `case ${i}: line not capped`);
+      assert.equal(sanitizeText(out, opts), out, `case ${i}: not idempotent with line caps`);
       const unbounded = { ...opts, maxLineLength: Infinity };
       const once = sanitizeText(input, unbounded);
       assert.equal(sanitizeText(once, unbounded), once, `case ${i}: not idempotent`);
@@ -140,6 +141,33 @@ describe('safety: specific attacks', () => {
   });
 });
 
+describe('safety: review regressions (PR #31)', () => {
+  it('an unterminated escape string never hides the lines after it', () => {
+    for (const intro of [`${ESC}]0;title`, `${ESC}]52;c;ZXZpbA==`, `${ESC}Pq#0;2`, `${ESC}_apc`, '\u009d8;;https://x', '\u0090dcs']) {
+      assert.equal(sanitizeText(`a${intro}\nline2\nline3`, { newlines: 'keep' }), 'a\nline2\nline3', JSON.stringify(intro));
+      assert.equal(sanitizeText(`a${intro}\r\nline2`, { newlines: 'keep' }), 'a\nline2');
+      assert.equal(sanitizeText(`a${intro}\nline2`), 'a line2', 'single-line mode keeps the following text too');
+    }
+  });
+
+  it('is idempotent with line caps, and a second cut adds to the count', () => {
+    const once = sanitizeText('x'.repeat(30), { maxLineLength: 10 });
+    assert.equal(once, `${'x'.repeat(10)}…+20 chars`);
+    assert.equal(sanitizeText(once, { maxLineLength: 10 }), once);
+    assert.equal(sanitizeText(once, { maxLineLength: 4 }), `${'x'.repeat(4)}…+26 chars`, 'every removed grapheme is counted');
+    const ascii = sanitizeText('y'.repeat(30), { maxLineLength: 10, ascii: true });
+    assert.equal(sanitizeText(ascii, { maxLineLength: 10, ascii: true }), ascii);
+  });
+
+  it('never copies __proto__ even from an unvalidated object', () => {
+    const hostile = JSON.parse('{"type":"cut-progress","cut":"c","__proto__":{"done":"NaNstr","total":-5}}');
+    const clean = createSanitizer().event(hostile);
+    assert.equal(Object.getPrototypeOf(clean), Object.prototype);
+    assert.equal(clean.done, undefined);
+    assert.equal(clean.total, undefined);
+  });
+});
+
 describe('safety: links', () => {
   it('allows https only, plus http to localhost when asked', () => {
     assert.equal(safeLink('https://github.com/a/b/commit/abc'), 'https://github.com/a/b/commit/abc');
@@ -210,19 +238,23 @@ describe('safety: redaction', () => {
     for (const b of benign) assert.equal(redactSecrets(b), b, b);
   });
 
-  it('runs defaults on log and receipt text only, and the hook on every field', () => {
-    const token = 'ghp_' + 'q'.repeat(36);
+  it('runs the default redactor and the hook on every field: commands, errors and warnings leak secrets too', () => {
+    const token = ['ghp', '_', 'q'.repeat(36)].join('');
     const seen = [];
     const s = createSanitizer({ redact: (text, ctx) => (seen.push(ctx.field), text.replaceAll('ACME-INTERNAL', '[internal]')) });
     const f = createEventFactory();
     const log = s.event(f.next('log', { level: 'error', text: `auth failed for ${token}\nACME-INTERNAL host`, stream: 'stderr' }));
     assert.equal(log.text, `auth failed for ${REDACTED}\n[internal] host`, 'logs keep their line breaks');
-    const warning = s.event(f.next('warning', { message: `token ${token} ACME-INTERNAL` }));
-    assert.equal(warning.message, `token ${token} [internal]`, 'defaults are scoped to log/receipt; the hook runs everywhere');
+    assert.equal(s.event(f.next('warning', { message: `token ${token} ACME-INTERNAL` })).message, `token ${REDACTED} [internal]`);
+    assert.equal(s.event(f.next('run-start', { title: 'Deploy', command: `deploy --token ${token}` })).command, `deploy --token ${REDACTED}`);
+    assert.equal(s.event(f.next('run-end', { status: 'failed', error: `401 for ${token}` })).error, `401 for ${REDACTED}`);
+    const snap = s.snapshot({ ...fixture('failed').snapshot, error: `bad credentials ${token}`, warnings: [`retry with ${token}`] });
+    assert.equal(snap.error, `bad credentials ${REDACTED}`);
+    assert.equal(snap.warnings[0], `retry with ${REDACTED}`);
     const receipt = s.event(f.next('receipt', { finding: 'f', receipt: { kind: 'tool-call', value: `curl -H "Authorization: Bearer ${token}"`, note: `with ${token}` } }));
     assert.equal(receipt.receipt.value, `curl -H "Authorization: Bearer ${REDACTED}"`);
     assert.equal(receipt.receipt.note, `with ${REDACTED}`);
-    assert.ok(seen.includes('log') && seen.includes('receipt') && seen.includes('text'));
+    assert.ok(seen.includes('log') && seen.includes('receipt') && seen.includes('text') && seen.includes('identifier'));
   });
 
   it('cannot be undone by a hook: hook output is sanitized again, and a throwing hook redacts everything', () => {

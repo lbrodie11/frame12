@@ -2,6 +2,7 @@
  * Terminal capability detection. `detectCapabilities` is pure: everything it reads is passed in,
  * so tests inject environments instead of depending on the machine running them.
  */
+import { flagValue, hasFlag, lastFlag } from './argv.js';
 /** Known CI provider variables, checked in order. `CI` itself is checked first. */
 const CI_PROVIDERS = [
     ['GITHUB_ACTIONS', 'github-actions'],
@@ -30,23 +31,6 @@ export function envFlag(env, name) {
         return false;
     const t = v.trim().toLowerCase();
     return t !== '' && t !== '0' && t !== 'false';
-}
-/** Last occurrence wins among mutually exclusive flags (`--color` vs `--no-color`). */
-/** Arguments before a `--` terminator; everything after it belongs to someone else. */
-function ownArgs(argv) {
-    const end = argv.indexOf('--');
-    return end === -1 ? argv : argv.slice(0, end);
-}
-function lastFlag(argv, ...names) {
-    const own = ownArgs(argv);
-    for (let i = own.length - 1; i >= 0; i--) {
-        if (names.includes(own[i]))
-            return own[i];
-    }
-    return undefined;
-}
-function hasFlag(argv, name) {
-    return ownArgs(argv).includes(name);
 }
 export function detectCi(env) {
     for (const [name, provider] of CI_PROVIDERS) {
@@ -211,19 +195,6 @@ function clampInt(n, lo, hi) {
 function positive(v) {
     const n = typeof v === 'string' ? Number(v) : v;
     return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : undefined;
-}
-function flagValue(argv, name) {
-    let found;
-    for (let i = 0; i < argv.length; i++) {
-        const a = argv[i];
-        if (a === '--')
-            break;
-        if (a === name && i + 1 < argv.length)
-            found = argv[i + 1];
-        else if (a.startsWith(`${name}=`))
-            found = a.slice(name.length + 1);
-    }
-    return found;
 }
 /**
  * Detects what the terminal can do. Pure: pass `process.env`, `{ stdin, stdout, stderr }` and

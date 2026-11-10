@@ -1,7 +1,3 @@
-/**
- * Terminal capability detection. `detectCapabilities` is pure: everything it reads is passed in,
- * so tests inject environments instead of depending on the machine running them.
- */
 export type ColorLevel = 0 | 1 | 2 | 3;
 export type Env = Readonly<Record<string, string | undefined>>;
 export interface StreamLike {

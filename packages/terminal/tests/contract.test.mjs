@@ -39,7 +39,7 @@ function eventOf(type, extra = {}) {
     'cut-end': { cut: 'read-history', status: 'ok' },
     'scene-end': { scene: 's' },
     'run-end': { status: 'completed' },
-    snapshot: { snapshot: fixture('empty').snapshot },
+    snapshot: { snapshot: { ...fixture('empty').snapshot, runId: f.runId } },
   }[type];
   return { ...f.next(type, base), ...extra };
 }
@@ -127,7 +127,9 @@ describe('contract v1: event rules', () => {
     assert.equal(validateSnapshot(snap).ok, false);
     assert.ok(validateSnapshot(snap, { maxSnapshotBytes: 2 * DEFAULT_MAX_SNAPSHOT_BYTES }).ok);
     // A snapshot event is held to the snapshot cap, not the event cap.
-    const snapEvent = eventOf('snapshot', { snapshot: fixture('forty-findings').snapshot });
+    const forty = fixture('forty-findings');
+    const snapEvent = forty.events.at(-1);
+    assert.equal(snapEvent.type, 'snapshot');
     assert.ok(JSON.stringify(snapEvent).length > DEFAULT_MAX_EVENT_BYTES);
     assert.ok(validateEvent(snapEvent).ok);
   });
@@ -189,6 +191,35 @@ describe('contract v1: event rules', () => {
   });
 });
 
+describe('contract v1: review regressions (PR #31)', () => {
+  it('rejects __proto__, constructor and prototype keys at any depth (validation bypass)', () => {
+    const base = JSON.stringify(eventOf('cut-progress'));
+    for (const key of ['__proto__', 'constructor', 'prototype']) {
+      const top = JSON.parse(base.replace('{', `{"${key}":{"done":"NaNstr","total":-5},`));
+      const r = validateEvent(top);
+      assert.equal(r.ok, false, key);
+      assert.equal(r.issues[0].code, 'forbidden-key');
+    }
+    const deep = clone(fixture('one-finding').snapshot);
+    const nested = JSON.parse(JSON.stringify(deep).replace('"kind":"file"', '"kind":"file","__proto__":{"href":"javascript:x"}'));
+    assert.equal(validateSnapshot(nested).issues[0].code, 'forbidden-key');
+  });
+
+  it("rejects a snapshot event whose snapshot belongs to another run", () => {
+    const r = validateEvent(eventOf('snapshot', { snapshot: { ...fixture('empty').snapshot, runId: 'someone-else' } }));
+    assert.equal(r.ok, false);
+    assert.equal(r.issues[0].code, 'run-id-mismatch');
+    assert.equal(r.issues[0].path, 'snapshot.runId');
+  });
+
+  it('uses the same timestamp rule in the JSON Schema as in validateEvent', () => {
+    for (const ts of ['2026-11-10T09:00:00Z', '2026-11-10T09:00:00.123+02:00', '2026-11-10T09:00Z', '2026-11-10T09:00:00', '2026-11-10 09:00:00Z', '2026-11-10', 'yesterday']) {
+      const ev = eventOf('log', { ts });
+      assert.equal(schemaErrors(schema, ev).length === 0, validateEvent(ev).ok, ts);
+    }
+  });
+});
+
 describe('contract v1: stream rules', () => {
   it('requires strictly increasing seq, one runId and unique ids; rejected events do not advance the stream', () => {
     const f = createEventFactory();
@@ -227,7 +258,7 @@ describe('contract v1: stream rules', () => {
     const v = createStreamValidator({ lifecycle: false });
     v.push(f.next('run-end', { status: 'completed' }));
     assert.equal(v.push(f.next('log', { level: 'info', text: 'late' })).issues[0].code, 'after-run-end');
-    assert.ok(v.push(f.next('snapshot', { snapshot: fixture('empty').snapshot })).ok);
+    assert.ok(v.push(f.next('snapshot', { snapshot: { ...fixture('empty').snapshot, runId: f.runId } })).ok);
   });
 
   it('enforces the run lifecycle (ported from PR #2): run-start first, cuts started before they end, all ended before run-end', () => {

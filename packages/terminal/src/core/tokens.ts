@@ -173,10 +173,23 @@ export function roleSgr(role: Role, level: StyleLevel): Sgr {
   return ATTRIBUTE_ROLES[role];
 }
 
-/** Wraps already-sanitized text in a role's escape sequences. */
+const SGR_RE = /\u001b\[([0-9;]*)m/g;
+
+/**
+ * Wraps already-sanitized text in a role's escape sequences. Nesting is safe: SGR closes are
+ * shared (`22` ends both bold and dim, `0` ends everything), so wherever the text contains a
+ * sequence that would end this role's attributes, the role is opened again right after it.
+ * `paint(\`dim \${paint('bold', 'strong', l)} dim\`, 'ink2', l)` stays dim after the bold part.
+ */
 export function paint(text: string, role: Role, level: StyleLevel): string {
   const { open, close } = roleSgr(role, level);
-  return open === '' || text === '' ? text : `${open}${text}${close}`;
+  if (open === '' || text === '') return text;
+  const ours = new Set(close.slice(2, -1).split(';'));
+  const inner = text.replace(SGR_RE, (seq, params: string) => {
+    const resets = params === '' ? ['0'] : params.split(';');
+    return resets.some((p) => p === '0' || ours.has(p)) ? `${seq}${open}` : seq;
+  });
+  return `${open}${inner}${close}`;
 }
 
 /**

@@ -24,6 +24,10 @@ describe('motion: resolveTerminalMotion precedence', () => {
     ['TERM=dumb → still', [], {}, { ...live, dumb: true }, 'still', 'environment'],
     ['explicit --motion beats CI (decoration is still suppressed on non-TTY output by renderers)', ['--motion', 'twos'], {}, { ...live, ci: true }, 'twos', 'flag'],
     ['--motion auto falls through', ['--motion', 'auto'], { NO_MOTION: '1' }, live, 'still', 'reduced-motion-env'],
+    ['--motion auto overrides FRAME12_MOTION (review regression)', ['--motion', 'auto'], { FRAME12_MOTION: 'still' }, live, 'twos', 'default'],
+    ['--motion auto overrides FRAME12_MOTION, then honors the environment', ['--motion=auto'], { FRAME12_MOTION: 'ones' }, { ...live, ci: true }, 'still', 'environment'],
+    ['an invalid --motion is ignored, so FRAME12_MOTION still applies', ['--motion', 'fast'], { FRAME12_MOTION: 'ones' }, live, 'ones', 'env'],
+    ['flags after -- are not read', ['--', '--motion', 'still'], {}, live, 'twos', 'default'],
     ['FRAME12_MOTION=auto falls through to the default', [], { FRAME12_MOTION: 'auto' }, live, 'twos', 'default'],
     ['values are case-insensitive', ['--motion', 'ONES'], {}, live, 'ones', 'flag'],
   ];

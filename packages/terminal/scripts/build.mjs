@@ -79,7 +79,7 @@ export const tokenMotion = ${JSON.stringify(motion, null, 2)} as const;
 
 async function renderSchema(distDir) {
   const contract = await import(pathToFileURL(path.join(distDir, 'core/contract.js')).href + `?t=${Date.now()}`);
-  const { EVENT_SPEC, EVENT_BASE_SPEC, OBJECT_SPEC, EVENT_TYPES, ID_PATTERN, PRESENTATION_LABEL_PATTERN, SCHEMA_VERSION } = contract;
+  const { EVENT_SPEC, EVENT_BASE_SPEC, OBJECT_SPEC, EVENT_TYPES, ID_PATTERN, PRESENTATION_LABEL_PATTERN, SCHEMA_VERSION, TIMESTAMP_PATTERN } = contract;
   const field = (spec) => {
     switch (spec.kind) {
       case 'string':
@@ -132,7 +132,12 @@ async function renderSchema(distDir) {
       pattern: ID_PATTERN,
       not: { pattern: PRESENTATION_LABEL_PATTERN },
     },
-    Timestamp: { type: 'string', format: 'date-time' },
+    Timestamp: {
+      type: 'string',
+      format: 'date-time',
+      description: 'ISO 8601 date-time with an explicit zone; the same pattern validateEvent uses.',
+      pattern: TIMESTAMP_PATTERN,
+    },
   };
   for (const [name, spec] of Object.entries(OBJECT_SPEC)) defs[name] = object(spec);
   for (const type of EVENT_TYPES) {

@@ -9,10 +9,12 @@ import {
   EVENT_BASE_SPEC,
   EVENT_SPEC,
   EVENT_TYPES,
+  FORBIDDEN_KEYS,
   ID_PATTERN,
   OBJECT_SPEC,
   PRESENTATION_LABEL_PATTERN,
   SCHEMA_VERSION,
+  TIMESTAMP_PATTERN,
   type EventType,
   type FieldSpec,
   type ObjectName,
@@ -42,6 +44,7 @@ export const VALIDATION_CODES = [
   'cut-not-ended',
   'unknown-finding',
   'missing-run-end',
+  'forbidden-key',
 ] as const;
 export type ValidationCode = (typeof VALIDATION_CODES)[number];
 
@@ -73,7 +76,7 @@ export interface ValidateOptions {
 const EVENT_TYPE_SET = new Set<string>(EVENT_TYPES);
 const ID_RE = new RegExp(ID_PATTERN);
 const LABEL_RE = new RegExp(PRESENTATION_LABEL_PATTERN);
-const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+const ISO_RE = new RegExp(TIMESTAMP_PATTERN);
 const MAX_ISSUES = 20;
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -220,6 +223,23 @@ function checkSemantics(name: ObjectName, value: Record<string, unknown>, path: 
   }
 }
 
+const FORBIDDEN = new Set<string>(FORBIDDEN_KEYS);
+
+/** Finds a forbidden key (`__proto__`, `constructor`, `prototype`) at any depth. Iterative. */
+function forbiddenKeyIssue(root: unknown): ValidationIssue | undefined {
+  const stack: Array<[unknown, string]> = [[root, '']];
+  while (stack.length > 0) {
+    const [value, path] = stack.pop()!;
+    if (typeof value !== 'object' || value === null) continue;
+    for (const key of Object.keys(value)) {
+      const p = Array.isArray(value) ? `${path}[${key}]` : path ? `${path}.${key}` : key;
+      if (FORBIDDEN.has(key)) return issue('forbidden-key', p, `${p} uses the reserved key "${key}".`);
+      stack.push([(value as Record<string, unknown>)[key], p]);
+    }
+  }
+  return undefined;
+}
+
 function sizeIssue(value: unknown, max: number, path: string): ValidationIssue | undefined {
   const bytes = byteLength(value);
   if (bytes === undefined) return issue('not-serializable', path, `${path || 'value'} is not JSON-serializable.`);
@@ -253,9 +273,17 @@ export function validateEvent(raw: unknown, options: ValidateOptions = {}): Vali
     const max = type === 'snapshot' ? (options.maxSnapshotBytes ?? DEFAULT_MAX_SNAPSHOT_BYTES) : (options.maxEventBytes ?? DEFAULT_MAX_EVENT_BYTES);
     const tooBig = sizeIssue(raw, max, '');
     if (tooBig) return fail([tooBig]);
+    const forbidden = forbiddenKeyIssue(raw);
+    if (forbidden) return fail([forbidden]);
     const out: ValidationIssue[] = [];
     checkObject(raw, { description: '', required: EVENT_BASE_SPEC, optional: {} }, '', out);
     checkObject(raw, EVENT_SPEC[type as EventType], '', out);
+    if (type === 'snapshot' && out.length === 0) {
+      const inner = (raw.snapshot as Record<string, unknown>).runId;
+      if (inner !== raw.runId) {
+        out.push(issue('run-id-mismatch', 'snapshot.runId', `snapshot.runId "${String(inner)}" does not match the event's runId "${String(raw.runId)}".`));
+      }
+    }
     if (out.length > 0) return fail(out);
     return { ok: true, value: raw as unknown as TerminalEvent };
   } catch (err) {
@@ -275,6 +303,8 @@ export function validateSnapshot(raw: unknown, options: ValidateOptions = {}): V
     }
     const tooBig = sizeIssue(raw, options.maxSnapshotBytes ?? DEFAULT_MAX_SNAPSHOT_BYTES, '');
     if (tooBig) return fail([tooBig]);
+    const forbidden = forbiddenKeyIssue(raw);
+    if (forbidden) return fail([forbidden]);
     const out: ValidationIssue[] = [];
     checkObject(raw, OBJECT_SPEC.Snapshot, '', out, 'Snapshot');
     if (out.length > 0) return fail(out);
