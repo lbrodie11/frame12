@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { type MotionMode, useChanged } from '@/hooks/use-on-twos';
+import { useResolvedMotion } from '@/hooks/use-tempo';
 import {
   Sheet,
   Scene,
@@ -956,6 +957,8 @@ function DeveloperConsoleInner({
   // Set alongside a pending focus target when the move should also bring the section tabs into
   // view (breadcrumb navigation from the sheet header to the tab strip below the KPI scene).
   const pendingRevealMotionRef = React.useRef<MotionMode | null>(null);
+  // Programmatic reveal scrolls follow the resolved motion (smooth unless cut, still or reduced).
+  const resolvedMotion = useResolvedMotion(motion);
   const replaySeqRef = React.useRef(1);
 
   const snapshot = CONSOLE_RANGE_SNAPSHOTS[timeRange];
@@ -1398,7 +1401,7 @@ function DeveloperConsoleInner({
                         // landing section) so Firefox carries :focus-visible over for keyboard use.
                         document.getElementById(targetId)?.focus({ preventScroll: true });
                         pendingFocusTargetIdRef.current = targetId;
-                        pendingRevealMotionRef.current = motion;
+                        pendingRevealMotionRef.current = resolvedMotion;
                         setActiveSection('overview');
                       }
                     : undefined,

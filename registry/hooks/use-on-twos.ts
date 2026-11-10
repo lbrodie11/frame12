@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useReducedMotion, useResolvedMotion } from '@/hooks/use-tempo';
 
 export type MotionMode = 'stepped' | 'smooth' | 'cut';
 
@@ -32,39 +33,8 @@ export function useSize(ref: { readonly current: HTMLElement | null }): { w: num
   return size;
 }
 
-const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-
-function subscribeReducedMotion(onStoreChange: () => void): () => void {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return () => {};
-  }
-  const q = window.matchMedia(REDUCED_MOTION_QUERY);
-  if (q.addEventListener) {
-    q.addEventListener('change', onStoreChange);
-    return () => q.removeEventListener('change', onStoreChange);
-  }
-  q.addListener(onStoreChange);
-  return () => q.removeListener(onStoreChange);
-}
-
-function getReducedMotionSnapshot(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return false;
-  }
-  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
-}
-
-function getReducedMotionServerSnapshot(): boolean {
-  return false;
-}
-
-export function useReducedMotion(): boolean {
-  return React.useSyncExternalStore(
-    subscribeReducedMotion,
-    getReducedMotionSnapshot,
-    getReducedMotionServerSnapshot,
-  );
-}
+// Re-exported so existing `import { useReducedMotion } from '@/hooks/use-on-twos'` keeps working.
+export { useReducedMotion };
 
 /**
  * Progress 0..1 that replays whenever `key` changes.
@@ -77,15 +47,16 @@ export function useReducedMotion(): boolean {
  * subsequent pose is held for a full 83.33ms interval until `frames` poses complete.
  *
  * Only changes to `key` trigger a new tween; changing `duration` or `motion`
- * alone keeps the current resting state. Honors `prefers-reduced-motion: reduce`.
+ * alone keeps the current resting state. `motion` is resolved against the nearest
+ * TempoProvider and the OS (`resolveMotion` in use-tempo.ts): `prefers-reduced-motion: reduce`
+ * and a `still` tempo always cut; a change to `'cut'` mid-tween settles immediately.
  */
 export function useOnTwos(
   key: unknown,
   duration = 600,
   motion: MotionMode = 'stepped',
 ): number {
-  const reduced = useReducedMotion();
-  const effectiveMotion: MotionMode = reduced ? 'cut' : motion;
+  const effectiveMotion: MotionMode = useResolvedMotion(motion);
   const [p, setP] = React.useState<number>(1);
   const prevKeyRef = React.useRef<unknown>(key);
   const frames = Math.max(2, Math.round(duration / FRAME_MS));

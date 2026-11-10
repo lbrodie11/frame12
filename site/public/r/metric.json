@@ -5,7 +5,8 @@
   "description": "Display KPI with count-up on twos, directional marker delta badge, note, and optional ToneSpark.",
   "registryDependencies": [
     "https://frame12.dev/r/frame12-styles.json",
-    "https://frame12.dev/r/use-on-twos.json"
+    "https://frame12.dev/r/use-on-twos.json",
+    "https://frame12.dev/r/use-tempo.json"
   ],
   "files": [
     {

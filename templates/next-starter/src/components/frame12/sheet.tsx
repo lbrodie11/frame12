@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { type MotionMode, useReducedMotion } from '@/hooks/use-on-twos';
+import { type MotionMode } from '@/hooks/use-on-twos';
+import { useResolvedMotion } from '@/hooks/use-tempo';
 
 export interface SheetProps extends React.HTMLAttributes<HTMLDivElement> {
   pegs?: boolean;
@@ -35,8 +36,9 @@ export const Sheet = React.forwardRef<HTMLDivElement, SheetProps>(function Sheet
   },
   ref,
 ) {
-  const reduced = useReducedMotion();
-  const effectiveMotion: MotionMode = reduced ? 'cut' : motion;
+  // Emits the resolved mode (OS reduced motion, the nearest TempoProvider, then `motion`), so
+  // CSS-only consumers inside follow it through the f12-m-* variable cascade.
+  const effectiveMotion: MotionMode = useResolvedMotion(motion);
   const themeClass = theme ? ` f12-theme-${theme}` : '';
   const outerClass = `f12-dash f12-frame f12-m-${effectiveMotion}${themeClass}${className ? ` ${className}` : ''}`;
   const innerClass = `f12-sheet${sheetClassName ? ` ${sheetClassName}` : ''}`;

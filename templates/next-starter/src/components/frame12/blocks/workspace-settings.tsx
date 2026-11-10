@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { type MotionMode, useChanged } from '@/hooks/use-on-twos';
+import { resolveMotion, useTempo } from '@/hooks/use-tempo';
 import {
   Sheet,
   Panel,
@@ -913,6 +914,7 @@ function WorkspaceSettingsInner({
   // Set alongside a pending focus target when the move should also bring its section tabs into
   // view (breadcrumb navigation from the sheet header to the tab strip below the fold).
   const pendingRevealMotionRef = React.useRef<MotionMode | null>(null);
+  const tempoState = useTempo();
 
   React.useEffect(() => {
     const targetId = pendingFocusTargetIdRef.current;
@@ -1410,6 +1412,13 @@ function WorkspaceSettingsInner({
   const effectiveChartMotion: MotionMode = draft.motion.animateCharts
     ? effectiveSheetMotion
     : 'cut';
+  // Programmatic reveal scrolls follow the resolved motion (smooth unless cut, still or reduced).
+  const resolvedSheetMotion: MotionMode = resolveMotion({
+    base: effectiveSheetMotion,
+    tempo: tempoState.tempo,
+    ancestorStill: tempoState.ancestorStill,
+    reduced: tempoState.reduced,
+  });
 
   const postureStatusTag: { status: TagStatus; label: string } = isErrorDataset
     ? { status: 'danger', label: 'SYNC FAULT' }
@@ -1455,7 +1464,7 @@ function WorkspaceSettingsInner({
                         // landing section) so Firefox carries :focus-visible over for keyboard use.
                         document.getElementById(targetId)?.focus({ preventScroll: true });
                         pendingFocusTargetIdRef.current = targetId;
-                        pendingRevealMotionRef.current = effectiveSheetMotion;
+                        pendingRevealMotionRef.current = resolvedSheetMotion;
                         setActiveSection('profile');
                       }
                     : undefined,

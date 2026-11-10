@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { useOnTwos, useReducedMotion, type MotionMode } from '@/hooks/use-on-twos';
+import { useOnTwos, type MotionMode } from '@/hooks/use-on-twos';
+import { useResolvedMotion } from '@/hooks/use-tempo';
 import { extractTextContent } from './tag';
 
 const useIsoLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
@@ -136,17 +137,18 @@ export const GhostWire = React.forwardRef<HTMLDivElement, GhostWireProps>(functi
   const groupAriaLabel =
     rest['aria-label'] ?? (label && label.trim() ? label.trim() : defaultAccessibleLabel);
 
-  const reduced = useReducedMotion();
+  const resolvedMotion = useResolvedMotion(motion);
   const targetKey = `${fromText}|${toText}|${label ?? ''}|${clampedStrength.toFixed(3)}`;
   const [hydratedKey, setHydratedKey] = React.useState<string>('ssr');
 
+  // The draw-on replays only when the key changes while animated. The key tracks the target even
+  // while cut (reduced motion, a `still` tempo, `motion="cut"`), so a later switch to an animated
+  // mode keeps the resting state instead of replaying an old draw-on.
   useIsoLayoutEffect(() => {
-    if (!reduced && motion !== 'cut') {
-      setHydratedKey(targetKey);
-    }
-  }, [reduced, motion, targetKey]);
+    setHydratedKey(targetKey);
+  }, [targetKey]);
 
-  const progress = useOnTwos(reduced || motion === 'cut' ? 'ssr' : hydratedKey, 500, motion);
+  const progress = useOnTwos(hydratedKey, 500, resolvedMotion);
   const dash = Math.round(3 + clampedStrength * 9);
   const gap = Math.round(10 - clampedStrength * 7);
   const dashArray = `${dash} ${gap}`;

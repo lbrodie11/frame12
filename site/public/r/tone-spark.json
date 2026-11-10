@@ -5,7 +5,8 @@
   "description": "Compact daily bar sparkline filled with 45-degree SVG screentone dots.",
   "registryDependencies": [
     "https://frame12.dev/r/frame12-styles.json",
-    "https://frame12.dev/r/use-on-twos.json"
+    "https://frame12.dev/r/use-on-twos.json",
+    "https://frame12.dev/r/use-tempo.json"
   ],
   "files": [
     {

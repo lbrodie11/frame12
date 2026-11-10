@@ -277,3 +277,5 @@ export {
   type ReceiptProps,
   type ReceiptListProps,
 } from './receipt';
+export { TempoProvider, type TempoProviderProps } from './tempo';
+export { TempoControl, TEMPO_OPTIONS, type TempoControlProps } from './tempo-control';
