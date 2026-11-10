@@ -76,6 +76,8 @@
   --f-gutter-change: 32px;
 
   --f-stroke: 2.5px;
+  --f-stroke-pencil: 1px;
+  --f-stroke-detail: 1.5px;
   --f-pose: 83.33ms;
   --f-fps: 12;
 
@@ -3787,11 +3789,247 @@ html[data-f12-tempo="still"] .f12-m-smooth {
   }
 }
 
+/* ===================================================================== Ink (line art on twos)
+   InkStroke, InkReveal and InkSequence draw SVG line art with CSS alone: no requestAnimationFrame,
+   no timers. Every stroke is a <path pathLength="1">; drawing animates stroke-dashoffset 1 → 0
+   with steps(poses, jump-start) over poses × --f-pose, so each pose is held 83.33ms. At rest no
+   dash properties apply, so a finished stroke is pixel-identical to a plain path (no dash seam at
+   a closed path's start corner). Two identical keyframe names (A/B) let a replay restart. */
+.f12-ink {
+  fill: none;
+  stroke: currentColor;
+  color: var(--f-ink);
+  stroke-width: var(--f-stroke-detail);
+  stroke-linejoin: miter;
+  stroke-linecap: butt;
+}
+.f12-ink-frame {
+  color: var(--f-rule);
+  stroke-width: var(--f-stroke);
+}
+.f12-ink-detail {
+  color: var(--f-ink);
+  stroke-width: var(--f-stroke-detail);
+}
+.f12-ink-pencil {
+  color: var(--f-ink-2);
+  stroke-width: var(--f-stroke-pencil);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.f12-ink-seq {
+  min-width: 0;
+}
+.f12-ink[data-ink],
+.f12-ink-seq[data-ink] .f12-ink,
+.f12-ink-seq[data-ink] .f12-ink-wipe,
+.f12-ink-seq[data-ink] .f12-ink-land {
+  animation-duration: calc(var(--f12-ink-poses, 6) * var(--f-pose));
+  animation-delay: calc((var(--f12-ink-beat, 0) + var(--f12-ink-at, 0)) * var(--f-pose));
+  animation-timing-function: steps(var(--f12-ink-poses, 6), jump-start);
+  animation-fill-mode: backwards;
+  animation-iteration-count: 1;
+}
+.f12-ink-seq[data-ink] .f12-ink-land {
+  animation-duration: var(--f-pose);
+  animation-timing-function: steps(1, jump-start);
+}
+.f12-ink.f12-m-smooth[data-ink],
+.f12-ink-seq.f12-m-smooth[data-ink] .f12-ink,
+.f12-ink-seq.f12-m-smooth[data-ink] .f12-ink-wipe {
+  animation-timing-function: linear;
+}
+.f12-ink[data-ink="a"],
+.f12-ink-seq[data-ink="a"] .f12-ink {
+  animation-name: f12InkDrawA;
+}
+.f12-ink[data-ink="b"],
+.f12-ink-seq[data-ink="b"] .f12-ink {
+  animation-name: f12InkDrawB;
+}
+.f12-ink-seq[data-ink="a"] .f12-ink-wipe {
+  animation-name: f12InkWipeA;
+}
+.f12-ink-seq[data-ink="b"] .f12-ink-wipe {
+  animation-name: f12InkWipeB;
+}
+.f12-ink-seq[data-ink="a"] .f12-ink-land {
+  animation-name: f12InkLandA;
+}
+.f12-ink-seq[data-ink="b"] .f12-ink-land {
+  animation-name: f12InkLandB;
+}
+/* The sequence's clock: one no-op animation lasting every beat's poses. Its animationend is the
+   last beat's end (InkSequence onEnd). It is never removed by print or forced colors. */
+.f12-ink-seq[data-ink="a"] {
+  animation: f12InkClockA calc(var(--f12-ink-total, 1) * var(--f-pose)) linear;
+}
+.f12-ink-seq[data-ink="b"] {
+  animation: f12InkClockB calc(var(--f12-ink-total, 1) * var(--f-pose)) linear;
+}
+/* Scroll driver: poses follow the scroll position, quantized by steps() to each stroke's poses.
+   Native scroll only: no scroll listeners, no scroll-snap. Set --f12-ink-timeline on the sequence
+   (or an ancestor) to a named view timeline; the default is each element's own view(). */
+@supports (animation-timeline: view()) {
+  .f12-ink-seq[data-ink-scroll] .f12-ink,
+  .f12-ink-seq[data-ink-scroll] .f12-ink-wipe,
+  .f12-ink-seq[data-ink-scroll] .f12-ink-land {
+    animation-name: f12InkDrawA;
+    animation-duration: auto;
+    animation-delay: 0s;
+    animation-fill-mode: both;
+    animation-iteration-count: 1;
+    animation-timing-function: steps(var(--f12-ink-poses, 6), jump-start);
+    animation-timeline: var(--f12-ink-timeline, view());
+    animation-range-start: contain
+      calc((var(--f12-ink-beat, 0) + var(--f12-ink-at, 0)) / var(--f12-ink-total, 1) * 100%);
+    animation-range-end: contain
+      calc(
+        (var(--f12-ink-beat, 0) + var(--f12-ink-at, 0) + var(--f12-ink-poses, 6)) /
+          var(--f12-ink-total, 1) * 100%
+      );
+  }
+  .f12-ink-seq[data-ink-scroll] .f12-ink-wipe {
+    animation-name: f12InkWipeA;
+  }
+  .f12-ink-seq[data-ink-scroll] .f12-ink-land {
+    animation-name: f12InkLandA;
+    animation-timing-function: steps(1, jump-start);
+    animation-range-end: contain
+      calc((var(--f12-ink-beat, 0) + var(--f12-ink-at, 0) + 1) / var(--f12-ink-total, 1) * 100%);
+  }
+  .f12-ink-seq.f12-m-smooth[data-ink-scroll] .f12-ink,
+  .f12-ink-seq.f12-m-smooth[data-ink-scroll] .f12-ink-wipe {
+    animation-timing-function: linear;
+  }
+}
+/* InkReveal: frame inks (6 poses), the cut number lands (1 pose), the content appears in one cut.
+   Only the measured polygon (pathLength="1") is drawn; the SSR viewBox polygon carries
+   vector-effect and is never dashed. */
+.f12-ink-reveal {
+  display: contents;
+}
+.f12-ink-reveal[data-ink] .f12-panel-frame polygon:not([vector-effect]) {
+  animation-duration: calc(6 * var(--f-pose));
+  animation-timing-function: steps(6, jump-start);
+  animation-fill-mode: backwards;
+}
+.f12-ink-reveal.f12-m-smooth[data-ink] .f12-panel-frame polygon:not([vector-effect]) {
+  animation-timing-function: linear;
+}
+.f12-ink-reveal[data-ink="a"] .f12-panel-frame polygon:not([vector-effect]) {
+  animation-name: f12InkFrameA;
+}
+.f12-ink-reveal[data-ink="b"] .f12-panel-frame polygon:not([vector-effect]) {
+  animation-name: f12InkFrameB;
+}
+.f12-ink-reveal[data-ink="a"][data-ink-dir="rtl"] .f12-panel-frame polygon:not([vector-effect]) {
+  animation-name: f12InkFrameRtlA;
+}
+.f12-ink-reveal[data-ink="b"][data-ink-dir="rtl"] .f12-panel-frame polygon:not([vector-effect]) {
+  animation-name: f12InkFrameRtlB;
+}
+.f12-ink-reveal[data-ink] .f12-cut,
+.f12-ink-reveal[data-ink] .f12-panel-body {
+  animation-duration: var(--f-pose);
+  animation-delay: calc(6 * var(--f-pose));
+  animation-timing-function: steps(1, jump-start);
+  animation-fill-mode: backwards;
+}
+.f12-ink-reveal[data-ink] .f12-panel-body {
+  animation-delay: calc(7 * var(--f-pose));
+}
+.f12-ink-reveal[data-ink="a"] .f12-cut,
+.f12-ink-reveal[data-ink="a"] .f12-panel-body {
+  animation-name: f12InkLandA;
+}
+.f12-ink-reveal[data-ink="b"] .f12-cut,
+.f12-ink-reveal[data-ink="b"] .f12-panel-body {
+  animation-name: f12InkLandB;
+}
+@keyframes f12InkDrawA {
+  0% { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+  99.99% { stroke-dasharray: 1 1; }
+  100% { stroke-dasharray: none; stroke-dashoffset: 0; }
+}
+@keyframes f12InkDrawB {
+  0% { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+  99.99% { stroke-dasharray: 1 1; }
+  100% { stroke-dasharray: none; stroke-dashoffset: 0; }
+}
+@keyframes f12InkFrameA {
+  0% { stroke-dasharray: 0 1; }
+  100% { stroke-dasharray: 1 0; }
+}
+@keyframes f12InkFrameB {
+  0% { stroke-dasharray: 0 1; }
+  100% { stroke-dasharray: 1 0; }
+}
+/* RTL: start at the top-right corner (at position a along the frame) and run right to left
+   along the top edge: the dash offset runs from -a (--f12-ink-from) to 1 - a (--f12-ink-to). */
+@keyframes f12InkFrameRtlA {
+  0% { stroke-dasharray: 0 1; stroke-dashoffset: var(--f12-ink-from, 0); }
+  100% { stroke-dasharray: 1 0; stroke-dashoffset: var(--f12-ink-to, 1); }
+}
+@keyframes f12InkFrameRtlB {
+  0% { stroke-dasharray: 0 1; stroke-dashoffset: var(--f12-ink-from, 0); }
+  100% { stroke-dasharray: 1 0; stroke-dashoffset: var(--f12-ink-to, 1); }
+}
+@keyframes f12InkWipeA {
+  0% { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+@keyframes f12InkWipeB {
+  0% { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+@keyframes f12InkLandA {
+  0% { visibility: hidden; }
+  100% { visibility: visible; }
+}
+@keyframes f12InkLandB {
+  0% { visibility: hidden; }
+  100% { visibility: visible; }
+}
+@keyframes f12InkClockA {
+  0%, 100% { min-width: 0; }
+}
+@keyframes f12InkClockB {
+  0%, 100% { min-width: 0; }
+}
+/* Still tempo (first paint), OS reduced motion and print: the sheet is complete at rest. */
+html[data-f12-tempo="still"] .f12-ink,
+html[data-f12-tempo="still"] .f12-ink-wipe,
+html[data-f12-tempo="still"] .f12-ink-land,
+html[data-f12-tempo="still"] .f12-ink-reveal * {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .f12-ink,
+  .f12-ink-wipe,
+  .f12-ink-land,
+  .f12-ink-reveal * {
+    animation: none !important;
+  }
+}
+
 /* ===================================================================== Forced Colors (High Contrast) */
 @media (forced-colors: active) {
   .f12-panel-frame polygon {
     fill: Canvas;
     stroke: CanvasText;
+  }
+  .f12-ink,
+  .f12-ink-frame,
+  .f12-ink-detail,
+  .f12-ink-pencil {
+    stroke: CanvasText;
+  }
+  .f12-ink,
+  .f12-ink-wipe,
+  .f12-ink-land,
+  .f12-ink-reveal * {
+    animation: none !important;
   }
   .f12-panel.f12-panel-quiet,
   .f12-console-kv-item,
@@ -3984,6 +4222,12 @@ html[data-f12-tempo="still"] .f12-m-smooth {
 @media print {
   .f12-toast-viewport {
     display: none !important;
+  }
+  .f12-ink,
+  .f12-ink-wipe,
+  .f12-ink-land,
+  .f12-ink-reveal * {
+    animation: none !important;
   }
   .f12-tag,
   .f12-badge,

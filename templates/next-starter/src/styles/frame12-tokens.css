@@ -72,6 +72,8 @@
   --f-gutter-change: 32px;
 
   --f-stroke: 2.5px;
+  --f-stroke-pencil: 1px;
+  --f-stroke-detail: 1.5px;
   --f-pose: 83.33ms;
   --f-fps: 12;
 

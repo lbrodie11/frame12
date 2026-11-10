@@ -438,7 +438,7 @@ export function validateDtcgDocument(doc) {
     usedTokenVars.size > 0 &&
       missingVars.length === 0 &&
       usedTokenVars.has('--f-stroke') &&
-      JSON.stringify(referenceOnlyVars) === JSON.stringify(['--f-fps', '--f-pose']),
+      JSON.stringify(referenceOnlyVars) === JSON.stringify(['--f-fps']), // --f-pose is consumed by the ink keyframes (F12-14)
     `every --f-* and --font-f-* custom property used in registry/ (${usedTokenVars.size} used across ${registryFiles.length} files, ${definedTokenVars.size} defined; reference-only motion tokens: ${referenceOnlyVars.join(', ')}) is defined in @frame12/tokens`,
     missingVars.length > 0 ? `missing: ${missingVars.join(', ')}` : [...usedTokenVars].sort().join(', '),
   );

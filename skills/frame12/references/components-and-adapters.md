@@ -144,6 +144,63 @@ export interface TempoControlProps {
 
 ---
 
+## 2c. Ink: line art on twos (`ui/ink.tsx`, `ui/ink-reveal.tsx`, `ui/ink-sequence.tsx`)
+
+Three opt-in registry items (`@frame12/ink-stroke`, `@frame12/ink-reveal`, `@frame12/ink-sequence`; not in the full kit or the barrel, import them from their module paths). They draw SVG line art **on twos with CSS only**: no `requestAnimationFrame`, no timers, no `getTotalLength()`. Every stroke is a `<path pathLength="1">`; drawing animates `stroke-dashoffset` 1 → 0 with `steps(poses, jump-start)` over `poses × var(--f-pose)` (`smooth` tempo: `linear`, same duration; `cut`: no animation). At rest no dash properties apply, so a finished stroke is pixel-identical to a plain path.
+
+```tsx
+export type InkWeight = 'pencil' | 'detail' | 'frame';
+
+export interface InkStrokeProps
+  extends Omit<React.SVGProps<SVGPathElement>, 'ref' | 'pathLength' | 'stroke' | 'fill' | 'd'> {
+  d: string;
+  weight?: InkWeight;      // default: 'detail' ('pencil' --f-stroke-pencil/--f-ink-2, 'frame' --f-stroke/--f-rule)
+  poses?: number;          // 1–24; default: the beat's poses, or 6
+  at?: number;             // pose offset inside a beat
+  play?: boolean;          // default: false; draws when it changes to true AFTER mount
+  motion?: MotionMode;     // default: 'stepped' (resolved against the tempo)
+  onEnd?: () => void;
+}
+
+export interface InkRevealProps {
+  play?: boolean;          // frame 6 poses → cut 1 pose → content in one cut
+  motion?: MotionMode;
+  onEnd?: () => void;
+  children?: React.ReactNode; // one Panel or PanelPair
+}
+
+export type InkSequenceState = 'rest' | 'playing' | 'scrubbing' | 'still';
+
+export interface InkSequenceProps extends React.HTMLAttributes<HTMLDivElement> {
+  beats: readonly number[];   // pose count per beat; beats chain by CSS animation-delay sums
+  play?: boolean;             // default: false; false (Stop) returns to rest = finished
+  scroll?: boolean;           // default: false; animation-timeline: view() where supported
+  motion?: MotionMode;
+  onEnd?: () => void;         // animationend of the last beat
+  onStateChange?: (state: InkSequenceState) => void;
+}
+
+export interface InkBeatProps extends React.SVGProps<SVGGElement> {
+  beat: number;               // index into the parent's beats
+}
+
+export interface InkLandProps extends React.SVGProps<SVGGElement> {
+  reveal?: 'cut' | 'wipe';    // default: 'cut' (one pose); 'wipe' uncovers in reading order
+  at?: number;
+  poses?: number;
+}
+```
+
+- **Never on load.** `play` must change after mount through a user action (or `useChanged`). The `ink-autoplay` rule in `@frame12/lint` flags `play`, `play={true}` and values constant at mount (a `true` constant, an unchanging `useState(true)`, state set to `true` in a mount effect).
+- **Finished at rest.** `rest` is the default, SSR and no-JS state. `still` tempo, OS reduced motion, print and forced colors always show the finished drawing.
+- **Tokens only.** Strokes use `currentColor` from `--f-ink` / `--f-rule` (main line) and `--f-ink-2` (pencil, decorative, `aria-hidden`). Widths: `--f-stroke-pencil` (1px), `--f-stroke-detail` (1.5px), `--f-stroke` (2.5px). No opacity fades: every pose has the finished line's contrast.
+- **Deterministic pencil.** `inkPencil(segments, seed?, wobble?)` is a pure function of geometry and a seed (mulberry32); no `Math.random`.
+- **Scroll driver.** `scroll` attaches `animation-timeline: view()` (or a named timeline via `--f12-ink-timeline`) after mount where `@supports (animation-timeline: view())`; poses are quantized with `steps()`. Native scroll only: no scroll listeners, no `scroll-snap`.
+- **When not to use ink:** never on data that updates, never more than one `InkSequence` per page, and `InkReveal` only on a panel's first user-triggered appearance.
+- **Panel:** the measured frame polygon carries `pathLength="1"` (additive). The SSR `viewBox` polygon (`vector-effect: non-scaling-stroke`) is never dashed.
+
+---
+
 ## 3. Layout Components
 
 ### `Sheet` (`ui/sheet.tsx`)
