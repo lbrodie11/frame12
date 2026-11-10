@@ -1,0 +1,529 @@
+{
+ "metric": {
+  "ssr": "83deda2dff39f145",
+  "ssrLength": 191,
+  "settled": "b3030fc:191",
+  "trigger": "step",
+  "animations": [],
+  "timeline": [
+   [
+    0,
+    "2562229:191"
+   ],
+   [
+    6,
+    "15661f02:191"
+   ],
+   [
+    11,
+    "d5cc8edb:191"
+   ],
+   [
+    16,
+    "49e3407a:191"
+   ],
+   [
+    21,
+    "c16defc5:191"
+   ],
+   [
+    26,
+    "85ca2da5:191"
+   ],
+   [
+    31,
+    "ba4508cc:191"
+   ]
+  ],
+  "errors": []
+ },
+ "metric-quiet": {
+  "ssr": "8ae8990b123b04bf",
+  "ssrLength": 227,
+  "settled": "82dc0e78:227",
+  "trigger": "step",
+  "animations": [],
+  "timeline": [
+   [
+    0,
+    "7651e828:227"
+   ]
+  ],
+  "errors": []
+ },
+ "metric-smooth": {
+  "ssr": "a205ad5fbed178ab",
+  "ssrLength": 184,
+  "settled": "57fbb130:184",
+  "trigger": "step",
+  "animations": [],
+  "timeline": [
+   [
+    0,
+    "46175638:184"
+   ],
+   [
+    1,
+    "5078421b:184"
+   ],
+   [
+    2,
+    "e720648d:184"
+   ],
+   [
+    3,
+    "d4276724:184"
+   ],
+   [
+    4,
+    "308e8e02:184"
+   ],
+   [
+    5,
+    "92f9adb4:184"
+   ],
+   [
+    6,
+    "80720e8a:184"
+   ],
+   [
+    7,
+    "7317b0ed:184"
+   ],
+   [
+    8,
+    "3d02917e:184"
+   ],
+   [
+    9,
+    "4b124059:184"
+   ],
+   [
+    10,
+    "472b0005:184"
+   ],
+   [
+    11,
+    "1e54761a:184"
+   ],
+   [
+    12,
+    "fba9c86e:184"
+   ],
+   [
+    13,
+    "d9d4ea64:184"
+   ],
+   [
+    14,
+    "ebaf644:184"
+   ],
+   [
+    15,
+    "b92cb413:184"
+   ],
+   [
+    16,
+    "2c51b344:184"
+   ],
+   [
+    17,
+    "7033a2aa:184"
+   ],
+   [
+    18,
+    "cb435d27:184"
+   ],
+   [
+    19,
+    "19cfe834:184"
+   ],
+   [
+    20,
+    "c7b146fa:184"
+   ],
+   [
+    21,
+    "11aea1e8:184"
+   ],
+   [
+    22,
+    "35355ca4:184"
+   ],
+   [
+    23,
+    "b916b87e:184"
+   ],
+   [
+    24,
+    "5d5c3d28:184"
+   ],
+   [
+    25,
+    "ac84a8b8:184"
+   ],
+   [
+    26,
+    "446edb4d:184"
+   ],
+   [
+    27,
+    "cf26df5c:184"
+   ],
+   [
+    28,
+    "2112b908:184"
+   ],
+   [
+    29,
+    "6ad6c9ac:184"
+   ],
+   [
+    30,
+    "510fca3b:184"
+   ],
+   [
+    31,
+    "3f815add:184"
+   ],
+   [
+    32,
+    "7bdc33f2:184"
+   ],
+   [
+    33,
+    "1fec468f:184"
+   ],
+   [
+    34,
+    "678a1940:184"
+   ]
+  ],
+  "errors": []
+ },
+ "ghost-wire": {
+  "ssr": "5fde96210597e615",
+  "ssrLength": 984,
+  "settled": "abf7a6df:984",
+  "trigger": "step",
+  "animations": [],
+  "timeline": [
+   [
+    0,
+    "97eabc08:1000"
+   ],
+   [
+    6,
+    "37bf95dd:1000"
+   ],
+   [
+    11,
+    "ca288023:999"
+   ],
+   [
+    16,
+    "7c466479:998"
+   ],
+   [
+    21,
+    "424c92f1:999"
+   ],
+   [
+    26,
+    "63e27543:996"
+   ]
+  ],
+  "errors": []
+ },
+ "sheet-stepped": {
+  "ssr": "45fa742bdc60ec10",
+  "ssrLength": 3238,
+  "settled": "ee445b6b:3332",
+  "trigger": "step",
+  "animations": [
+   "CSSAnimation f12BurstStep 250 linear 1 0",
+   "CSSAnimation f12PopStep 333 linear 1 0",
+   "CSSAnimation f12SkeletonStep 333 linear Infinity 0",
+   "CSSTransition left 250 steps(3) 1 0",
+   "CSSTransition transform 250 steps(3) 1 0",
+   "CSSTransition width 250 steps(3) 1 0"
+  ],
+  "timeline": [
+   [
+    0,
+    "3e6c84f6:3345"
+   ]
+  ],
+  "errors": []
+ },
+ "sheet-smooth": {
+  "ssr": "0514d3c289d6fe36",
+  "ssrLength": 3237,
+  "settled": "33d8b6e:3331",
+  "trigger": "step",
+  "animations": [
+   "CSSAnimation f12BurstSmooth 320 linear 1 0",
+   "CSSAnimation f12PopSmooth 240 linear 1 0",
+   "CSSAnimation f12SkeletonSmooth 1400 linear Infinity 0",
+   "CSSTransition left 220 cubic-bezier(0.2, 0.8, 0.2, 1) 1 0",
+   "CSSTransition transform 260 cubic-bezier(0.2, 0.8, 0.2, 1) 1 0",
+   "CSSTransition width 260 cubic-bezier(0.2, 0.8, 0.2, 1) 1 0"
+  ],
+  "timeline": [
+   [
+    0,
+    "30e103c5:3344"
+   ]
+  ],
+  "errors": []
+ },
+ "sheet-cut": {
+  "ssr": "106f094659af2fe4",
+  "ssrLength": 3234,
+  "settled": "39f50e78:3328",
+  "trigger": "step",
+  "animations": [],
+  "timeline": [
+   [
+    0,
+    "19dedc17:3341"
+   ]
+  ],
+  "errors": []
+ },
+ "tone-bar-list": {
+  "ssr": "b7bc130dfbdcf4a5",
+  "ssrLength": 2276,
+  "settled": "bd77a3e4:2280",
+  "trigger": "step",
+  "animations": [
+   "CSSAnimation f12BurstStep 250 linear 1 0",
+   "CSSAnimation f12EnterStep 250 linear 1 0",
+   "CSSAnimation f12PopStep 333 linear 1 0"
+  ],
+  "timeline": [
+   [
+    0,
+    "2a9977:2313"
+   ]
+  ],
+  "errors": []
+ },
+ "tone-spark": {
+  "ssr": "27b1b8358546ddc7",
+  "ssrLength": 1679,
+  "settled": "7447a14e:1650",
+  "trigger": "step",
+  "animations": [],
+  "timeline": [
+   [
+    0,
+    "ed220456:1487"
+   ],
+   [
+    6,
+    "355e4378:2039"
+   ],
+   [
+    11,
+    "20e2a07e:2606"
+   ],
+   [
+    16,
+    "e6a34277:2795"
+   ],
+   [
+    21,
+    "f25d72ee:2952"
+   ]
+  ],
+  "errors": []
+ },
+ "tone-area-chart": {
+  "ssr": "f9a652a52503377e",
+  "ssrLength": 4778,
+  "settled": "b1923b60:4916",
+  "trigger": "step",
+  "animations": [],
+  "timeline": [
+   [
+    0,
+    "ea26d2c9:5381"
+   ],
+   [
+    6,
+    "8f8c49a0:5380"
+   ],
+   [
+    11,
+    "cd946d7a:5380"
+   ],
+   [
+    16,
+    "3c88629e:5380"
+   ],
+   [
+    21,
+    "a45e087c:5380"
+   ],
+   [
+    26,
+    "1aa6d21e:5380"
+   ],
+   [
+    31,
+    "52ff3e78:5381"
+   ],
+   [
+    36,
+    "ac23721a:5381"
+   ],
+   [
+    41,
+    "289b2f1b:5693"
+   ]
+  ],
+  "errors": []
+ },
+ "analytics-dashboard": {
+  "ssr": "2a8cb5a701211b7d",
+  "ssrLength": 50037,
+  "settled": "4bb9568f:49064",
+  "trigger": "f12-analytics-r0-rng-7",
+  "animations": [
+   "CSSAnimation f12BurstStep 250 linear 1 0",
+   "CSSAnimation f12EnterStep 250 linear 1 0",
+   "CSSAnimation f12PopStep 333 linear 1 0",
+   "CSSTransition transform 250 steps(3) 1 0",
+   "CSSTransition width 250 steps(3) 1 0"
+  ],
+  "timeline": [
+   [
+    0,
+    "19367d20:33646"
+   ],
+   [
+    6,
+    "7be9813e:34407"
+   ],
+   [
+    11,
+    "1b0205a9:34789"
+   ],
+   [
+    16,
+    "a17bea38:35140"
+   ],
+   [
+    21,
+    "e09279d3:35140"
+   ],
+   [
+    26,
+    "16baaa19:35140"
+   ],
+   [
+    31,
+    "58c7db72:35140"
+   ],
+   [
+    36,
+    "2a994707:35139"
+   ],
+   [
+    41,
+    "6311b8c1:35454"
+   ]
+  ],
+  "errors": []
+ },
+ "developer-console": {
+  "ssr": "5afbbb1308b2b9aa",
+  "ssrLength": 26858,
+  "settled": "f0082df3:26565",
+  "trigger": "f12-console-r0-range-7d",
+  "animations": [
+   "CSSAnimation f12EnterStep 250 linear 1 0",
+   "CSSTransition transform 250 steps(3) 1 0",
+   "CSSTransition width 250 steps(3) 1 0"
+  ],
+  "timeline": [
+   [
+    0,
+    "66f0f98b:26108"
+   ],
+   [
+    6,
+    "e1a35389:26487"
+   ],
+   [
+    11,
+    "29731883:26676"
+   ],
+   [
+    16,
+    "6a7fe9c7:26865"
+   ],
+   [
+    21,
+    "1df4a615:26865"
+   ],
+   [
+    26,
+    "b9a7a2:26865"
+   ],
+   [
+    31,
+    "d73ad42c:26865"
+   ],
+   [
+    36,
+    "ac5cd7a3:26865"
+   ],
+   [
+    41,
+    "f63755d3:27186"
+   ]
+  ],
+  "errors": []
+ },
+ "workspace-settings": {
+  "ssr": "0509abd6a8172abf",
+  "ssrLength": 20142,
+  "settled": "c45844cf:20938",
+  "trigger": "f12-settings-r0-ws-target-staging-atelier",
+  "animations": [
+   "CSSAnimation f12PopStep 333 linear 1 0",
+   "CSSTransition left 250 steps(3) 1 0",
+   "CSSTransition transform 250 steps(3) 1 0",
+   "CSSTransition width 250 steps(3) 1 0"
+  ],
+  "timeline": [
+   [
+    0,
+    "3cd6824e:21696"
+   ],
+   [
+    6,
+    "dc0c9677:21696"
+   ],
+   [
+    11,
+    "11c315fb:21696"
+   ],
+   [
+    16,
+    "ac2586a1:21696"
+   ],
+   [
+    21,
+    "aca98f5e:21696"
+   ],
+   [
+    26,
+    "3a60fe5a:21696"
+   ]
+  ],
+  "errors": []
+ }
+}
