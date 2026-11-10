@@ -187,7 +187,7 @@ the event contract (`validateEvent`, `createStreamValidator`), `detectCapabiliti
 
 - Sanitize every untrusted string (commit subjects, paths, tool output, log lines) with
   `createSanitizer()` before printing. It removes escape sequences (including OSC 8 and OSC 52),
-  shows bidi controls, and masks common tokens in logs and receipts.
+  shows bidi controls, and masks common tokens in every field.
 - Marker yellow is a background chip used once per screen (`paint(label, 'marker', level)`),
   never yellow text. Every status carries a word, not just a glyph or color.
 - Narration goes to stderr and results to stdout; pipes and `TERM=dumb` get no escape sequences.

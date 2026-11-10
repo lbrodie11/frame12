@@ -17,7 +17,9 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - **Validation** (`validateEvent`, `validateSnapshot`, `createStreamValidator`): typed issues,
     never throws, 8 KiB event and 1 MiB snapshot caps (configurable), unknown event types
     ignored with a warning, unknown fields preserved, presentation labels (`C-01`) rejected as
-    ids, strictly increasing `seq`, monotonic `cut-progress`, and the run lifecycle (`run-start`
+    ids, `__proto__` / `constructor` / `prototype` keys rejected, a snapshot's `runId` checked
+    against its event's, timestamps checked by one pattern shared with the schema, strictly
+    increasing `seq`, monotonic `cut-progress`, and the run lifecycle (`run-start`
     first, cuts started before they end and ended before `run-end`, receipts only for announced
     findings; `lifecycle: false` reads partial streams, `finish()` reports incomplete ones).
   - **Capabilities** (`detectCapabilities(env, streams, argv)`, pure): Repo Archaeology's color
@@ -30,7 +32,8 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     one sanitizer merged from Repo Archaeology and PR #2 for CSI, OSC (incl. OSC 8 and OSC 52),
     DCS/APC/PM/SOS, ESC and C1 forms, CR/BS overwrite tricks, bidi controls, zero-width
     characters, tabs and oversized lines; `https:`-only links without credentials; a redaction
-    hook and default masks for GitHub, OpenAI/Anthropic, Slack, AWS and JWT token shapes.
+    hook and default masks, on every string field, for GitHub, OpenAI/Anthropic, Slack, AWS, JWT
+    and URL-credential shapes.
   - **Width** (`stringWidth`, `graphemeWidth`, `truncateMiddle`, `truncateEnd`, `wrap`,
     `padEnd`): grapheme clusters, UAX #11 from Unicode 17.0.0 with the ambiguous-width switch,
     emoji presentation, ZWJ, flags and combining marks.

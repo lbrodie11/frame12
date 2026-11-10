@@ -61,7 +61,9 @@ interface Finding {
 }
 ```
 
-Limits: 8 KiB per event and 1 MiB per snapshot (both configurable). Unknown event types are
+Limits: 8 KiB per event and 1 MiB per snapshot (both configurable). The keys `__proto__`,
+`constructor` and `prototype` are rejected at any depth, a `snapshot` event's `snapshot.runId`
+must match its own `runId`, and timestamps need an explicit zone (the schema uses the same pattern). Unknown event types are
 ignored with a warning, so older renderers keep working with newer producers. Unknown fields are
 preserved. The JSON Schema is `@frame12/terminal/schema.json`
 ([`schema/events.schema.json`](schema/events.schema.json)).
@@ -124,7 +126,7 @@ motion cannot help.
 
 `resolveTerminalMotion({ argv, env, caps })` uses FRAME/12's Tempo values:
 
-1. `--motion <auto|twos|ones|still>`
+1. `--motion <auto|twos|ones|still>` (an explicit `--motion auto` overrides `FRAME12_MOTION`)
 2. `FRAME12_MOTION`
 3. `NO_MOTION` / `REDUCED_MOTION` → `still`
 4. not interactive, CI, a screen reader or `TERM=dumb` → `still`
@@ -145,12 +147,14 @@ snapshot before a renderer sees it:
 - **Trojan Source:** bidi controls are shown as `\u{202e}` escapes. Zero-width characters are
   shown as escapes in ids, paths and labels.
 - **Tabs and length:** tabs expand at fixed 4-cell stops; lines over 2,000 graphemes end in
-  `…+N chars`.
+  `…+N chars`. Sanitizing twice changes nothing; cutting again adds to the count.
+- **Unterminated sequences** end at the line break, so they can never hide the lines after them.
 - **Links:** `https:` only (`http:` to localhost when allowed), credentials removed, and the
   only OSC 8 sequences in output are ones this package emits.
 - **Redaction:** GitHub (`ghp_`, `gho_`, `ghs_`, `github_pat_`), OpenAI and Anthropic (`sk-`),
   Slack (`xoxa-`, `xoxb-`, `xoxp-`, `xoxr-`), AWS access key ids, JWTs and URL credentials are
-  masked as `[redacted]` in `log` and `receipt` text. Pass `redact(text, { field, source })` for
+  masked as `[redacted]` in every string field: commands, errors, warnings, titles, logs and
+  receipts. Pass `redact(text, { field, source })` for
   your own secrets; it runs on every field, and its output is sanitized again.
 
 ## Width
