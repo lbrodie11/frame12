@@ -1,6 +1,6 @@
 // F12-08 tempo on frame12.dev (production build, Chromium): first paint and hydration with a
 // stored tempo, end-to-end propagation from the header control, live reduced-motion safety, the
-// `M` shortcut, the Motion Studio stages, header control layout/axe, and asChild neutrality.
+// `M` shortcut, the Motion Studio stages, the /terminal Watch replay, header control layout/axe, and asChild neutrality.
 //   npm --workspace=@frame12/site run build && node site/tests/tempo.mjs
 import { chromium } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
@@ -342,6 +342,32 @@ try {
     check(boxes.auto.parent === 'BODY' && boxes.auto.root === boxes.twos.root && boxes.auto.root === boxes.still.root &&
       boxes.auto.parts === boxes.twos.parts && boxes.auto.parts === boxes.still.parts && boxes.twos.attr === 'twos',
       'site TempoProvider asChild: no wrapper element (site root is a direct body child carrying data-f12-tempo); root, header, main and footer boxes identical at every tempo', boxes);
+  }
+
+  // ------------------------------------------------------------- /terminal Watch replay
+  {
+    const layout = (page) => page.evaluate(() => {
+      const out = document.querySelector('#terminal-watch-output');
+      const next = document.querySelector('#terminal-explore-scrubber, [id^="terminal-explore"]');
+      return { h: out.getBoundingClientRect().height, below: next?.getBoundingClientRect().top ?? 0, pending: out.querySelectorAll('[data-pending]').length, steps: out.querySelectorAll('.f12-term-step').length };
+    });
+    // Twos: the whole run is on the page at first; Replay hides the unwritten steps without moving
+    // anything, then shows them on the CLI's own waits.
+    const { ctx, page, errors } = await open(browser, '/terminal', { tempo: 'twos', clock: true });
+    const before = await layout(page);
+    await page.click('#terminal-watch-replay');
+    const during = await layout(page);
+    await page.clock.runFor(5000);
+    const after = await layout(page);
+    check(before.pending === 0 && during.pending === during.steps && after.pending === 0 && before.h === during.h && before.below === during.below && errors.length === 0,
+      'site /terminal Watch [tempo 12]: complete at first paint; Replay hides unwritten lines in place (no layout shift) and shows every line after the recorded waits', { before, during, after, errors });
+    await ctx.close();
+    for (const [tempo, reduced] of [['still', 'no-preference'], ['twos', 'reduce']]) {
+      const o = await open(browser, '/terminal', { tempo, reduced });
+      const st = await o.page.evaluate(() => ({ disabled: document.querySelector('#terminal-watch-replay').disabled, status: document.querySelector('#terminal-watch-status').textContent, pending: document.querySelectorAll('#terminal-watch-output [data-pending]').length }));
+      check(st.disabled && /Tempo is Still/.test(st.status) && st.pending === 0, `site /terminal Watch [tempo ${tempo}${reduced === 'reduce' ? ', OS reduced motion' : ''}]: no replay; the whole run is shown`, st);
+      await o.ctx.close();
+    }
   }
 
   // ------------------------------------------------------------------------- cross-tab

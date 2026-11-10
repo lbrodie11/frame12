@@ -36,6 +36,9 @@ const ROUTES = [
   { path: '/blocks/developer-console', actionSelector: '#site-theme-light' },
   { path: '/blocks/workspace-settings', actionSelector: '#site-theme-light' },
   { path: '/blocks/analytics-dashboard', actionSelector: '#site-theme-light' },
+  // @frame12/terminal launch page (F12-13 PR 6): INP on the Watch replay.
+  { path: '/terminal', actionSelector: '#terminal-watch-replay' },
+  { path: '/terminal/docs', actionSelector: '#site-theme-light' },
 ];
 
 function median(values) {

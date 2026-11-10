@@ -9,6 +9,10 @@
 > `ink@^8`/`react@^19.3` peers), `spawnLogged` (`./process`), `./testing`, and the
 > `frame12-term` CLI with `.f12rec` recordings.
 
+Docs: [frame12.dev/terminal/docs](https://frame12.dev/terminal/docs) (every environment variable,
+the compatibility matrix, recipes). A complete run in twelve NDJSON lines is
+`packages/terminal/examples/hello.ndjson`.
+
 ## Install
 
 ```bash

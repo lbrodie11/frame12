@@ -16,6 +16,7 @@ export type NavItemId =
   | 'nav-analytics-dashboard'
   | 'nav-agents'
   | 'nav-static'
+  | 'nav-terminal'
   | 'nav-style-sheet'
   | 'nav-get-started';
 
@@ -34,6 +35,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/blocks/analytics-dashboard', label: 'Analytics Block', id: 'nav-analytics-dashboard' },
   { href: '/agents', label: 'Agents', id: 'nav-agents' },
   { href: '/static', label: 'Static HTML', id: 'nav-static' },
+  { href: '/terminal', label: 'Terminal', id: 'nav-terminal' },
   { href: '/style-sheet', label: 'Style Sheet', id: 'nav-style-sheet' },
   { href: '/get-started', label: 'Get Started', id: 'nav-get-started' },
 ];
@@ -53,6 +55,8 @@ export const NAV_OWNERSHIP: ReadonlyArray<{ pattern: string; id: NavItemId }> = 
   { pattern: '/agents', id: 'nav-agents' },
   { pattern: '/experiments/agent-approval', id: 'nav-agents' },
   { pattern: '/static', id: 'nav-static' },
+  { pattern: '/terminal', id: 'nav-terminal' },
+  { pattern: '/terminal/*', id: 'nav-terminal' },
   { pattern: '/style-sheet', id: 'nav-style-sheet' },
   { pattern: '/get-started', id: 'nav-get-started' },
 ];

@@ -205,3 +205,59 @@ describe('examples: agent approval', () => {
     assert.equal(app('agent-approval', ['--scenario', 'nope']).code, 2);
   });
 });
+
+describe('examples: the committed recording and the 12-line example', () => {
+  const CLI = path.join(PKG, 'dist/cli/bin.js');
+  const render = (args) => spawnSync(process.execPath, [CLI, 'render', ...args], { cwd: PKG, encoding: 'utf8', env: { ...process.env, NO_COLOR: '1', CI: '' } });
+
+  it('hono-61f7c59.f12rec is a real, complete run with no local paths, and frame12-term --strict accepts it', () => {
+    const text = fs.readFileSync(path.join(EX, 'repo-archaeology/fixtures/hono-61f7c59.f12rec'), 'utf8');
+    assert.doesNotMatch(text, /\/(home|tmp|Users|root)\/|[A-Z]:\\/, 'no absolute paths');
+    const [header, ...entries] = text.trim().split('\n').map((l) => JSON.parse(l));
+    assert.deepEqual(header, { f12rec: 1, schemaVersion: 1 });
+    const snap = entries.at(-1).event.snapshot;
+    // The run's findings are the adapter's findings for the committed repo-archaeology output.
+    assert.deepEqual(snap.findings.map((f) => f.id), findingsFromDiff(diff, explain).map((f) => f.id));
+    assert.equal(snap.metrics.find((m) => m.name === 'commits-analyzed').value, diff.meta.commitsAnalyzed);
+    const r = render(['--from', 'examples/repo-archaeology/fixtures/hono-61f7c59.f12rec', '--strict', '--format', 'plain']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /Finding F-01 pair-e9d61976 \(top finding/);
+  });
+
+  it('hello.ndjson is 12 lines, one complete run, accepted by --strict', () => {
+    const lines = fs.readFileSync(path.join(EX, 'hello.ndjson'), 'utf8').trim().split('\n');
+    assert.equal(lines.length, 12);
+    assert.equal(JSON.parse(lines.at(-1)).type, 'snapshot');
+    const r = render(['--from', 'examples/hello.ndjson', '--strict', '--format', 'plain']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /Finding F-01 changelog-gap \(top finding, needs review\)/);
+  });
+});
+
+describe('docs/terminal/study.md: the answer key matches the study recordings', () => {
+  const STUDY = path.resolve(PKG, '../../docs/terminal/study');
+  const KEY = {
+    'run-a-hono-61f7c59.f12rec': { files: ['src/helper/ssg/index.ts', 'src/helper/ssg/ssg.test.tsx'], count: '20 of 39', other: '20 of 27', interval: [36, 66], receipt: '00b405a' },
+    'run-b-hono-61f7c59-12.f12rec': { files: ['src/client/utils.ts', 'src/client/utils.test.ts'], count: '16 of 21', other: '16 of 18', interval: [55, 89], receipt: '2059584' },
+    'run-c-hono-61f7c59-25.f12rec': { files: ['src/middleware/jwk/index.test.ts', 'src/middleware/jwk/jwk.ts'], count: '7 of 8', other: '7 of 9', interval: [53, 98], receipt: '30277ae' },
+  };
+  const doc = fs.readFileSync(path.resolve(STUDY, '../study.md'), 'utf8');
+
+  for (const [file, k] of Object.entries(KEY)) {
+    it(`${file}: top finding, evidence, interval and first receipt`, () => {
+      const text = fs.readFileSync(file.startsWith('run-a') ? path.join(EX, 'repo-archaeology/fixtures/hono-61f7c59.f12rec') : path.join(STUDY, file), 'utf8');
+      assert.doesNotMatch(text, /\/(home|tmp|Users|root)\//, 'no local paths');
+      const snap = JSON.parse(text.trim().split('\n').at(-1)).event.snapshot;
+      assert.equal(snap.findings.length, 3, 'each study run has three findings');
+      const top = snap.findings[0];
+      assert.equal(top.prominence, 'hero');
+      assert.deepEqual(top.subject.map((s) => s.label).sort(), [...k.files].sort());
+      assert.match(top.summary, new RegExp(`^${k.count} changes .*the other way ${k.other}`));
+      assert.deepEqual([Math.round(top.strength.low * 100), Math.round(top.strength.high * 100)], k.interval);
+      assert.ok(top.receipts[0].value.startsWith(k.receipt));
+      // …and study.md states the same.
+      for (const s of [k.count, k.other, `${k.interval[0]}–${k.interval[1]}%`, k.receipt]) assert.ok(doc.includes(s), `study.md mentions ${s}`);
+    });
+  }
+
+});

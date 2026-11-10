@@ -258,6 +258,8 @@ const ROUTES = [
   '/experiments/agent-approval',
   '/agents',
   '/static',
+  '/terminal',
+  '/terminal/docs',
   '/style-sheet',
   '/get-started',
 ];
@@ -543,8 +545,8 @@ try {
           groups.every(isSequence) &&
           groups[1].join() === groups[2].join() &&
           groups.flat().length === g.cuts.length;
-      } else if (route === '/components/exposure-scrubber') {
-        // ExposureScrubber's frame panel labels its cut with the frame being shown
+      } else if (route === '/components/exposure-scrubber' || route === '/terminal') {
+        // ExposureScrubber's frame panel (on its docs page and on /terminal's Explore) labels its cut with the frame being shown
         // ("CURRENT CUT / F-14"), not a sheet sequence number. Those labels must name a frame;
         // every other cut on the page must still read C-01, C-02… in order.
         const frameCuts = g.cuts.filter((c) => c.startsWith('CURRENT CUT'));

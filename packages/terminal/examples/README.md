@@ -43,6 +43,12 @@ repo-archaeology explain --no-cache --head 61f7c59 src/helper/ssg/ssg.test.tsx s
 
 Absolute paths (`meta.root`) were replaced with `hono`. The adapter tests run against these files.
 
+**Recording.** `fixtures/hono-61f7c59.f12rec` is a real run of this app on the same commit, made
+with `--repo hono --base 61f7c59~6 --head 61f7c59 --record` (it contains no local paths). It is
+the run on [frame12.dev/terminal](https://frame12.dev/terminal) and run A of the study kit
+(`docs/terminal/study.md`). Replay it with
+`node dist/cli/bin.js render --from examples/repo-archaeology/fixtures/hono-61f7c59.f12rec --replay`.
+
 ## Build pipeline
 
 ```sh
@@ -78,12 +84,19 @@ those records. Then it asks.
 - **Exit codes:** 0 approved, 1 denied. When approved, one line of JSON goes to stdout:
   `{"approvalId":…,"approved":true}`.
 
+## Twelve lines
+
+[`hello.ndjson`](hello.ndjson) is a complete run in twelve NDJSON lines (start, two cuts, a
+metric, a finding with receipts, a warning, the end, the snapshot), for the `/terminal` page's
+Build section: `node dist/cli/bin.js render --from examples/hello.ndjson --strict`.
+
 ## Tests
 
 `tests/examples.test.mjs` covers:
 - the adapter against the fixture;
 - the Repo Archaeology app through a stand-in CLI (the child-process path without network or git);
 - every app in the linear formats;
-- the approval rules.
+- the approval rules;
+- the committed recording and `hello.ndjson` (`--strict`), and the study kit's answer key.
 
 `tests/examples.pty.test.mjs` runs the live views and the approval prompt in a real pty.

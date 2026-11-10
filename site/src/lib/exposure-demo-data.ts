@@ -2,11 +2,11 @@
 // Pure and deterministic (no Date.now, no locale), so server and first client render match.
 // The agent-run demo lives in exposure-agent-demo.ts and is built on the server only.
 //
-// CI RUN: ILLUSTRATIVE. @frame12/terminal defines the event contract (and validates it) but
-//    cannot record a run yet, and none of this repository's scripts emit terminal events, so
-//    there is no real captured log to commit. The events below follow the contract exactly
+// CI RUN: ILLUSTRATIVE. None of this repository's own CI scripts emit terminal events, so this
+//    failing run is written by hand. The events follow the contract exactly
 //    (registry/tests/exposure.mjs validates them with @frame12/terminal's validateEvent) and
-//    are labelled "illustrative" wherever they appear.
+//    are labelled "illustrative" wherever they appear. A real recorded run (Repo Archaeology on
+//    honojs/hono) is on /terminal, through the same ciEventsToFrames below.
 import type { ExposureFrame } from '@/components/frame12';
 
 export interface ExposureDemo {
@@ -26,7 +26,8 @@ export interface ExposureDemo {
 }
 
 // ------------------------------------------------------------------------------- CI run (illustrative)
-type CiEvent = Record<string, unknown> & { type: string; seq: number; ts: string; id: string };
+/** A @frame12/terminal v1 event, as far as the frames need it. */
+export type CiEvent = Record<string, unknown> & { type: string; seq: number; ts: string; id: string };
 
 const RUN = 'ci-illustrative-001';
 const base = (type: string, seq: number, ts: string, id: string) => ({ schemaVersion: 1, type, runId: RUN, seq, ts, id });
@@ -114,6 +115,18 @@ export function ciEventsToFrames(events: readonly CiEvent[]): ExposureFrame[] {
         f.detail = fd.summary;
         break;
       }
+      case 'metric': {
+        const m = e.metric as { name: string; label?: string; value: number | string; unit?: string };
+        f.label = `${cut ? `${cutLabel} · ` : ''}metric · ${m.label ?? m.name}`;
+        f.detail = `${m.label ?? m.name}: ${String(m.value)}${m.unit ? ` ${m.unit}` : ''}`;
+        break;
+      }
+      case 'snapshot': {
+        const snap = e.snapshot as { findings?: unknown[]; status?: string };
+        f.label = `snapshot · ${snap.findings?.length ?? 0} findings`;
+        f.detail = `The result every renderer draws from (run ${String(snap.status)}).`;
+        break;
+      }
       case 'run-end':
         f.label = `run end · ${String(e.status)}`;
         f.status = e.status === 'completed' ? 'ok' : 'error';
@@ -142,7 +155,7 @@ export function buildCiRunDemo(): ExposureDemo {
     title: 'CI / terminal run (illustrative)',
     label: 'CI run ci-illustrative-001 replay (illustrative)',
     illustrative: true,
-    source: 'ILLUSTRATIVE: @frame12/terminal v1 events written by hand (the package cannot record a run yet)',
+    source: 'ILLUSTRATIVE: @frame12/terminal v1 events written by hand (no script here emits them)',
     frames,
     rawLog: CI_ILLUSTRATIVE_EVENTS.map((e) => JSON.stringify(e)).join('\n'),
     question: 'Which earlier step led to the failure?',
