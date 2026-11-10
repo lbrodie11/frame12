@@ -202,7 +202,7 @@ function positive(v) {
  * `--ascii`/`--unicode`, `--links`/`--no-links`, `--screen-reader`, `--columns N`, `--rows N`.
  */
 export function detectCapabilities(env = {}, streams = {}, argv = [], options = {}) {
-    const platform = options.platform ?? (typeof process !== 'undefined' ? process?.platform : undefined) ?? 'linux';
+    const platform = options.platform ?? (typeof process !== 'undefined' ? process.platform : undefined) ?? 'linux';
     const isTTY = streams.stdout?.isTTY === true;
     const stderrIsTTY = streams.stderr?.isTTY === true;
     const stdinTTY = streams.stdin?.isTTY === true;

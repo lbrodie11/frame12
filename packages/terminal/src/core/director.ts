@@ -115,8 +115,11 @@ export interface Director {
    * once, and the state is published immediately. Later calls are no-ops.
    */
   cancel(reason: string): void;
-  /** Adds a log line from the host (sanitized and redacted like any other). */
-  log(level: LogLevel, text: string): void;
+  /**
+   * Adds a log line from the host (sanitized and redacted like any other). Multi-line text becomes
+   * one log line per line. `meta` records which stream and cut it came from.
+   */
+  log(level: LogLevel, text: string, meta?: { cut?: string; stream?: 'stdout' | 'stderr' }): void;
   /** Publishes now, bypassing coalescing (for key echo and focus moves). */
   flush(): void;
   /** An AbortSignal that aborts on `cancel()`, for producers that take one (fetch, child processes). */
@@ -128,11 +131,11 @@ export interface Director {
 const defaultScheduler: Scheduler = {
   now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
   setTimeout: (fn, ms) => {
-    const t = setTimeout(fn, ms) as { unref?: () => void };
+    const t: { unref?: () => void } = setTimeout(fn, ms);
     t.unref?.(); // Never hold the process open for a redraw.
     return t;
   },
-  clearTimeout: (h) => clearTimeout(h),
+  clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
 };
 
 /** Creates a Director. */
@@ -209,7 +212,9 @@ export function createDirector(options: DirectorOptions): Director {
   };
   const tickPose = () => {
     poseTimer = undefined;
-    if (disposed || !Number.isFinite(poseMs) || state.status !== 'running') return;
+    // The pose only animates running cuts: with none running, nothing on screen changes, so the
+    // clock stops (no redraw while idle) and restarts at the next cut-start.
+    if (disposed || !Number.isFinite(poseMs) || state.status !== 'running' || !state.cuts.some((c) => c.status === 'running')) return;
     // Catch up to the grid if the process stalled, without publishing every missed pose.
     state.pose = Math.max(state.pose + 1, Math.floor((sched.now() - poseOrigin) / poseMs));
     schedule();
@@ -256,7 +261,6 @@ export function createDirector(options: DirectorOptions): Director {
         state.title = ev.title;
         if (ev.product !== undefined) state.product = ev.product;
         state.status = 'running';
-        startPose();
         return true;
       case 'scene-start':
       case 'scene-end':
@@ -386,9 +390,11 @@ export function createDirector(options: DirectorOptions): Director {
         // Ignore host errors; the run is canceled either way.
       }
     },
-    log(level, text) {
+    log(level, text, meta) {
       if (disposed) return;
-      addLog({ level, text: san.text(text, 'log', 'log') });
+      for (const line of san.text(text, 'log', 'log').split('\n')) {
+        addLog({ level, text: line, ...(meta?.cut !== undefined ? { cut: san.text(meta.cut, 'identifier') } : {}), ...(meta?.stream ? { stream: meta.stream } : {}) });
+      }
       if (level === 'error' || level === 'warn') publish();
       else schedule();
     },

@@ -85,7 +85,9 @@ export function createDirector(options) {
     };
     const tickPose = () => {
         poseTimer = undefined;
-        if (disposed || !Number.isFinite(poseMs) || state.status !== 'running')
+        // The pose only animates running cuts: with none running, nothing on screen changes, so the
+        // clock stops (no redraw while idle) and restarts at the next cut-start.
+        if (disposed || !Number.isFinite(poseMs) || state.status !== 'running' || !state.cuts.some((c) => c.status === 'running'))
             return;
         // Catch up to the grid if the process stalled, without publishing every missed pose.
         state.pose = Math.max(state.pose + 1, Math.floor((sched.now() - poseOrigin) / poseMs));
@@ -133,7 +135,6 @@ export function createDirector(options) {
                 if (ev.product !== undefined)
                     state.product = ev.product;
                 state.status = 'running';
-                startPose();
                 return true;
             case 'scene-start':
             case 'scene-end':
@@ -285,10 +286,12 @@ export function createDirector(options) {
                 // Ignore host errors; the run is canceled either way.
             }
         },
-        log(level, text) {
+        log(level, text, meta) {
             if (disposed)
                 return;
-            addLog({ level, text: san.text(text, 'log', 'log') });
+            for (const line of san.text(text, 'log', 'log').split('\n')) {
+                addLog({ level, text: line, ...(meta?.cut !== undefined ? { cut: san.text(meta.cut, 'identifier') } : {}), ...(meta?.stream ? { stream: meta.stream } : {}) });
+            }
             if (level === 'error' || level === 'warn')
                 publish();
             else

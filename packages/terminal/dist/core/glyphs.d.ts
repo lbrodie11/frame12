@@ -103,6 +103,12 @@ export declare const GLYPHS: {
         readonly ascii: "-";
         readonly use: "numeric range (41–79%)";
     };
+    readonly focus: {
+        readonly char: "›";
+        readonly eaw: "N";
+        readonly ascii: ">";
+        readonly use: "the focused row in the live view (with aria-state selected)";
+    };
 };
 export type GlyphName = keyof typeof GLYPHS;
 export interface GlyphCaps {

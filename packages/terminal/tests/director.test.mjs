@@ -136,6 +136,7 @@ describe('director: tempo paces decoration only', () => {
   const posesIn = (motion, ms) => {
     const { director, clock, f } = setup(motion);
     director.push(f.next('run-start', { title: 'T' }));
+    director.push(f.next('cut-start', { cut: 'a', title: 'A' }));
     clock.advance(ms);
     return director.snapshot().pose;
   };
@@ -144,6 +145,21 @@ describe('director: tempo paces decoration only', () => {
     assert.equal(posesIn('twos', 1000), Math.floor(1000 / POSE_MS));
     assert.equal(posesIn('ones', 1000), Math.floor(1000 / FRAME_MS));
     assert.equal(posesIn('still', 1000), 0);
+  });
+
+  it('ticks only while a cut is running: nothing animates between cuts', () => {
+    const { director, clock, publishes, f } = setup('twos');
+    director.push(f.next('run-start', { title: 'T' }));
+    director.push(f.next('cut-start', { cut: 'a', title: 'A' }));
+    clock.advance(500);
+    director.push(f.next('cut-end', { cut: 'a', status: 'ok' }));
+    const after = publishes.length;
+    clock.advance(2000);
+    assert.equal(publishes.length, after, 'zero publishes with the run open but no cut running');
+    assert.equal(clock.pending, 0);
+    director.push(f.next('cut-start', { cut: 'b', title: 'B' }));
+    clock.advance(500);
+    assert.ok(publishes.length > after, 'the clock restarts with the next cut');
   });
 
   it('stops the pose clock when the run ends (no redraw while idle)', () => {

@@ -120,8 +120,14 @@ export interface Director {
      * once, and the state is published immediately. Later calls are no-ops.
      */
     cancel(reason: string): void;
-    /** Adds a log line from the host (sanitized and redacted like any other). */
-    log(level: LogLevel, text: string): void;
+    /**
+     * Adds a log line from the host (sanitized and redacted like any other). Multi-line text becomes
+     * one log line per line. `meta` records which stream and cut it came from.
+     */
+    log(level: LogLevel, text: string, meta?: {
+        cut?: string;
+        stream?: 'stdout' | 'stderr';
+    }): void;
     /** Publishes now, bypassing coalescing (for key echo and focus moves). */
     flush(): void;
     /** An AbortSignal that aborts on `cancel()`, for producers that take one (fetch, child processes). */

@@ -248,7 +248,7 @@ function positive(v: unknown): number | undefined {
  * `--ascii`/`--unicode`, `--links`/`--no-links`, `--screen-reader`, `--columns N`, `--rows N`.
  */
 export function detectCapabilities(env: Env = {}, streams: Streams = {}, argv: readonly string[] = [], options: DetectOptions = {}): Capabilities {
-  const platform = options.platform ?? (typeof process !== 'undefined' ? process?.platform : undefined) ?? 'linux';
+  const platform = options.platform ?? (typeof process !== 'undefined' ? process.platform : undefined) ?? 'linux';
   const isTTY = streams.stdout?.isTTY === true;
   const stderrIsTTY = streams.stderr?.isTTY === true;
   const stdinTTY = streams.stdin?.isTTY === true;
