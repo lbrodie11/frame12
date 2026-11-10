@@ -3434,6 +3434,634 @@ dialog.f12-dialog > .f12-cut {
   }
 }
 
+/* ===================================================================== ExposureScrubber
+   An exposure sheet (X-sheet) for discrete histories. The root is a size container; layout comes
+   from container width, never the viewport. Rows are CSS-grid boxes (not table-row boxes) so
+   `content-visibility: auto` can skip off-screen rows; the component restores explicit ARIA table
+   roles. Gutters: 12 / 20 / 32 only. Marker yellow: only as a background under --f-marker-ink. */
+.f12-xs {
+  container-type: inline-size;
+  position: relative;
+  min-width: 0;
+  color: var(--f-ink);
+  font-family: var(--font-f-body);
+}
+.f12-xs *,
+.f12-xs *::before,
+.f12-xs *::after {
+  box-sizing: border-box;
+}
+.f12-xs-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "transport"
+    "panel"
+    "sheet";
+  gap: var(--f-gutter-scene);
+  align-items: start;
+}
+.f12-xs-transport {
+  grid-area: transport;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: var(--f-stroke) solid var(--f-rule);
+  background: var(--f-panel);
+  display: grid;
+  gap: var(--f-gutter-pair);
+}
+.f12-xs-quiet .f12-xs-transport {
+  border-width: 1px;
+}
+.f12-xs-tr-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--f-gutter-pair);
+  min-width: 0;
+}
+.f12-xs-tbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 4px 10px;
+  border: 2px solid var(--f-rule);
+  background: var(--f-panel);
+  color: var(--f-ink);
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.f12-xs-tbtn:disabled,
+.f12-xs-tbtn[aria-disabled="true"] {
+  cursor: not-allowed;
+  border-style: dashed;
+  color: var(--f-ink-2);
+}
+.f12-xs-play[aria-pressed="true"] {
+  background: var(--f-ink);
+  color: var(--f-panel);
+}
+.f12-xs-play-glyph {
+  display: inline-block;
+  min-width: 2ch;
+}
+.f12-xs-range {
+  flex: 1 1 160px;
+  min-width: 120px;
+  height: 32px;
+  margin: 0;
+  accent-color: var(--f-ink);
+  cursor: pointer;
+  touch-action: none;
+}
+.f12-xs-range:disabled {
+  cursor: not-allowed;
+}
+.f12-xs-one,
+.f12-xs-count {
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.f12-xs-rate .f12-rng-btn {
+  min-width: 44px;
+  min-height: 32px;
+  padding: 4px 8px;
+}
+.f12-xs-rate .f12-rng-n,
+.f12-xs-timing .f12-rng-n {
+  font-size: 13px;
+}
+.f12-xs-timing .f12-tempo-opt {
+  min-height: 32px;
+  min-width: 52px;
+}
+.f12-xs-timing .f12-tempo-opt[data-unavailable] {
+  cursor: not-allowed;
+  background-image: repeating-linear-gradient(-45deg, var(--f-grid) 0, var(--f-grid) 2px, transparent 2px, transparent 6px);
+  text-decoration: line-through;
+}
+.f12-xs-note {
+  margin: 0;
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ---- the sheet */
+.f12-xs-disc {
+  grid-area: sheet;
+  min-width: 0;
+  border: var(--f-stroke) solid var(--f-rule);
+  background: var(--f-panel);
+}
+.f12-xs-quiet .f12-xs-disc {
+  border-width: 1px;
+}
+.f12-xs-sum {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.f12-xs-disc[open] > .f12-xs-sum {
+  border-bottom: 1px solid var(--f-rule);
+}
+.f12-xs-scroll {
+  max-height: min(70vh, 640px);
+  /* Keeps a focused row clear of the sticky header (WCAG 2.4.11). */
+  scroll-padding-top: 56px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.f12-xs-sheet {
+  --xs-cols: 6.25rem minmax(0, 1fr) 7.5rem 8.5rem;
+  display: grid;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.f12-xs-sheet > thead,
+.f12-xs-sheet > tbody {
+  display: grid;
+}
+.f12-xs-cap {
+  display: block;
+  padding: 8px 12px;
+  text-align: start;
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.f12-xs-sheet > thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--f-panel);
+  border-bottom: 2px solid var(--f-rule);
+}
+.f12-xs-hrow,
+.f12-xs-row {
+  display: grid;
+  grid-template-columns: var(--xs-cols);
+  align-items: stretch;
+}
+.f12-xs-hrow > th {
+  padding: 6px 8px;
+  text-align: start;
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.f12-xs-sc {
+  display: block;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.f12-xs-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
+  border-bottom: 1px solid var(--f-grid);
+  scroll-margin-block: 48px;
+}
+/* Row cells are styled by position (1 FRAME · 2 ACTION · 3 TIMING · 4 MARK) to keep rows lean. */
+.f12-xs-compact .f12-xs-row {
+  contain-intrinsic-size: auto 40px;
+}
+.f12-xs-row > td {
+  min-width: 0;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.f12-xs-compact .f12-xs-row > td {
+  padding: 2px 6px;
+}
+.f12-xs-f {
+  font-family: var(--font-f-mono);
+  font-variant-numeric: tabular-nums;
+  border-right: 2px solid var(--f-rule);
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.f12-xs-fn {
+  font-weight: 700;
+  font-size: 12px;
+}
+.f12-xs-f > span + span {
+  font-size: 10px;
+  color: var(--f-ink-2);
+}
+.f12-xs-row > :nth-child(2) {
+  overflow: hidden;
+}
+.f12-xs-btn {
+  display: block;
+  width: 100%;
+  min-height: 24px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--f-ink);
+  text-align: start;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.f12-xs-k {
+  display: inline-block;
+  align-self: start;
+  padding: 0 4px;
+  border: 1px solid var(--f-rule);
+  font-family: var(--font-f-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.f12-xs-d {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--f-ink-2);
+}
+.f12-xs-compact .f12-xs-d {
+  -webkit-line-clamp: 1;
+}
+.f12-xs-row > :nth-child(3) {
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+/* TIMING: hold ticks (even) or a log-scaled screentone bar of the real gap (elapsed, flipbook). */
+.f12-xs-row > :nth-child(3):not(:empty)::before {
+  content: "";
+  display: block;
+  height: 10px;
+  width: var(--xs-w, 4%);
+  border-right: 2px solid var(--f-rule);
+  background-image: radial-gradient(circle, var(--f-tone) 1.1px, transparent 1.4px);
+  background-size: 5px 5px;
+}
+.f12-xs[data-timing="even"] .f12-xs-row > :nth-child(3)::before {
+  width: calc(var(--xs-h, 1) * 6px);
+  border-right: 0;
+  border-left: 2px solid var(--f-rule);
+  background-image: repeating-linear-gradient(90deg, transparent 0, transparent 4px, var(--f-rule) 4px, var(--f-rule) 6px);
+  background-size: auto;
+}
+.f12-xs-row > :nth-child(4) {
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  align-items: flex-start;
+}
+.f12-xs-st,
+.f12-xs-mk,
+.f12-xs-from {
+  white-space: nowrap;
+}
+/* The glyph is generated content with empty alt text: seen, not read twice. */
+.f12-xs-st::before {
+  content: "[+] ";
+  content: "[+] " / "";
+}
+.f12-xs-st[data-s="warn"]::before {
+  content: "[!] ";
+  content: "[!] " / "";
+}
+.f12-xs-st[data-s="error"]::before {
+  content: "[×] ";
+  content: "[×] " / "";
+}
+.f12-xs-st[data-s="pending"]::before {
+  content: "[~] ";
+  content: "[~] " / "";
+}
+.f12-xs-st[data-s="error"] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+.f12-xs-st[data-s="warn"] {
+  font-weight: 700;
+}
+.f12-xs-mk {
+  padding: 0 4px;
+  border: 1px solid var(--f-rule);
+  font-weight: 700;
+}
+.f12-xs-mk-primary {
+  background: var(--f-marker);
+  color: var(--f-marker-ink);
+  border: 2px solid var(--f-rule);
+}
+
+/* current row: outline + inked frame number + screentone exposure strip (survives forced colors) */
+.f12-xs-row[aria-current="step"] {
+  outline: 2px solid var(--f-rule);
+  outline-offset: -2px;
+  position: relative;
+  z-index: 1;
+}
+.f12-xs-row[aria-current="step"] > .f12-xs-f {
+  background: var(--f-ink);
+  color: var(--f-panel);
+  border-right-width: 4px;
+}
+.f12-xs-row[aria-current="step"] > .f12-xs-f > span + span {
+  color: var(--f-panel);
+}
+.f12-xs-row[aria-current="step"] > :nth-child(2) {
+  background-image: radial-gradient(circle, var(--f-grid) 1.1px, transparent 1.4px);
+  background-size: 5px 5px;
+}
+.f12-xs-row[aria-current="step"] .f12-xs-btn {
+  font-weight: 700;
+}
+.f12-xs-quiet .f12-xs-row[aria-current="step"] > :nth-child(2) {
+  background-image: none;
+}
+.f12-xs-btn:focus-visible {
+  outline: 3px solid var(--f-ink);
+  outline-offset: -3px;
+}
+
+/* ---- the panel */
+.f12-xs-panel {
+  grid-area: panel;
+  min-width: 0;
+}
+.f12-xs-cut {
+  max-width: calc(100% - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.f12-xs-body,
+.f12-xs-head,
+.f12-xs-links {
+  display: grid;
+  gap: var(--f-gutter-pair);
+  min-width: 0;
+}
+.f12-xs-body[data-swap] {
+  animation: var(--f12-enter-animation, none);
+}
+.f12-xs-head > p {
+  margin: 0;
+}
+.f12-xs-title:focus {
+  outline: none;
+}
+.f12-xs-title:focus-visible {
+  outline: 3px solid var(--f-ink);
+  outline-offset: 2px;
+}
+.f12-xs-pos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--f-gutter-pair);
+  font-family: var(--font-f-mono);
+  font-variant-numeric: tabular-nums;
+}
+.f12-xs-pnum {
+  font-family: var(--font-f-display);
+  font-size: 22px;
+  line-height: 1;
+}
+.f12-xs-pel {
+  font-size: 12px;
+}
+.f12-xs-title {
+  font-weight: 700;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.f12-xs-pmeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--f-gutter-pair);
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+}
+.f12-xs-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.f12-xs-links-h {
+  margin: 0;
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.f12-xs-links-l {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--f-gutter-pair);
+}
+.f12-xs-cause,
+.f12-xs-back {
+  justify-content: flex-start;
+  text-align: start;
+  text-transform: none;
+  letter-spacing: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.f12-xs-back {
+  justify-self: start;
+}
+.f12-xs-slate {
+  min-height: 120px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: var(--f-gutter-pair);
+  padding: 12px;
+  border: 2px dashed var(--f-rule);
+}
+.f12-xs-slate > p {
+  margin: 0;
+}
+.f12-xs-slate-t {
+  font-family: var(--font-f-display);
+  font-size: 22px;
+  letter-spacing: 0.08em;
+}
+.f12-xs-slate-s,
+.f12-xs-empty-msg {
+  font-size: 13px;
+}
+.f12-xs-error {
+  margin: 0;
+  padding: 12px;
+  border: 2px dashed var(--f-rule);
+  font-size: 13px;
+}
+.f12-xs-mono {
+  font-family: var(--font-f-mono);
+}
+
+/* ---- motion: transitions only (row highlight and panel swap), resolved through the tempo */
+.f12-m-stepped .f12-xs-row > .f12-xs-f {
+  transition: background-color 167ms steps(2, end), color 167ms steps(2, end);
+}
+.f12-m-smooth .f12-xs-row > .f12-xs-f {
+  transition: background-color 160ms ease-out, color 160ms ease-out;
+}
+.f12-m-cut .f12-xs-row > .f12-xs-f,
+.f12-xs[data-flipping] .f12-xs-row > .f12-xs-f {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .f12-xs-row > .f12-xs-f {
+    transition: none;
+  }
+  .f12-xs-body[data-swap] {
+    animation: none;
+  }
+}
+
+/* ---- container layout: side by side from 640px of container width */
+@container (min-width: 640px) {
+  .f12-xs-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-areas:
+      "transport transport"
+      "sheet panel";
+  }
+  .f12-xs-disc[open] > .f12-xs-sum {
+    display: none;
+  }
+  .f12-xs-disc {
+    border-width: var(--f-stroke);
+  }
+}
+@container (max-width: 420px) {
+  .f12-xs-sheet {
+    --xs-cols: 5.5rem minmax(0, 1fr) 4.5rem;
+  }
+  /* Visually hidden, still in the accessibility tree: the MARK cells wrap under ACTION. */
+  .f12-xs-sheet .f12-xs-hrow > th:nth-child(4) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .f12-xs-row > :nth-child(4) {
+    grid-column: 2 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: var(--f-gutter-pair);
+    padding-top: 0;
+  }
+  .f12-xs-row > :nth-child(4):empty {
+    display: none;
+  }
+}
+
+/* ---- forced colors: current row, status, marker and focus stay distinguishable */
+@media (forced-colors: active) {
+  .f12-xs-transport,
+  .f12-xs-disc,
+  .f12-xs-tbtn,
+  .f12-xs-k,
+  .f12-xs-mk {
+    border-color: CanvasText;
+  }
+  .f12-xs-row[aria-current="step"] {
+    outline: 3px solid Highlight;
+  }
+  .f12-xs-row[aria-current="step"] > .f12-xs-f {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+  .f12-xs-row[aria-current="step"] > .f12-xs-f > span + span {
+    color: HighlightText;
+  }
+  .f12-xs-mk-primary {
+    border: 3px double CanvasText;
+  }
+  .f12-xs-play[aria-pressed="true"] {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+  .f12-xs-btn:focus-visible,
+  .f12-xs-tbtn:focus-visible,
+  .f12-xs-range:focus-visible {
+    outline: 3px solid Highlight;
+  }
+  .f12-xs-row > :nth-child(3)::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
+/* ---- print: the full table, no transport, the current frame's detail */
+@media print {
+  .f12-xs-transport,
+  .f12-xs-sum,
+  .f12-xs-links button {
+    display: none;
+  }
+  .f12-xs-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "panel"
+      "sheet";
+  }
+  .f12-xs-scroll {
+    max-height: none;
+    overflow: visible;
+  }
+  .f12-xs-row {
+    content-visibility: visible;
+    break-inside: avoid;
+  }
+  .f12-xs-sheet > thead {
+    position: static;
+  }
+  .f12-xs-mk-primary,
+  .f12-xs-row[aria-current="step"] > .f12-xs-f {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 /* ===================================================================== Responsive Container Rules */
 @media (max-width: 760px) {
   .f12-frame {
