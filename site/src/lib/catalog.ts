@@ -2815,7 +2815,7 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "commonErrors": [
       "Inventing causes from order (\"the previous step caused this\"): causes must come from your data.",
-      "Passing raw tool payloads with secrets, tokens or personal data to the client: redact before they reach any client component.",
+      "Passing raw tool payloads with secrets, tokens or personal data to the client: redact before they reach any client component. Build frames on the server and pass only the redacted result; raw data imported into a 'use client' module ships to the browser even if it is never rendered.",
       "Side effects inside renderFrame (fetching, logging, setting state): it must be pure.",
       "Starting playback on mount through a controlled `playing`: there is no autoplay; set it only from a user action.",
       "Selecting by index: `value` is a frame id, so data changes stay well defined.",

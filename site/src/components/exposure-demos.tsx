@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { ExposureScrubber, Panel, Scene, Tag, type ExposureFrame } from '@/components/frame12';
-import { buildAgentRunDemo, buildCiRunDemo, type ExposureDemo } from '@/lib/exposure-demo-data';
+import { buildCiRunDemo, type ExposureDemo } from '@/lib/exposure-demo-data';
 
 /** Pure: renders only what the frame carries. A light version while scrubbing. */
 function renderDemoFrame(frame: ExposureFrame, _index: number, ctx: { scrubbing: boolean; settled: boolean }) {
@@ -75,9 +75,20 @@ function DemoPair({ demo, idPrefix }: { demo: ExposureDemo; idPrefix: string }) 
 }
 
 const DEEP_LINK = `'use client';
+import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
+import { ExposureScrubber, type ExposureFrame } from '@/components/frame12';
 
-export function SharedReplay({ frames }: { frames: ExposureFrame[] }) {
+// useSearchParams needs a Suspense boundary (static prerendering bails out without one).
+export function SharedReplayPage({ frames }: { frames: ExposureFrame[] }) {
+  return (
+    <React.Suspense fallback={null}>
+      <SharedReplay frames={frames} />
+    </React.Suspense>
+  );
+}
+
+function SharedReplay({ frames }: { frames: ExposureFrame[] }) {
   const params = useSearchParams();
   const [frame, setFrame] = React.useState(() => params.get('frame') ?? frames[0]?.id);
   return (
@@ -99,9 +110,12 @@ export function SharedReplay({ frames }: { frames: ExposureFrame[] }) {
   );
 }`;
 
-/** The two faithful demos with "find the cause" panels, and the usage guide. */
-export function ExposureDemos() {
-  const agent = React.useMemo(() => buildAgentRunDemo(), []);
+/**
+ * The two faithful demos with "find the cause" panels, and the usage guide. `agent` is built on
+ * the server (lib/exposure-agent-demo.ts) and arrives already redacted: redaction happens before
+ * the data reaches this client component, not just before it is rendered.
+ */
+export function ExposureDemos({ agent }: { agent: ExposureDemo }) {
   const ci = React.useMemo(() => buildCiRunDemo(), []);
   return (
     <>
@@ -132,7 +146,9 @@ export function ExposureDemos() {
               </li>
               <li className="f12-body-copy">
                 <strong>Redact first.</strong> Remove secrets, tokens and personal data from tool payloads before they
-                reach any client component. The agent demo redacts the tool input&apos;s free-text memo.
+                reach any client component: build the frames on the server and pass only the redacted result. Raw data
+                imported into a <code>&apos;use client&apos;</code> module ships to the browser even if it is never rendered.
+                The agent demo is built that way and redacts the tool input&apos;s free-text memo.
               </li>
               <li className="f12-body-copy">
                 <strong>renderFrame is pure.</strong> No fetching, logging or state updates in render; use{' '}

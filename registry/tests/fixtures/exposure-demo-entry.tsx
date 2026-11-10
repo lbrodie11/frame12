@@ -1,9 +1,11 @@
-// Renders the docs demos' data (site/src/lib/exposure-demo-data.ts) through the registry harness,
+// Renders the docs demos' data (site/src/lib/exposure-*-demo*.ts) through the registry harness,
 // for registry/scripts/exposure-screenshots.mjs. `window.__demo(opts)` mounts one configuration.
 import * as React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ExposureScrubber, TempoProvider, type ExposureFrame } from '@/components/frame12';
-import { buildAgentRunDemo, buildCiRunDemo } from '../../../site/src/lib/exposure-demo-data';
+import { buildCiRunDemo } from '../../../site/src/lib/exposure-demo-data';
+// Test harness only (not a shipped client component): the screenshots need the agent frames.
+import { buildAgentRunDemo } from '../../../site/src/lib/exposure-agent-demo';
 
 declare global {
   interface Window {

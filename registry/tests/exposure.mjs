@@ -203,6 +203,8 @@ await section('pure', async () => {
   );
   check(formatElapsed(0) === '+00:00.0' && formatElapsed(65432) === '+01:05.4' && formatElapsed(-1500) === '-00:01.5', 'elapsed: +mm:ss.s, deterministic');
   check(isEditableTarget(null) === false, 'editable: null target is not editable');
+  const gk = norm([{ id: '', label: 'bad id' }, { id: 'a', label: '' }, { id: 'a', label: '' }, { id: 'z', label: '', causes: ['#0', 'a#2', 'a'] }]).entries[3].causes;
+  check(JSON.stringify(gk) === '[1]', 'contract: causes resolve against real ids only (generated keys "#0" / "a#2" are never causes; "a" is its first occurrence)', gk);
   const col = norm([{ id: 'a', label: '' }, { id: 'a', label: '' }, { id: 'a#2', label: '' }]).entries.map((e) => e.key);
   check(JSON.stringify(col) === '["a","a#3","a#2"]', 'contract: a generated duplicate key never takes a real id ("a#2" stays with its frame)', col);
   const over = norm(Array.from({ length: 5001 }, (_, i) => ({ id: `x${i}`, label: '' })));
@@ -212,8 +214,9 @@ await section('pure', async () => {
 // =============================================================================== docs demo data
 await section('demo data', async () => {
   const { mod: demo } = await loadServerModule(resolve(REGISTRY_ROOT, '../site/src/lib/exposure-demo-data.ts'));
+  const { mod: agentMod } = await loadServerModule(resolve(REGISTRY_ROOT, '../site/src/lib/exposure-agent-demo.ts'));
   const { mod: hook } = await loadServerModule(HOOK);
-  const agent = demo.buildAgentRunDemo();
+  const agent = agentMod.buildAgentRunDemo();
   const n = hook.normalizeExposureFrames(agent.frames);
   const mism = agent.frames.filter((f) => f.id.startsWith('check:') && f.status === 'error');
   const ids = new Set(agent.frames.map((f) => f.id));
@@ -299,7 +302,7 @@ await section('dev errors', async () => {
     return { out, all: errors };
   };
   const dev = await errorsFor(html18dev, { frames: bad, props: { stepMs: 100, defaultValue: 'missing' } });
-  const kinds = [/Duplicate frame id "a"/, /empty or non-string id/, /hold 40/, /durationMs -3/, /at "yesterday"/, /unknown cause "nope"/, /names itself/, /later frame "z"/, /stepMs 100/];
+  const kinds = [/defaultValue "missing" is not a frame id/, /Duplicate frame id "a"/, /empty or non-string id/, /hold 40/, /durationMs -3/, /at "yesterday"/, /unknown cause "nope"/, /names itself/, /later frame "z"/, /stepMs 100/];
   const missing = kinds.filter((re) => !dev.out.some((m) => re.test(m)));
   check(missing.length === 0, 'dev build: one console.error per distinct input problem (duplicate, empty id, hold, duration, at, causes, stepMs)', missing.map(String));
   const perMount = dev.out.length / 2;
@@ -1253,6 +1256,81 @@ await section('review regressions', async () => {
   await flush(page);
   const afterBack = await page.evaluate(() => document.activeElement?.id);
   check(prevFocus.id === 'xa-prev' && prevFocus.dis === 'true' && afterCause === 'xa-title' && afterBack === 'xa-title' && (await st(page)).index === 4, 'focus: Prev at the first frame stays focused (aria-disabled); following a cause or Back focuses the new frame title', { prevFocus, afterCause, afterBack });
+  // (review #1) Back is cleared when the reader returns another way; focus is never dropped and
+  // a later row click keeps focus on that row.
+  await mount(page, { n: 6, genOpts: { causes: { 3: ['f2'] } }, props: { defaultValue: 'f4' } });
+  await page.focus('#xa .f12-xs-cause');
+  await page.keyboard.press('Enter');
+  await flush(page);
+  await page.keyboard.press('j');
+  await page.keyboard.press('j');
+  await flush(page);
+  const backGone = !(await page.$('#xa .f12-xs-back'));
+  const stillTitle = await page.evaluate(() => document.activeElement?.id);
+  await page.focus('#xa tbody tr:nth-child(1) .f12-xs-btn');
+  await page.keyboard.press('Enter');
+  await flush(page);
+  const rowFocus = await page.evaluate(() => document.activeElement?.closest('tr')?.querySelector('.f12-xs-fn')?.textContent);
+  // follow → Back → then a mouse row click: focus stays on the clicked row (no stale request)
+  await page.click('#xa tbody tr:nth-child(4) .f12-xs-btn');
+  await flush(page);
+  await page.focus('#xa .f12-xs-cause');
+  await page.keyboard.press('Enter');
+  await flush(page);
+  await page.focus('#xa .f12-xs-back');
+  await page.keyboard.press('Enter');
+  await flush(page);
+  const afterBack2 = await page.evaluate(() => document.activeElement?.id);
+  await page.click('#xa tbody tr:nth-child(6) .f12-xs-btn');
+  await flush(page);
+  await run(page, 100);
+  const afterRowClick = await page.evaluate(() => document.activeElement?.closest('tr')?.querySelector('.f12-xs-fn')?.textContent);
+  check(backGone && stillTitle === 'xa-title' && rowFocus === 'F-01' && afterBack2 === 'xa-title' && afterRowClick === 'F-06', 'Back: cleared when the reader returns to that frame another way; focus never drops to <body>; a later row activation keeps focus on that row', { backGone, stillTitle, rowFocus, afterBack2, afterRowClick });
+
+  // Starting a flipbook with p while the title has focus keeps focus (the header persists).
+  await mount(page, { n: 30, tempo: 'twos', genOpts: { causes: { 3: ['f2'] } }, props: { defaultValue: 'f4' } });
+  await page.check('#xa-timing-flipbook', { force: true });
+  await page.focus('#xa .f12-xs-cause');
+  await page.keyboard.press('Enter');
+  await flush(page);
+  await page.keyboard.press('p');
+  await run(page, 300);
+  const flipFocus = await page.evaluate(() => ({ id: document.activeElement?.id, slate: !!document.querySelector('#xa .f12-xs-slate') }));
+  await page.keyboard.press('p');
+  await flush(page);
+  check(flipFocus.id === 'xa-title' && flipFocus.slate, 'flipbook started with p while the title is focused: the slate shows and focus stays on the title', flipFocus);
+
+  // (review #5) a pointer click on Next mark is settled: no scrubbing render, announced at once.
+  await mount(page, { n: 10, genOpts: { markers: [6] } });
+  await page.evaluate(() => (window.__xsCtx = []));
+  await page.click('#xa-next-mark');
+  await flush(page);
+  await run(page, 20);
+  const markCtx = await page.evaluate(() => window.__xsCtx.map((c) => c.scrubbing));
+  const markAnn = (await st(page)).announce;
+  check(markCtx.length > 0 && markCtx.every((x) => x === false) && /^Frame 7 of 10/.test(markAnn), 'Next mark by pointer: renderFrame never gets scrubbing; the frame is announced at once (keys still settle after 500 ms)', { markCtx, markAnn });
+
+  // (nit) shortcuts work while a timing radio has focus.
+  await mount(page, { n: 10 });
+  await page.focus('#xa-timing-even');
+  await page.keyboard.press('j');
+  await flush(page);
+  check((await st(page)).index === 1, 'shortcuts work while a timing radio has focus (radios are not editable)');
+
+  // (review #4) unmount right after a row click / mark click: no timers, no late updates.
+  await page.evaluate(TIMER_SPY);
+  await mount(page, { n: 10, genOpts: { markers: [6] } });
+  await run(page, 2000);
+  await page.click('#xa tbody tr:nth-child(3) .f12-xs-btn');
+  await page.evaluate(() => {
+    document.getElementById('xa-next-mark').click();
+    window.__xsUnmount();
+  });
+  await flush(page);
+  const leftTimers = await page.evaluate(() => ({ t: window.__spy.timers(), r: window.__spy.rafs() }));
+  await run(page, 1500);
+  check(leftTimers.t === 0 && leftTimers.r === 0, 'unmount right after a row click and a mark click: no timers or rAF left', leftTimers);
+
   await ctx.close();
 });
 

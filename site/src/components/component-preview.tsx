@@ -2,7 +2,10 @@
 
 import * as React from 'react';
 import { useResolvedMotion } from '@/hooks/use-tempo';
-import { ExposurePreview } from '@/components/exposure-demos';
+import dynamic from 'next/dynamic';
+
+// Loaded only by the exposure-scrubber preview (its own chunk, not in every component page).
+const ExposurePreview = dynamic(() => import('@/components/exposure-demos').then((m) => m.ExposurePreview));
 import {
   Sheet,
   TempoProvider,
