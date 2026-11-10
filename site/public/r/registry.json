@@ -784,6 +784,11 @@
           "path": "ui/ink.tsx",
           "type": "registry:ui",
           "target": "components/frame12/ink.tsx"
+        },
+        {
+          "path": "ui/ink-pencil.ts",
+          "type": "registry:ui",
+          "target": "components/frame12/ink-pencil.ts"
         }
       ]
     },

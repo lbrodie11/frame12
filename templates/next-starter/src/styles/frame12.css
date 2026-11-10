@@ -3868,13 +3868,15 @@ html[data-f12-tempo="still"] .f12-m-smooth {
   animation: f12InkClockB calc(var(--f12-ink-total, 1) * var(--f-pose)) linear;
 }
 /* Scroll driver: poses follow the scroll position, quantized by steps() to each stroke's poses.
+   Its keyframes have their own names (f12InkScrub*), so Play always starts fresh time-based
+   animations instead of re-timing the scroll-linked ones.
    Native scroll only: no scroll listeners, no scroll-snap. Set --f12-ink-timeline on the sequence
    (or an ancestor) to a named view timeline; the default is each element's own view(). */
 @supports (animation-timeline: view()) {
   .f12-ink-seq[data-ink-scroll] .f12-ink,
   .f12-ink-seq[data-ink-scroll] .f12-ink-wipe,
   .f12-ink-seq[data-ink-scroll] .f12-ink-land {
-    animation-name: f12InkDrawA;
+    animation-name: f12InkScrubDraw;
     animation-duration: auto;
     animation-delay: 0s;
     animation-fill-mode: both;
@@ -3890,10 +3892,10 @@ html[data-f12-tempo="still"] .f12-m-smooth {
       );
   }
   .f12-ink-seq[data-ink-scroll] .f12-ink-wipe {
-    animation-name: f12InkWipeA;
+    animation-name: f12InkScrubWipe;
   }
   .f12-ink-seq[data-ink-scroll] .f12-ink-land {
-    animation-name: f12InkLandA;
+    animation-name: f12InkScrubLand;
     animation-timing-function: steps(1, jump-start);
     animation-range-end: contain
       calc((var(--f12-ink-beat, 0) + var(--f12-ink-at, 0) + 1) / var(--f12-ink-total, 1) * 100%);
@@ -3988,6 +3990,19 @@ html[data-f12-tempo="still"] .f12-m-smooth {
   100% { visibility: visible; }
 }
 @keyframes f12InkLandB {
+  0% { visibility: hidden; }
+  100% { visibility: visible; }
+}
+@keyframes f12InkScrubDraw {
+  0% { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+  99.99% { stroke-dasharray: 1 1; }
+  100% { stroke-dasharray: none; stroke-dashoffset: 0; }
+}
+@keyframes f12InkScrubWipe {
+  0% { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+@keyframes f12InkScrubLand {
   0% { visibility: hidden; }
   100% { visibility: visible; }
 }
