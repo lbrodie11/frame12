@@ -81,6 +81,8 @@ Every screen, component, and stylesheet MUST pass these 8 rules (`node scripts/c
    - Default motion mode is `'stepped'`: discrete state changes (switching time ranges, filtering rows, counting metrics) sample an ease-out curve at `12fps` (`83.33ms` per pose).
    - Continuous pointer interactions—hover states, scrolling, dragging, typing in inputs, and chart crosshairs—MUST stay immediate (`0ms`).
    - `prefers-reduced-motion: reduce` automatically switches all transitions to instant hard cuts (`'cut'`).
+   - **Tempo is the viewer's one motion preference.** Wrap the app in `<TempoProvider storageKey="…">` and offer a `<TempoControl />` (AUTO · 12 on twos · 60 smooth · 0 still). Every FRAME/12 animation resolves through `resolveMotion` in this order: OS reduced motion → cut; `still` (here or any ancestor provider) → cut; an explicit/variant/default `'cut'` stays cut (tempo never turns motion on); `twos` → stepped; `ones` → smooth; `auto` → the component's own motion. Never thread a page-level `motion` prop for this, and never hand-write `className="f12-m-stepped"`: emit `` `f12-m-${useResolvedMotion(base)}` `` from `@/hooks/use-tempo`.
+   - Pointer tracking, drag, scroll, typing and focus movement are never stepped or delayed, at any tempo.
    - Use `useChanged(key)` so entrance animations (`.f12-enter`, `<Badge pop={changed}>`) never fire on initial page load; the sheet is complete at rest.
 6. **Accessibility (WCAG AA):**
    - Text contrast must meet WCAG AA (`4.5:1` body, `3:1` large display) in both `light` and `dark` themes.
@@ -90,7 +92,7 @@ Every screen, component, and stylesheet MUST pass these 8 rules (`node scripts/c
 7. **Describe the craft, never name people or franchises:**
    - Never mention specific artists, studios, comics, anime titles, or franchises in code, comments, copy, or documentation. Refer strictly to the production craft: *panels, mitered ink frames, screentone, registration pegs, exposure sheets, cut numbers, and animating on twos*.
 8. **Zero external animation, drawing, or charting libraries:**
-   - Do not import `framer-motion`, `gsap`, `recharts`, `chart.js`, `d3`, or `lucide-react`. Use `@/components/frame12` components (`ToneAreaChart`, `ToneBarList`, `ToneSpark`, `Balloon`) and `@/hooks/use-on-twos` hooks (`useOnTwos`, `useCountUp`, `useChanged`).
+   - Do not import `framer-motion`, `gsap`, `recharts`, `chart.js`, `d3`, or `lucide-react`. Use `@/components/frame12` components (`ToneAreaChart`, `ToneBarList`, `ToneSpark`, `Balloon`) and `@/hooks/use-on-twos` hooks (`useOnTwos`, `useCountUp`, `useChanged`), with `@/hooks/use-tempo` (`useResolvedMotion`, `useTempo`) for the viewer's tempo.
 
 ---
 
@@ -99,7 +101,7 @@ Every screen, component, and stylesheet MUST pass these 8 rules (`node scripts/c
 Compose every screen like a production storyboard sheet:
 
 1. **Wrap the page in `<Sheet autoCut>`:**
-   - `<Sheet autoCut pegs motion={motion} theme={theme}>` renders the registration pegs at the top edge, numbers every `<Panel>` automatically in DOM reading order (`C-01`, `C-02`, `C-03`…) via CSS counters, and establishes a `32px` vertical rhythm between `<header className="f12-hd">` and each `<Scene>`.
+   - `<Sheet autoCut pegs theme={theme}>` (optional `motion`, resolved against the viewer's tempo) renders the registration pegs at the top edge, numbers every `<Panel>` automatically in DOM reading order (`C-01`, `C-02`, `C-03`…) via CSS counters, and establishes a `32px` vertical rhythm between `<header className="f12-hd">` and each `<Scene>`.
 2. **Establish the scene in `C-01`:**
    - The first `<Panel>` inside `<Sheet autoCut>` is automatically numbered `C-01` as the establishing shot. Give it dominant visual weight using `<Scene gutter="scene" layout="split">` (`2fr 1fr` on desktop, single-column stack under `760px`) or a full-width `<Scene gutter="scene" layout="stack">`.
 3. **Pair secondary KPIs or coupled controls with `<PanelPair>`:**

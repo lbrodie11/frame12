@@ -1,6 +1,6 @@
 # FRAME/12 Components, Hooks & Primitive Adapters
 
-Complete API reference for `@/components/frame12` and `@/hooks/use-on-twos`.
+Complete API reference for `@/components/frame12`, `@/hooks/use-on-twos` and `@/hooks/use-tempo`.
 
 ---
 
@@ -71,7 +71,76 @@ import {
 - `useSize(ref: { readonly current: HTMLElement | null }): { w: number; h: number }`
   Measures `offsetWidth` and `offsetHeight` via `ResizeObserver`.
 - `useReducedMotion(): boolean`
-  Tracks `(prefers-reduced-motion: reduce)`.
+  Tracks `(prefers-reduced-motion: reduce)`. Lives in `hooks/use-tempo.ts`; `use-on-twos` re-exports it.
+- `useOnTwos` (and so `useCountUp`) resolves `motion` against the nearest `TempoProvider` and the OS (see below).
+
+---
+
+## 2b. Tempo: one motion preference (`hooks/use-tempo.ts`, `ui/tempo.tsx`, `ui/tempo-control.tsx`)
+
+Tempo is the viewer's single animation preference, followed by every FRAME/12 animation. It is an accessibility feature first and a style choice second.
+
+| Tempo | Label | Meaning |
+|---|---|---|
+| `auto` (default) | AUTO | each component's own intended motion |
+| `twos` | 12 | on twos: held poses, 12 per second |
+| `ones` | 60 | smooth, continuous motion (follows the display's refresh rate; "60" names the style, not a guarantee) |
+| `still` | 0 | no non-essential motion |
+
+```tsx
+import {
+  type Tempo,          // 'auto' | 'twos' | 'ones' | 'still'
+  TEMPOS,              // ['auto', 'twos', 'ones', 'still']
+  resolveMotion,       // ({ base, tempo, ancestorStill, reduced }) => MotionMode
+  useTempo,            // () => { tempo, setTempo, ancestorStill, inProvider, reduced, effectiveTempo }
+  useResolvedMotion,   // (base?: MotionMode) => MotionMode
+  useReducedMotion,
+} from '@/hooks/use-tempo';
+import { TempoProvider, TempoControl } from '@/components/frame12';
+```
+
+**Precedence** (`resolveMotion`, in order; `base` is the component's `motion` prop, otherwise its own default, e.g. quiet `Metric` → `'cut'`):
+
+| # | Condition | Result |
+|---|---|---|
+| 1 | OS `prefers-reduced-motion: reduce` | `'cut'` |
+| 2 | `still` here or in any ancestor provider | `'cut'` |
+| 3 | `base === 'cut'` (explicit prop, variant or default) | `'cut'`: tempo never turns motion on |
+| 4 | `twos` / `ones` | `'stepped'` / `'smooth'` |
+| 5 | `auto` (also any invalid value, e.g. a stored `"fast"`) | `base` |
+
+**Never stepped, at any tempo:** pointer tracking, drag, scroll, typing and focus movement stay immediate. Tempo only applies to animations of discrete state changes.
+
+```tsx
+export interface TempoProviderProps {
+  value?: Tempo;                         // controlled; wins over defaultValue (dev warning if both)
+  onChange?: (tempo: Tempo) => void;
+  defaultValue?: Tempo;                  // uncontrolled start; server render uses it (or 'auto')
+  storageKey?: string;                   // uncontrolled: persisted in localStorage, synced across tabs
+  asChild?: boolean;                     // put data-f12-tempo + class on the single child element
+  children?: React.ReactNode;
+}
+
+export interface TempoControlProps {
+  legend?: string;                       // default: 'Animation tempo' (visually hidden)
+  showLegend?: boolean;                  // default: false
+  idPrefix?: string;                     // radio ids: `${idPrefix}-auto`, `-twos`, `-ones`, `-still`
+  className?: string;
+}
+```
+
+- `TempoProvider` renders a layout-neutral `<div style="display: contents" data-f12-tempo>` (or decorates its child with `asChild`). When the tempo forces a mode it also carries `f12-m-stepped` / `f12-m-smooth` / `f12-m-cut`, so CSS-only consumers with no other motion-aware ancestor follow it. Nested providers set `twos`/`ones`/`auto` for their subtree; `still` from any ancestor cannot be undone below. Without `matchMedia`, the OS preference reads as "no preference".
+- `TempoControl` is a `<fieldset>` + `<legend>` with four native radios (accessible names such as "12, on twos"): arrow keys move and select, Tab enters and leaves as one stop. Under OS reduced motion it shows `0 · your system setting` and keeps the stored choice selectable ("applies when your system allows motion"); it never claims to override the OS. Without a provider it renders disabled with an explanation.
+- Components that emit an `f12-m-*` class (`Sheet`, your own wrappers) must emit the **resolved** mode: `` `f12-m-${useResolvedMotion(base)}` ``. A hand-written `className="f12-m-stepped"` does not follow the tempo.
+- First paint: set `<html data-f12-tempo>` from storage in an inline script before hydration; `frame12.css` then turns off CSS motion for a stored `still` before React runs (safety direction only). `TempoProvider` with a `storageKey` keeps that attribute current.
+- Not covered: `@frame12/static` documents (React context cannot reach a standalone HTML document).
+
+```tsx
+<TempoProvider storageKey="my-app-tempo">
+  <header><TempoControl /></header>
+  <Sheet autoCut>{/* every Metric, chart, Sheet and Skeleton follows the tempo */}</Sheet>
+</TempoProvider>
+```
 
 ---
 
@@ -84,7 +153,7 @@ Top-level storyboard container with registration pegs and `32px` scene-change ve
 export interface SheetProps extends React.HTMLAttributes<HTMLDivElement> {
   pegs?: boolean;              // default: true
   autoCut?: boolean;           // default: false — enables CSS counter cut numbering (C-01, C-02…)
-  motion?: MotionMode;         // default: 'stepped'
+  motion?: MotionMode;         // default: 'stepped'; resolved against the tempo, emitted as f12-m-<resolved>
   theme?: 'light' | 'dark';    // optional explicit theme override
   sheetClassName?: string;
   children?: React.ReactNode;

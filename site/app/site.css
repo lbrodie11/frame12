@@ -714,7 +714,7 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   .site-nav-link {
     white-space: nowrap;
   }
-  /* Tighter theme + motion switches so both share one row at 390px. */
+  /* Tighter theme + tempo switches (tempo options keep their 44px minimum target size). */
   .site-controls .f12-rng-btn {
     min-width: 0;
     padding: 5px 10px 4px;
@@ -730,9 +730,10 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   }
 }
 
-/* Below 360px (e.g. 320px viewports), stack theme and motion control groups deterministically so
-   they never transition from 1 row to 2 rows during a delayed webfont swap. */
-@media (max-width: 360px) {
+/* Up to 460px (390px and 320px phones), stack the theme and tempo control groups deterministically
+   so they never transition from 1 row to 2 rows during a delayed webfont swap. The two groups need
+   about 420px side by side; the margin keeps fallback-font and webfont widths on the same side. */
+@media (max-width: 460px) {
   .site-controls {
     flex-direction: column;
     align-items: flex-start;

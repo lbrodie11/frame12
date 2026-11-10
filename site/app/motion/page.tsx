@@ -383,6 +383,67 @@ export default function MotionPage() {
         </Panel>
       </Scene>
 
+      <Scene gutter="scene" layout="stack">
+        <Panel label="Tempo precedence">
+          <div className="f12-stack-pair">
+            <div className="f12-row-pair">
+              <Tag>Tempo</Tag>
+              <span className="f12-mono-note">AUTO · 12 · 60 · 0 in the header, or press M</span>
+            </div>
+            <h2 className="f12-section-title">One motion preference for every animation</h2>
+            <p className="f12-body-copy">
+              The header&rsquo;s tempo applies to every FRAME/12 animation on the site. AUTO keeps
+              each component&rsquo;s own motion; 12 holds poses on twos; 60 is smooth, continuous
+              motion (it follows your display, so &ldquo;60&rdquo; names the style); 0 turns
+              non-essential motion off. The two stages above always show their declared modes.
+            </p>
+            <Table>
+              <TableCaption>
+                How a component&rsquo;s motion is resolved, first matching rule wins.
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Rule</TableHead>
+                  <TableHead scope="col">When</TableHead>
+                  <TableHead scope="col">Result</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>1</TableCell>
+                  <TableCell>Your system asks for reduced motion</TableCell>
+                  <TableCell>Cut (no motion)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>2</TableCell>
+                  <TableCell>Tempo 0, here or anywhere above</TableCell>
+                  <TableCell>Cut (no motion)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>3</TableCell>
+                  <TableCell>The component says cut (a prop, a quiet Metric)</TableCell>
+                  <TableCell>Cut: tempo never turns motion on</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>4</TableCell>
+                  <TableCell>Tempo 12 or 60</TableCell>
+                  <TableCell>Stepped on twos, or smooth</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>5</TableCell>
+                  <TableCell>Tempo AUTO</TableCell>
+                  <TableCell>The component&rsquo;s own motion</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+            <p className="f12-muted-copy">
+              Never stepped at any tempo: pointer tracking, dragging, scrolling, typing and focus
+              movement. Static HTML reports (@frame12/static) have no motion to set.
+            </p>
+          </div>
+        </Panel>
+      </Scene>
+
       <Scene gutter="scene" layout="split">
         <Panel label="Motion grammar rules and timing table">
           <div className="f12-stack-pair">

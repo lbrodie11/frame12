@@ -132,7 +132,7 @@ const RAW_CATALOG: CatalogEntry[] = [
     ],
     "commonErrors": [
       "Passing explicit cut=\"C-01\" props on child <Panel> elements inside <Sheet autoCut> triggers check-frame12.mjs rule explicit-cut-in-autocut. Omit cut on numbered panels or pass cut={false} to suppress numbering.",
-      "Forgetting to pass motion={motion} when your host page exposes a 12fps / 60fps / Cut motion switcher."
+      "Threading a page-level motion prop (or hand-writing className=\"f12-m-stepped\") to honour a viewer motion switch. Wrap the app in <TempoProvider> with a <TempoControl> instead: Sheet resolves its motion against the tempo and emits the resolved f12-m-* class."
     ],
     "usageTemplate": "import { Sheet, Scene, Panel } from '@/components/frame12';\n\nexport function OverviewSheet() {\n  return (\n    <Sheet autoCut pegs motion=\"stepped\">\n      <Scene gutter=\"scene\" layout=\"stack\">\n        <Panel label=\"Establishing frame\">\n          <p>Storyboard sheet content</p>\n        </Panel>\n      </Scene>\n    </Sheet>\n  );\n}"
   },
@@ -2532,6 +2532,131 @@ const RAW_CATALOG: CatalogEntry[] = [
       "Animating elements on initial page mount instead of using useChanged(key) to gate entrance animations to user-initiated state changes."
     ],
     "usageTemplate": "import { useOnTwos, useCountUp, useChanged } from '@/hooks/use-on-twos';\n\nexport function AnimatedStat({ value }: { value: number }) {\n  const shown = useCountUp(value, 'stepped', 600);\n  const changed = useChanged(value);\n  const progress = useOnTwos(value, 600, 'stepped');\n  return <output data-changed={changed} data-p={progress.toFixed(2)}>{Math.round(shown)}</output>;\n}"
+  },
+  {
+    "slug": "tempo",
+    "title": "TempoProvider",
+    "category": "Motion Hooks",
+    "summary": "Provides the viewer's animation tempo (AUTO, 12 on twos, 60 smooth, 0 still) to every FRAME/12 animation below it; OS reduced motion always wins and a still ancestor cannot be undone.",
+    "registryUrl": "https://frame12.dev/r/tempo.json",
+    "sourceFile": "registry/ui/tempo.tsx",
+    "whenToUse": [
+      "Once near the root of an app (or with asChild on its root element) so a single TempoControl can switch every Metric count-up, chart wipe, Sheet, Skeleton and segmented indicator between auto, 12, 60 and 0.",
+      "Nested with value=\"auto\" around a demo or comparison that must show its declared motion whatever the viewer's 12/60 choice (still and reduced motion still stop it)."
+    ],
+    "whenNotToUse": [
+      "Do not use tempo to animate direct manipulation: pointer tracking, drag, scroll, typing and focus movement are never stepped or delayed at any tempo.",
+      "Do not expect it to reach @frame12/static documents: React context cannot cross into a standalone HTML document."
+    ],
+    "props": [
+      {
+        "name": "value",
+        "type": "Tempo",
+        "defaultValue": "undefined",
+        "description": "Controlled tempo. Wins over defaultValue, with a development warning when both are given."
+      },
+      {
+        "name": "onChange",
+        "type": "(tempo: Tempo) => void",
+        "defaultValue": "undefined",
+        "description": "Called with each new tempo chosen inside (TempoControl, useTempo().setTempo, a shortcut)."
+      },
+      {
+        "name": "defaultValue",
+        "type": "Tempo",
+        "defaultValue": "undefined",
+        "description": "Uncontrolled starting tempo ('auto' when omitted). Server render and the hydrating client use it; a stored value is read before first paint."
+      },
+      {
+        "name": "storageKey",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Uncontrolled only: persists the tempo in localStorage (inside try/catch; invalid values ignored), stays in sync across tabs via the storage event, and keeps <html data-f12-tempo> current."
+      },
+      {
+        "name": "asChild",
+        "type": "boolean",
+        "defaultValue": "false",
+        "description": "Puts data-f12-tempo and the forced f12-m-* class on the single child element instead of a display: contents wrapper (keeps the child's grid, spacing and scroll behaviour)."
+      }
+    ],
+    "stateBehavior": "The nearest provider sets twos/ones/auto for its subtree; still from any ancestor propagates down as ancestorStill. Components resolve motion with resolveMotion: OS reduced motion → cut; still → cut; an explicit, variant or default cut stays cut (tempo never turns motion on); twos → stepped; ones → smooth; auto → the component's own motion. A change to cut mid-tween settles immediately, and switching back animates nothing until the next real state change.",
+    "a11yNotes": [
+      "prefers-reduced-motion: reduce always wins: every consumer cuts, whatever the stored tempo.",
+      "A stored still (0) is applied before first paint by the first-paint script + frame12.css rule, so no motion shows before hydration.",
+      "Renders no landmark or role; the wrapper is display: contents."
+    ],
+    "keyboardNotes": [
+      "No keyboard interaction of its own. Pair with TempoControl (native radios) and optionally an app shortcut that calls useTempo().setTempo."
+    ],
+    "themeBehavior": "Theme-agnostic. When the tempo forces a mode it adds f12-m-stepped, f12-m-smooth or f12-m-cut so CSS-only consumers (segmented indicator, Switch thumb, Skeleton, Badge pop, Toast enter) follow it.",
+    "responsiveBehavior": "Layout-neutral at every width: the default wrapper is display: contents and asChild adds only an attribute and a class.",
+    "grammarNotes": [
+      "AUTO keeps each component's own motion: on twos (12 poses per second, 83.33ms per pose) for the FRAME/12 defaults.",
+      "60 names the smooth style; it follows the display's refresh rate and is not a frame-rate guarantee."
+    ],
+    "commonErrors": [
+      "Hand-writing className=\"f12-m-stepped\" on your own wrapper: it cannot follow the tempo. Emit `f12-m-${useResolvedMotion('stepped')}` instead.",
+      "Passing both value and defaultValue (value wins, with a development warning).",
+      "Expecting 12 or 60 to animate a component that says motion=\"cut\" or a quiet Metric: tempo never turns motion on."
+    ],
+    "usageTemplate": "import { TempoProvider, TempoControl, Sheet, Metric } from '@/components/frame12';\n\nexport function App({ revenue }: { revenue: number }) {\n  return (\n    <TempoProvider storageKey=\"my-app-tempo\">\n      <header>\n        <TempoControl />\n      </header>\n      <Sheet autoCut>\n        <Metric label=\"Recovered revenue\" value={revenue} />\n      </Sheet>\n    </TempoProvider>\n  );\n}"
+  },
+  {
+    "slug": "tempo-control",
+    "title": "TempoControl",
+    "category": "Controls",
+    "summary": "Animation tempo picker: a fieldset of four native radios (AUTO, 12, 60, 0) in the segmented appearance, honest about OS reduced motion and disabled without a TempoProvider.",
+    "registryUrl": "https://frame12.dev/r/tempo-control.json",
+    "sourceFile": "registry/ui/tempo-control.tsx",
+    "whenToUse": [
+      "In an app header or settings panel so viewers can choose AUTO, 12 (on twos), 60 (smooth) or 0 (still) for every FRAME/12 animation."
+    ],
+    "whenNotToUse": [
+      "Outside a TempoProvider: it renders disabled with an explanation.",
+      "As a general-purpose radio group; use RadioGroup or SegmentedControl."
+    ],
+    "props": [
+      {
+        "name": "legend",
+        "type": "string",
+        "defaultValue": "'Animation tempo'",
+        "description": "The fieldset legend (the group's accessible name). Visually hidden unless showLegend is set."
+      },
+      {
+        "name": "showLegend",
+        "type": "boolean",
+        "defaultValue": "false",
+        "description": "Shows the legend visibly above the options."
+      },
+      {
+        "name": "idPrefix",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Prefix for the radio ids (`${idPrefix}-auto`, `-twos`, `-ones`, `-still`) and the radio group name. Defaults to a useId-based prefix."
+      }
+    ],
+    "stateBehavior": "Reads and sets the nearest TempoProvider's tempo. Under OS reduced motion (or an outer still) it shows the effective state, \"0 · your system setting\", and keeps the stored choice selectable with the note \"applies when your system allows motion\"; it never claims to override the OS.",
+    "a11yNotes": [
+      "A <fieldset> with a <legend> (\"Animation tempo\") and four native radio inputs; each accessible name includes its meaning (\"12, on twos\").",
+      "The reduced-motion note is linked to each radio with aria-describedby.",
+      "Targets are at least 44×44px (WCAG 2.2 SC 2.5.5, AAA; exceeds SC 2.5.8's 24×24).",
+      "Without a provider the fieldset is disabled (never inert-but-clickable) and a development warning explains why."
+    ],
+    "keyboardNotes": [
+      "Tab enters and leaves the group as one stop (on the checked option).",
+      "Arrow keys move and select (native radio behaviour, wrapping); Space selects the focused option."
+    ],
+    "themeBehavior": "Uses the segmented appearance (.f12-rng / .f12-rng-btn): ink frame on --f-panel with the checked option inverted to --f-ink. It has no sliding indicator: the control that sets motion does not itself move.",
+    "responsiveBehavior": "Four 44px+ options fit a 320px header (about 290px wide) and reflow cleanly at 200% and 400% zoom.",
+    "grammarNotes": [
+      "Labels are the frame rates FRAME/12 talks about: 12 = on twos (83.33ms per pose), 60 = smooth, 0 = still. AUTO keeps each component's own motion."
+    ],
+    "commonErrors": [
+      "Rendering it without a TempoProvider (it is disabled).",
+      "Replacing it with a SegmentedControl: tempo needs real radio semantics, where arrows select."
+    ],
+    "usageTemplate": "import { TempoProvider, TempoControl } from '@/components/frame12';\n\nexport function Header() {\n  return (\n    <TempoProvider storageKey=\"my-app-tempo\">\n      <TempoControl idPrefix=\"site-tempo\" />\n    </TempoProvider>\n  );\n}"
   },
   {
     "slug": "dialog",

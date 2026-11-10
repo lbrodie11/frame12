@@ -39,7 +39,7 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 
 ### 1. Add the registry kit (`@frame12` namespace or direct URL)
 
-FRAME/12 is published in the official [`shadcn` registry index](https://ui.shadcn.com/r/registries.json) under the lowercase **`@frame12`** namespace. Run the `shadcn` CLI from your project root to copy the components (`components/frame12/`), motion hook (`hooks/use-on-twos.ts`), and stylesheet (`styles/frame12.css`) into your repo:
+FRAME/12 is published in the official [`shadcn` registry index](https://ui.shadcn.com/r/registries.json) under the lowercase **`@frame12`** namespace. Run the `shadcn` CLI from your project root to copy the components (`components/frame12/`), motion hooks (`hooks/use-on-twos.ts`, `hooks/use-tempo.ts`), and stylesheet (`styles/frame12.css`) into your repo:
 
 ```bash
 # Install the full 31-component kit + base styles and hook (configure fonts in Step 2 or via @frame12/frame12-base):
@@ -224,8 +224,9 @@ FRAME/12 replaces subjective styling feedback with eight explicit rules—**five
 ### Verified by Runtime Hooks, Playwright Tests (`npm test`), and Conventions
 
 6. **Motion on twos (`useOnTwos`):** Discrete state transitions hold each pose for `83.33ms` (`12fps`). Pointer hover, scrolling, typing, and chart crosshairs stay immediate (`0ms`). `prefers-reduced-motion: reduce` switches transitions to instant cuts (`0ms`).
-7. **Flashback dark mode & WCAG AA accessibility:** Dark mode flips the sheet gutters pitch black (`#050505`) while keeping panels elevated (`#19191a`). Verified by automated Playwright + `@axe-core/playwright` audits for WCAG AA contrast, visible `:focus-visible` outlines, keyboard chart navigation, and semantic `<table>` fallbacks.
-8. **Minimal dependencies & craft originality:** Zero external animation or charting libraries—charts, screentone patterns, and stepped animations are built with React, SVG, and CSS. Accessible menu and select primitives use `@radix-ui/react-dropdown-menu` and `@radix-ui/react-select` (while `Dialog` uses native `<dialog>`). The system is inspired by print and cel-animation production craft rather than copied from any named work.
+7. **Tempo (`TempoProvider`, `TempoControl`, `@/hooks/use-tempo`):** one viewer preference for every animation: AUTO (each component's own motion), 12 (on twos), 60 (smooth) or 0 (still). OS reduced motion always wins, `still` cannot be undone by a nested provider, and tempo never turns motion on where a component says `cut`. Without a provider nothing changes. See [`skills/frame12/references/components-and-adapters.md`](skills/frame12/references/components-and-adapters.md#2b-tempo-one-motion-preference-hooksuse-tempots-uitempotsx-uitempo-controltsx).
+8. **Flashback dark mode & WCAG AA accessibility:** Dark mode flips the sheet gutters pitch black (`#050505`) while keeping panels elevated (`#19191a`). Verified by automated Playwright + `@axe-core/playwright` audits for WCAG AA contrast, visible `:focus-visible` outlines, keyboard chart navigation, and semantic `<table>` fallbacks.
+9. **Minimal dependencies & craft originality:** Zero external animation or charting libraries—charts, screentone patterns, and stepped animations are built with React, SVG, and CSS. Accessible menu and select primitives use `@radix-ui/react-dropdown-menu` and `@radix-ui/react-select` (while `Dialog` uses native `<dialog>`). The system is inspired by print and cel-animation production craft rather than copied from any named work.
 
 ---
 
