@@ -252,7 +252,21 @@ const CLICK = `(() => {
 })()`;
 const jobs = ['twos', 'ones'].flatMap((tempo) => [...COMPONENTS, ...BLOCKS].map((name) => ({ tempo, name })));
 const results = new Map();
+// Ink line art (F12-14): the whole InkSequence (4 beats × 12 poses = 4.0 s at twos; the same
+// duration smooth at ones), started by a user action at frame 0 and captured to the end. Its two
+// long captures run in the same worker pool as the components (queued first, as the longest).
+const inkHtml = await bundlePage(resolve(REGISTRY_ROOT, 'tests/fixtures/ink-fixture.tsx'));
+const INK_JOBS = ['twos', 'ones'].map((tempo) => ({ tempo, name: 'ink-sequence' }));
+async function runInkJob({ tempo, name }, dec) {
+  const { ctx, page, errors } = await openFixture(browser, inkHtml, { w: VW, h: VH });
+  await page.evaluate((t) => window.__render('sequence', { tempo: t }), tempo);
+  await page.waitForTimeout(100);
+  const frames = await capture(page, dec, { frames: 252, actions: { 0: () => page.evaluate(() => window.__toggle()) } });
+  results.set(`${tempo}/${name}`, { ...verdict(frames), errors });
+  await ctx.close();
+}
 async function runJob({ tempo, name }, dec) {
+  if (name === 'ink-sequence') return runInkJob({ tempo, name }, dec);
   const { ctx, page, errors } = await openFixture(browser, html, { w: VW, h: VH });
   await page.evaluate(([n, t]) => window.__render('consumers', { only: [n], tempo: t }), [name, tempo]);
   await page.clock.runFor(1500);
@@ -277,7 +291,7 @@ async function runJob({ tempo, name }, dec) {
   await ctx.close();
 }
 const decoders = [decoder, await makeDecoder(browser), await makeDecoder(browser), await makeDecoder(browser)];
-const queue = [...jobs];
+const queue = [...INK_JOBS, ...jobs];
 await Promise.all(
   decoders.map(async (dec) => {
     while (queue.length) await runJob(queue.shift(), dec);
@@ -289,22 +303,13 @@ for (const { tempo, name } of jobs) {
     `flash safety [${tempo}] ${name}: ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region across 3 state changes`,
     { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, errors: v.errors });
 }
-
-// --------------------------------------------------------------- ink line art (F12-14): full play
-// The whole InkSequence (4 beats × 12 poses = 4.0 s at twos; the same duration smooth at ones),
-// started by a user action at frame 0 and captured to the end.
-const inkHtml = await bundlePage(resolve(REGISTRY_ROOT, 'tests/fixtures/ink-fixture.tsx'));
-for (const tempo of ['twos', 'ones']) {
-  const { ctx, page, errors } = await openFixture(browser, inkHtml, { w: VW, h: VH });
-  await page.evaluate((t) => window.__render('sequence', { tempo: t }), tempo);
-  await page.waitForTimeout(100);
-  const frames = await capture(page, decoder, { frames: 252, actions: { 0: () => page.evaluate(() => window.__toggle()) } });
-  const v = verdict(frames);
-  check(v.general.maxPerSecond <= 3 && v.red.maxPerSecond <= 3 && v.changedFrames > 0 && errors.length === 0,
+for (const { tempo, name } of INK_JOBS) {
+  const v = results.get(`${tempo}/${name}`);
+  check(v.general.maxPerSecond <= 3 && v.red.maxPerSecond <= 3 && v.changedFrames > 0 && v.errors.length === 0,
     `flash safety [${tempo}] ink-sequence: full 48-pose play, ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region`,
-    { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, errors });
-  await ctx.close();
+    { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, errors: v.errors });
 }
+
 // ExposureScrubber flipbook at 4× (F12-09): 48 poses per second on a 200-frame run. Only the
 // sheet's current-row highlight moves (the panel shows a static FLIPPING slate) and the sheet
 // pages by whole screens; the gate must hold at the fastest rate.
