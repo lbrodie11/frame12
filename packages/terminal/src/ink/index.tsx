@@ -11,7 +11,7 @@ import { renderRich } from '../render/index.js';
 import { openUrl } from '../process/index.js';
 import { Storyboard } from './components.js';
 import { createFrameTracker, reflowCleanup } from './reflow.js';
-import { exitCodeFor, startSession, type LiveContext, type LiveOptions, type LiveRun, type Out } from './session.js';
+import { runExitCode, startSession, type LiveContext, type LiveOptions, type LiveRun, type Out } from './session.js';
 
 export { Cut, HintBar, Inspector, Storyboard, useRunState, type StoryboardProps } from './components.js';
 export { exitCodeFor, linearReason, type LiveOptions, type LiveRun } from './session.js';
@@ -47,7 +47,7 @@ function mountLive(ctx: LiveContext): () => Promise<number> {
     if (state.snapshot) stdout.write(renderRich(options.replay ? { ...state.snapshot, replay: true } : state.snapshot, rc(), { ...renderOpts, cutLabels }));
     else stderr.write('No result snapshot arrived, so no results are shown.\n');
     if (ctx.ownsDirector) director.dispose();
-    return ctx.settle(exitCodeFor(state.status));
+    return ctx.settle(runExitCode(state));
   };
 
   const view = () => (

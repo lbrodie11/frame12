@@ -3,6 +3,13 @@ import { createLinearWriter } from '../render/index.js';
 import { fileRecordSink } from '../node/record-file.js';
 const SHOW_CURSOR = '\u001b[?25h';
 const LEAVE_ALT_SCREEN = '\u001b[?1049l';
+/**
+ * The exit code for a run that ended: a completed run without its snapshot is unfinished (no
+ * results were shown), so 1.
+ */
+export function runExitCode(state) {
+    return state.status === 'completed' && state.snapshot === undefined ? 1 : exitCodeFor(state.status);
+}
 /** Exit codes: completed 0, failed 1, canceled 130 (128 + SIGINT), anything unfinished 1. */
 export function exitCodeFor(status) {
     if (status === 'completed')
@@ -237,7 +244,7 @@ export function startSession(options, mountLive) {
             writer.end();
             for (const c of cleanups)
                 c();
-            const code = exitCodeFor(director.snapshot().status);
+            const code = runExitCode(director.snapshot());
             if (ownsDirector)
                 director.dispose();
             return settle(code);

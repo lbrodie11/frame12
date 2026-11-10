@@ -5,7 +5,7 @@ import { renderRich } from '../render/index.js';
 import { openUrl } from '../process/index.js';
 import { Storyboard } from './components.js';
 import { createFrameTracker, reflowCleanup } from './reflow.js';
-import { exitCodeFor, startSession } from './session.js';
+import { runExitCode, startSession } from './session.js';
 export { Cut, HintBar, Inspector, Storyboard, useRunState } from './components.js';
 export { exitCodeFor, linearReason } from './session.js';
 /** Starts a run with the live view when the terminal allows it (see `./session.ts`). */
@@ -43,7 +43,7 @@ function mountLive(ctx) {
             stderr.write('No result snapshot arrived, so no results are shown.\n');
         if (ctx.ownsDirector)
             director.dispose();
-        return ctx.settle(exitCodeFor(state.status));
+        return ctx.settle(runExitCode(state));
     };
     const view = () => (_jsx(Storyboard, { director: director, rc: rc(), rows: rows(), ...(options.product ? { product: options.product } : {}), ...(options.nextSteps ? { nextSteps: options.nextSteps } : {}), ...(options.replay ? { replay: true } : {}), onQuit: () => {
             // q never forces: the first cancels a running job (status becomes canceled), so the next

@@ -72,6 +72,14 @@ export interface LiveRun {
     /** Resolves with the exit code when the run ends (by `end()` or `q`). */
     readonly done: Promise<number>;
 }
+/**
+ * The exit code for a run that ended: a completed run without its snapshot is unfinished (no
+ * results were shown), so 1.
+ */
+export declare function runExitCode(state: {
+    status: string;
+    snapshot?: unknown;
+}): number;
 /** Exit codes: completed 0, failed 1, canceled 130 (128 + SIGINT), anything unfinished 1. */
 export declare function exitCodeFor(status: string): number;
 /** Why a run cannot use the live view, or undefined when it can. */

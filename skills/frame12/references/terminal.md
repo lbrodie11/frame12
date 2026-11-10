@@ -74,9 +74,10 @@ spawnLogged(director, cmd: string, args?: string[], o?: { cwd?; env?; cut?; sign
 Any language can drive FRAME/12 output: print contract v1 events as NDJSON and pipe them in.
 
 ```bash
-my-tool --events | npx frame12-term render            # --format rich|plain|json|live, --plain, --json
-my-tool --events | npx frame12-term render --record run.f12rec
-npx frame12-term render --from run.f12rec --replay    # original timing, x4 (--speed), gaps <= 1 s, labeled REPLAY
+# Always name the package: a bare `npx frame12-term` would look for another package of that name.
+my-tool --events | npx -p @frame12/terminal frame12-term render            # --format rich|plain|json|live
+my-tool --events | npx -p @frame12/terminal frame12-term render --record run.f12rec
+npx -p @frame12/terminal frame12-term render --from run.f12rec --replay    # original timing, x4, gaps <= 1 s, REPLAY
 ```
 
 Lines over 64 KiB and non-JSON lines are reported with their line number and skipped; `--strict`

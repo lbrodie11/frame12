@@ -95,7 +95,7 @@ describe('frame12-term render: malformed input', () => {
   it('names the line of an invalid event', async () => {
     const bad = { ...JSON.parse(events[1]), seq: 1 }; // seq must increase
     const r = await cli(['render', '--plain'], [events[0], JSON.stringify(bad), ...events.slice(1)]);
-    assert.match(r.err, /dropped line 2: .*seq/i);
+    assert.match(r.err, /line 2: dropped: .*seq/i);
   });
 
   it(`skips a line longer than 64 KiB without buffering it, and keeps going`, async () => {
@@ -340,7 +340,7 @@ describe('frame12-term: review of #40', () => {
     fs.writeFileSync(same, ndjson('success'));
     const r = await cli(['render', '--plain', '--from', same, '--record', path.join(dir, '.', 'same.ndjson')]);
     assert.equal(r.code, 2);
-    assert.match(r.err, /is the --from file/);
+    assert.match(r.err, /is the input file/);
     assert.equal(fs.readFileSync(same, 'utf8'), ndjson('success'));
   });
 
@@ -457,5 +457,118 @@ describe('frame12-term: review of #40', () => {
     });
     assert.equal(r.code, 0, r.err);
     assert.match(r.out, /\u001b\[/, 'color stays on: "--no-color" was the file name');
+  });
+});
+
+describe('frame12-term: second review of #40', () => {
+  it('1. an event just under 64 KiB is recorded and read back from its own recording', async () => {
+    const events = fixture('forty-findings').events;
+    const last = events.at(-1);
+    // Grow the snapshot with many small receipts (the sanitizer keeps them; it would shorten one
+    // long text field) until its line is just under the limit.
+    const withReceipts = (n) => {
+      const findings = structuredClone(last.snapshot.findings);
+      findings[0].receipts = [...(findings[0].receipts ?? []), ...Array.from({ length: n }, (_, i) => ({ kind: 'commit', value: `c${String(i).padStart(7, '0')}` }))];
+      return { ...last, snapshot: { ...last.snapshot, findings } };
+    };
+    let n = 0;
+    while (Buffer.byteLength(JSON.stringify(withReceipts(n + 50))) <= MAX_LINE_BYTES) n += 50;
+    while (Buffer.byteLength(JSON.stringify(withReceipts(n + 1))) <= MAX_LINE_BYTES) n += 1;
+    const big = withReceipts(n);
+    // Fill the last few bytes exactly: the line is 2 bytes under the limit, the recorded entry over it.
+    const r = big.snapshot.findings[0].receipts.at(-1);
+    r.value += 'x'.repeat(MAX_LINE_BYTES - 2 - Buffer.byteLength(JSON.stringify(big)));
+    assert.equal(Buffer.byteLength(JSON.stringify(big)), MAX_LINE_BYTES - 2);
+    const input = toNdjson([...events.slice(0, -1), big]);
+    const file = path.join(tmp(), 'big.f12rec');
+    const live = await cli(['render', '--plain', '--record', file], input);
+    assert.equal(live.code, 0, live.err);
+    const back = await cli(['render', '--plain', '--from', file]);
+    assert.equal(back.code, 0, back.err);
+    assert.doesNotMatch(back.err, /longer than|No result snapshot/);
+    assert.equal(back.out.replace(/^Replay: .*\n/, ''), live.out);
+  });
+
+  it('1. a completed run whose snapshot never arrived exits 1', async () => {
+    const r = await cli(['render', '--plain'], toNdjson(fixture('success').events.slice(0, -1)));
+    assert.equal(r.code, 1);
+    assert.match(r.err, /No result snapshot/);
+  });
+
+  it('2. under --strict, lines after the snapshot are not read: the completed run exits 0', async () => {
+    for (const trailer of ['garbage', '{"type":"log"}']) {
+      const r = await cli(['render', '--strict', '--plain'], `${ndjson('success')}${trailer}\n`);
+      assert.equal(r.code, 0, `${trailer}: ${r.err}`);
+    }
+  });
+
+  for (const [name, argv] of [
+    ['a --from file that does not exist', (dir) => ['--from', path.join(dir, 'missing.ndjson')]],
+    ['an unsupported recording', (dir) => (fs.writeFileSync(path.join(dir, 'v9.f12rec'), '{"f12rec":9}\n'), ['--from', path.join(dir, 'v9.f12rec')])],
+  ]) {
+    it(`3. an early exit (${name}) leaves an existing recording untouched`, async () => {
+      const dir = tmp();
+      const keep = path.join(dir, 'keep.f12rec');
+      fs.writeFileSync(keep, 'precious\n');
+      const r = await cli(['render', '--plain', '--record', keep, ...argv(dir)]);
+      assert.equal(r.code, 2);
+      assert.equal(fs.readFileSync(keep, 'utf8'), 'precious\n');
+      assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.tmp')), [], 'no temporary file left behind');
+    });
+  }
+
+  it('4. --record onto the input is refused when it is the same file under another name (hard link)', async () => {
+    const dir = tmp();
+    const a = path.join(dir, 'a.ndjson');
+    fs.writeFileSync(a, ndjson('success'));
+    fs.linkSync(a, path.join(dir, 'b.ndjson'));
+    const r = await cli(['render', '--plain', '--from', a, '--record', path.join(dir, 'b.ndjson')]);
+    assert.equal(r.code, 2);
+    assert.match(r.err, /is the input file/);
+    assert.equal(fs.readFileSync(a, 'utf8'), ndjson('success'));
+  });
+
+  it('4. --record onto the file redirected to stdin is refused', () => {
+    const dir = tmp();
+    const input = path.join(dir, 'in.ndjson');
+    fs.writeFileSync(input, ndjson('success'));
+    const fd = fs.openSync(input, 'r');
+    try {
+      const r = spawnSync(process.execPath, [BIN, 'render', '--plain', '--record', input], { stdio: [fd, 'pipe', 'pipe'], encoding: 'utf8' });
+      assert.equal(r.status, 2, r.stderr);
+      assert.match(r.stderr, /is the input file/);
+    } finally {
+      fs.closeSync(fd);
+    }
+    assert.equal(fs.readFileSync(input, 'utf8'), ndjson('success'));
+  });
+
+  it('5. an unsupported recording header is sanitized before it is printed', async () => {
+    const r = await cli(['render', '--plain'], [JSON.stringify({ f12rec: `\u009b2J‮evil${'x'.repeat(5000)}` })]);
+    assert.equal(r.code, 2);
+    assert.doesNotMatch(r.err, /[\u0080-\u009f‮]/);
+    assert.ok(r.err.length < 600, `capped: ${r.err.length} chars`);
+  });
+
+  it('7. thousands of invalid events give 20 warnings and one count, like malformed lines', async () => {
+    const evs = fixture('success').events;
+    const junk = Array.from({ length: 5000 }, () => '{"type":"nope"}');
+    const r = await cli(['render', '--plain'], [JSON.stringify(evs[0]), ...junk, ...evs.slice(1).map((e) => JSON.stringify(e))]);
+    assert.equal(r.code, 0, r.err.slice(0, 400));
+    assert.equal((r.err.match(/^Log warn: line \d+:/gm) ?? []).length, 20);
+    assert.match(r.err, /… and 4980 more problems with the input, the first at line 22 \(skipped\)/);
+  });
+
+  it('8. only line 1 can be a recording header', async () => {
+    const file = path.join(tmp(), 'run.f12rec');
+    await cli(['render', '--plain', '--record', file], ndjson('success'));
+    const r = await cli(['render', '--plain'], `garbage\n${fs.readFileSync(file, 'utf8')}`);
+    assert.doesNotMatch(r.out, /FINDINGS|run "/, 'not rendered as a run without its REPLAY label');
+  });
+
+  it('9. paths in errors are not shortened', async () => {
+    const long = path.join(tmp(), `${'d'.repeat(150)}.ndjson`);
+    const r = await cli(['render', '--from', long]);
+    assert.ok(r.err.includes(long), r.err);
   });
 });

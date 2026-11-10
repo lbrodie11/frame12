@@ -80,6 +80,14 @@ export interface LiveRun {
 const SHOW_CURSOR = '\u001b[?25h';
 const LEAVE_ALT_SCREEN = '\u001b[?1049l';
 
+/**
+ * The exit code for a run that ended: a completed run without its snapshot is unfinished (no
+ * results were shown), so 1.
+ */
+export function runExitCode(state: { status: string; snapshot?: unknown }): number {
+  return state.status === 'completed' && state.snapshot === undefined ? 1 : exitCodeFor(state.status);
+}
+
 /** Exit codes: completed 0, failed 1, canceled 130 (128 + SIGINT), anything unfinished 1. */
 export function exitCodeFor(status: string): number {
   if (status === 'completed') return 0;
@@ -320,7 +328,7 @@ export function startSession(options: LiveOptions, mountLive?: MountLive): LiveR
       finished = true;
       writer.end();
       for (const c of cleanups) c();
-      const code = exitCodeFor(director.snapshot().status);
+      const code = runExitCode(director.snapshot());
       if (ownsDirector) director.dispose();
       return settle(code);
     };

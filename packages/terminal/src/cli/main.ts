@@ -17,9 +17,8 @@
  * - `--record <file>` writes the run as a `.f12rec` recording. The file is opened before any input
  *   is read: a path that cannot be written, or the input file itself, is a usage error.
  */
-import { createReadStream, realpathSync } from 'node:fs';
+import { createReadStream, fstatSync, statSync, type Stats } from 'node:fs';
 import { createRequire } from 'node:module';
-import { basename, dirname, join, resolve } from 'node:path';
 import { detectCapabilities, type Capabilities } from '../core/capabilities.js';
 import { createStreamValidator, describeIssues } from '../core/validate.js';
 import { resolveTerminalMotion } from '../core/motion.js';
@@ -30,6 +29,11 @@ import { startSession, type LiveOptions, type LiveRun } from '../ink/session.js'
 
 /** Lines longer than this (in bytes, without the newline) are skipped. */
 export const MAX_LINE_BYTES = 64 * 1024;
+/**
+ * A recording entry wraps an event in `{"t":…,"event":…}`; its line may exceed the event's limit by
+ * this much, so every event the CLI accepted can be read back from its own recording.
+ */
+export const RECORDING_ENVELOPE_BYTES = 64;
 /** Default replay speed, and the longest wait between two replayed events. */
 export const DEFAULT_SPEED = 4;
 export const MAX_REPLAY_GAP_MS = 1000;
@@ -79,8 +83,8 @@ export interface CliIO {
   open?: (path: string) => AsyncIterable<Buffer | string> & { destroy?(): void };
   /** Waits between replayed events. Default: a timer. */
   sleep?: (ms: number) => Promise<void>;
-  /** Opens `--record`. Default: a synchronous file sink. */
-  openRecord?: (path: string) => RecordSink;
+  /** Opens `--record`. Default: a file sink that renames into place when the recording ends. */
+  openRecord?: (path: string) => RecordSink & { discard?(): void };
   /** Loads the live adapter. Default: `import('../ink/index.js')`. */
   loadLive?: () => Promise<{ startLive(options: LiveOptions): LiveRun }>;
   /** Passed to the session (tests turn signals off). */
@@ -190,8 +194,10 @@ async function* numberedLines(source: AsyncIterable<Buffer | string>, max: numbe
   if (size > 0 || tooLong) yield line();
 }
 
-/** Text from the input, made safe to print in a message. */
+/** Text from the input, made safe to print in a message (and short). */
 const quote = (s: string) => sanitizeText(s, { maxLineLength: 120 });
+/** A path from the command line, made safe to print, never shortened (it says which file). */
+const quotePath = (s: string) => sanitizeText(s, { maxLineLength: 4096 });
 
 /** Runs `frame12-term` with `argv` (without node and the script); resolves with the exit code. */
 export async function main(argv: readonly string[], io: CliIO): Promise<number> {
@@ -227,11 +233,15 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
 
   // The recording is opened before any input is read: a bad path is a usage error, and it must not
   // be the input file (opening it for writing would truncate what is being read).
-  let recordSink: RecordSink | undefined;
+  let recordSink: (RecordSink & { discard?(): void }) | undefined;
   let recordFailed = false;
   if (args.record !== undefined) {
-    if (args.from !== undefined && sameFile(args.from, args.record)) {
-      io.stderr.write(`frame12-term: --record ${quote(args.record)} is the --from file; record to another file.\n`);
+    // The same file, not just the same path: hard links, case-insensitive file systems, and a file
+    // redirected to stdin all count.
+    const input = args.from !== undefined ? statOf(() => statSync(args.from!)) : statOf(() => fstatSync((io.stdin as { fd?: number }).fd ?? -1));
+    const target = statOf(() => statSync(args.record!));
+    if (input?.isFile() && target && input.dev === target.dev && input.ino === target.ino) {
+      io.stderr.write(`frame12-term: --record ${quotePath(args.record)} is the input file; record to another file.\n`);
       return 2;
     }
     try {
@@ -248,9 +258,10 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
           }
         },
         end: () => sink.end?.(),
+        discard: () => sink.discard?.(),
       };
     } catch (err) {
-      io.stderr.write(`frame12-term: cannot write ${quote(args.record)}: ${quote((err as Error).message)}\n`);
+      io.stderr.write(`frame12-term: cannot write ${quotePath(args.record)}: ${quote((err as Error).message)}\n`);
       return 2;
     }
   }
@@ -259,8 +270,8 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
   try {
     source = args.from === undefined ? io.stdin : (io.open ?? ((p: string) => createReadStream(p)))(args.from);
   } catch (err) {
-    recordSink?.end?.();
-    io.stderr.write(`frame12-term: cannot read ${quote(args.from ?? '')}: ${quote((err as Error).message)}\n`);
+    recordSink?.discard?.();
+    io.stderr.write(`frame12-term: cannot read ${quotePath(args.from ?? '')}: ${quote((err as Error).message)}\n`);
     return 2;
   }
 
@@ -307,7 +318,9 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
     return started;
   };
 
-  const strictValidator = args.strict ? createStreamValidator() : undefined;
+  // Every event is validated here first: an invalid one is a problem like a malformed line (listed
+  // up to the cap, then counted; fatal under --strict) and never reaches the run.
+  const validator = createStreamValidator();
   const sleep = io.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   let lastTime: number | undefined;
   let recording = false;
@@ -342,14 +355,23 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
   /** The whole read; any error it throws is turned into an exit code by the caller. */
   const read = async (): Promise<number | undefined> => {
     try {
-      for await (const { n, text } of numberedLines(source, MAX_LINE_BYTES)) {
+      for await (const { n, text } of numberedLines(source, MAX_LINE_BYTES + RECORDING_ENVELOPE_BYTES)) {
         if (stopped || failed) break;
         const where = `line ${n}`;
+        const tooLong = () => problem(where, `longer than ${MAX_LINE_BYTES / 1024} KiB`);
         if (text === undefined) {
-          await problem(where, `longer than ${MAX_LINE_BYTES / 1024} KiB`);
+          await tooLong();
           continue;
         }
         if (text.trim() === '') continue;
+        // Only a recording entry gets the envelope's allowance (decided once the header is known).
+        if (!recording && Buffer.byteLength(text) > MAX_LINE_BYTES) {
+          firstLine = false;
+          await tooLong();
+          continue;
+        }
+        const isFirst = firstLine;
+        firstLine = false; // only the first non-blank line can be a recording header
         let value: unknown;
         try {
           value = JSON.parse(text);
@@ -357,8 +379,7 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
           await problem(where, `not valid JSON (${quote((err as Error).message)})`);
           continue;
         }
-        if (firstLine) {
-          firstLine = false;
+        if (isFirst) {
           const issue = recordingHeaderIssue(value);
           if (issue === undefined) {
             recording = true;
@@ -367,7 +388,7 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
           }
           // A recording this version cannot read is one clear error, not one per line.
           if (issue !== 'not a recording') {
-            io.stderr.write(`frame12-term: ${where}: ${issue}.\n`);
+            io.stderr.write(`frame12-term: ${where}: ${quote(issue)}.\n`);
             return 2;
           }
         }
@@ -385,12 +406,12 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
           const ts = Date.parse(String((value as { ts?: unknown } | null)?.ts ?? ''));
           at = Number.isFinite(ts) ? ts : undefined;
         }
-        if (strictValidator) {
-          const r = strictValidator.push(event);
-          if (!r.ok && !r.ignorable) {
-            await problem(where, describeIssues(r.issues));
-            continue;
-          }
+        const checked = validator.push(event);
+        if (!checked.ok) {
+          // Unknown event types are ignored (forward compatibility), never fatal; the rest are dropped.
+          if (checked.ignorable && args.strict) continue;
+          await problem(where, `${checked.ignorable ? 'ignored' : 'dropped'}: ${describeIssues(checked.issues)}`);
+          continue;
         }
         if (args.replay && at !== undefined) {
           // Gaps run from the latest time seen: an event stamped earlier adds no wait.
@@ -399,14 +420,17 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
         }
         run ??= await start();
         if (stopped) break;
-        if ((event as { type?: unknown } | null)?.type === 'snapshot') summarize();
+        const isSnapshot = (event as { type?: unknown } | null)?.type === 'snapshot';
+        if (isSnapshot) summarize();
         run.push(event, where);
+        // A run has one snapshot, its last word: whatever follows is not read (nor judged).
+        if (isSnapshot) break;
       }
     } catch (err) {
       if (err instanceof UsageError) throw err;
       // `--from` that cannot be opened fails before anything was read.
       if (args.from !== undefined && run === undefined && (err as NodeJS.ErrnoException).code !== undefined) {
-        io.stderr.write(`frame12-term: cannot read ${quote(args.from)}: ${quote((err as Error).message)}\n`);
+        io.stderr.write(`frame12-term: cannot read ${quotePath(args.from)}: ${quote((err as Error).message)}\n`);
         return 2;
       }
       // A canceled read ends with a premature-close error; anything else is reported.
@@ -421,12 +445,14 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
   try {
     const early = await read();
     if (early !== undefined) {
-      recordSink?.end?.();
+      // Stopped before the run could mean anything: no recording replaces what is at the path.
+      recordSink?.discard?.();
+      if (run) await run.end();
       return early;
     }
     run ??= await start();
   } catch (err) {
-    recordSink?.end?.();
+    recordSink?.discard?.();
     io.stderr.write(`frame12-term: ${quote((err as Error).message)}\n`);
     return 2;
   }
@@ -438,18 +464,11 @@ export async function main(argv: readonly string[], io: CliIO): Promise<number> 
   return code;
 }
 
-/** True when two paths name the same file (the second may not exist yet). */
-function sameFile(a: string, b: string): boolean {
-  const real = (p: string) => {
-    try {
-      return realpathSync(p);
-    } catch {
-      try {
-        return join(realpathSync(dirname(resolve(p))), basename(p));
-      } catch {
-        return resolve(p);
-      }
-    }
-  };
-  return real(a) === real(b);
+/** A file's identity, or undefined when there is none (no such file, stdin a pipe in a test). */
+function statOf(get: () => Stats): Stats | undefined {
+  try {
+    return get();
+  } catch {
+    return undefined;
+  }
 }

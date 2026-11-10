@@ -224,10 +224,15 @@ Any program that can print JSON lines gets FRAME/12 output: emit contract v1 eve
 and pipe them in.
 
 ```sh
-my-tool --events | npx frame12-term render              # rich (default), plain, json or live
-my-tool --events | npx frame12-term render --record run.f12rec
-npx frame12-term render --from run.f12rec --replay --speed 2
+my-tool --events | npx -p @frame12/terminal frame12-term render          # rich (default), plain, json or live
+my-tool --events | npx -p @frame12/terminal frame12-term render --record run.f12rec
+npx -p @frame12/terminal frame12-term render --from run.f12rec --replay --speed 2
 ```
+
+`frame12-term` is the executable inside `@frame12/terminal`; once the package is installed, run
+`frame12-term` (or `npx frame12-term`) directly. Without it installed, always name the package
+(`npx -p @frame12/terminal …`): a bare `npx frame12-term` would look for a package called
+`frame12-term`, which is not this one.
 
 | Option | |
 | --- | --- |
@@ -247,11 +252,15 @@ stderr and results to stdout, as with the linear writer.
 
 **Input limits.** A line longer than 64 KiB, or one that is not JSON, is reported with its line
 number (`line 12: not valid JSON (…) (skipped)`) and skipped without being buffered; an invalid
-event is dropped with a warning naming its line. The first 20 problems are listed, the rest counted
-in one line. `--strict` turns the first problem into a stop. A UTF-8 byte-order mark is ignored, a
+event (or one of an unknown type) is skipped with a warning naming its line. The first 20 problems
+are listed, the rest counted in one line; reading stops after the snapshot. `--strict` turns the first problem into a stop. A UTF-8 byte-order mark is ignored, a
 recording of another version is one clear error (exit 2), and everything quoted from the input is
-sanitized before it is printed. `--record` is opened before any input is read: a path that cannot
-be written, or the `--from` file itself, is a usage error.
+sanitized before it is printed. A completed run whose snapshot never arrived exits 1 (no results
+were shown). `--record` is checked before any input is read: a path that cannot be written, or the
+input file itself (the same file, however it is named, `--from` or stdin), is a usage error. The
+recording is written to a temporary file and moved into place when it ends, so a run that stops
+early never replaces an existing file. A recording entry line may exceed 64 KiB by its small
+envelope, so every accepted event can be read back.
 
 ### Emitters
 
