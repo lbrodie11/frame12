@@ -47,7 +47,8 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     `evidenceCard`, `compactFinding`, `receiptList`, `toneBar`, `metricRows`, `hintBar`), the
     `GLYPHS` table with ASCII twins, width tiers, and one marker chip per render.
   - **Director and live view** (F12-13 PR 3): `createDirector` (core) with immediate, coalesced
-    and tempo-paced publishing and bounded memory; `@frame12/terminal/ink` (`startLive`,
+    and tempo-paced publishing and bounded memory (receipts merged in linear time and without
+    duplicates; a cancel that lands before run-start sticks); `@frame12/terminal/ink` (`startLive`,
     `Storyboard`, `Cut`, `Inspector`, `HintBar`) on optional `ink@^8` / `react@^19.3` peers, with
     keys, Ctrl-C/SIGINT/SIGTERM/SIGHUP handling, exit codes, terminal restoration on every exit
     path, EPIPE handling, a linear fallback, focus that follows its finding when the order

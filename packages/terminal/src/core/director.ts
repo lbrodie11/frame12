@@ -12,8 +12,9 @@
  *   advances only on the tempo grid: every 83.33 ms at `twos`, every frame at `ones`, never at
  *   `still`. Data never waits for the pose.
  *
- * Memory is bounded: logs are a ring buffer (default 500 lines), at most `maxEvents` events are
- * counted in detail (default 5,000; the rest are summarized as a count), and warnings are capped.
+ * Memory is bounded: logs are a ring buffer (default 500 lines), warnings are capped, and past
+ * `maxEvents` (default 5,000) new narrated findings and receipts are only counted
+ * (`dropped.events`): the snapshot, not narration, carries the full result.
  */
 import type { Capabilities } from './capabilities.js';
 import type { CutStatus, Finding, LogLevel, Metric, ReceiptRef, RunStatus, Snapshot, TerminalEvent } from './contract.js';
@@ -164,6 +165,9 @@ export function createDirector(options: DirectorOptions): Director {
   const cutIndex = new Map<string, number>();
   const findingIndex = new Map<string, number>();
   const metricIndex = new Map<string, number>();
+  /** Receipt keys per finding, so a re-sent finding or a repeated receipt is not listed twice. */
+  const receiptKeys = new Map<string, Set<string>>();
+  const receiptKey = (r: ReceiptRef) => `${r.kind}\u0000${r.value}\u0000${r.href ?? ''}`;
   let seen = 0;
   let disposed = false;
   let dirty = false;
@@ -246,11 +250,18 @@ export function createDirector(options: DirectorOptions): Director {
     }
   };
 
-  const mergeReceipt = (findingId: string, receipt: ReceiptRef) => {
+  /** Appends in place (each finding owns its receipts array): linear in the number of receipts. */
+  const mergeReceipts = (findingId: string, receipts: readonly ReceiptRef[]) => {
     const i = findingIndex.get(findingId);
     if (i === undefined) return;
-    const f = state.findings[i]!;
-    state.findings[i] = { ...f, receipts: [...(f.receipts ?? []), receipt] };
+    const keys = receiptKeys.get(findingId)!;
+    const list = state.findings[i]!.receipts!;
+    for (const r of receipts) {
+      const k = receiptKey(r);
+      if (keys.has(k)) continue;
+      keys.add(k);
+      list.push(r);
+    }
   };
 
   /** Folds one accepted event into state; returns true when it must be published immediately. */
@@ -260,7 +271,8 @@ export function createDirector(options: DirectorOptions): Director {
         state.runId = ev.runId;
         state.title = ev.title;
         if (ev.product !== undefined) state.product = ev.product;
-        state.status = 'running';
+        // A cancel can land before the producer's run-start; it stays canceled.
+        if (!state.canceled) state.status = 'running';
         return true;
       case 'scene-start':
       case 'scene-end':
@@ -272,9 +284,10 @@ export function createDirector(options: DirectorOptions): Director {
           label: `C-${String(state.cuts.length + 1).padStart(2, '0')}`,
           title: ev.title,
           ...(ev.scene !== undefined ? { scene: ev.scene } : {}),
-          status: 'running',
+          ...(state.canceled ? { status: 'canceled' as const, summary: state.canceled.reason } : { status: 'running' as const }),
           startedAt: ev.ts,
         });
+        if (state.canceled) return true;
         if (state.status === 'idle') state.status = 'running';
         startPose();
         return false;
@@ -319,13 +332,16 @@ export function createDirector(options: DirectorOptions): Director {
       case 'finding': {
         const i = findingIndex.get(ev.finding.id);
         if (i === undefined) {
+          if (seen > maxEvents) return false; // Counted in dropped.events; the snapshot has it.
           findingIndex.set(ev.finding.id, state.findings.length);
-          state.findings.push(ev.finding);
-        } else state.findings[i] = { ...ev.finding, receipts: [...(state.findings[i]!.receipts ?? []), ...(ev.finding.receipts ?? [])] };
+          receiptKeys.set(ev.finding.id, new Set());
+          state.findings.push({ ...ev.finding, receipts: [] });
+        } else state.findings[i] = { ...ev.finding, receipts: state.findings[i]!.receipts! };
+        mergeReceipts(ev.finding.id, ev.finding.receipts ?? []);
         return false;
       }
       case 'receipt':
-        mergeReceipt(ev.finding, ev.receipt);
+        if (seen <= maxEvents) mergeReceipts(ev.finding, [ev.receipt]);
         return false;
       case 'log':
         addLog({ level: ev.level, text: ev.text, ...(ev.cut !== undefined ? { cut: ev.cut } : {}), ...(ev.stream !== undefined ? { stream: ev.stream } : {}) });

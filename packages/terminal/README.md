@@ -176,7 +176,8 @@ process.exitCode = await run.end();
   into one `RunState`. Errors, warnings, cut and run endings, the snapshot, cancellation and key
   echo publish immediately; everything else coalesces to one publish per frame (newest wins);
   only the decorative pose follows the tempo (83.33 ms at `twos`, never at `still`), and only while
-  a cut is running. Memory is bounded (500-line log ring, 200 warnings, events counted past 5,000).
+  a cut is running. Memory is bounded (500-line log ring, 200 warnings; past 5,000 events, new
+  narrated findings and receipts are only counted, since the snapshot carries the full result).
 - **Keys:** `j`/`k` or arrows move, `Enter` inspects (every receipt), `Esc` closes, `o` opens the
   focused receipt's link after a `y/N` confirmation (https only), `?` toggles help, `q` quits.
 - **Ctrl-C:** the first cancels gracefully (running cuts become `canceled`, results print, exit

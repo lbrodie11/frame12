@@ -43,7 +43,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "check": "node scripts/build.mjs --check",
-    "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && node ../../node_modules/typescript/bin/tsc -p tests/tsconfig.json",
+    "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && node ../../node_modules/typescript/bin/tsc -p tsconfig.core.json && node ../../node_modules/typescript/bin/tsc -p tests/tsconfig.json",
     "test": "node scripts/build.mjs --check && npm run typecheck && node scripts/gallery.mjs --check && node --test \"tests/*.test.mjs\"",
     "gallery": "node scripts/gallery.mjs"
   },

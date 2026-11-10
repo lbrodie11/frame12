@@ -12,8 +12,9 @@
  *   advances only on the tempo grid: every 83.33 ms at `twos`, every frame at `ones`, never at
  *   `still`. Data never waits for the pose.
  *
- * Memory is bounded: logs are a ring buffer (default 500 lines), at most `maxEvents` events are
- * counted in detail (default 5,000; the rest are summarized as a count), and warnings are capped.
+ * Memory is bounded: logs are a ring buffer (default 500 lines), warnings are capped, and past
+ * `maxEvents` (default 5,000) new narrated findings and receipts are only counted
+ * (`dropped.events`): the snapshot, not narration, carries the full result.
  */
 import type { Capabilities } from './capabilities.js';
 import type { CutStatus, Finding, LogLevel, Metric, RunStatus, Snapshot, TerminalEvent } from './contract.js';

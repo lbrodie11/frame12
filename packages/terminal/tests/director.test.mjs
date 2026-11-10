@@ -221,6 +221,48 @@ describe('director: state', () => {
     assert.deepEqual(seen, [1]);
   });
 
+  const aFinding = () => structuredClone(fixture('success').snapshot.findings[0]);
+
+  it('a re-sent finding (a status update) does not list its receipts twice (third review)', () => {
+    const { director, f } = setup('still');
+    director.push(f.next('run-start', { title: 'T' }));
+    director.push(f.next('cut-start', { cut: 'rank', title: 'Rank' }));
+    const finding = aFinding();
+    director.push(f.next('finding', { cut: 'rank', finding }));
+    director.push(f.next('receipt', { finding: finding.id, receipt: finding.receipts[0] })); // a repeat
+    director.push(f.next('finding', { cut: 'rank', finding: { ...finding, status: 'ok' } }));
+    const s = director.snapshot();
+    assert.equal(s.findings[0].status, 'ok');
+    assert.deepEqual(s.warnings, []);
+    assert.equal(s.findings[0].receipts.length, finding.receipts.length);
+  });
+
+  it('merges receipts in linear time and stops storing narration past maxEvents (third review)', () => {
+    const { director, f } = setup('still', { maxEvents: 5000 });
+    director.push(f.next('run-start', { title: 'T' }));
+    director.push(f.next('cut-start', { cut: 'rank', title: 'Rank' }));
+    const finding = { ...aFinding(), receipts: [] };
+    director.push(f.next('finding', { cut: 'rank', finding }));
+    const t0 = performance.now();
+    for (let i = 0; i < 40_000; i++) director.push(f.next('receipt', { finding: finding.id, receipt: { kind: 'commit', value: `c${i}` } }));
+    const ms = performance.now() - t0;
+    const s = director.snapshot();
+    assert.ok(s.findings[0].receipts.length < 5000, `receipts kept: ${s.findings[0].receipts.length}`);
+    assert.equal(s.dropped.events, 40_003 - 5000);
+    assert.ok(ms < 3000, `40,000 receipts took ${Math.round(ms)} ms`);
+  });
+
+  it('a cancel before run-start stays canceled, and later cuts start canceled (third review)', () => {
+    const { director, f, clock } = setup('twos');
+    director.cancel('SIGINT');
+    director.push(f.next('run-start', { title: 'T' }));
+    director.push(f.next('cut-start', { cut: 'a', title: 'A' }));
+    const s = director.snapshot();
+    assert.equal(s.status, 'canceled');
+    assert.equal(s.cuts[0].status, 'canceled');
+    assert.equal(clock.pending, 0, 'no pose clock for a canceled run');
+  });
+
   it('publishes nothing after dispose', () => {
     const { director, publishes, clock, f } = setup('twos');
     director.push(f.next('run-start', { title: 'T' }));

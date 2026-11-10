@@ -35,6 +35,9 @@ export function createDirector(options) {
     const cutIndex = new Map();
     const findingIndex = new Map();
     const metricIndex = new Map();
+    /** Receipt keys per finding, so a re-sent finding or a repeated receipt is not listed twice. */
+    const receiptKeys = new Map();
+    const receiptKey = (r) => `${r.kind}\u0000${r.value}\u0000${r.href ?? ''}`;
     let seen = 0;
     let disposed = false;
     let dirty = false;
@@ -119,12 +122,20 @@ export function createDirector(options) {
             state.dropped.logs++;
         }
     };
-    const mergeReceipt = (findingId, receipt) => {
+    /** Appends in place (each finding owns its receipts array): linear in the number of receipts. */
+    const mergeReceipts = (findingId, receipts) => {
         const i = findingIndex.get(findingId);
         if (i === undefined)
             return;
-        const f = state.findings[i];
-        state.findings[i] = { ...f, receipts: [...(f.receipts ?? []), receipt] };
+        const keys = receiptKeys.get(findingId);
+        const list = state.findings[i].receipts;
+        for (const r of receipts) {
+            const k = receiptKey(r);
+            if (keys.has(k))
+                continue;
+            keys.add(k);
+            list.push(r);
+        }
     };
     /** Folds one accepted event into state; returns true when it must be published immediately. */
     const fold = (ev) => {
@@ -134,7 +145,9 @@ export function createDirector(options) {
                 state.title = ev.title;
                 if (ev.product !== undefined)
                     state.product = ev.product;
-                state.status = 'running';
+                // A cancel can land before the producer's run-start; it stays canceled.
+                if (!state.canceled)
+                    state.status = 'running';
                 return true;
             case 'scene-start':
             case 'scene-end':
@@ -146,9 +159,11 @@ export function createDirector(options) {
                     label: `C-${String(state.cuts.length + 1).padStart(2, '0')}`,
                     title: ev.title,
                     ...(ev.scene !== undefined ? { scene: ev.scene } : {}),
-                    status: 'running',
+                    ...(state.canceled ? { status: 'canceled', summary: state.canceled.reason } : { status: 'running' }),
                     startedAt: ev.ts,
                 });
+                if (state.canceled)
+                    return true;
                 if (state.status === 'idle')
                     state.status = 'running';
                 startPose();
@@ -201,15 +216,20 @@ export function createDirector(options) {
             case 'finding': {
                 const i = findingIndex.get(ev.finding.id);
                 if (i === undefined) {
+                    if (seen > maxEvents)
+                        return false; // Counted in dropped.events; the snapshot has it.
                     findingIndex.set(ev.finding.id, state.findings.length);
-                    state.findings.push(ev.finding);
+                    receiptKeys.set(ev.finding.id, new Set());
+                    state.findings.push({ ...ev.finding, receipts: [] });
                 }
                 else
-                    state.findings[i] = { ...ev.finding, receipts: [...(state.findings[i].receipts ?? []), ...(ev.finding.receipts ?? [])] };
+                    state.findings[i] = { ...ev.finding, receipts: state.findings[i].receipts };
+                mergeReceipts(ev.finding.id, ev.finding.receipts ?? []);
                 return false;
             }
             case 'receipt':
-                mergeReceipt(ev.finding, ev.receipt);
+                if (seen <= maxEvents)
+                    mergeReceipts(ev.finding, [ev.receipt]);
                 return false;
             case 'log':
                 addLog({ level: ev.level, text: ev.text, ...(ev.cut !== undefined ? { cut: ev.cut } : {}), ...(ev.stream !== undefined ? { stream: ev.stream } : {}) });
