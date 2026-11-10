@@ -1609,9 +1609,12 @@ try {
     );
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const headerReducedMotionOk = await page.evaluate(() => {
+      // F12-08: the theme SegmentedControl keeps its indicator; the TempoControl has none (the
+      // control that sets motion does not itself move), so the header has exactly one.
       const headerInds = [...document.querySelectorAll('.site-header .f12-rng-ind')];
       return (
-        headerInds.length >= 2 &&
+        headerInds.length === 1 &&
+        !document.querySelector('.site-header .f12-tempo .f12-rng-ind') &&
         headerInds.every((el) => getComputedStyle(el).transitionDuration === '0s')
       );
     });
@@ -1635,7 +1638,7 @@ try {
         afterLoadingWsBreadcrumb.activeElementId === 'ws-settings-tabs-tab-profile' &&
         overflow320 &&
         headerReducedMotionOk,
-      'site /blocks/workspace-settings (Empty/Error/Loading states, Breadcrumb navigation + same-section typing, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb ancestors are buttons/text (never #hash links) that return to 01 · Profile and focus its tab (also in LOAD state) without touching the URL or stealing focus during subsequent typing, site header SegmentedControls respect prefers-reduced-motion, and 320px has zero horizontal overflow',
+      'site /blocks/workspace-settings (Empty/Error/Loading states, Breadcrumb navigation + same-section typing, 320px & site header reduced-motion): ZERO state reconciles seats/channels to 0, inviting in ZERO transitions to 1/10 seats, Discard restores saved 5/10 seats, ERR retry restores focus, Breadcrumb ancestors are buttons/text (never #hash links) that return to 01 · Profile and focus its tab (also in LOAD state) without touching the URL or stealing focus during subsequent typing, site header theme indicator respects prefers-reduced-motion (TempoControl has none), and 320px has zero horizontal overflow',
       JSON.stringify({
         emptyCheck,
         seatsAfterZeroInvite,
