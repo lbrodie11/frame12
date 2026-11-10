@@ -60,7 +60,8 @@ export declare function lintFiles(targetPaths: string[]): {
 export declare const lintDirectory: typeof lintFiles;
 
 export declare function lintHtml(
-  html: string,
+  /** HTML text, or an object whose string form is HTML (e.g. an `@frame12/static` `Html`). */
+  html: string | { toString(): string },
   opts?: LintHtmlOptions
 ): Violation[];
 
