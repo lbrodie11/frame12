@@ -1129,3 +1129,26 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   }
 }
 /* end: How a frame gets made */
+
+/* ExposureScrubber docs: the raw log beside each demo ("find the cause") */
+.f12-xs-demo-log {
+  margin: 0;
+  max-height: 360px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--f-rule);
+  background: var(--f-panel);
+  color: var(--f-ink);
+  font-family: var(--font-f-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.f12-xs-demo-answer > summary {
+  min-height: 24px;
+  cursor: pointer;
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  font-weight: 700;
+}

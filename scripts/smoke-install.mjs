@@ -398,7 +398,14 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  ExposureScrubber,
+  type ExposureFrame,
 } from '@/components/frame12';
+
+const XS_FRAMES: ExposureFrame[] = [
+  { id: 'cfg', label: 'read config', at: '2026-11-06T14:18:00Z', status: 'ok' },
+  { id: 'call', label: 'tool call', at: '2026-11-06T14:18:02Z', status: 'error', marker: true, causes: ['cfg'] },
+];
 
 export function ConsumerSmokeTest() {
   const reduced = useReducedMotion();
@@ -457,6 +464,12 @@ export function ConsumerSmokeTest() {
             <DropdownMenuTrigger>Actions</DropdownMenuTrigger>
             <DropdownMenuContent><DropdownMenuItem>Run</DropdownMenuItem></DropdownMenuContent>
           </DropdownMenu>
+          <ExposureScrubber
+            label="Smoke run replay"
+            frames={XS_FRAMES}
+            idPrefix="smoke-xs"
+            renderFrame={(f, _i, ctx) => <p>{ctx.scrubbing ? f.id : f.label}</p>}
+          />
         </Panel>
         <PanelPair
           top={{ cut: 'C-02', label: 'Top', children: <div>Top</div> }}
@@ -551,7 +564,7 @@ if (dlgPropsRefRead === 0 || tipPropsRefRead === 0 || dlgR19.didAccessLegacyRef(
     \`React 19 props.ref check failed: dlgPropsRefRead=\${dlgPropsRefRead} tipPropsRefRead=\${tipPropsRefRead} dlgLegacy=\${dlgR19.didAccessLegacyRef()} tipLegacy=\${tipR19.didAccessLegacyRef()}\`,
   );
 }
-if (!html.includes('C-01') || !html.includes('R19 Child')) {
+if (!html.includes('C-01') || !html.includes('R19 Child') || !html.includes('Smoke run replay · 2 frames') || !html.includes('Replay needs JavaScript')) {
   throw new Error('Unexpected SSR output: ' + html.slice(0, 200));
 }
 if (!React.version.startsWith('19.')) {
@@ -592,7 +605,7 @@ console.log('R19_RUNTIME_OK:' + html.length + ' react@' + React.version);
   });
   check(
     validateRes.status === 0,
-    'npx shadcn registry validate passes across root registry.json and registry/registry.json (40 items)',
+    'npx shadcn registry validate passes across root registry.json and registry/registry.json',
     validateRes.status !== 0 ? `${validateRes.stdout}\n${validateRes.stderr}` : '',
   );
 
@@ -998,6 +1011,60 @@ export function InkCheck() {
     rmSync(metricDir, { recursive: true, force: true });
   }
 
+  // 7c. `exposure-scrubber` installed ALONE (F12-09): registryDependencies must bring the engine
+  // (use-exposure), use-tempo, use-on-twos, panel, segmented-control and the styles; tsc passes.
+  const xsDir = mkdtempSync(join(tmpdir(), 'frame12-xs-only-'));
+  try {
+    mkdirSync(join(xsDir, 'src/app'), { recursive: true });
+    mkdirSync(join(xsDir, '.shim-bin'), { recursive: true });
+    writeFileSync(join(xsDir, '.shim-bin/npm'), '#!/bin/sh\nexit 0\n');
+    chmodSync(join(xsDir, '.shim-bin/npm'), 0o755);
+    writeFileSync(join(xsDir, 'src/app/globals.css'), '/* host globals */\n');
+    writeFileSync(join(xsDir, 'src/global.d.ts'), CSS_MODULE_DECL);
+    for (const f of ['package.json', 'package-lock.json', 'tsconfig.json', 'components.json']) {
+      writeFileSync(join(xsDir, f), readFileSync(join(tempDir, f), 'utf8'));
+    }
+    const env = { ...process.env, CI: 'true', PATH: `${join(xsDir, '.shim-bin')}:${process.env.PATH || ''}` };
+    const xsAdd = await runAsync(
+      'npx',
+      ['--yes', 'shadcn', 'add', `http://127.0.0.1:${port}/r/exposure-scrubber.json`, '--yes', '--overwrite'],
+      { cwd: xsDir, env },
+    );
+    const xsFiles = [
+      'src/components/frame12/exposure-scrubber.tsx',
+      'src/components/frame12/panel.tsx',
+      'src/components/frame12/segmented-control.tsx',
+      'src/hooks/use-exposure.ts',
+      'src/hooks/use-tempo.ts',
+      'src/hooks/use-on-twos.ts',
+      'src/styles/frame12.css',
+    ];
+    const xsMissing = xsFiles.filter((f) => !existsSync(join(xsDir, f)));
+    symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(xsDir, 'node_modules'), 'dir');
+    writeFileSync(
+      join(xsDir, 'src/app/xs-check.tsx'),
+      `import * as React from 'react';
+import { ExposureScrubber, type ExposureFrame } from '@/components/frame12/exposure-scrubber';
+import { useExposure } from '@/hooks/use-exposure';
+const frames: ExposureFrame[] = [{ id: 'a', label: 'A' }, { id: 'b', label: 'B', causes: ['a'] }];
+export function XsCheck() {
+  return <ExposureScrubber label="Run" frames={frames} renderFrame={(f) => <p>{f.label}</p>} />;
+}
+export function useHeadless() {
+  return useExposure({ frames }).index;
+}
+`,
+    );
+    const xsTsc = spawnSync(tscBin, ['--noEmit', '-p', join(xsDir, 'tsconfig.json')], { cwd: xsDir, encoding: 'utf8' });
+    check(
+      xsAdd.status === 0 && xsMissing.length === 0 && xsTsc.status === 0,
+      'Individual install of /r/exposure-scrubber.json alone brings use-exposure, use-tempo, use-on-twos, panel, segmented-control and the styles, and passes tsc --noEmit',
+      xsMissing.length ? `missing: ${xsMissing.join(', ')}` : xsTsc.status !== 0 ? `${xsTsc.stdout}\n${xsTsc.stderr}` : '',
+    );
+  } finally {
+    rmSync(xsDir, { recursive: true, force: true });
+  }
+
   // 8. React 18 consumer (Vite). The repo hoists React 19, so React 18 support is proven in an
   // isolated project with its own real React 18 install: shadcn add (full kit + 3 blocks) →
   // tsc --noEmit against @types/react 18 → react-dom/server 18 SSR → vite build → hydrateRoot in
@@ -1132,7 +1199,17 @@ import {
   Sheet, Scene, Panel, Button, Tabs, TabsList, TabsTrigger, TabsContent,
   Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Metric, Switch, ToastProvider,
+  ExposureScrubber, type ExposureFrame,
 } from '@/components/frame12';
+
+const XS_FRAMES: ExposureFrame[] = Array.from({ length: 12 }, (_, i) => ({
+  id: 's' + (i + 1),
+  label: 'step ' + (i + 1),
+  at: new Date(Date.UTC(2026, 10, 6, 14, 0, i * 3)).toISOString(),
+  status: i === 7 ? 'error' : 'ok',
+  marker: i === 7,
+  causes: i === 7 ? ['s3'] : undefined,
+}));
 import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';
 import { WorkspaceSettings } from '@/components/frame12/blocks/workspace-settings';
 import { AnalyticsDashboard } from '@/components/frame12/blocks/analytics-dashboard';
@@ -1200,6 +1277,13 @@ export function App() {
           <TabsContent value="two">Second panel</TabsContent>
         </Tabs>
       </Sheet>
+      <ExposureScrubber
+        label="React 18 run replay"
+        frames={XS_FRAMES}
+        idPrefix="r18-xs"
+        defaultValue="s8"
+        renderFrame={(f) => <p id="r18-xs-detail">{f.label}</p>}
+      />
       <DeveloperConsole idPrefix="r18-console" />
       <WorkspaceSettings idPrefix="r18-settings" />
       <AnalyticsDashboard idPrefix="r18-analytics" />
@@ -1383,6 +1467,27 @@ export default {
           runtimeVersion === '18.3.1' && dialogOpened && dialogClosed && focusReturned && switchOn && secondTabSelected && errors.length === 0,
           `React 18 consumer: hydrates on react-dom@${runtimeVersion} in Chromium; Dialog open/Escape/focus return, Switch, and Tabs arrow-key selection work with zero console/hydration errors`,
           JSON.stringify({ dialogOpened, dialogClosed, focusReturned, switchOn, secondTabSelected, errors: errors.slice(0, 5) }),
+        );
+        // ExposureScrubber (F12-09): server-rendered table, hydrated transport, keyboard scrub.
+        const xsReady = await page
+          .waitForFunction(() => !document.querySelector('#r18-xs .f12-xs-transport')?.disabled, null, { timeout: 3000 })
+          .then(() => true, () => false);
+        await page.focus('#r18-xs-range');
+        await page.keyboard.press('ArrowRight');
+        const xs = await page
+          .waitForFunction(() => document.getElementById('r18-xs-detail')?.textContent === 'step 9', null, { timeout: 3000 })
+          .then(
+            () => page.evaluate(() => ({
+              rows: document.querySelectorAll('#r18-xs tbody tr').length,
+              vt: document.getElementById('r18-xs-range')?.getAttribute('aria-valuetext'),
+              cur: document.querySelector('#r18-xs tbody tr[aria-current="step"] .f12-xs-fn')?.textContent,
+            })),
+            () => null,
+          );
+        check(
+          xsReady && xs?.rows === 12 && xs.vt === 'Frame 9 of 12: step 9, ok' && xs.cur === 'F-09' && errors.length === 0,
+          'React 18 consumer: ExposureScrubber server-renders 12 rows, hydrates (transport enabled), and the range scrubs to frame 9 with aria-valuetext and aria-current="step"',
+          JSON.stringify({ xsReady, xs, errors: errors.slice(0, 3) }),
         );
       } finally {
         await browser.close();

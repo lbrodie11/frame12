@@ -11,7 +11,7 @@
  * Every renderer sanitizes its input first, so untrusted strings never reach the grammar raw.
  */
 import type { Capabilities } from '../core/capabilities.js';
-import type { CutStatus, Finding, RunStatus, Snapshot, TerminalEvent } from '../core/contract.js';
+import type { CutStatus, Finding, LogLevel, RunStatus, Snapshot, TerminalEvent } from '../core/contract.js';
 import { glyph } from '../core/glyphs.js';
 import { createSanitizer, type SafetyOptions } from '../core/safety.js';
 import { paint } from '../core/tokens.js';
@@ -239,6 +239,12 @@ export interface LinearResult {
 export interface LinearWriter {
   /** Accepts one event (parsed JSON). Never throws. */
   write(raw: unknown): void;
+  /**
+   * Narrates a log line that did not arrive as an event (the host's own, or a child process's
+   * through `spawnLogged`), exactly like a `log` event: errors and warnings always, the rest only
+   * when verbose. Sanitized and redacted like everything else.
+   */
+  log(level: LogLevel, text: string): void;
   /** Ends the stream; reports what was missing. */
   end(): LinearResult;
 }
@@ -275,7 +281,18 @@ export function createLinearWriter(options: LinearWriterOptions): LinearWriter {
     for (const l of wrap(`${mark} warning: ${san.text(text)}`, narr.columns, { ...narr, indent: '  ' })) say(paint(l, 'status-warning', narr.style));
   };
 
+  const narrateLog = (level: LogLevel, text: string) => {
+    if (level !== 'error' && level !== 'warn' && !options.verbose) return;
+    for (const line of text.split('\n')) {
+      if (options.format === 'plain') say(`Log ${level}: ${line}`);
+      else for (const l of wrap(`${level}: ${line}`, narr.columns, { ...narr, indent: '  ' })) say(paint(l, level === 'error' ? 'status-danger' : 'ink2', narr.style));
+    }
+  };
+
   return {
+    log(level, text) {
+      narrateLog(level, san.text(text, 'log', 'log'));
+    },
     write(raw) {
       seen++;
       const r = stream.push(raw);
@@ -310,13 +327,7 @@ export function createLinearWriter(options: LinearWriterOptions): LinearWriter {
         case 'warning':
           return warn(ev.message);
         case 'log':
-          if (ev.level === 'error' || ev.level === 'warn' || options.verbose) {
-            for (const line of ev.text.split('\n')) {
-              if (options.format === 'plain') say(`Log ${ev.level}: ${line}`);
-              else for (const l of wrap(`${ev.level}: ${line}`, narr.columns, { ...narr, indent: '  ' })) say(paint(l, ev.level === 'error' ? 'status-danger' : 'ink2', narr.style));
-            }
-          }
-          return;
+          return narrateLog(ev.level, ev.text);
         case 'run-end':
           status = ev.status;
           return;

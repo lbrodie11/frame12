@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "ES2023.Array", "ES2022.Intl"],
+    "lib": [
+      "ES2022",
+      "ES2023.Array",
+      "ES2022.Intl"
+    ],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "rootDir": "src",
@@ -14,7 +18,13 @@
     "skipLibCheck": false,
     "removeComments": false,
     "newLine": "lf",
-    "types": []
+    "types": [
+      "node"
+    ],
+    "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ]
 }

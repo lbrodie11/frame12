@@ -66,7 +66,8 @@ describe('module boundaries', () => {
 describe('packaging', () => {
   it('depends at runtime on @frame12/tokens at its exact version, and nothing else', () => {
     assert.deepEqual(pkg.dependencies, { '@frame12/tokens': tokensPkg.version });
-    assert.equal(pkg.peerDependencies, undefined, 'optional ink/react peers arrive with ./ink in PR 3');
+    assert.deepEqual(pkg.peerDependencies, { ink: '^8.0.0', react: '^19.3.0' }, 'ink and react are peers of ./ink only');
+    assert.deepEqual(pkg.peerDependenciesMeta, { ink: { optional: true }, react: { optional: true } }, 'and optional, so core users never install them');
     assert.equal(pkg.engines.node, '>=22');
     assert.deepEqual(pkg.files, ['dist']);
   });

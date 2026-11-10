@@ -57,6 +57,13 @@ export interface Capabilities {
     dumb: boolean;
     /** Running inside a terminal multiplexer. */
     multiplexer: 'tmux' | 'screen' | undefined;
+    /**
+     * The terminal re-wraps what is on screen when it gets narrower (iTerm2, kitty, WezTerm, VTE,
+     * Windows Terminal, ...). Only then does a resize need the live view's extra cleanup; on a
+     * terminal that does not (xterm, the Linux console, multiplexers) that cleanup would erase lines
+     * above the live region. Unknown terminals are assumed not to. `FRAME12_REFLOW=1|0` overrides.
+     */
+    reflow: boolean;
 }
 /** `true` when the variable is set, non-empty and not `0` / `false`. */
 export declare function envFlag(env: Env, name: string): boolean;

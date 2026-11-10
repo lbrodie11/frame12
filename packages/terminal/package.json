@@ -16,6 +16,14 @@
       "types": "./dist/render/index.d.ts",
       "default": "./dist/render/index.js"
     },
+    "./ink": {
+      "types": "./dist/ink/index.d.ts",
+      "default": "./dist/ink/index.js"
+    },
+    "./process": {
+      "types": "./dist/process/index.d.ts",
+      "default": "./dist/process/index.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
@@ -35,7 +43,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "check": "node scripts/build.mjs --check",
-    "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && node ../../node_modules/typescript/bin/tsc -p tests/tsconfig.json",
+    "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && node ../../node_modules/typescript/bin/tsc -p tsconfig.core.json && node ../../node_modules/typescript/bin/tsc -p tests/tsconfig.json",
     "test": "node scripts/build.mjs --check && npm run typecheck && node scripts/gallery.mjs --check && node --test \"tests/*.test.mjs\"",
     "gallery": "node scripts/gallery.mjs"
   },
@@ -57,6 +65,21 @@
     "node": ">=22"
   },
   "devDependencies": {
-    "@xterm/headless": "5.5.0"
+    "@xterm/headless": "5.5.0",
+    "ink": "8.0.0",
+    "ink-testing-library": "4.0.0",
+    "react": "19.3.1"
+  },
+  "peerDependencies": {
+    "ink": "^8.0.0",
+    "react": "^19.3.0"
+  },
+  "peerDependenciesMeta": {
+    "ink": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
   }
 }

@@ -281,6 +281,7 @@ All FRAME/12 source code, components, blocks, hooks, styles, agent skills, and l
 
 ### Roadmap & Feedback
 
+- **Unreleased on `main`:** `ExposureScrubber` (`@frame12/exposure-scrubber`) reads an agent run, CI pipeline or incident like an animator's exposure sheet: a server-rendered X-sheet with a timing column, one marked moment, data-given "led here from" links and a native-range transport (even, elapsed and flipbook timing; never autoplays). Its headless engine, `useExposure` (`@frame12/use-exposure`), is the one the planned `TraceTimeline` will reuse ([`docs/architecture/exposure-engine.md`](docs/architecture/exposure-engine.md)). Demos: `/components/exposure-scrubber`.
 - **Public `v0.3` & `v0.4` Roadmap:** Read [`docs/roadmap/v0.3-v0.4-roadmap.md`](docs/roadmap/v0.3-v0.4-roadmap.md) for planned open-source core primitives (`CommandPalette`, `Drawer`, `Popover`, `DateRangePicker`, `Accordion`, `CodeBlock`, `Kbd`/`CopyButton`, `Avatar`), screentone charts, free application blocks (`AgentReviewConsole`, `IncidentWarRoom`), and scope classifications.
 - **Share Feedback & Requests:**
   - **Bug reports & installation issues:** Open an issue at **[github.com/lbrodie11/frame12/issues](https://github.com/lbrodie11/frame12/issues)**.

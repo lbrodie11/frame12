@@ -109,7 +109,17 @@ jobs:
       - name: Install dependencies (no lifecycle scripts)
         run: npm ci --ignore-scripts
 
-      - name: Test @frame12/terminal (generated-file drift, typecheck, unit and boundary tests)
+      - name: Install node-pty for the real-terminal tests (native; kept out of the lockfile)
+        working-directory: packages/terminal
+        shell: bash
+        # node-pty 1.1.0 ships its macOS spawn-helper without the execute bit (posix_spawnp failed).
+        run: |
+          mkdir -p .pty && cd .pty && echo '{"private":true}' > package.json && npm install --no-audit --no-fund node-pty@1.1.0
+          chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper
+
+      - name: Test @frame12/terminal (drift, typecheck, unit, boundary, Ink and real-pty tests)
+        env:
+          F12_REQUIRE_PTY: '1'
         run: npm test --workspace=@frame12/terminal
 
   real-install:

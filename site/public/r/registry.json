@@ -64,6 +64,23 @@
       ]
     },
     {
+      "name": "use-exposure",
+      "type": "registry:hook",
+      "title": "useExposure (exposure engine)",
+      "description": "Headless navigation and playback engine for discrete histories: id-based selection, data-change rules, one-setTimeout playback clock (even, elapsed, flipbook timing), keyboard map, settle detection and rate-limited announcements. The engine behind ExposureScrubber.",
+      "registryDependencies": [
+        "https://frame12.dev/r/use-tempo.json",
+        "https://frame12.dev/r/use-on-twos.json"
+      ],
+      "files": [
+        {
+          "path": "hooks/use-exposure.ts",
+          "type": "registry:hook",
+          "target": "hooks/use-exposure.ts"
+        }
+      ]
+    },
+    {
       "name": "font-dela-gothic-one",
       "type": "registry:font",
       "title": "Dela Gothic One (FRAME/12 Display Font)",
@@ -830,6 +847,27 @@
       ]
     },
     {
+      "name": "exposure-scrubber",
+      "type": "registry:ui",
+      "title": "ExposureScrubber",
+      "description": "Read any run like an animator's exposure sheet: a server-rendered X-sheet table (frame, action, timing, mark) with one marked moment, data-given causes, a detail panel and a native-range transport with even, elapsed and flipbook timing. Never autoplays; keyboard and touch AT complete.",
+      "registryDependencies": [
+        "https://frame12.dev/r/frame12-styles.json",
+        "https://frame12.dev/r/use-tempo.json",
+        "https://frame12.dev/r/use-on-twos.json",
+        "https://frame12.dev/r/use-exposure.json",
+        "https://frame12.dev/r/panel.json",
+        "https://frame12.dev/r/segmented-control.json"
+      ],
+      "files": [
+        {
+          "path": "ui/exposure-scrubber.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/exposure-scrubber.tsx"
+        }
+      ]
+    },
+    {
       "name": "frame12",
       "type": "registry:block",
       "title": "FRAME/12 Complete Kit",
@@ -858,6 +896,11 @@
           "path": "hooks/use-tempo.ts",
           "type": "registry:hook",
           "target": "hooks/use-tempo.ts"
+        },
+        {
+          "path": "hooks/use-exposure.ts",
+          "type": "registry:hook",
+          "target": "hooks/use-exposure.ts"
         },
         {
           "path": "ui/index.ts",
@@ -1038,6 +1081,11 @@
           "path": "ui/tempo-control.tsx",
           "type": "registry:ui",
           "target": "components/frame12/tempo-control.tsx"
+        },
+        {
+          "path": "ui/exposure-scrubber.tsx",
+          "type": "registry:ui",
+          "target": "components/frame12/exposure-scrubber.tsx"
         }
       ]
     },

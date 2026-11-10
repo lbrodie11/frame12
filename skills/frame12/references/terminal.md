@@ -5,8 +5,9 @@
 **receipts** (`E-01`). Those labels are presentation: your events carry stable ids.
 
 > **0.1.0** exports the core (contract, validation, capabilities, motion, safety, width,
-> tokens), the linear renderers (`./render`) and `./testing`. The `./ink` live view, `./process`
-> (`spawnLogged`) and the `frame12-term` CLI arrive in later releases. Don't import them yet.
+> tokens, the Director), the linear renderers (`./render`), the live view (`./ink`, optional
+> `ink@^8`/`react@^19.3` peers), `spawnLogged` (`./process`) and `./testing`. The
+> `frame12-term` CLI arrives in a later release.
 
 ## Install
 
@@ -56,7 +57,13 @@ renderJson(snapshot: Snapshot): string;
 renderPlain(snapshot: Snapshot, o?: { product?; nextSteps?: NextStep[]; safety? }): string;
 renderRich(snapshot: Snapshot, rc: RenderCaps, o?: { product?; nextSteps?; safety? }): string;
 renderCapsFor(caps: Capabilities, stream?: 'stdout' | 'stderr', o?: { verbose?: boolean }): RenderCaps;
-createLinearWriter(o: { format: 'rich' | 'plain' | 'json'; caps: Capabilities; stdout; stderr; verbose?; nextSteps?; safety?; validation? }): { write(raw: unknown): void; end(): LinearResult };
+createLinearWriter(o: { format: 'rich' | 'plain' | 'json'; caps: Capabilities; stdout; stderr; verbose?; nextSteps?; safety?; validation? }): { write(raw: unknown): void; log(level, text): void; end(): LinearResult };
+
+// Director (core) and live view (@frame12/terminal/ink).
+createDirector(o: { caps; motion: Tempo; onEvent?; onCancel?; maxLogs?; maxEvents?; maxItems?; maxWarnings?; safety?; validation?; scheduler? }): Director;
+// Director: { push(raw); tap(raw => void); subscribe(state => void); snapshot(); cancel(reason); log(level, text, meta?); flush(); signal; dispose() }. LogLine.origin: 'event' | 'host'.
+startLive(o: { caps; motion; stdin?; stdout?; stderr?; fullscreen?; product?; nextSteps?; safety?; director?; onCancel?; handleSignals?; exit?; devWarnings? }): { director; mode: 'live' | 'linear'; reason?; push(e); end(): Promise<number>; done };
+spawnLogged(director, cmd: string, args?: string[], o?: { cwd?; env?; cut?; signal?; stderrLevel?; killAfterMs?; maxLineLength?; drainMs? }): Promise<{ code; signal; error? }>; // @frame12/terminal/process
 
 ## Rules
 
@@ -72,5 +79,7 @@ createLinearWriter(o: { format: 'rich' | 'plain' | 'json'; caps: Capabilities; s
   `NO_MOTION` / `REDUCED_MOTION`.
 - **Narration goes to stderr, results to stdout.** Detect color per stream
   (`colorLevel` vs `stderrColorLevel`); pipes get no escape sequences at all.
+- **Never write to stdout during a live view.** Use `console.*`, or run child processes through
+  `spawnLogged`; direct writes corrupt the redraw.
 - **Width in cells, not characters.** Use `stringWidth`, `truncateMiddle` for paths (never wrap a
   path) and `wrap` for prose.

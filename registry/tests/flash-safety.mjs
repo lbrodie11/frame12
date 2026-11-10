@@ -305,6 +305,31 @@ for (const tempo of ['twos', 'ones']) {
     { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, errors });
   await ctx.close();
 }
+// ExposureScrubber flipbook at 4× (F12-09): 48 poses per second on a 200-frame run. Only the
+// sheet's current-row highlight moves (the panel shows a static FLIPPING slate) and the sheet
+// pages by whole screens; the gate must hold at the fastest rate.
+{
+  const xsHtml = await bundlePage(resolve(REGISTRY_ROOT, 'tests/fixtures/exposure-fixture.tsx'));
+  for (const width of [1024, 420]) {
+    const { ctx, page, errors } = await openFixture(browser, xsHtml, { w: VW, h: VH });
+    await page.evaluate(
+      (w) => window.__xs({ n: 200, width: w, genOpts: { statuses: true, markers: [40, 120], holds: [1, 1, 2] }, props: { timing: 'flipbook', defaultRate: 4 } }),
+      width,
+    );
+    await page.waitForTimeout(150);
+    const play = () => page.evaluate(() => document.getElementById('xa-play').click());
+    const frames = await capture(page, decoder, { frames: 120, actions: { 0: play } });
+    const v = verdict(frames);
+    const flipped = await page.evaluate(() => Number(document.querySelector('#xa tbody tr[aria-current="step"] .f12-xs-btn')?.dataset.i ?? -1));
+    check(
+      v.general.maxPerSecond <= 3 && v.red.maxPerSecond <= 3 && errors.length === 0 && flipped > 40,
+      `flash safety [flipbook 4×] exposure-scrubber (${width}px container): ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region over 2 s of flipping`,
+      { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, posesReached: flipped, errors },
+    );
+    await ctx.close();
+  }
+}
+
 await Promise.all(decoders.slice(1).map((d) => d.close()));
 await decoder.close();
 await browser.close();
