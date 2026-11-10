@@ -55,7 +55,7 @@ export function Inspector({ finding, frame, firstReceipt, rc, marker }) {
     return (_jsx(Box, { "aria-label": `${frame} details`, "aria-state": { expanded: true }, flexDirection: "column", children: _jsx(Text, { children: evidenceCard(finding, { frame, firstReceipt, marker, maxReceipts: Number.POSITIVE_INFINITY }, rc) }) }));
 }
 /** The live view's root. */
-export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onInterrupt, onOpen }) {
+export function Storyboard({ director, rc, rows, product, nextSteps, replay, onQuit, onInterrupt, onOpen }) {
     const state = useRunState(director);
     // Only a render trigger for focus moves; the focus itself lives in the refs below.
     const [, setFocus] = React.useState(0);
@@ -70,7 +70,7 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
     const added = [];
     if (!doneIds.current.has(' masthead') && state.title !== undefined) {
         doneIds.current.add(' masthead');
-        added.push({ key: ' masthead', text: masthead({ product: product ?? state.product ?? 'FRAME/12', title: state.title }, rc) });
+        added.push({ key: ' masthead', text: masthead({ product: product ?? state.product ?? 'FRAME/12', title: state.title, ...(replay ? { replay: true } : {}) }, rc) });
     }
     for (const c of state.cuts) {
         if (c.status === 'running' || doneIds.current.has(c.cut))

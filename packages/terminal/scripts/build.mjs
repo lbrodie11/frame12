@@ -191,6 +191,8 @@ if (check) {
   const dist = path.join(PKG_ROOT, 'dist');
   fs.rmSync(dist, { recursive: true, force: true });
   compile(dist);
+  // The `frame12-term` bin (npm also sets this on install; keep the committed file runnable).
+  fs.chmodSync(path.join(dist, 'cli/bin.js'), 0o755);
   fs.mkdirSync(path.dirname(SCHEMA_PATH), { recursive: true });
   const schema = await renderSchema(dist);
   fs.writeFileSync(SCHEMA_PATH, schema);

@@ -199,7 +199,8 @@ export function formatLink(text: string, href: unknown, enabled: boolean, policy
 
 // ---------------------------------------------------------------------------------- redaction
 
-export type RedactField = 'log' | 'receipt' | 'text' | 'identifier';
+/** `link`: a URL (a remote), seen by the hook only when a run is recorded. */
+export type RedactField = 'log' | 'receipt' | 'text' | 'identifier' | 'link';
 
 export interface RedactContext {
   /** What kind of field this string came from. */
@@ -299,7 +300,9 @@ export function createSanitizer(options: SafetyOptions = {}): Sanitizer {
   const text = (value: unknown, field: RedactField = 'text', source = 'text'): string =>
     clean(value, field, source, field === 'identifier' ? 'identifier' : 'text');
 
-  const href = (value: unknown) => safeLink(value, options.links);
+  // Links get the default redactor too (a token in a query string), before the safety check; a
+  // link that no longer passes it is dropped.
+  const href = (value: unknown) => safeLink(defaults && typeof value === 'string' ? redactSecrets(value) : value, options.links);
 
   const walk = (value: unknown, key: string, source: string, inReceipt: boolean, inLog: boolean, depth: number): unknown => {
     if (depth > 16) return undefined;

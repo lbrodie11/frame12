@@ -1,6 +1,7 @@
 import { FRAME_MS, tempoIntervalMs } from './motion.js';
 import { createSanitizer } from './safety.js';
 import { createStreamValidator, describeIssues } from './validate.js';
+import { recordingHeader, recordingLine, redactLinks } from './recording.js';
 const defaultScheduler = {
     now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
     setTimeout: (fn, ms) => {
@@ -267,12 +268,56 @@ export function createDirector(options) {
                 return true;
         }
     };
-    const push = (raw) => {
+    // Recording: the header at once, then one line per accepted event, timed by the events' own `ts`,
+    // closed after the snapshot (the run's last word) or on dispose. A failing sink stops the
+    // recording, never the run, and says so: an incomplete recording must not pass for a whole one.
+    let recordOrigin;
+    let lastT = 0;
+    let recording = options.record !== undefined;
+    const endRecording = () => {
+        if (!recording)
+            return;
+        recording = false;
+        try {
+            options.record?.end?.();
+        }
+        catch {
+            // Ignore: the run goes on.
+        }
+    };
+    const recordWrite = (line) => {
+        try {
+            options.record.write(line);
+            return true;
+        }
+        catch (err) {
+            const name = options.record.name ? `${options.record.name} is` : 'it is';
+            // A host warning (not only state): the linear view narrates it and the live view shows it.
+            addLog({ level: 'warn', text: san.text(`Recording stopped: ${err instanceof Error ? err.message : String(err)}; ${name} incomplete.`, 'log', 'log'), origin: 'host' });
+            endRecording();
+            return false;
+        }
+    };
+    if (recording)
+        recordWrite(recordingHeader());
+    const record = (ev) => {
+        if (!recording)
+            return false;
+        const ts = Date.parse(ev.ts);
+        recordOrigin ??= Number.isFinite(ts) ? ts : 0;
+        // Never decreasing, never negative: a producer's clock can step back.
+        lastT = Math.max(lastT, Number.isFinite(ts) ? ts - recordOrigin : lastT);
+        const ok = recordWrite(recordingLine(lastT, redactLinks(ev, options.safety?.redact, ev.type, options.safety?.links)));
+        if (ok && ev.type === 'snapshot')
+            endRecording();
+        return !ok;
+    };
+    const push = (raw, where) => {
         if (disposed)
             return;
         for (const t of [...taps]) {
             try {
-                t(raw);
+                t(raw, where);
             }
             catch {
                 // A failing tap must not lose the event.
@@ -288,12 +333,13 @@ export function createDirector(options) {
             else
                 state.dropped.invalid++;
             // A dropped event is visible: it becomes a warning, published immediately.
-            addWarning(san.text(`${r.ignorable ? 'Ignored' : 'Dropped'} event ${seen}: ${describeIssues(r.issues)}`));
+            addWarning(san.text(`${r.ignorable ? 'Ignored' : 'Dropped'} ${where ?? `event ${seen}`}: ${describeIssues(r.issues)}`));
             publish();
             return;
         }
         const ev = san.event(r.value);
-        const immediate = fold(ev);
+        const recordFailed = record(ev);
+        const immediate = fold(ev) || recordFailed;
         try {
             options.onEvent?.(ev);
         }
@@ -353,6 +399,7 @@ export function createDirector(options) {
         },
         dispose() {
             disposed = true;
+            endRecording();
             stopPose();
             if (frameTimer !== undefined)
                 sched.clearTimeout(frameTimer);
