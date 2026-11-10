@@ -62,6 +62,18 @@ describe('process: spawnLogged', () => {
     assert.equal(r.code, null);
     assert.ok(r.error);
     assert.match(d.snapshot().logs[0].text, /could not start/);
+    await new Promise((r) => setTimeout(r, 100)); // 'close' follows 'error' a tick later
+    assert.equal(d.snapshot().logs.length, 1, 'no bogus exit line after the start failure (second review)');
+  });
+
+  it('sends SIGKILL when a canceled child ignores SIGTERM (second review)', { skip: process.platform === 'win32' && 'kill() is forceful on Windows' }, async () => {
+    const d = director();
+    const [cmd, args] = node("process.on('SIGTERM', () => {}); console.log('ready'); setInterval(() => {}, 1000)");
+    const pending = spawnLogged(d, cmd, args, { killAfterMs: 200 });
+    while (!d.snapshot().logs.some((l) => l.text === 'ready')) await new Promise((r) => setTimeout(r, 20));
+    d.cancel('SIGINT');
+    const r = await pending;
+    assert.equal(r.signal, 'SIGKILL', JSON.stringify(r));
   });
 });
 

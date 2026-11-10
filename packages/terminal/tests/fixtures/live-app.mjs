@@ -32,7 +32,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const caps = detectCapabilities(process.env, process, process.argv);
 const { tempo } = resolveTerminalMotion({ argv: process.argv, env: process.env, caps });
 let onCancel = () => {};
-const run = startLive({ caps, motion: tempo, devWarnings: scenario === 'stray', onCancel: (why) => onCancel(why) });
+const run = startLive({ caps, motion: tempo, devWarnings: scenario === 'stray' || opt('dev-warnings', 'off') === 'on', onCancel: (why) => onCancel(why) });
 process.on('exit', (code) => process.stderr.write(`\nF12-EXIT raw=${process.stdin.isRaw === true} code=${code}\n`));
 run.done.then((code) => process.exit(code));
 

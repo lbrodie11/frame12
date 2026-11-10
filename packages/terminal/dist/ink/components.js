@@ -57,7 +57,8 @@ export function Inspector({ finding, frame, firstReceipt, rc, marker }) {
 /** The live view's root. */
 export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onInterrupt, onOpen }) {
     const state = useRunState(director);
-    const [focus, setFocus] = React.useState(0);
+    // Only a render trigger for focus moves; the focus itself lives in the refs below.
+    const [, setFocus] = React.useState(0);
     const [inspecting, setInspecting] = React.useState(false);
     const [helpOpen, setHelpOpen] = React.useState(false);
     const [confirmUrl, setConfirmUrl] = React.useState(undefined);
@@ -78,7 +79,16 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
         });
     }
     const ordered = orderFindings(liveFindings(state));
-    const focusIndex = Math.min(focus, Math.max(0, ordered.length - 1));
+    // Focus follows the finding, not its row: when the snapshot arrives or a new finding is narrated
+    // and the order changes, the cursor (and an open Inspector) stays on the same finding. If that
+    // finding is gone, focus stays on the same row.
+    const focusIdRef = React.useRef(undefined);
+    const lastIndexRef = React.useRef(0);
+    let focusIndex = focusIdRef.current === undefined ? -1 : ordered.findIndex((o) => o.finding.id === focusIdRef.current);
+    if (focusIndex === -1)
+        focusIndex = Math.min(lastIndexRef.current, Math.max(0, ordered.length - 1));
+    focusIdRef.current = ordered[focusIndex]?.finding.id;
+    lastIndexRef.current = focusIndex;
     const focused = ordered[focusIndex];
     const running = state.cuts.filter((c) => c.status === 'running');
     useInput((input, key) => {
@@ -93,11 +103,11 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
         handleKey(input, key);
     });
     /** Focus moves are computed from the latest focus, so a batch of keys moves several rows. */
-    const focusRef = React.useRef(0);
-    focusRef.current = focusIndex;
     function moveFocus(delta) {
-        focusRef.current = Math.min(Math.max(focusRef.current + delta, 0), Math.max(0, ordered.length - 1));
-        setFocus(focusRef.current);
+        const next = Math.min(Math.max(lastIndexRef.current + delta, 0), Math.max(0, ordered.length - 1));
+        lastIndexRef.current = next;
+        focusIdRef.current = ordered[next]?.finding.id;
+        setFocus(next);
     }
     function handleKey(input, key) {
         // Every key is echoed in the same render: nothing here waits for the tempo.
@@ -127,7 +137,7 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
         if (key.return)
             return setInspecting((v) => !v);
         if (input === 'o') {
-            const url = firstLink(ordered[focusRef.current]?.finding);
+            const url = firstLink(ordered[lastIndexRef.current]?.finding);
             if (url)
                 setConfirmUrl(url);
         }
@@ -138,7 +148,10 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
     const start = Math.max(0, Math.min(focusIndex - Math.floor(room / 2), ordered.length - room));
     const visible = inspecting ? [] : ordered.slice(start, start + room);
     const lastWarning = state.warnings.at(-1);
-    const lastProblem = [...state.logs].reverse().find((l) => l.level === 'error' || l.level === 'warn');
+    let lastProblem;
+    for (let i = state.logs.length - 1; i >= 0 && !lastProblem; i--)
+        if (state.logs[i].level === 'error' || state.logs[i].level === 'warn')
+            lastProblem = state.logs[i];
     return (_jsxs(_Fragment, { children: [_jsx(Static, { items: doneRef.current, children: (item) => _jsx(Text, { children: item.text }, item.key) }), _jsxs(Box, { flexDirection: "column", children: [running.map((c) => (_jsx(Cut, { cutState: c, rc: rc, pose: state.pose }, c.cut))), state.status === 'canceled' && state.canceled ? (_jsx(Text, { children: paint(`${glyph('canceled', rc)} canceled: ${state.canceled.reason}`, 'status-warning', rc.style) })) : null, ordered.length > 0 ? (_jsxs(Box, { flexDirection: "column", "aria-role": "list", "aria-label": `Findings: ${ordered.length}`, children: [_jsxs(Text, { children: [paint('FINDINGS', 'strong', rc.style), " ", paint(`${ordered.length}${state.snapshot ? '' : ' so far'}`, 'ink2', rc.style)] }), inspecting && focused ? (_jsx(Inspector, { finding: focused.finding, frame: focused.frame, firstReceipt: focused.firstReceipt, rc: rc, marker: focused.finding.prominence === 'hero' })) : (visible.map((o) => {
                                 const selected = o === focused;
                                 const mark = selected ? glyph('focus', rc) : ' ';

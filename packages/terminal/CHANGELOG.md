@@ -50,8 +50,9 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     and tempo-paced publishing and bounded memory; `@frame12/terminal/ink` (`startLive`,
     `Storyboard`, `Cut`, `Inspector`, `HintBar`) on optional `ink@^8` / `react@^19.3` peers, with
     keys, Ctrl-C/SIGINT/SIGTERM/SIGHUP handling, exit codes, terminal restoration on every exit
-    path, EPIPE handling, a linear fallback, and reflow-aware resizing;
-    `@frame12/terminal/process` (`spawnLogged`, `openUrl`).
+    path, EPIPE handling, a linear fallback, focus that follows its finding when the order
+    changes, and reflow-aware resizing; `@frame12/terminal/process` (`spawnLogged` with SIGKILL
+    after `killAfterMs` when a canceled child ignores SIGTERM, `openUrl`).
   - Contract: optional `Finding.relation` (`history-only | direct | indirect`) for typed connectors;
     the stream validator rejects a second `snapshot` (`duplicate-snapshot`).
   - `@frame12/terminal/testing`: `createEventFactory` (injected clock), `fakeStreams`, and seven

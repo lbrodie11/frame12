@@ -52,13 +52,21 @@ export function spawnLogged(director, cmd, args = [], options = {}) {
         const err = lineSplitter((line) => director.log(options.stderrLevel ?? 'warn', line, meta('stderr')));
         child.stdout?.on('data', (c) => out.push(c));
         child.stderr?.on('data', (c) => err.push(c));
-        const onAbort = () => child.kill('SIGTERM');
+        // SIGTERM first; a child that ignores it (or is stuck) gets SIGKILL, so a cancel always ends it.
+        let killTimer;
+        const onAbort = () => {
+            child.kill('SIGTERM');
+            killTimer = setTimeout(() => child.kill('SIGKILL'), Math.max(0, options.killAfterMs ?? 5000));
+            killTimer.unref?.();
+        };
         signal.addEventListener('abort', onAbort, { once: true });
         let settled = false;
         const finish = (result) => {
             if (settled)
                 return;
             settled = true;
+            if (killTimer !== undefined)
+                clearTimeout(killTimer);
             signal.removeEventListener('abort', onAbort);
             out.end();
             err.end();
@@ -69,6 +77,9 @@ export function spawnLogged(director, cmd, args = [], options = {}) {
             finish({ code: null, signal: null, error: e.message });
         });
         child.on('close', (code, sig) => {
+            // A child that never started emits 'close' after 'error'; it already logged why.
+            if (settled)
+                return;
             // Flush any partial last lines first, so the exit line is the last thing logged.
             out.end();
             err.end();

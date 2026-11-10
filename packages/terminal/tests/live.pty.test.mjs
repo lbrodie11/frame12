@@ -173,6 +173,19 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
     assert.equal(exitLine(app.raw)?.[1], 'false');
   });
 
+  it('q never forces: the first cancels, the second finishes and says what it has', async () => {
+    const app = spawnApp(['--scenario', 'ignore-cancel']);
+    await app.waitFor(ready);
+    app.child.write('q');
+    await app.waitFor(({ screen }) => /canceled: quit \(q\)/.test(screen));
+    app.child.write('q');
+    const { exitCode } = await app.exited;
+    assert.equal(exitCode, 130);
+    assert.match(app.screen(), /No result snapshot arrived/, 'finished through the normal path, not a forced exit');
+    assert.ok(cursorRestored(app.raw));
+    assert.equal(exitLine(app.raw)?.[1], 'false');
+  });
+
   for (const sig of ['SIGINT', 'SIGTERM']) {
     it(`${sig} cancels like a single Ctrl-C`, { skip: WIN ? 'POSIX signals are not delivered through ConPTY' : false }, async () => {
       const app = spawnApp(['--scenario', 'hold']);
@@ -215,7 +228,8 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
   });
 
   it('re-lays out on resize (120 → 40 → 80) without leftover copies of the live region', async () => {
-    const app = spawnApp(['--scenario', 'hold'], { cols: 120, rows: 30 });
+    // Dev warnings on: the resize cleanup is our own write, so it must not trip the stray-write warning.
+    const app = spawnApp(['--scenario', 'hold', '--dev-warnings', 'on'], { cols: 120, rows: 30 });
     await app.waitFor(ready);
     for (const cols of [40, 80]) {
       app.resize(cols, 30);
@@ -228,6 +242,7 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
     assert.equal(vis.filter((l) => /^FINDINGS \d/.test(l)).length, 1, `one live region:\n${vis.join('\n')}`);
     assert.equal(vis.filter((l) => /j\/k move/.test(l)).length, 1, 'one hint bar');
     for (const l of vis) assert.ok([...l].length <= 80, `line fits 80 columns: ${l}`);
+    assert.doesNotMatch(app.screen(), /wrote to stdout directly/, 'no false stray-write warning');
     app.child.write('\u0003');
     await app.exited;
   });

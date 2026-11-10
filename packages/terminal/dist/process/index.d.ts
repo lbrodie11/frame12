@@ -8,6 +8,8 @@ export interface SpawnLoggedOptions {
     signal?: AbortSignal;
     /** Log level for stderr lines. Default `warn` (stderr is often progress, not failure). */
     stderrLevel?: 'info' | 'warn' | 'error';
+    /** After a cancel, how long a child gets to exit on SIGTERM before it is sent SIGKILL. Default 5000 ms. */
+    killAfterMs?: number;
 }
 export interface SpawnResult {
     /** The exit code, or null when the process was killed or never started. */

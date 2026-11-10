@@ -102,7 +102,8 @@ export function Inspector({ finding, frame, firstReceipt, rc, marker }: { findin
 /** The live view's root. */
 export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onInterrupt, onOpen }: StoryboardProps) {
   const state = useRunState(director);
-  const [focus, setFocus] = React.useState(0);
+  // Only a render trigger for focus moves; the focus itself lives in the refs below.
+  const [, setFocus] = React.useState(0);
   const [inspecting, setInspecting] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
   const [confirmUrl, setConfirmUrl] = React.useState<string | undefined>(undefined);
@@ -124,7 +125,15 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
   }
 
   const ordered = orderFindings(liveFindings(state));
-  const focusIndex = Math.min(focus, Math.max(0, ordered.length - 1));
+  // Focus follows the finding, not its row: when the snapshot arrives or a new finding is narrated
+  // and the order changes, the cursor (and an open Inspector) stays on the same finding. If that
+  // finding is gone, focus stays on the same row.
+  const focusIdRef = React.useRef<string | undefined>(undefined);
+  const lastIndexRef = React.useRef(0);
+  let focusIndex = focusIdRef.current === undefined ? -1 : ordered.findIndex((o) => o.finding.id === focusIdRef.current);
+  if (focusIndex === -1) focusIndex = Math.min(lastIndexRef.current, Math.max(0, ordered.length - 1));
+  focusIdRef.current = ordered[focusIndex]?.finding.id;
+  lastIndexRef.current = focusIndex;
   const focused = ordered[focusIndex];
   const running = state.cuts.filter((c) => c.status === 'running');
 
@@ -140,11 +149,11 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
   });
 
   /** Focus moves are computed from the latest focus, so a batch of keys moves several rows. */
-  const focusRef = React.useRef(0);
-  focusRef.current = focusIndex;
   function moveFocus(delta: number) {
-    focusRef.current = Math.min(Math.max(focusRef.current + delta, 0), Math.max(0, ordered.length - 1));
-    setFocus(focusRef.current);
+    const next = Math.min(Math.max(lastIndexRef.current + delta, 0), Math.max(0, ordered.length - 1));
+    lastIndexRef.current = next;
+    focusIdRef.current = ordered[next]?.finding.id;
+    setFocus(next);
   }
 
   function handleKey(input: string, key: Parameters<Parameters<typeof useInput>[0]>[1]) {
@@ -166,7 +175,7 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
     if (key.upArrow || input === 'k') return moveFocus(-1);
     if (key.return) return setInspecting((v) => !v);
     if (input === 'o') {
-      const url = firstLink(ordered[focusRef.current]?.finding);
+      const url = firstLink(ordered[lastIndexRef.current]?.finding);
       if (url) setConfirmUrl(url);
     }
   }
@@ -177,7 +186,8 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
   const start = Math.max(0, Math.min(focusIndex - Math.floor(room / 2), ordered.length - room));
   const visible = inspecting ? [] : ordered.slice(start, start + room);
   const lastWarning = state.warnings.at(-1);
-  const lastProblem = [...state.logs].reverse().find((l) => l.level === 'error' || l.level === 'warn');
+  let lastProblem: (typeof state.logs)[number] | undefined;
+  for (let i = state.logs.length - 1; i >= 0 && !lastProblem; i--) if (state.logs[i]!.level === 'error' || state.logs[i]!.level === 'warn') lastProblem = state.logs[i];
 
   return (
     <>

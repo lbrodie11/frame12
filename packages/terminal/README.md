@@ -201,7 +201,8 @@ const { code } = await spawnLogged(run.director, 'npm', ['test'], { cut: 'test' 
 ```
 
 `spawnLogged` never uses a shell, logs each stdout line as `info` and stderr line as `warn`
-(sanitized and redacted), kills the child when the run is canceled, and resolves with the exit code.
+(sanitized and redacted), and resolves with the exit code. When the run is canceled it sends the
+child SIGTERM, then SIGKILL if it is still running after `killAfterMs` (default 5000).
 
 ## Capabilities
 

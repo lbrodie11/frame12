@@ -100,6 +100,24 @@ describe('ink: the live view draws the PR 2 grammar', () => {
     app.unmount();
   });
 
+  it('keeps focus on the same finding when the order changes (second review)', async () => {
+    const events = fixture('success').events;
+    const runEnd = events.findIndex((e) => e.type === 'run-end');
+    const { app, director, last } = mount('success', { upTo: runEnd });
+    await tick();
+    app.stdin.write('j');
+    await tick();
+    assert.match(last(), /› F-02 .*Module 2/);
+    // The snapshot lists Module 3 before Module 2, so Module 2 becomes F-03.
+    const snap = structuredClone(events.at(-1).snapshot);
+    snap.findings = [snap.findings[0], snap.findings[2], snap.findings[1]];
+    director.push(events[runEnd]);
+    director.push({ ...events.at(-1), snapshot: snap });
+    await tick();
+    assert.match(last(), /› F-03 .*Module 2/, 'the cursor followed the finding');
+    app.unmount();
+  });
+
   it('keeps the focused finding in view in a short terminal', async () => {
     const { app, last } = mount('forty-findings', { rows: 12 });
     await tick();
@@ -131,6 +149,47 @@ describe('ink: startLive in linear mode (first review)', () => {
       assert.equal(await run.end(), code, 'end() after the fact returns the same code');
     });
   }
+
+  const linear = async (extra = {}) => {
+    const { detectCapabilities } = await import('@frame12/terminal');
+    const { startLive } = await import('@frame12/terminal/ink');
+    const caps = detectCapabilities({}, { stdout: { isTTY: false }, stderr: { isTTY: false } }, [], { platform: 'linux' });
+    return startLive({ caps, motion: 'still', handleSignals: false, ...extra });
+  };
+
+  it('prints the results before it ends, with no false "no snapshot" warning (second review)', async () => {
+    const out = sink();
+    const err = sink();
+    const run = await linear({ stdout: out.stream, stderr: err.stream });
+    for (const ev of fixture('success').events) run.push(ev);
+    assert.equal(await run.done, 0);
+    assert.match(out.text(), /FINDINGS/);
+    assert.doesNotMatch(err.text(), /No result snapshot/);
+  });
+
+  it('leaves a Director the host passed in usable after the run (second review)', async () => {
+    const director = createDirector({ caps: {}, motion: 'still' });
+    const out = sink();
+    const run = await linear({ director, stdout: out.stream, stderr: out.stream });
+    for (const ev of fixture('success').events) run.push(ev);
+    await run.done;
+    const before = director.snapshot().logs.length;
+    director.log('info', 'after the run');
+    assert.equal(director.snapshot().logs.length, before + 1);
+  });
+
+  it('exits 0 on EPIPE and 1 on any other stdout error, restoring first (second review)', async () => {
+    const { EventEmitter } = await import('node:events');
+    for (const [code, expected] of [['EPIPE', 0], ['EIO', 1]]) {
+      const stdout = Object.assign(new EventEmitter(), { write: () => true, isTTY: false });
+      const err = sink();
+      const exits = [];
+      await linear({ stdout, stderr: err.stream, exit: (c) => exits.push(c) });
+      stdout.emit('error', Object.assign(new Error(`write ${code}`), { code }));
+      assert.deepEqual(exits, [expected], code);
+      if (expected === 1) assert.match(err.text(), /stdout failed: write EIO/);
+    }
+  });
 });
 
 describe('ink: lifecycle helpers', () => {

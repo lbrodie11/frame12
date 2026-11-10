@@ -44,6 +44,8 @@ export function startLive(options) {
             ...(options.safety ? { safety: options.safety } : {}),
             ...(options.onCancel ? { onCancel: options.onCancel } : {}),
         });
+    // A Director the host passed in is the host's to dispose; only our own is disposed at the end.
+    const ownsDirector = options.director === undefined;
     const reason = linearReason(caps);
     const mode = reason ? 'linear' : 'live';
     const renderOpts = { ...(options.product ? { product: options.product } : {}), ...(options.nextSteps ? { nextSteps: options.nextSteps } : {}), ...(options.safety ? { safety: options.safety } : {}) };
@@ -51,6 +53,17 @@ export function startLive(options) {
     const done = new Promise((r) => (resolveDone = r));
     let finished = false;
     const cleanups = [];
+    /** Set while we write to stdout ourselves, so the dev warning only catches other writers. */
+    let ownWrite = false;
+    const writeOwn = (text) => {
+        ownWrite = true;
+        try {
+            stdout.write(text);
+        }
+        finally {
+            ownWrite = false;
+        }
+    };
     /** Puts the terminal back: cursor visible, raw mode off, primary screen. Safe to call twice. */
     let restored = false;
     const restore = () => {
@@ -66,16 +79,25 @@ export function startLive(options) {
         }
         try {
             if (stdout.isTTY)
-                stdout.write(options.fullscreen ? `${LEAVE_ALT_SCREEN}${SHOW_CURSOR}` : SHOW_CURSOR);
+                writeOwn(options.fullscreen ? `${LEAVE_ALT_SCREEN}${SHOW_CURSOR}` : SHOW_CURSOR);
         }
         catch {
             // stdout may already be closed.
         }
     };
-    // EPIPE on stdout (`| head`): results already written are enough; exit quietly.
+    // EPIPE on stdout (`| head`): results already written are enough; exit quietly. Any other stdout
+    // error (EIO when the terminal goes away) is a crash: listening here stops Node from throwing it.
     const onStdoutError = (err) => {
+        restore();
         if (err.code === 'EPIPE')
-            exit(0);
+            return exit(0);
+        try {
+            stderr.write(`stdout failed: ${err.message}\n`);
+        }
+        catch {
+            // stderr may be gone too.
+        }
+        exit(1);
     };
     stdout.on('error', onStdoutError);
     cleanups.push(() => stdout.off('error', onStdoutError));
@@ -125,6 +147,8 @@ export function startLive(options) {
             for (const c of cleanups)
                 c();
             const code = exitCodeFor(director.snapshot().status);
+            if (ownsDirector)
+                director.dispose();
             resolveDone(code);
             return code;
         };
@@ -134,8 +158,10 @@ export function startLive(options) {
             mode,
             reason: reason,
             push(event) {
-                director.push(event);
+                // The writer first: the Director finishing on a snapshot ends the writer, which must have
+                // printed that snapshot by then.
                 writer.write(event);
+                director.push(event);
             },
             end: () => finish(),
             done,
@@ -166,13 +192,16 @@ export function startLive(options) {
             stdout.write(renderRich(state.snapshot, renderCapsFor(caps, 'stdout'), renderOpts));
         else
             stderr.write('No result snapshot arrived, so no results are shown.\n');
-        director.dispose();
+        if (ownsDirector)
+            director.dispose();
         const code = exitCodeFor(state.status);
         resolveDone(code);
         return code;
     };
     finish = finishLive;
     const view = () => (_jsx(Storyboard, { director: director, rc: rc(), rows: rows(), ...(options.product ? { product: options.product } : {}), ...(options.nextSteps ? { nextSteps: options.nextSteps } : {}), onQuit: () => {
+            // q never forces: the first cancels a running job (status becomes canceled), so the next
+            // one takes the finish path and prints what is there.
             const status = director.snapshot().status;
             if (status === 'running' || status === 'idle')
                 interrupt('quit (q)');
@@ -185,7 +214,7 @@ export function startLive(options) {
         const original = stdout.write;
         let warned = false;
         stdout.write = function patchedWrite(...args) {
-            if (!warned && !finished && !/[\\/]ink[\\/]build[\\/]/.test(new Error().stack ?? '')) {
+            if (!warned && !finished && !ownWrite && !/[\\/]ink[\\/]build[\\/]/.test(new Error().stack ?? '')) {
                 warned = true;
                 director.log('warn', 'Something wrote to stdout directly during the live view, which corrupts it. Use console.* or spawnLogged, or run with --plain.');
                 // Warned once: put the original back, so no later write pays for a stack trace.
@@ -218,7 +247,7 @@ export function startLive(options) {
         if (columns < lastColumns && !options.fullscreen) {
             const cleanup = reflowCleanup(tracker.lastFrameLines(), columns);
             if (cleanup)
-                stdout.write(cleanup);
+                writeOwn(cleanup);
         }
         lastColumns = columns;
     };
