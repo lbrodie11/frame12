@@ -35,6 +35,7 @@ export const GLYPHS = {
   dot: { char: '·', eaw: 'A', ascii: '-', use: 'separator between label parts' },
   ellipsis: { char: '…', eaw: 'A', ascii: '...', use: 'truncation' },
   rangeDash: { char: '–', eaw: 'A', ascii: '-', use: 'numeric range (41–79%)' },
+  focus: { char: '\u203a', eaw: 'N', ascii: '>', use: 'the focused row in the live view (with aria-state selected)' },
 } as const satisfies Record<string, GlyphSpec>;
 
 export type GlyphName = keyof typeof GLYPHS;

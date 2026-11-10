@@ -11,7 +11,7 @@
  * Every renderer sanitizes its input first, so untrusted strings never reach the grammar raw.
  */
 import type { Capabilities } from '../core/capabilities.js';
-import type { Finding, RunStatus, Snapshot } from '../core/contract.js';
+import type { Finding, LogLevel, RunStatus, Snapshot } from '../core/contract.js';
 import { type SafetyOptions } from '../core/safety.js';
 import { type StreamValidatorOptions } from '../core/validate.js';
 import { type NextStep, type RenderCaps } from './grammar.js';
@@ -75,6 +75,12 @@ export interface LinearResult {
 export interface LinearWriter {
     /** Accepts one event (parsed JSON). Never throws. */
     write(raw: unknown): void;
+    /**
+     * Narrates a log line that did not arrive as an event (the host's own, or a child process's
+     * through `spawnLogged`), exactly like a `log` event: errors and warnings always, the rest only
+     * when verbose. Sanitized and redacted like everything else.
+     */
+    log(level: LogLevel, text: string): void;
     /** Ends the stream; reports what was missing. */
     end(): LinearResult;
 }

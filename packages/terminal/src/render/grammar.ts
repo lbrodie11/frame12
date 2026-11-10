@@ -297,6 +297,8 @@ export interface CardLabels {
   firstReceipt: number;
   /** Paint the frame label as the one marker chip. */
   marker: boolean;
+  /** Receipts listed before "+N more". Default 3; the live Inspector passes Infinity. */
+  maxReceipts?: number;
 }
 
 /** Up to 3 receipts per card; the rest are counted. */
@@ -328,7 +330,7 @@ export function evidenceCard(finding: Finding, labels: CardLabels, rc: RenderCap
     for (const l of wrap(finding.strength.label, inner, rc)) body.push(p(l, 'ink2', rc));
   }
   const receipts = finding.receipts ?? [];
-  const shown = receipts.slice(0, MAX_CARD_RECEIPTS).map((receipt, i) => ({ label: label('E', labels.firstReceipt + i), receipt }));
+  const shown = receipts.slice(0, labels.maxReceipts ?? MAX_CARD_RECEIPTS).map((receipt, i) => ({ label: label('E', labels.firstReceipt + i), receipt }));
   body.push(...receiptList(shown, rc, inner, receipts.length - shown.length));
   return panel({ label: header.join('\n'), body, prominence: finding.prominence }, rc);
 }

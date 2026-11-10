@@ -1,0 +1,9 @@
+{
+  "//": "Core, ./render and ./testing compile without @types/node, so a Node global (Buffer, process.stdout) cannot slip in; tests/boundaries.test.mjs catches Node imports. The live view and ./process use tsconfig.json.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["src/index.ts", "src/core/**/*.ts", "src/render/**/*.ts", "src/testing/**/*.ts", "types/web-globals.d.ts"]
+}

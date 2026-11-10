@@ -17,7 +17,7 @@ The F12-13 prompt says PR #2 has 41 tests. `tests/storyboard.test.mjs` at `22a8b
 | --- | --- | --- |
 | `src/model/types.ts`, `src/model/validate.ts` | `src/core/contract.ts`, `src/core/validate.ts` (contract v1) | Done in PR 1 |
 | `src/render-plain/index.ts` (`sanitizeTerminalText`, `shouldUseColor`, `getDisplayWidth`, `wrapLineToWidth`) | `src/core/safety.ts`, `src/core/capabilities.ts`, `src/core/width.ts` (merged with Repo Archaeology's) | Done in PR 1; the plain renderer itself lands in PR 2 as `src/render/plain.ts` |
-| `src/render-ink/*` | `src/ink/*`, without Git vocabulary | PR 3 |
+| `src/render-ink/*` | `src/ink/*` (`Storyboard`, `Cut`, `Inspector`, `HintBar`), without Git vocabulary | Done in PR 3 |
 | `src/workload/*` | `examples/repo-archaeology/` (reference only) | PR 5 |
 | `src/render-web/*` | docs-site integration | PR 6 |
 | `fixtures/repo-archaeology-reconstructed.json` | `testing` fixture `repo-archaeology` (converted once to v1) | Done in PR 1 |
@@ -47,11 +47,11 @@ The F12-13 prompt says PR #2 has 41 tests. `tests/storyboard.test.mjs` at `22a8b
 | 6.1 | single run-end (failed) and exit 1 for a non-git dir or unwritable report path | Lifecycle and exit codes | PR 3 (exit codes), PR 5 (Git) |
 | 6.2 | empty unborn repo vs corrupt HEAD | Reference app | PR 5 |
 | 6.3 | mid-workflow git failure and subprocess timeout | `spawnLogged` and reference app | PR 3 / PR 5 |
-| 6.4 | single run-end (canceled) with no trailing events on AbortSignal | Director `cancel()` and signal tests | PR 3 |
+| 6.4 | single run-end (canceled) with no trailing events on AbortSignal | `tests/director.test.mjs` (cancel, signal), `tests/live.pty.test.mjs` (Ctrl-C, SIGINT, SIGTERM) | Ported |
 | 7.1 | Repo Archaeology schemaVersion 1 adapter | Fixture converted now (`fixture('repo-archaeology')`); adapter test against a pinned hono SHA | PR 5 |
 | 8.1 | offline HTML report in Chromium (1280/390, light/dark, 0 requests, axe) | Docs-site integration | PR 6 |
 | 9.1 | `check-frame12.mjs` passes on the experiment's src | Grammar tests for terminal output (one marker, no yellow foreground, no boxes, status words) | PR 2; `check-frame12` rules target CSS/TSX, which the terminal core does not contain |
-| 10.1 | Ink components at 40/60/80/120 columns, `--ascii`, NO_COLOR | Ink adapter tests | PR 3 |
-| 10.2 | 12 fps throttle, no-op redraw skip, immediate lifecycle flush, resize | Director pacing and pty tests | PR 3; the tempo vocabulary and 83.33 ms pose are tested now in `tests/motion.test.mjs` |
+| 10.1 | Ink components at 40/60/80/120 columns, `--ascii`, NO_COLOR | `tests/ink.test.mjs` (the components draw the width-tested PR 2 grammar) | Ported |
+| 10.2 | 12 fps throttle, no-op redraw skip, immediate lifecycle flush, resize | `tests/director.test.mjs` (pacing, coalescing, immediate paths, idle), `tests/live.pty.test.mjs` (resize, latency, idle bytes) | Ported |
 | 10.3 | `--style auto\|panels\|plain` resolution, exit code 2 for incompatible flags | `--format` resolution | PR 4 |
 | 10.4 | plain output byte-identical to golden; never loads ink in plain/json | Goldens (PR 2); loader hook for `.` and `./render` (`tests/boundaries.test.mjs`) | Partly ported; goldens in PR 2 |

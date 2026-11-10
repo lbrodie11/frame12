@@ -167,6 +167,17 @@ describe('capabilities: size, interactivity, screen readers and CI', () => {
     assert.equal(caps({ TF_BUILD: 'True' }).ciProvider, 'azure-pipelines');
   });
 
+  it('knows which terminals re-wrap on resize; unknown ones and multiplexers do not (fifth review)', () => {
+    for (const env of [{ TERM_PROGRAM: 'iTerm.app' }, { TERM_PROGRAM: 'vscode' }, { WT_SESSION: 'x' }, { KITTY_WINDOW_ID: '1' }, { VTE_VERSION: '7600' }, { TERM: 'foot' }]) {
+      assert.equal(caps(env).reflow, true, JSON.stringify(env));
+    }
+    for (const env of [{ TERM: 'xterm-256color' }, { TERM: 'linux' }, { TERM_PROGRAM: 'iTerm.app', TMUX: 'x' }, { TERM: 'screen' }]) {
+      assert.equal(caps(env).reflow, false, JSON.stringify(env));
+    }
+    assert.equal(caps({ TERM: 'xterm', FRAME12_REFLOW: '1' }).reflow, true);
+    assert.equal(caps({ TERM_PROGRAM: 'vscode', FRAME12_REFLOW: '0' }).reflow, false);
+  });
+
   it('detects multiplexers', () => {
     assert.equal(caps({ TMUX: 'x' }).multiplexer, 'tmux');
     assert.equal(caps({ TERM: 'screen-256color' }).multiplexer, 'screen');

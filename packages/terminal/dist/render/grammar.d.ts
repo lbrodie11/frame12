@@ -108,6 +108,8 @@ export interface CardLabels {
     firstReceipt: number;
     /** Paint the frame label as the one marker chip. */
     marker: boolean;
+    /** Receipts listed before "+N more". Default 3; the live Inspector passes Infinity. */
+    maxReceipts?: number;
 }
 /** Up to 3 receipts per card; the rest are counted. */
 export declare const MAX_CARD_RECEIPTS = 3;

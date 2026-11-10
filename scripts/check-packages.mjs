@@ -8,7 +8,7 @@
  *   3. Internal `@frame12/*` dependencies use the exact current workspace version (never `workspace:*` or ranges).
  *   4. `files` contains only built output (`dist`), `README.md`, and `LICENSE` (verified against `npm pack --dry-run`).
  *   5. `exports` (plus `main`, `types`, `bin`) resolve to existing files after build, with `types` condition first.
- *   6. Zero runtime dependencies other than allowed internal `@frame12/*` packages (and optional `typescript` peer on `@frame12/lint`).
+ *   6. Zero runtime dependencies other than allowed internal `@frame12/*` packages (and optional peers: `typescript` on `@frame12/lint`, `ink`/`react` on `@frame12/terminal`).
  *   7. `license: "MIT"` and `repository.directory: "packages/<dir>"`.
  *
  * Usage:
@@ -330,9 +330,16 @@ export function validateSinglePackage(pkgInfo, workspacePackagesByName, options 
           `${label}: peerDependency "typescript" on @frame12/lint must be marked optional in peerDependenciesMeta.typescript.optional = true`,
         );
       }
+    } else if (pkgJson.name === '@frame12/terminal' && (peerName === 'ink' || peerName === 'react')) {
+      // Only @frame12/terminal/ink uses them; core, ./render and ./process never load React or Ink.
+      if (peerMeta?.[peerName]?.optional !== true) {
+        errors.push(
+          `${label}: peerDependency "${peerName}" on @frame12/terminal must be marked optional in peerDependenciesMeta.${peerName}.optional = true`,
+        );
+      }
     } else {
       errors.push(
-        `${label}: disallowed peerDependency "${peerName}": "${spec}" (only @frame12/lint may declare an optional typescript peerDependency)`,
+        `${label}: disallowed peerDependency "${peerName}": "${spec}" (only @frame12/lint's optional typescript peer and @frame12/terminal's optional ink/react peers are allowed)`,
       );
     }
   }
