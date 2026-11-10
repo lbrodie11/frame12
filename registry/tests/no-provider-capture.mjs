@@ -4,8 +4,9 @@
 //   - the animation timeline of one state change: the DOM hash at each 60 Hz sample over 1 s
 //     (Playwright's fake clock drives requestAnimationFrame deterministically), plus the timing of
 //     every CSS animation/transition that change starts (document.getAnimations()).
-// `record-no-provider-baseline.mjs` writes this to fixtures/no-provider-baseline.json; the
-// compatibility test in tempo.mjs re-captures and requires an identical result.
+// tempo.mjs captures the pre-tempo registry source (extracted from git) and the current source
+// with this, in the same browser, and requires identical results. Comparing within one
+// environment matters: layout-measured values differ between Chromium builds and fonts.
 import * as React from 'react';
 import { resolve } from 'node:path';
 import { bundlePage, loadServerModule, openFixture, sampleAt60Hz, sha, REGISTRY_ROOT } from './harness.mjs';
@@ -34,9 +35,10 @@ const ANIMATIONS = `document.getAnimations().map((a) => {
   return [a.constructor.name, a.animationName || a.transitionProperty || '', t.duration, t.easing, t.iterations, t.delay].join(' ');
 }).sort()`;
 
-export async function captureNoProvider(browser) {
-  const html = await bundlePage(CONSUMERS_ENTRY, { react: 18 });
-  const { mod, server } = await loadServerModule(CONSUMERS_ENTRY, { react: 18 });
+/** `source`: { dirs: { hooksDir, uiDir, blocksDir }, cssPath } of the registry to capture (default: this one). */
+export async function captureNoProvider(browser, source = {}) {
+  const html = await bundlePage(CONSUMERS_ENTRY, { react: 18, dirs: source.dirs, cssPath: source.cssPath });
+  const { mod, server } = await loadServerModule(CONSUMERS_ENTRY, { react: 18, dirs: source.dirs });
   const names = Object.keys(mod.CONSUMERS);
   const result = {};
   for (const name of names) {

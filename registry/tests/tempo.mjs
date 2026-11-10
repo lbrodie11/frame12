@@ -2,11 +2,12 @@
 // registry install closure, and performance. Chromium; React 18.3 (registry pin) unless noted.
 //   node tests/tempo.mjs
 import AxeBuilder from '@axe-core/playwright';
+import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { launch } from './lib.mjs';
-import { bundlePage, loadServerModule, openFixture, reactVersion, sampleAt60Hz, REGISTRY_ROOT } from './harness.mjs';
+import { bundlePage, loadServerModule, openFixture, reactVersion, sampleAt60Hz, REGISTRY_ROOT, REPO_ROOT } from './harness.mjs';
 import { captureNoProvider } from './no-provider-capture.mjs';
 
 let failures = 0;
@@ -80,18 +81,52 @@ const settle = (page) => page.waitForTimeout(60);
 const browser = await launch('chromium');
 
 // ------------------------------------------------------------ no-provider compatibility (React 18)
+// The pre-tempo registry is main at 0e19283 (the commit F12-08 branched from; it stays in main's
+// history). Its ui/hooks/blocks/styles are extracted from git and captured in this same browser as
+// the current source: layout-measured values differ between Chromium builds and font stacks, so a
+// recorded file would only hold on the machine that recorded it.
+const PRE_TEMPO = '0e192836f94e74583747c3a1e24177ad80d93fb0';
+function extractPreTempo() {
+  const git = (args, opts = {}) => execFileSync('git', args, { cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'], ...opts });
+  try {
+    git(['cat-file', '-e', `${PRE_TEMPO}^{commit}`]);
+  } catch {
+    // Shallow CI checkouts: fetch just that commit (public repository, no credentials needed).
+    git(['fetch', '--no-tags', '--depth=1', 'origin', PRE_TEMPO]);
+  }
+  // Inside the (gitignored) registry/.f12-run so the extracted files resolve node_modules.
+  mkdirSync(join(REGISTRY_ROOT, '.f12-run'), { recursive: true });
+  const dir = mkdtempSync(join(REGISTRY_ROOT, '.f12-run', 'pre-tempo-'));
+  const tar = git(['archive', PRE_TEMPO, 'registry/ui', 'registry/hooks', 'registry/blocks', 'registry/styles'], { maxBuffer: 64 * 1024 * 1024 });
+  execFileSync('tar', ['-x', '-C', dir], { input: tar });
+  return dir;
+}
 {
-  const baseline = JSON.parse(readFileSync(resolve(REGISTRY_ROOT, 'tests/fixtures/no-provider-baseline.json'), 'utf8'));
-  const now = await captureNoProvider(browser);
-  const names = Object.keys(baseline);
-  const diffs = names.filter((n) => JSON.stringify(baseline[n]) !== JSON.stringify(now[n]));
-  check(
-    names.length === 13 && diffs.length === 0 && Object.keys(now).length === names.length,
-    `no-provider compatibility: SSR HTML, settled DOM and 60 Hz animation timelines of all ${names.length} fixtures (9 motion consumer files) identical to the pre-tempo baseline`,
-    diffs
-      .map((n) => `${n}: ${Object.keys(baseline[n]).filter((k) => JSON.stringify(baseline[n][k]) !== JSON.stringify(now[n]?.[k])).join('/')}`)
-      .join(', '),
-  );
+  let preDir = null;
+  try {
+    preDir = extractPreTempo();
+    const reg = join(preDir, 'registry');
+    const before = await captureNoProvider(browser, {
+      dirs: { hooksDir: join(reg, 'hooks'), uiDir: join(reg, 'ui'), blocksDir: join(reg, 'blocks') },
+      cssPath: join(reg, 'styles/frame12.css'),
+    });
+    const now = await captureNoProvider(browser);
+    const names = Object.keys(before);
+    const diffs = names.filter((n) => JSON.stringify(before[n]) !== JSON.stringify(now[n]));
+    const errors = names.flatMap((n) => [...before[n].errors, ...now[n].errors]);
+    check(
+      names.length === 13 && diffs.length === 0 && Object.keys(now).length === names.length && errors.length === 0,
+      `no-provider compatibility: SSR HTML, settled DOM and 60 Hz animation timelines of all ${names.length} fixtures (9 motion consumer files) identical to the pre-tempo source (${PRE_TEMPO.slice(0, 7)})`,
+      diffs
+        .map((n) => `${n}: ${Object.keys(before[n]).filter((k) => JSON.stringify(before[n][k]) !== JSON.stringify(now[n]?.[k])).join('/')}`)
+        .concat(errors)
+        .join(', '),
+    );
+  } catch (err) {
+    check(false, 'no-provider compatibility: extract the pre-tempo registry source from git', String(err.message || err).slice(0, 400));
+  } finally {
+    if (preDir) rmSync(preDir, { recursive: true, force: true });
+  }
 }
 
 const devHtml = await bundlePage(FIXTURE, { react: 18, nodeEnv: 'development' });

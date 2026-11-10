@@ -78,7 +78,7 @@ const HOST_RESET =
 /** Bundles `entry` for the browser and returns a complete HTML document. */
 export async function bundlePage(
   entry,
-  { react = 18, nodeEnv = 'production', head = '', dirs = {}, returnJs = false } = {},
+  { react = 18, nodeEnv = 'production', head = '', dirs = {}, returnJs = false, cssPath } = {},
 ) {
   const res = await build({
     entryPoints: [entry],
@@ -94,12 +94,12 @@ export async function bundlePage(
   });
   if (returnJs) return res.outputFiles[0].text;
   const js = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
-  const css = readFileSync(resolve(REGISTRY_ROOT, 'styles/frame12.css'), 'utf8');
+  const css = readFileSync(cssPath ?? resolve(REGISTRY_ROOT, 'styles/frame12.css'), 'utf8');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>fixture</title>${head}<style>${FONT_FACES}</style><style>${HOST_RESET}</style><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`;
 }
 
 /** Bundles `entry` for Node (React external) and returns its module exports. */
-export async function loadServerModule(entry, { react = 18 } = {}) {
+export async function loadServerModule(entry, { react = 18, dirs = {} } = {}) {
   const req = REACT_BASES[react];
   const res = await build({
     entryPoints: [entry],
@@ -109,7 +109,7 @@ export async function loadServerModule(entry, { react = 18 } = {}) {
     write: false,
     jsx: 'automatic',
     define: { 'process.env.NODE_ENV': '"production"' },
-    plugins: [aliasPlugin(react, { externalReact: true })],
+    plugins: [aliasPlugin(react, { ...dirs, externalReact: true })],
     logLevel: 'silent',
   });
   const mod = { exports: {} };
