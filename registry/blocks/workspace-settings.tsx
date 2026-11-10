@@ -688,6 +688,11 @@ export interface WorkspaceSettingsProps {
   idPrefix?: string;
   /** Callback fired whenever unsaved draft state or modified sections change. */
   onDirtyChange?: (isDirty: boolean, dirtySections: SettingsSection[]) => void;
+  /**
+   * Called once with the new section after every internal section change (tab click, breadcrumb,
+   * or validation jump). Never called on mount. Use it to mirror the section into a URL.
+   */
+  onSectionChange?: (section: SettingsSection) => void;
   /** Optional slot rendered at the top of the sheet (used by the docs showcase for install commands). */
   headerSlot?: React.ReactNode;
   /** Optional slot rendered at the bottom of the sheet. */
@@ -707,6 +712,7 @@ function WorkspaceSettingsInner({
   showSandboxControls = true,
   idPrefix,
   onDirtyChange,
+  onSectionChange,
   headerSlot,
   footerSlot,
 }: WorkspaceSettingsProps) {
@@ -727,6 +733,16 @@ function WorkspaceSettingsInner({
   );
   const [activeSection, setActiveSection] =
     React.useState<SettingsSection>(resolvedDefaultSection);
+  // Report each committed section change (never the initial mount) to the optional callback.
+  // Comparing against the last reported value keeps StrictMode effect replays from double-firing.
+  const onSectionChangeRef = React.useRef(onSectionChange);
+  onSectionChangeRef.current = onSectionChange;
+  const reportedSectionRef = React.useRef(activeSection);
+  React.useEffect(() => {
+    if (reportedSectionRef.current === activeSection) return;
+    reportedSectionRef.current = activeSection;
+    onSectionChangeRef.current?.(activeSection);
+  }, [activeSection]);
   const [datasetState, setDatasetState] =
     React.useState<SettingsDatasetState>(resolvedDefaultDatasetState);
 
@@ -974,10 +990,12 @@ function WorkspaceSettingsInner({
       }
       try {
         const dest = new URL(anchor.href, window.location.href);
+        // A same-page link (only the query or hash differs, e.g. a `?section=` tab URL) keeps
+        // this block mounted or restores the cached draft, so it needs no guard. A hard
+        // reload of the same page is still covered by the `beforeunload` guard above.
         if (
           dest.origin === window.location.origin &&
-          dest.pathname === window.location.pathname &&
-          dest.search === window.location.search
+          dest.pathname === window.location.pathname
         ) {
           return;
         }

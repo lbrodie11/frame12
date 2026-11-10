@@ -2,7 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
+  Breadcrumb,
   Sheet,
   Scene,
   Panel,
@@ -19,6 +21,7 @@ import type { CatalogEntry } from '@/lib/catalog';
 import { useSiteSettings } from '@/components/site-shell';
 import { ComponentPreview } from '@/components/component-preview';
 import { CopyCommand } from '@/components/copy-command';
+import { resolveReturnTarget } from '@/lib/return-context';
 
 /**
  * Component names like `SegmentedControl` are a single unbreakable word that outgrows a 320px
@@ -34,6 +37,61 @@ function withCamelCaseBreaks(title: string): React.ReactNode {
       {part}
     </React.Fragment>
   ));
+}
+
+/**
+ * Header navigation. With a valid `?from=` origin token: a "Return path" trail plus a primary
+ * contextual return link (a real URL built from an allowlist, not `history.back()`) and the
+ * secondary "Browse all components" link. Without one (direct open, unknown or malformed token):
+ * just today's "← All Components". The static HTML always contains the plain link, so it works
+ * without JavaScript.
+ */
+function DetailHeaderNav({ entry }: { entry: CatalogEntry }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const target = resolveReturnTarget(searchParams?.get('from') ?? null);
+  if (!target) return <PlainBackLink />;
+  return (
+    <div className="f12-stack-pair">
+      <Breadcrumb
+        id="detail-return-trail"
+        ariaLabel="Return path"
+        density="compact"
+        items={[
+          ...target.trail.map((crumb) => ({
+            label: crumb.label,
+            href: crumb.href,
+            // Breadcrumb only calls this for plain primary clicks; modified clicks open natively.
+            onClick: crumb.href
+              ? (event: React.MouseEvent<HTMLAnchorElement>) => {
+                  event.preventDefault();
+                  router.push(crumb.href as string);
+                }
+              : undefined,
+          })),
+          { label: entry.title, current: true },
+        ]}
+      />
+      <div className="f12-row-pair">
+        <Link href={target.href} className="f12-link-btn primary" id="detail-return-context">
+          {target.label}
+        </Link>
+        <Link href="/components" className="f12-link-btn" id="detail-browse-components">
+          Browse all components
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function PlainBackLink() {
+  return (
+    <div className="f12-row-pair">
+      <Link href="/components" className="f12-link-btn" id="detail-back-components">
+        ← All Components
+      </Link>
+    </div>
+  );
 }
 
 export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
@@ -53,11 +111,11 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
           <h1 className="f12-title">{withCamelCaseBreaks(entry.title)}</h1>
           <p className="f12-muted-copy">{entry.summary}</p>
         </div>
-        <div className="f12-row-pair">
-          <Link href="/components" className="f12-link-btn" id="detail-back-components">
-            ← All Components
-          </Link>
-        </div>
+        {/* `?from=` is read on the client so detail pages stay statically generated; the
+            fallback is the plain link that direct opens (and no-JS visitors) get anyway. */}
+        <React.Suspense fallback={<PlainBackLink />}>
+          <DetailHeaderNav entry={entry} />
+        </React.Suspense>
       </header>
 
       <Scene gutter="scene" layout="equal">
