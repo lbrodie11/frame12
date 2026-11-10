@@ -6,6 +6,7 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ### Fixed
 
+- **`/components/exposure-scrubber` accessibility (found on frame12.dev after the #39 deploy):** the page's demo and guide headings were `h3` directly under the page `h1` (axe `heading-order`); they are `h2` now, like the page's other sections. The light and dark previews rendered two ExposureScrubber panels with the same accessible name (axe `landmark-unique`); each preview's label now names its theme. `site-verify` runs its axe and grammar sweep on `/components/exposure-scrubber` and the three ink pages too; on that page the frame panel's `CURRENT CUT / F-xx` label is checked as a frame label and every other cut must still be sequential.
 - **Flaky browser tests:** the registry GhostWire mount-pose check measured one animation frame after `createRoot().render()`, which commits asynchronously; on loaded CI runners the line did not exist yet (`firstFrameOffset: 0`, `finalOffset: -1`). It now renders with `flushSync`, waits for the element, and waits for the on-twos reveal to settle (3 s deadline) instead of fixed 480/560 ms windows. Under DevTools CPU throttling the old check failed 16/20 (4×) and 20/20 (10×, 20×); the new one passes 60/60. The site developer-console SLO check's root cause (a late refocus from the retry step) was fixed on `main` in lbrodie11/frame12#35; on top of that, its 24h/7d/30d reads now wait for each expected state (`waitForFunction`, 3 s) instead of reading immediately after a click, and a failure reports where focus went.
 
 ### Added
