@@ -31,6 +31,9 @@
     "./schema.json": "./dist/events.schema.json",
     "./package.json": "./package.json"
   },
+  "bin": {
+    "frame12-term": "./dist/cli/bin.js"
+  },
   "files": [
     "dist"
   ],

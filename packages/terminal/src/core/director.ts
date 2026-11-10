@@ -23,6 +23,7 @@ import type { CutStatus, Finding, LogLevel, Metric, ReceiptRef, RunStatus, Snaps
 import { FRAME_MS, tempoIntervalMs, type Tempo } from './motion.js';
 import { createSanitizer, type SafetyOptions } from './safety.js';
 import { createStreamValidator, describeIssues, type StreamValidatorOptions } from './validate.js';
+import { recordingHeader, recordingLine, redactLinks, type RecordSink } from './recording.js';
 
 export interface CutState {
   cut: string;
@@ -100,6 +101,12 @@ export interface DirectorOptions {
   safety?: SafetyOptions;
   validation?: StreamValidatorOptions;
   scheduler?: Scheduler;
+  /**
+   * Records the run as `.f12rec` lines (see `recording.ts`): the header at once, then every accepted
+   * event, sanitized and redacted (links too), timed by its own `ts`, ending with the snapshot; then
+   * `end()`. A sink that throws stops the recording with a warning (and `end()`). Deterministic.
+   */
+  record?: RecordSink;
 }
 
 export type Listener = (state: Readonly<RunState>) => void;
@@ -114,14 +121,17 @@ export interface AbortSignalLike {
 }
 
 export interface Director {
-  /** Accepts one event (parsed JSON). Never throws. */
-  push(raw: unknown): void;
+  /**
+   * Accepts one event (parsed JSON). Never throws. `where` names it in a dropped-event warning
+   * (`line 12`); by default it is counted (`event 12`).
+   */
+  push(raw: unknown, where?: string): void;
   /**
    * Sees every pushed event, raw and before validation, ahead of the fold and any publish; returns
    * an unsubscribe function. For renderers that validate on their own (the linear view), so events
    * pushed to a shared Director directly reach them too.
    */
-  tap(listener: (raw: unknown) => void): () => void;
+  tap(listener: (raw: unknown, where?: string) => void): () => void;
   /** Subscribes to published states; returns an unsubscribe function. */
   subscribe(listener: Listener): () => void;
   /** The current state (also between publishes). */
@@ -175,7 +185,7 @@ export function createDirector(options: DirectorOptions): Director {
   const stream = createStreamValidator(options.validation);
   const abort = new AbortController();
   const listeners = new Set<Listener>();
-  const taps = new Set<(raw: unknown) => void>();
+  const taps = new Set<(raw: unknown, where?: string) => void>();
   const poseMs = tempoIntervalMs(options.motion);
 
   const state: RunState = {
@@ -391,11 +401,50 @@ export function createDirector(options: DirectorOptions): Director {
     }
   };
 
-  const push = (raw: unknown) => {
+  // Recording: the header at once, then one line per accepted event, timed by the events' own `ts`,
+  // closed after the snapshot (the run's last word) or on dispose. A failing sink stops the
+  // recording, never the run, and says so: an incomplete recording must not pass for a whole one.
+  let recordOrigin: number | undefined;
+  let lastT = 0;
+  let recording = options.record !== undefined;
+  const endRecording = () => {
+    if (!recording) return;
+    recording = false;
+    try {
+      options.record?.end?.();
+    } catch {
+      // Ignore: the run goes on.
+    }
+  };
+  const recordWrite = (line: string): boolean => {
+    try {
+      options.record!.write(line);
+      return true;
+    } catch (err) {
+      const name = options.record!.name ? `${options.record!.name} is` : 'it is';
+      // A host warning (not only state): the linear view narrates it and the live view shows it.
+      addLog({ level: 'warn', text: san.text(`Recording stopped: ${err instanceof Error ? err.message : String(err)}; ${name} incomplete.`, 'log', 'log'), origin: 'host' });
+      endRecording();
+      return false;
+    }
+  };
+  if (recording) recordWrite(recordingHeader());
+  const record = (ev: TerminalEvent): boolean => {
+    if (!recording) return false;
+    const ts = Date.parse(ev.ts);
+    recordOrigin ??= Number.isFinite(ts) ? ts : 0;
+    // Never decreasing, never negative: a producer's clock can step back.
+    lastT = Math.max(lastT, Number.isFinite(ts) ? ts - recordOrigin : lastT);
+    const ok = recordWrite(recordingLine(lastT, redactLinks(ev, options.safety?.redact, ev.type, options.safety?.links)));
+    if (ok && ev.type === 'snapshot') endRecording();
+    return !ok;
+  };
+
+  const push = (raw: unknown, where?: string) => {
     if (disposed) return;
     for (const t of [...taps]) {
       try {
-        t(raw);
+        t(raw, where);
       } catch {
         // A failing tap must not lose the event.
       }
@@ -407,12 +456,13 @@ export function createDirector(options: DirectorOptions): Director {
       if (r.ignorable) state.dropped.ignored++;
       else state.dropped.invalid++;
       // A dropped event is visible: it becomes a warning, published immediately.
-      addWarning(san.text(`${r.ignorable ? 'Ignored' : 'Dropped'} event ${seen}: ${describeIssues(r.issues)}`));
+      addWarning(san.text(`${r.ignorable ? 'Ignored' : 'Dropped'} ${where ?? `event ${seen}`}: ${describeIssues(r.issues)}`));
       publish();
       return;
     }
     const ev = san.event(r.value);
-    const immediate = fold(ev);
+    const recordFailed = record(ev);
+    const immediate = fold(ev) || recordFailed;
     try {
       options.onEvent?.(ev);
     } catch {
@@ -462,6 +512,7 @@ export function createDirector(options: DirectorOptions): Director {
     },
     dispose() {
       disposed = true;
+      endRecording();
       stopPose();
       if (frameTimer !== undefined) sched.clearTimeout(frameTimer);
       frameTimer = undefined;

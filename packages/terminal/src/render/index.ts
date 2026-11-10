@@ -237,8 +237,11 @@ export interface LinearResult {
 }
 
 export interface LinearWriter {
-  /** Accepts one event (parsed JSON). Never throws. */
-  write(raw: unknown): void;
+  /**
+   * Accepts one event (parsed JSON). Never throws. `where` names it in a dropped-event warning
+   * (`line 12`); by default it is counted (`event 12`).
+   */
+  write(raw: unknown, where?: string): void;
   /**
    * Narrates a log line that did not arrive as an event (the host's own, or a child process's
    * through `spawnLogged`), exactly like a `log` event: errors and warnings always, the rest only
@@ -293,13 +296,13 @@ export function createLinearWriter(options: LinearWriterOptions): LinearWriter {
     log(level, text) {
       narrateLog(level, san.text(text, 'log', 'log'));
     },
-    write(raw) {
+    write(raw, where) {
       seen++;
       const r = stream.push(raw);
       if (!r.ok) {
         if (r.ignorable) ignored++;
         else invalid++;
-        warn(`${r.ignorable ? 'ignored' : 'dropped'} event ${seen}: ${describeIssues(r.issues)}`);
+        warn(`${r.ignorable ? 'ignored' : 'dropped'} ${where ?? `event ${seen}`}: ${describeIssues(r.issues)}`);
         return;
       }
       const ev: TerminalEvent = san.event(r.value);

@@ -11,3 +11,4 @@ export * from './core/width.js';
 export * from './core/tokens.js';
 export * from './core/glyphs.js';
 export * from './core/director.js';
+export * from './core/recording.js';

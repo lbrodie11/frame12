@@ -53,7 +53,8 @@ export declare function safeLink(href: unknown, policy?: LinkPolicy): string | u
  * `safeLink`; otherwise returns `text` unchanged. This is the only OSC 8 the package emits.
  */
 export declare function formatLink(text: string, href: unknown, enabled: boolean, policy?: LinkPolicy): string;
-export type RedactField = 'log' | 'receipt' | 'text' | 'identifier';
+/** `link`: a URL (a remote), seen by the hook only when a run is recorded. */
+export type RedactField = 'log' | 'receipt' | 'text' | 'identifier' | 'link';
 export interface RedactContext {
     /** What kind of field this string came from. */
     field: RedactField;

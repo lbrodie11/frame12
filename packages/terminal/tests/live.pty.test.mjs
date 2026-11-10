@@ -238,7 +238,8 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
   for (const [scenario, signals, code] of [
     ['ignore-cancel', ['SIGTERM', 'SIGTERM'], 130],
     ['ignore-cancel', ['SIGHUP', 'SIGHUP'], 130],
-    ['idle', ['SIGTERM'], 0],
+    // The run ended (completed) but its snapshot never arrived: unfinished, exit 1.
+    ['idle', ['SIGTERM'], 1],
   ]) {
     it(`${signals.join(' + ')} ends the process (${scenario}, fifth review)`, { skip: WIN ? 'POSIX signals are not delivered through ConPTY' : false }, async () => {
       const app = spawnApp(['--scenario', scenario]);
