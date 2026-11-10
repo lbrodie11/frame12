@@ -40,6 +40,8 @@ npx shadcn@latest add https://frame12.dev/r/frame12.json
 npx shadcn@latest add https://frame12.dev/r/sheet.json
 ```
 
+Tabbed blocks (`DeveloperConsole`, `WorkspaceSettings`) stay router-agnostic. To make the active tab shareable and Back-safe, keep it in the URL: read `?section=` (validate it against the block's section union), pass it as `defaultSection`, and write changes back with `history.replaceState` from the additive `onSectionChange` callback (replace, not push, so tab switches never flood history). See `references/components-and-adapters.md` §7.
+
 > **Local / Self-Hosted Registry:** `https://frame12.dev` is the live production registry origin (`NEXT_PUBLIC_SITE_URL`). When working offline or locally, serve `site/public/r/` (`npm --workspace=@frame12/site run dev`) and pass `http://localhost:3000/r/frame12.json` to `npx shadcn@latest add`, or start from `templates/next-starter/`.
 
 > **Safe Upgrades & Non-Interactive Agent Installs (`--overwrite`):**

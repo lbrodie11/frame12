@@ -20,13 +20,45 @@ import { CATALOG, BLOCK_CATALOG, type ComponentCategory } from '@/lib/catalog';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
 import { REGISTRY_BASE_URL } from '@/lib/config';
+import {
+  catalogGroupAnchorId,
+  catalogOriginToken,
+  type CatalogGroupId,
+} from '@/lib/return-context';
+import { returnFocusProps } from '@/lib/history-focus';
+
+/** "Inspect →" link that carries its catalog group as an origin token and remembers focus. */
+function InspectLink({ slug, title, group }: { slug: string; title: string; group: CatalogGroupId }) {
+  const id = `comp-link-${slug}`;
+  return (
+    <Link
+      href={`/components/${slug}?from=${catalogOriginToken(group)}`}
+      id={id}
+      className="f12-link-btn f12-nowrap"
+      aria-label={`Inspect ${title}`}
+      {...returnFocusProps(catalogGroupAnchorId(group))}
+    >
+      Inspect →
+    </Link>
+  );
+}
+
+function GroupHeading({ group, children }: { group: CatalogGroupId; children: React.ReactNode }) {
+  return (
+    <h2 className="f12-section-title f12-anchor-target" id={catalogGroupAnchorId(group)} tabIndex={-1}>
+      {children}
+    </h2>
+  );
+}
 
 function CategoryTable({
   category,
   caption,
+  group,
 }: {
   category: ComponentCategory;
   caption: string;
+  group: CatalogGroupId;
 }) {
   const entries = CATALOG.filter((c) => c.category === category);
   return (
@@ -50,14 +82,7 @@ function CategoryTable({
             </TableCell>
             <TableCell>{entry.summary}</TableCell>
             <TableCell>
-              <Link
-                href={`/components/${entry.slug}`}
-                id={`comp-link-${entry.slug}`}
-                className="f12-link-btn f12-nowrap"
-                aria-label={`Inspect ${entry.title}`}
-              >
-                Inspect →
-              </Link>
+              <InspectLink slug={entry.slug} title={entry.title} group={group} />
             </TableCell>
           </TableRow>
         ))}
@@ -151,9 +176,10 @@ export default function ComponentsIndexPage() {
               <Tag>01 · Layout</Tag>
               <span className="f12-mono-note">Sheet · Scene · Panel · PanelPair</span>
             </div>
-            <h2 className="f12-section-title">Storyboard layout & gutters</h2>
+            <GroupHeading group="layout">Storyboard layout & gutters</GroupHeading>
             <CategoryTable
               category="Layout"
+              group="layout"
               caption="Layout components enforcing 12px/20px/32px gutters and mitered 2.5px ink borders."
             />
           </div>
@@ -167,9 +193,10 @@ export default function ComponentsIndexPage() {
                 SegmentedControl · Tabs · Button · Field · Input · Textarea · Checkbox · RadioGroup · Switch · Badge · Tag · Alert · Toast · Skeleton · EmptyState · Breadcrumb · Pagination
               </span>
             </div>
-            <h2 className="f12-section-title">Exposure-sheet controls & markers</h2>
+            <GroupHeading group="controls">Exposure-sheet controls & markers</GroupHeading>
             <CategoryTable
               category="Controls"
+              group="controls"
               caption="Interactive controls with immediate hover feedback and stepped state transitions."
             />
           </div>
@@ -185,9 +212,10 @@ export default function ComponentsIndexPage() {
                 Metric · ToneAreaChart · ToneBarList · ToneSpark · Balloon
               </span>
             </div>
-            <h2 className="f12-section-title">Screentone visualizations & speech balloons</h2>
+            <GroupHeading group="data-charts">Screentone visualizations & speech balloons</GroupHeading>
             <CategoryTable
               category="Data & Charts"
+              group="data-charts"
               caption="Zero-dependency SVG visualizations using 45° halftone dot patterns and semantic data tables."
             />
           </div>
@@ -203,7 +231,7 @@ export default function ComponentsIndexPage() {
                 useOnTwos · Dialog · Select · Tooltip · DropdownMenu · Table
               </span>
             </div>
-            <h2 className="f12-section-title">12fps motion hooks & accessible primitive skins</h2>
+            <GroupHeading group="hooks-adapters">12fps motion hooks & accessible primitive skins</GroupHeading>
             <Table>
               <TableCaption>
                 Motion hooks and accessible Radix/native primitive adapters styled with FRAME/12 ink rules.
@@ -230,14 +258,7 @@ export default function ComponentsIndexPage() {
                     </TableCell>
                     <TableCell>{entry.summary}</TableCell>
                     <TableCell>
-                      <Link
-                        href={`/components/${entry.slug}`}
-                        id={`comp-link-${entry.slug}`}
-                        className="f12-link-btn f12-nowrap"
-                        aria-label={`Inspect ${entry.title}`}
-                      >
-                        Inspect →
-                      </Link>
+                      <InspectLink slug={entry.slug} title={entry.title} group="hooks-adapters" />
                     </TableCell>
                   </TableRow>
                 ))}

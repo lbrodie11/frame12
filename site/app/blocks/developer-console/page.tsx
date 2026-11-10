@@ -1,117 +1,14 @@
-'use client';
+import { DeveloperConsoleShowcase } from './showcase';
 
-import * as React from 'react';
-import Link from 'next/link';
-import { Panel, Badge, Tag } from '@/components/frame12';
-import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';
-import { useSiteSettings } from '@/components/site-shell';
-import { CopyCommand } from '@/components/copy-command';
-import { BlockDocumentationSection } from '@/components/block-doc-footer';
-import { REGISTRY_BASE_URL } from '@/lib/config';
+// The active tab lives in `?section=`. Rendering per request lets the server HTML show that tab
+// (so it works without JavaScript and the page height is right before first paint, which keeps
+// native Back/Forward scroll restoration accurate).
+//
+// Trade-off (accepted for a docs site): this page is no longer statically cached on the CDN and
+// each visit runs a server render. If that cost matters, pre-render one page per section
+// (`/blocks/<slug>/[section]` via generateStaticParams) and rewrite `?section=` to it.
+export const dynamic = 'force-dynamic';
 
 export default function DeveloperConsoleShowcasePage() {
-  const { motion } = useSiteSettings();
-
-  return (
-    <DeveloperConsole
-      idPrefix="dev-console"
-      motion={motion}
-      footerSlot={
-        <div className="f12-stack-scene">
-          <Panel variant="quiet" label="Install Developer Console registry block">
-            <div className="f12-stack-pair">
-              <div className="f12-row-between">
-                <div className="f12-row-pair">
-                  <Badge burst={false}>registry:block · @frame12/developer-console</Badge>
-                  <span className="f12-mono-note">
-                    Installs @/components/frame12/blocks/developer-console.tsx + full FRAME/12 kit
-                  </span>
-                </div>
-                <div className="f12-row-pair">
-                  <Link
-                    href="/blocks/workspace-settings"
-                    className="f12-link-btn"
-                    id="block-console-to-settings"
-                  >
-                    Workspace Settings Block →
-                  </Link>
-                  <Link
-                    href="/blocks/analytics-dashboard"
-                    className="f12-link-btn"
-                    id="block-console-to-analytics"
-                  >
-                    Analytics Block →
-                  </Link>
-                  <Link
-                    href="/components"
-                    className="f12-link-btn"
-                    id="block-console-back-components"
-                  >
-                    All Components &amp; Blocks →
-                  </Link>
-                </div>
-              </div>
-              <CopyCommand
-                id="copy-install-developer-console"
-                label="Install Developer Console block via shadcn CLI (@frame12 namespace)"
-                command="npx shadcn@latest add @frame12/developer-console"
-              />
-              <CopyCommand
-                id="copy-install-developer-console-url"
-                label="Full manifest URL alternative"
-                command={`npx shadcn@latest add ${REGISTRY_BASE_URL}/developer-console.json`}
-              />
-            </div>
-          </Panel>
-
-          <Panel variant="quiet" label="Block architecture and Expressive/Quiet hierarchy notes">
-            <div className="f12-stack-pair">
-              <div className="f12-row-pair">
-                <span className="f12-console-quiet-title">
-                  ARCHITECTURE &amp; GRAMMAR NOTES (WP6 FLAGSHIP BLOCK)
-                </span>
-                <Tag status="neutral">RECONCILED FIXTURES</Tag>
-              </div>
-              <div className="f12-console-kv-list">
-                <div className="f12-console-kv-item">
-                  <span className="f12-console-kv-label">
-                    Expressive Cuts (C-01..C-03 + Modal C-04..C-05)
-                  </span>
-                  <span className="f12-console-kv-value">
-                    Hero KPIs, 45° Halftone Chart &amp; Ranked Insights
-                  </span>
-                  <span className="f12-mono-note">
-                    Uses 2.5px SVG mitered frames, --font-f-display numerals, and speech-balloon peak
-                    callouts.
-                  </span>
-                </div>
-                <div className="f12-console-kv-item">
-                  <span className="f12-console-kv-label">Quiet Operational Ledgers</span>
-                  <span className="f12-console-kv-value">
-                    Services, Masked API Keys &amp; Paginated Logs
-                  </span>
-                  <span className="f12-mono-note">
-                    Uses 1px orthographic rules, compact tabular density, and unnumbered exposure-sheet
-                    subgroups.
-                  </span>
-                </div>
-                <div className="f12-console-kv-item">
-                  <span className="f12-console-kv-label">100% Data Reconciliation</span>
-                  <span className="f12-console-kv-value">
-                    1,482,900 Requests Across 4 Services &amp; 8 Routes
-                  </span>
-                  <span className="f12-mono-note">
-                    Service shares (44% / 30% / 17% / 9%) and endpoint 24h totals sum to the exact
-                    gateway KPI.
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Panel>
-
-          <BlockDocumentationSection slug="developer-console" />
-        </div>
-      }
-    />
-  );
+  return <DeveloperConsoleShowcase />;
 }

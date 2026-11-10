@@ -900,8 +900,11 @@ export interface DeveloperConsoleProps {
   className?: string;
   headerSlot?: React.ReactNode;
   footerSlot?: React.ReactNode;
+  onSectionChange?: (section: ConsoleSection) => void;
 }
 ```
+
+`onSectionChange` (additive, optional) fires once with the new section after every internal section change (tab, breadcrumb, empty-state or cross-link), never on mount. It keeps the block router-agnostic: mirror the section into the URL in your app (e.g. `?section=` via `history.replaceState`) and pass it back as `defaultSection` so Back/reload/shared links reopen the same tab.
 
 ### `WorkspaceSettings` (`blocks/workspace-settings.tsx`)
 Operational Workspace Settings block (`npx shadcn@latest add https://frame12.dev/r/workspace-settings.json`). Emphasizes Quiet presentation (`<Panel variant="quiet">`, compact form density, 1px rules) paired with one focused Expressive posture header (`C-01`) across 7 canonical sections: Profile, Workspace Preferences, Notifications, Appearance, Motion Preferences, Team & Roles, and Danger Zone. Includes cross-tab unsaved-change detection, field-level and cross-section validation with focus transfer, save/discard/reset, navigation protection (`beforeunload` + workspace target switch guard modal `C-02`), RBAC member management (`C-03`), and destructive lifecycle confirmations (`C-04`).
@@ -920,10 +923,13 @@ export interface WorkspaceSettingsProps {
   showSandboxControls?: boolean;
   idPrefix?: string;
   onDirtyChange?: (isDirty: boolean, dirtySections: SettingsSection[]) => void;
+  onSectionChange?: (section: SettingsSection) => void;
   headerSlot?: React.ReactNode;
   footerSlot?: React.ReactNode;
 }
 ```
+
+`onSectionChange` follows the same contract as `DeveloperConsole`'s: once per committed section change, never on mount.
 
 ### `AnalyticsDashboard` & `RevenueRecoveryCoreScenes` (`blocks/analytics-dashboard.tsx`)
 Installable Revenue Recovery Analytics block (`npx shadcn@latest add https://frame12.dev/r/analytics-dashboard.json`). Shares a single authoritative deterministic `mulberry32(1207)` 180-day recovery fixture model (`Fernwood Supply Co.`) with the public homepage (`/`). Combines the Expressive Storyboard establishing shot (`C-01` `Metric` + `ToneAreaChart`, `C-02`/`C-03` `PanelPair` + `ToneSpark`, and `C-04` `ToneBarList`) with Quiet period-over-period comparison (`Current` vs `Prior` window), checkout segment breakdown (`Returning VIP & Loyalty`, `First-Time Mobile Checkout`, `High-AOV Desktop Carts`), filterable daily attribution evidence ledger (`Input`, `Select`, `Table`, `Pagination`), and `C-05` Daily Attribution modal `<Dialog>`, plus `populated` / `loading` / `empty` / `error` sandbox states.

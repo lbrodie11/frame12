@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SegmentedControl, Tag } from '@/components/frame12';
 import { type MotionMode } from '@/hooks/use-on-twos';
+import { NAV_ITEMS, resolveNavOwnership } from '@/lib/nav-ownership';
+import { startFocusRestoration, startFocusTracking } from '@/lib/history-focus';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -28,19 +30,6 @@ export function useSiteSettings(): SiteSettingsContextValue {
   return React.useContext(SiteSettingsContext);
 }
 
-const NAV_ITEMS = [
-  { href: '/', label: 'Home', id: 'nav-home' },
-  { href: '/motion', label: 'Motion', id: 'nav-motion' },
-  { href: '/components', label: 'Components', id: 'nav-components' },
-  { href: '/blocks/developer-console', label: 'Developer Console', id: 'nav-developer-console' },
-  { href: '/blocks/workspace-settings', label: 'Workspace Settings', id: 'nav-workspace-settings' },
-  { href: '/blocks/analytics-dashboard', label: 'Analytics Block', id: 'nav-analytics-dashboard' },
-  { href: '/agents', label: 'Agents', id: 'nav-agents' },
-  { href: '/static', label: 'Static HTML', id: 'nav-static' },
-  { href: '/style-sheet', label: 'Style Sheet', id: 'nav-style-sheet' },
-  { href: '/get-started', label: 'Get Started', id: 'nav-get-started' },
-];
-
 const THEME_OPTIONS: Array<{ value: ThemeMode; label: string; unit: string }> = [
   { value: 'light', label: 'Light', unit: 'paper' },
   { value: 'dark', label: 'Dark', unit: 'ink' },
@@ -62,6 +51,67 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = React.useState(false);
   const [motion, setMotion] = React.useState<MotionMode>('stepped');
   const navListRef = React.useRef<HTMLUListElement | null>(null);
+  const ownership = resolveNavOwnership(pathname);
+  const [navOverflow, setNavOverflow] = React.useState({ start: false, end: false });
+
+  // Back/Forward only: return focus to the link that was activated on that history entry.
+  React.useEffect(() => {
+    const stopTracking = startFocusTracking();
+    const stopRestoring = startFocusRestoration();
+    return () => {
+      stopTracking();
+      stopRestoring();
+    };
+  }, []);
+
+  // Overflow cue for the narrow, horizontally scrolling nav row (its scrollbar is hidden): show
+  // an edge fade + chevron at each edge that still has links beyond it, and nothing otherwise.
+  useIsomorphicLayoutEffect(() => {
+    const list = navListRef.current;
+    if (!list) return;
+    const update = () => {
+      const max = list.scrollWidth - list.clientWidth;
+      const next = { start: max > 1 && list.scrollLeft > 1, end: max > 1 && list.scrollLeft < max - 1 };
+      setNavOverflow((prev) => (prev.start === next.start && prev.end === next.end ? prev : next));
+    };
+    update();
+    // Keep a keyboard-focused link fully visible and clear of the cue strips. The native focus
+    // scroll alone can be undone by scroll snapping (seen in Chromium), leaving the focused link
+    // off-screen. Only the row's scrollLeft changes, never the page scroll.
+    let focusRaf = 0;
+    const onFocusIn = (event: FocusEvent) => {
+      const link = (event.target as HTMLElement | null)?.closest?.<HTMLElement>('.site-nav-link');
+      if (!link) return;
+      window.cancelAnimationFrame(focusRaf);
+      focusRaf = window.requestAnimationFrame(() => {
+        const max = list.scrollWidth - list.clientWidth;
+        if (max <= 1) return;
+        const parsedPad = parseFloat(getComputedStyle(list).scrollPaddingLeft);
+        const pad = Number.isFinite(parsedPad) ? parsedPad : 32;
+        const lr = list.getBoundingClientRect();
+        const r = link.getBoundingClientRect();
+        if (r.left >= lr.left + pad - 1 && r.right <= lr.right - pad + 1) return;
+        // Align the link's start to the scroll padding: that is a snap position, so snapping
+        // keeps it there (a partial nudge would be snapped back).
+        list.scrollLeft = Math.max(0, Math.min(list.scrollLeft + r.left - (lr.left + pad), max));
+      });
+    };
+    list.addEventListener('focusin', onFocusIn);
+    list.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver === 'function') {
+      ro = new ResizeObserver(update);
+      ro.observe(list);
+    }
+    return () => {
+      window.cancelAnimationFrame(focusRaf);
+      list.removeEventListener('focusin', onFocusIn);
+      list.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      ro?.disconnect();
+    };
+  }, [pathname]);
 
   // On narrow screens the nav is a single horizontally scrolling row: keep the current page's link
   // visible on route change and when the viewport resizes into the horizontal-scroll layout. Only
@@ -70,14 +120,33 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   useIsomorphicLayoutEffect(() => {
     const list = navListRef.current;
     if (!list) return;
-    const centerActive = () => {
+    let settleRaf = 0;
+    const centerActive = (settle = true) => {
       if (list.scrollWidth <= list.clientWidth) return;
-      const active = list.querySelector<HTMLElement>('[aria-current="page"]');
+      const active = list.querySelector<HTMLElement>('[aria-current]');
       if (!active) return;
       const offset = active.getBoundingClientRect().left - list.getBoundingClientRect().left;
       const target = list.scrollLeft + offset - (list.clientWidth - active.offsetWidth) / 2;
       list.scrollLeft = Math.max(0, Math.min(target, list.scrollWidth - list.clientWidth));
+      if (!settle) return;
+      // Centering can switch the overflow cue on, which widens the scroll padding and makes the
+      // browser re-snap the row to the nearest link start. For a link near either end that can
+      // leave it partly off-screen (seen with the 10th nav item), so check once more after the
+      // padding has changed. Only a snap-sized nudge (at most half a link) is undone: any larger
+      // change came from someone else (a user or a script scrolling the row) and is left alone,
+      // as is everything after user input.
+      const placed = list.scrollLeft;
+      window.cancelAnimationFrame(settleRaf);
+      settleRaf = window.requestAnimationFrame(() => {
+        if (Math.abs(list.scrollLeft - placed) > 48) return;
+        const lr = list.getBoundingClientRect();
+        const r = active.getBoundingClientRect();
+        if (r.left < lr.left || r.right > lr.right) centerActive(false);
+      });
     };
+    const cancelSettle = () => window.cancelAnimationFrame(settleRaf);
+    const userInput = ['pointerdown', 'wheel', 'touchstart', 'keydown'] as const;
+    for (const type of userInput) list.addEventListener(type, cancelSettle, { passive: true });
     centerActive();
     let prevWidth = list.clientWidth;
     if (typeof ResizeObserver === 'function') {
@@ -88,8 +157,16 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
         }
       });
       ro.observe(list);
-      return () => ro.disconnect();
+      return () => {
+        cancelSettle();
+        for (const type of userInput) list.removeEventListener(type, cancelSettle);
+        ro.disconnect();
+      };
     }
+    return () => {
+      cancelSettle();
+      for (const type of userInput) list.removeEventListener(type, cancelSettle);
+    };
   }, [pathname]);
 
   useIsomorphicLayoutEffect(() => {
@@ -248,20 +325,29 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            <nav aria-label="Primary" className="site-nav">
+            <nav
+              aria-label="Primary"
+              className="site-nav"
+              data-overflow-start={navOverflow.start ? 'true' : undefined}
+              data-overflow-end={navOverflow.end ? 'true' : undefined}
+            >
               <ul className="site-nav-list" role="list" ref={navListRef}>
                 {NAV_ITEMS.map((item) => {
-                  const active =
-                    item.href === '/'
-                      ? pathname === '/'
-                      : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  const current = ownership?.id === item.id ? ownership.current : undefined;
+                  const className = [
+                    'site-nav-link',
+                    current ? 'active' : '',
+                    current === 'page' ? 'is-page' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ');
                   return (
                     <li key={item.href}>
                       <Link
                         href={item.href}
                         id={item.id}
-                        className={`site-nav-link${active ? ' active' : ''}`}
-                        aria-current={active ? 'page' : undefined}
+                        className={className}
+                        aria-current={current}
                       >
                         {item.label}
                       </Link>
@@ -269,6 +355,12 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                   );
                 })}
               </ul>
+              <span className="site-nav-cue site-nav-cue-start" aria-hidden="true">
+                <span className="site-nav-cue-glyph">‹</span>
+              </span>
+              <span className="site-nav-cue site-nav-cue-end" aria-hidden="true">
+                <span className="site-nav-cue-glyph">›</span>
+              </span>
             </nav>
           </div>
         </header>

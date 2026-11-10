@@ -9,7 +9,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && npm run typecheck && node ../scripts/check-frame12.mjs src app && node tests/site-verify.mjs"
+    "test:unit": "node tests/unit.mjs",
+    "test:navigation": "node tests/navigation-continuity.mjs",
+    "test": "npm run build && npm run typecheck && node ../scripts/check-frame12.mjs src app && npm run test:unit && node tests/site-verify.mjs && npm run test:navigation"
   },
   "dependencies": {
     "@frame12/static": "0.2.0",
