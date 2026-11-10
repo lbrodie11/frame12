@@ -9,6 +9,7 @@ FRAME/12 is an interface design language built from page composition and cel-ani
 
 For complete TypeScript prop signatures and adapter details, read [references/components-and-adapters.md](references/components-and-adapters.md).
 For worked screen examples, common drift fixes, and ESLint enforcement, read [references/examples-and-mistakes.md](references/examples-and-mistakes.md).
+For non-React HTML (CI reports, PR pages, CLI output, VS Code webviews), read [references/static-html.md](references/static-html.md) and use `@frame12/static`.
 
 ---
 
@@ -153,6 +154,25 @@ When you installed the full kit (`frame12.json`) or started from `templates/next
 | Focus/hover hint | `Tooltip` (`TooltipProvider`, `TooltipTrigger`, `TooltipContent`) | `title` attribute or raw Radix Tooltip |
 | Action menu | `DropdownMenu` (`DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuLabel`, `DropdownMenuSeparator`) | Raw Radix DropdownMenu |
 | Structured tabular ledger | `Table` (`TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`) | Unstyled `<table>` or data-grid libraries |
+
+### Static HTML without React (`@frame12/static`)
+
+When the output is generated HTML rather than a React app, don't hand-write lookalike markup.
+Install `@frame12/static` (`npm install @frame12/static`) and use its renderers. They emit the
+same DOM and classes as the components above: `sheet`, `scene`, `sceneArea`, `panel`,
+`panelPair`, `balloon`, `tag` (stamps: `tag({ variant: 'stamp' })`), `badge`, `metric`,
+`toneBarList`, `ghostWire`, `receipt`, `receiptList`, and `document()` for a full page.
+
+- Pass untrusted text (commit subjects, file names, PR text, user input) as **plain strings**.
+  Renderers escape them exactly once.
+- Compose with `fragment(...)`, never with `+`. `Html` joined with `+` becomes a plain string and
+  is escaped.
+- **Never** pass untrusted input to `unsafeRaw()`. It is the only escaping bypass, for markup
+  you wrote yourself.
+- Links go through `safeUrl()` (`http:`, `https:`, `mailto:`, `#fragment` only). Identifiers
+  (`area`, `idPrefix`, ids) must match `^[a-z][a-z0-9-]{0,63}$`, otherwise the renderer throws.
+- In strict-CSP hosts, use `document({ inlineCss: false })` and load `@frame12/tokens/tokens.css`
+  and `@frame12/static/static.css` as stylesheets. Don't loosen the CSP.
 
 ---
 
