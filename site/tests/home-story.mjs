@@ -120,13 +120,19 @@ const seek = (page, t) =>
       a.currentTime = t;
     }
   }, t);
-/** Scrolls so the story track is at `p` (0..1) of its contain range. */
+/**
+ * Scrolls so the story track is at `p` (0..1) of its contain range, with the track's
+ * `view-timeline-inset: 0 -min(25svh, 300px)`: the timeline's viewport reaches that far below the
+ * fold, and `contain` runs between "fully inside" and "covering" it.
+ */
 const scrollToProgress = (page, p) =>
   page.evaluate((p) => {
     const t = document.getElementById('home-story');
     const top = t.getBoundingClientRect().top + window.scrollY;
-    const range = Math.max(0, t.offsetHeight - window.innerHeight);
-    window.scrollTo(0, top + range * p);
+    const port = window.innerHeight + Math.min(window.innerHeight * 0.25, 300);
+    const start = top + Math.min(0, t.offsetHeight - port);
+    const end = top + Math.max(0, t.offsetHeight - port);
+    window.scrollTo(0, start + (end - start) * p);
   }, p);
 const finished = (page) =>
   page.evaluate(() => {
@@ -205,6 +211,37 @@ try {
       check(size.paths <= 60 && gz <= 12 * 1024, `${tag} inline SVG budget: ${size.paths} paths (≤ 60) and ${gz} B gzipped (≤ 12 KB)`);
       const hidden = await page.evaluate(() => [...document.querySelectorAll('#home-story svg')].every((s) => s.getAttribute('aria-hidden') === 'true'));
       check(hidden, `${tag} every story drawing is aria-hidden="true"; the section has a heading`, String(await page.getByRole('heading', { name: 'How a frame gets made' }).count()));
+
+      // Layout: the strip scrolls with the page. Nothing is pinned and nothing pads the track, so
+      // there is never an empty band between the story and the install panel, at any viewport.
+      for (const [w, h] of [[1440, 900], [1440, 1400], [1280, 720], [1920, 1080], [390, 844]]) {
+        await page.setViewportSize({ width: w, height: h });
+        await page.waitForTimeout(50);
+        const band = await page.evaluate(() => {
+          const t = document.getElementById('home-story');
+          const strip = t.querySelector('.home-story-strip').getBoundingClientRect();
+          const skip = document.getElementById('home-story-skip').getBoundingClientRect();
+          const install = document.getElementById('home-install').getBoundingClientRect();
+          const pinned = [t, ...t.querySelectorAll('*')].some((e) => ['sticky', 'fixed'].includes(getComputedStyle(e).position));
+          return { pinned, below: Math.round(install.top - Math.max(strip.bottom, skip.bottom)), track: Math.round(t.getBoundingClientRect().height - (Math.max(strip.bottom, skip.bottom) - t.getBoundingClientRect().top)) };
+        });
+        check(!band.pinned && band.track <= 1 && band.below <= TOKENS.change + 1,
+          `${tag} ${w}×${h}: no empty band under the story (nothing sticky, track ends with its content, ${band.below}px to the install panel ≤ the ${TOKENS.change}px change gutter)`, band);
+      }
+      await page.setViewportSize({ width: 1440, height: 900 });
+      if (supports) {
+        // The drawing being scrubbed is on screen for the whole scroll range.
+        const inView = [];
+        for (const p of [0, 0.25, 0.5, 0.75, 1]) {
+          await scrollToProgress(page, p);
+          await page.waitForTimeout(50);
+          inView.push(await page.evaluate(() => [...document.querySelectorAll('#home-story svg.home-story-art')].every((s) => {
+            const r = s.getBoundingClientRect();
+            return r.top >= -1 && r.bottom <= window.innerHeight + 1;
+          })));
+        }
+        check(inView.every(Boolean), `${tag} scroll driver: every drawing is fully on screen from 0% to 100% of the scroll range`, inView);
+      }
 
       // Captions and links: visible and in the accessibility tree at every scroll progress.
       const seen = [];

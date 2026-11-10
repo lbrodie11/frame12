@@ -15,12 +15,16 @@ function renderDemoFrame(frame: ExposureFrame, _index: number, ctx: { scrubbing:
   );
 }
 
-/** A compact scrubber for the light/dark preview panels (the illustrative CI run). */
-export function ExposurePreview({ idPrefix }: { idPrefix: string }) {
+/**
+ * A compact scrubber for the light/dark preview panels (the illustrative CI run). The page renders
+ * one per theme, so the theme is part of its accessible name: two landmarks with the same name
+ * cannot be told apart (axe landmark-unique).
+ */
+export function ExposurePreview({ idPrefix, theme }: { idPrefix: string; theme: 'light' | 'dark' }) {
   const demo = React.useMemo(() => buildCiRunDemo(), []);
   return (
     <ExposureScrubber
-      label={demo.label}
+      label={`${demo.label} (${theme} preview)`}
       frames={demo.frames}
       renderFrame={renderDemoFrame}
       primaryMarker={demo.primaryMarker}
@@ -42,7 +46,7 @@ function DemoPair({ demo, idPrefix }: { demo: ExposureDemo; idPrefix: string }) 
             {demo.illustrative ? <Tag status="warning">Illustrative</Tag> : <Tag status="info">From fixtures</Tag>}
             <span className="f12-mono-note">{demo.source}</span>
           </div>
-          <h3 className="f12-section-title">{demo.title}</h3>
+          <h2 className="f12-section-title">{demo.title}</h2>
           <ExposureScrubber
             label={demo.label}
             frames={demo.frames}
@@ -57,7 +61,7 @@ function DemoPair({ demo, idPrefix }: { demo: ExposureDemo; idPrefix: string }) 
       <Panel variant="quiet" label={`${demo.title}: find the cause`}>
         <div className="f12-stack-pair">
           <p className="f12-mono-note">FIND THE CAUSE · same run, raw log</p>
-          <h3 className="f12-section-title">{demo.question}</h3>
+          <h2 className="f12-section-title">{demo.question}</h2>
           <p className="f12-body-copy">
             Answer it twice: first from the raw log below, then from the sheet. Note which was faster.
           </p>
@@ -124,7 +128,7 @@ export function ExposureDemos({ agent }: { agent: ExposureDemo }) {
       <Scene gutter="scene" layout="equal">
         <Panel variant="quiet" label="ExposureScrubber guide: when to use it and the rules">
           <div className="f12-stack-pair">
-            <h3 className="f12-section-title">Sheet, log or TraceTimeline?</h3>
+            <h2 className="f12-section-title">Sheet, log or TraceTimeline?</h2>
             <ul className="f12-stack-pair" role="list">
               <li className="f12-body-copy">
                 <strong>ExposureScrubber</strong> when the run is finished and its shape matters: where the time went, the
@@ -138,7 +142,7 @@ export function ExposureDemos({ agent }: { agent: ExposureDemo }) {
                 component&apos;s engine, <code>useExposure</code>.
               </li>
             </ul>
-            <h3 className="f12-section-title">Rules</h3>
+            <h2 className="f12-section-title">Rules</h2>
             <ul className="f12-stack-pair" role="list">
               <li className="f12-body-copy">
                 <strong>Order is not causality.</strong> <code>causes</code> must come from your data (a parent id, a
@@ -163,7 +167,7 @@ export function ExposureDemos({ agent }: { agent: ExposureDemo }) {
         </Panel>
         <Panel variant="quiet" label="ExposureScrubber recipe: deep-link a frame with controlled value">
           <div className="f12-stack-pair">
-            <h3 className="f12-section-title">Recipe: link to a frame</h3>
+            <h2 className="f12-section-title">Recipe: link to a frame</h2>
             <p className="f12-body-copy">
               URL syncing is not built in. Keep the frame id in the URL with a controlled <code>value</code>:
             </p>

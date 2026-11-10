@@ -248,6 +248,10 @@ const ROUTES = [
   '/components/tone-area-chart',
   '/components/toast',
   '/components/pagination',
+  '/components/exposure-scrubber',
+  '/components/ink-stroke',
+  '/components/ink-reveal',
+  '/components/ink-sequence',
   '/blocks/developer-console',
   '/blocks/workspace-settings',
   '/blocks/analytics-dashboard',
@@ -539,6 +543,15 @@ try {
           groups.every(isSequence) &&
           groups[1].join() === groups[2].join() &&
           groups.flat().length === g.cuts.length;
+      } else if (route === '/components/exposure-scrubber') {
+        // ExposureScrubber's frame panel labels its cut with the frame being shown
+        // ("CURRENT CUT / F-14"), not a sheet sequence number. Those labels must name a frame;
+        // every other cut on the page must still read C-01, C-02… in order.
+        const frameCuts = g.cuts.filter((c) => c.startsWith('CURRENT CUT'));
+        g.sequential =
+          frameCuts.length > 0 &&
+          frameCuts.every((c) => /^CURRENT CUT \/ F-\d{2,}$/.test(c)) &&
+          isSequence(g.cuts.filter((c) => !c.startsWith('CURRENT CUT')));
       } else {
         g.sequential = isSequence(g.cuts);
       }

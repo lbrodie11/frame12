@@ -759,7 +759,7 @@ export function ComponentPreview({
       case 'exposure-scrubber':
         return (
           <div className="f12-preview-sheet">
-            <ExposurePreview idPrefix={`${pfx}-xs`} />
+            <ExposurePreview idPrefix={`${pfx}-xs`} theme={previewTheme} />
           </div>
         );
 

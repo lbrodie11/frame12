@@ -1013,6 +1013,11 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   --f12-ink-timeline: --home-story;
   view-timeline-name: --home-story;
   view-timeline-axis: block;
+  /* The strip scrolls with the page (never pinned, so there is no empty band below it). Its scroll
+     range starts while its lower edge is still min(25svh, 300px) below the fold (the drawings sit at
+     the top of each panel, so they are already in view) and ends when its top reaches the top of
+     the viewport, so even a short strip on a tall viewport gets room for its 48 poses. */
+  view-timeline-inset: 0px calc(-1 * min(25svh, 300px));
 }
 .home-story-stage {
   display: flex;
@@ -1086,24 +1091,6 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   align-self: flex-start;
   color: var(--f-ink);
 }
-/* Scroll driver layout: where scroll timelines are supported and the strip fits the viewport, the
-   stage sticks inside a track at most 1.5 extra viewport heights tall (the spacer sits inside the
-   content box so the sticky stage can travel through it). It depends on CSS alone, never on JS
-   state or tempo, so hydration and tempo changes never move the page (CLS 0); under `still` the
-   finished storyboard simply stays pinned while you scroll past. Native scroll only. */
-@supports (animation-timeline: view()) {
-  @media (min-width: 1000px) and (min-height: 720px) {
-    .home-story-track::after {
-      content: "";
-      display: block;
-      height: 150svh;
-    }
-    .home-story-stage {
-      position: sticky;
-      top: var(--f-gutter-change);
-    }
-  }
-}
 @media (forced-colors: active) {
   .home-story-note,
   .home-story-cut {
@@ -1117,12 +1104,6 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   }
 }
 @media print {
-  .home-story-track::after {
-    display: none !important;
-  }
-  .home-story-stage {
-    position: static !important;
-  }
   .home-story-skip,
   #home-story-play {
     display: none;

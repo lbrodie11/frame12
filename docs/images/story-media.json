@@ -11,11 +11,11 @@
     "packages/tokens/src/tokens.source.json (gutter, stroke, pose)",
     "site/src/lib/catalog.ts (COMPONENT_COUNT)"
   ],
-  "sourceHash": "66a714dab91f5db74a06eb0b1cddfc764d4b272169d0cbd0266e04e86cf196a5",
+  "sourceHash": "eefdafdd0f1e572a3f49519056e7bb02d014382a34a824f82902f0db64074a53",
   "frames": 84,
   "fps": 12,
   "files": {
-    "story.webm": "ff6584fbe2df62fd3bea635f884b0773387939ea05c38cec7f48dc38759d026a",
+    "story.webm": "b0fa96d633b58b18661159012c269d8ea633a2340a83d869855c49c4b514d73e",
     "story.gif": "7c13912687da2912e2d6986277c8e344fcb778edc1f41e01e81f05403f6bb98b",
     "story-og.png": "7d646fb6d942c9bd3dc09bd90d7d5461f5fab61ba741f4f1a7911e6ed9bb852a"
   }
