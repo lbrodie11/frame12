@@ -3,6 +3,12 @@
 All notable changes to `@frame12/tokens` are documented in this file.
 This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Line-art stroke widths for the ink primitives (`InkStroke`, `InkReveal`, `InkSequence`): `stroke.pencil` (`--f-stroke-pencil: 1px`, decorative construction lines) and `stroke.detail` (`--f-stroke-detail: 1.5px`, lines inside a frame), beside the existing `stroke.ink` (`--f-stroke: 2.5px`) for frames. Additive: no existing token changes. Not released yet (no version bump in this change).
+
 ## [0.2.0] - 2026-11-08
 
 ### Added

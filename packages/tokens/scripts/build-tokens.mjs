@@ -214,6 +214,8 @@ export function buildTokenArtifacts(source = JSON.parse(fs.readFileSync(SOURCE_P
     ),
     '',
     `  --f-stroke: ${formatDtcgDimensionCss(source.stroke.ink.$value)};`,
+    `  --f-stroke-pencil: ${formatDtcgDimensionCss(source.stroke.pencil.$value)};`,
+    `  --f-stroke-detail: ${formatDtcgDimensionCss(source.stroke.detail.$value)};`,
     `  --f-pose: ${formatDtcgDurationCss(source.motion.pose.$value)};`,
     `  --f-fps: ${source.motion.fps.$value};`,
     '',
@@ -326,6 +328,19 @@ export function buildTokenArtifacts(source = JSON.parse(fs.readFileSync(SOURCE_P
           'dev.frame12.cssVar': '--f-stroke',
         },
       },
+      ...Object.fromEntries(
+        ['pencil', 'detail'].map((name) => [
+          name,
+          {
+            $type: 'dimension',
+            $value: source.stroke[name].$value,
+            $description: source.stroke[name].$description,
+            $extensions: {
+              'dev.frame12.cssVar': `--f-stroke-${name}`,
+            },
+          },
+        ]),
+      ),
     },
     motion: {
       pose: {
@@ -381,6 +396,8 @@ export function buildTokenArtifacts(source = JSON.parse(fs.readFileSync(SOURCE_P
     ),
     stroke: {
       ink: formatDtcgDimensionCss(source.stroke.ink.$value),
+      pencil: formatDtcgDimensionCss(source.stroke.pencil.$value),
+      detail: formatDtcgDimensionCss(source.stroke.detail.$value),
     },
     motion: {
       pose: formatDtcgDurationCss(source.motion.pose.$value),
