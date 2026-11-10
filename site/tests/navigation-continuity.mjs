@@ -453,6 +453,29 @@ async function runEngine(engineName, engine) {
         T('?section=bogus gives Overview, no error, and the bogus parameter is removed'),
         `tab=${bogusTab} errors=${page.__errors.join('; ')}`,
       );
+      // The default section is redundant too: `?section=overview` / `?section=profile` are dropped,
+      // while a real non-default section stays in the URL.
+      const kept = [];
+      for (const [path, cleanPath, tabId] of [
+        [`${CONSOLE}?section=overview`, CONSOLE, 'dev-console-tab-overview'],
+        ['/blocks/workspace-settings?section=profile', '/blocks/workspace-settings', 'ws-settings-tabs-tab-profile'],
+      ]) {
+        await goto(page, path);
+        try {
+          await page.waitForURL(`${base}${cleanPath}`, { timeout: 4000 });
+        } catch {
+          kept.push(page.url());
+        }
+        if ((await selectedTab(page)) !== tabId) kept.push(`${path}: wrong tab`);
+      }
+      await goto(page, `${CONSOLE}?section=services`);
+      await page.waitForTimeout(400);
+      const realKept = page.url().endsWith('?section=services');
+      check(
+        kept.length === 0 && realKept && page.__errors.length === 0,
+        T('?section=<default> is dropped from the URL; a real section is kept'),
+        `${kept.join('; ')} realKept=${realKept}`,
+      );
       await ctx.close();
     }
 
