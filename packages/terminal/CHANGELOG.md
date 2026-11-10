@@ -63,6 +63,11 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     SIGTERM/SIGHUP finish and exit when nothing is left to cancel; EPIPE on stderr exits 0; final
     results use the current width; `spawnLogged` settles `drainMs` after the child exits even if a
     grandchild holds its pipes.
+  - **Reference apps** (F12-13 PR 5, `examples/`, not published): a Repo Archaeology
+    investigation wrapping the published `repo-archaeology` 0.10.0 CLI (adapter tested against a
+    committed hono 61f7c59 fixture), a build pipeline through `spawnLogged` with failures as
+    `danger` panels, and an agent-approval y/N prompt that never approves by itself. Each runs in
+    all four renderers and has a VHS tape; live views and the prompt are tested in a real pty.
   - **The `frame12-term` CLI and recordings** (F12-13 PR 4): `frame12-term render` reads NDJSON
     events from stdin or `--from` and renders `--format rich|plain|json|live`, with a 64 KiB line
     limit, line-numbered reports of malformed lines, `--strict`, `--replay` (original timing,
