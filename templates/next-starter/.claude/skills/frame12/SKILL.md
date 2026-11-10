@@ -10,6 +10,7 @@ FRAME/12 is an interface design language built from page composition and cel-ani
 For complete TypeScript prop signatures and adapter details, read [references/components-and-adapters.md](references/components-and-adapters.md).
 For worked screen examples, common drift fixes, and ESLint enforcement, read [references/examples-and-mistakes.md](references/examples-and-mistakes.md).
 For non-React HTML (CI reports, PR pages, CLI output, VS Code webviews), read [references/static-html.md](references/static-html.md) and use `@frame12/static`.
+For terminal output (CLI narration, results in a TTY, CI logs), read [references/terminal.md](references/terminal.md) and use `@frame12/terminal`.
 
 ---
 
@@ -180,6 +181,22 @@ same DOM and classes as the components above: `sheet`, `scene`, `sceneArea`, `pa
 - In strict-CSP hosts, use `document({ inlineCss: false })` and load `@frame12/tokens/tokens.css`
   and `@frame12/static/static.css` as stylesheets. Recommended policy:
   `style-src <host>; style-src-attr 'unsafe-inline'`. Don't loosen it further.
+
+### Terminal output (`@frame12/terminal`)
+
+For command-line tools, don't hand-roll ANSI. Install `@frame12/terminal` and build on its core:
+the event contract (`validateEvent`, `createStreamValidator`), `detectCapabilities`,
+`resolveTerminalMotion`, `createSanitizer`, and the width helpers (`stringWidth`,
+`truncateMiddle`, `wrap`). See [references/terminal.md](references/terminal.md).
+
+- Sanitize every untrusted string (commit subjects, paths, tool output, log lines) with
+  `createSanitizer()` before printing. It removes escape sequences (including OSC 8 and OSC 52),
+  shows bidi controls, and masks common tokens in every text field.
+- Marker yellow is a background chip used once per screen (`paint(label, 'marker', level)`),
+  never yellow text. Every status carries a word, not just a glyph or color.
+- Narration goes to stderr and results to stdout; pipes and `TERM=dumb` get no escape sequences.
+- Motion paces decoration only, and `NO_MOTION` / `REDUCED_MOTION` turn it off (terminals have no
+  OS reduced-motion signal).
 
 ---
 

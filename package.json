@@ -9,6 +9,7 @@
     "packages/tokens",
     "packages/lint",
     "packages/static",
+    "packages/terminal",
     "lab",
     "registry",
     "eval",

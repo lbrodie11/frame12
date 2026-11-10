@@ -594,6 +594,32 @@ if (present.includes('@frame12/lint')) {
   results.lint = { ok: true, cleanViolations: cleanRes.length, dirtyRules: dirtyRes.map((v) => v.rule) };
 }
 
+if (present.includes('@frame12/terminal')) {
+  // Core and ./testing must work with no React or Ink installed (this project has none).
+  const term = await import('@frame12/terminal');
+  const testing = await import('@frame12/terminal/testing');
+  let events = 0;
+  for (const f of testing.fixtures()) {
+    const stream = term.createStreamValidator();
+    for (const ev of f.events) {
+      const r = stream.push(ev);
+      assert.ok(r.ok, '@frame12/terminal fixture ' + f.name + ' event ' + ev.seq + ' must validate');
+      events++;
+    }
+    assert.ok(term.validateSnapshot(f.snapshot).ok, '@frame12/terminal fixture ' + f.name + ' snapshot must validate');
+  }
+  const unknown = term.validateEvent({ ...testing.fixture('success').events[0], type: 'from-the-future' });
+  assert.ok(!unknown.ok && unknown.ignorable, 'unknown event types must be ignorable');
+  const caps = term.detectCapabilities({ NO_COLOR: '1' }, { stdout: { isTTY: false } }, []);
+  assert.equal(caps.colorLevel, 0, 'NO_COLOR must disable color');
+  const clean = term.sanitizeText('a\u001b]52;c;ZXZpbA==\u0007b\u202e');
+  assert.equal(clean, 'ab\\\\u{202e}', 'the sanitizer must remove OSC 52 and show bidi controls');
+  const schemaPath = fileURLToPath(import.meta.resolve('@frame12/terminal/schema.json'));
+  const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+  assert.equal(schema.oneOf.length, term.EVENT_TYPES.length, 'schema.json must list every event type');
+  results.terminal = { fixtures: testing.FIXTURE_NAMES.length, events, schemaEvents: schema.oneOf.length };
+}
+
 if (present.includes('@frame12/static')) {
   // document() must not touch the filesystem at runtime. Import the package (module loading reads
   // files), then make every public node:fs entry point throw before rendering anything.
@@ -675,6 +701,30 @@ export const out = page.length + cssText.length + String(notAString).length + St
       );
       execFileSync(process.execPath, [realTsc, '-p', path.join(consumerDir, 'tsconfig.json')], { cwd: consumerDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
       parsed.results.static = { ...parsed.results.static, typesResolve: true };
+    }
+
+    if (installedNames.has('@frame12/terminal')) {
+      const tscPath = path.join(rootDir, 'node_modules/typescript/bin/tsc');
+      const realTsc = fs.existsSync(tscPath) ? tscPath : path.join(DEFAULT_REPO_ROOT, 'node_modules/typescript/bin/tsc');
+      fs.writeFileSync(
+        path.join(consumerDir, 'terminal-types-check.ts'),
+        `import { createStreamValidator, detectCapabilities, type Capabilities, type TerminalEvent } from '@frame12/terminal';
+import { fixture } from '@frame12/terminal/testing';
+const caps: Capabilities = detectCapabilities({}, { stdout: { isTTY: false } }, []);
+const events: TerminalEvent[] = fixture('success').events;
+const v = createStreamValidator();
+for (const e of events) v.push(e);
+// @ts-expect-error: unknown event types are not part of the contract
+const bad: TerminalEvent = { ...events[0]!, type: 'from-the-future' };
+export const out = [caps.columns, bad];
+`,
+      );
+      fs.writeFileSync(
+        path.join(consumerDir, 'tsconfig.terminal.json'),
+        JSON.stringify({ compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true, noEmit: true, types: [], lib: ['ES2022'] }, files: ['terminal-types-check.ts'] }, null, 2),
+      );
+      execFileSync(process.execPath, [realTsc, '-p', path.join(consumerDir, 'tsconfig.terminal.json')], { cwd: consumerDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      parsed.results.terminal = { ...parsed.results.terminal, typesResolve: true };
     }
 
     if (!options.silent) {

@@ -1,0 +1,54 @@
+{
+  "name": "@frame12/terminal",
+  "version": "0.1.0",
+  "description": "FRAME/12's interface language for the command line: one event contract, safe and width-correct terminal output, and the FRAME/12 grammar for developer workflows.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    },
+    "./schema.json": "./dist/events.schema.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@frame12/tokens": "0.2.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/build.mjs --check",
+    "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && node ../../node_modules/typescript/bin/tsc -p tests/tsconfig.json",
+    "test": "node scripts/build.mjs --check && npm run typecheck && node --test \"tests/*.test.mjs\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lbrodie11/frame12.git",
+    "directory": "packages/terminal"
+  },
+  "homepage": "https://frame12.dev/terminal",
+  "keywords": [
+    "terminal",
+    "cli",
+    "ansi",
+    "ndjson",
+    "frame12",
+    "design-system"
+  ],
+  "engines": {
+    "node": ">=22"
+  }
+}

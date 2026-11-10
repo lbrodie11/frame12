@@ -1,6 +1,6 @@
 {
   "name": "@frame12/lint",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "FRAME/12 design-grammar linter for TSX, JSX, TS, JS, CSS, and generated HTML.",
   "license": "MIT",
   "type": "module",

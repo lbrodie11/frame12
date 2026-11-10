@@ -1,0 +1,238 @@
+/**
+ * Terminal capability detection. `detectCapabilities` is pure: everything it reads is passed in,
+ * so tests inject environments instead of depending on the machine running them.
+ */
+import { flagValue, hasFlag, lastFlag } from './argv.js';
+/** Known CI provider variables, checked in order. `CI` itself is checked first. */
+const CI_PROVIDERS = [
+    ['GITHUB_ACTIONS', 'github-actions'],
+    ['GITLAB_CI', 'gitlab'],
+    ['BUILDKITE', 'buildkite'],
+    ['CIRCLECI', 'circleci'],
+    ['TRAVIS', 'travis'],
+    ['JENKINS_URL', 'jenkins'],
+    ['TEAMCITY_VERSION', 'teamcity'],
+    ['TF_BUILD', 'azure-pipelines'],
+    ['BITBUCKET_BUILD_NUMBER', 'bitbucket'],
+    ['APPVEYOR', 'appveyor'],
+    ['DRONE', 'drone'],
+    ['CODEBUILD_BUILD_ID', 'aws-codebuild'],
+    ['SEMAPHORE', 'semaphore'],
+    ['BUILD_BUILDID', 'azure-pipelines'],
+];
+const MIN_COLUMNS = 20;
+const MAX_COLUMNS = 400;
+const MIN_ROWS = 5;
+const MAX_ROWS = 200;
+/** `true` when the variable is set, non-empty and not `0` / `false`. */
+export function envFlag(env, name) {
+    const v = env[name];
+    if (v === undefined)
+        return false;
+    const t = v.trim().toLowerCase();
+    return t !== '' && t !== '0' && t !== 'false';
+}
+export function detectCi(env) {
+    for (const [name, provider] of CI_PROVIDERS) {
+        if (env[name] !== undefined && env[name] !== '' && env[name] !== 'false')
+            return { ci: true, provider };
+    }
+    if (envFlag(env, 'CI') || envFlag(env, 'CONTINUOUS_INTEGRATION'))
+        return { ci: true, provider: undefined };
+    return { ci: false, provider: undefined };
+}
+function locale(env) {
+    return env.LC_ALL || env.LC_CTYPE || env.LANG || '';
+}
+/** Locales whose terminals traditionally render East Asian ambiguous-width characters wide. */
+export function isCjkLocale(env) {
+    return /^(ja|zh|ko)(?:[_.@-]|$)/i.test(locale(env));
+}
+/** True for terminals that implement OSC 8 hyperlinks. Unknown terminals get plain text. */
+function terminalSupportsLinks(env) {
+    const program = env.TERM_PROGRAM ?? '';
+    if (['iTerm.app', 'WezTerm', 'ghostty', 'vscode', 'Hyper', 'Tabby', 'rio', 'Alacritty'].includes(program))
+        return true;
+    if (env.WT_SESSION)
+        return true;
+    if (env.KITTY_WINDOW_ID || env.TERM === 'xterm-kitty')
+        return true;
+    if (env.KONSOLE_VERSION)
+        return true;
+    if (env.TERM === 'foot' || env.TERM?.startsWith('foot-'))
+        return true;
+    if (env.TERM === 'xterm-ghostty' || env.TERM === 'wezterm')
+        return true;
+    const vte = Number(env.VTE_VERSION);
+    if (Number.isFinite(vte) && vte >= 5000)
+        return true;
+    return false;
+}
+function detectMultiplexer(env) {
+    if (env.TMUX || env.TERM?.startsWith('tmux'))
+        return 'tmux';
+    if (env.STY || env.TERM?.startsWith('screen'))
+        return 'screen';
+    return undefined;
+}
+/** Color depth from the terminal's own variables, ignoring TTY-ness. */
+function detectDepth(env) {
+    const colorTerm = (env.COLORTERM ?? '').toLowerCase();
+    const program = env.TERM_PROGRAM ?? '';
+    if (colorTerm === 'truecolor' ||
+        colorTerm === '24bit' ||
+        Boolean(env.WT_SESSION) ||
+        program === 'vscode' ||
+        program === 'WezTerm' ||
+        program === 'iTerm.app' ||
+        program === 'ghostty' ||
+        program === 'Alacritty') {
+        return 3;
+    }
+    if (env.TERM && /256color/i.test(env.TERM))
+        return 2;
+    return 1;
+}
+/**
+ * Color level for one stream. Precedence (ported from Repo Archaeology RA-13, then CLI overrides):
+ * 1. `--no-color` / `--color` (the last one on the command line wins)
+ * 2. non-empty `NO_COLOR` → 0 (https://no-color.org/)
+ * 3. `NODE_DISABLE_COLORS` (non-empty, not `0`) → 0
+ * 4. `FORCE_COLOR` (`0`/`false` → 0, `1`/`true` → 1, `2` → 2, `3`+ → 3), honored even on pipes
+ * 5. `TERM=dumb` or not a TTY → 0
+ * 6. depth from `COLORTERM`, `WT_SESSION`, `TERM_PROGRAM`, `TERM=*256color`
+ */
+export function resolveColorLevel(env, argv, isTTY) {
+    const flag = lastFlag(argv, '--color', '--no-color');
+    if (flag === '--no-color')
+        return 0;
+    if (flag === '--color')
+        return detectDepth(env);
+    if (env.NO_COLOR !== undefined && env.NO_COLOR !== '')
+        return 0;
+    if (env.NODE_DISABLE_COLORS !== undefined && env.NODE_DISABLE_COLORS !== '' && env.NODE_DISABLE_COLORS !== '0')
+        return 0;
+    if (env.FORCE_COLOR !== undefined && env.FORCE_COLOR !== '') {
+        const fc = env.FORCE_COLOR.trim().toLowerCase();
+        if (fc === '0' || fc === 'false')
+            return 0;
+        if (fc === '1' || fc === 'true')
+            return 1;
+        if (fc === '2')
+            return 2;
+        if (fc === '3')
+            return 3;
+        const num = Number(fc);
+        if (Number.isInteger(num) && num >= 3)
+            return 3;
+        if (Number.isInteger(num) && num > 0)
+            return num;
+    }
+    if (env.TERM === 'dumb')
+        return 0;
+    if (!isTTY)
+        return 0;
+    return detectDepth(env);
+}
+function resolveUnicode(env, argv, platform) {
+    const flag = lastFlag(argv, '--ascii', '--unicode');
+    if (flag === '--ascii')
+        return false;
+    if (flag === '--unicode')
+        return true;
+    if (envFlag(env, 'FRAME12_ASCII'))
+        return false;
+    if (env.TERM === 'dumb')
+        return false;
+    const program = env.TERM_PROGRAM ?? '';
+    const knownModern = Boolean(env.WT_SESSION) ||
+        program === 'vscode' ||
+        program === 'Apple_Terminal' ||
+        program === 'iTerm.app' ||
+        program === 'WezTerm' ||
+        program === 'ghostty' ||
+        program === 'Alacritty' ||
+        Boolean(env.KITTY_WINDOW_ID);
+    if (knownModern)
+        return true;
+    if (platform === 'win32') {
+        // Legacy conhost has no TERM and no Windows Terminal session; its default code page mangles
+        // box drawing and symbols. MSYS/mintty and ConEmu set TERM or their own variables.
+        return Boolean(env.TERM) || Boolean(env.ConEmuANSI) || env.TERM_PROGRAM !== undefined;
+    }
+    const loc = locale(env);
+    if (loc === '')
+        return true; // Unset: modern POSIX terminals default to UTF-8.
+    return /utf-?8/i.test(loc);
+}
+function resolveLinks(env, argv, ctx) {
+    const flag = lastFlag(argv, '--links', '--no-links');
+    if (flag === '--no-links')
+        return false;
+    if (flag === '--links')
+        return true;
+    if (env.FRAME12_LINKS !== undefined && env.FRAME12_LINKS !== '')
+        return envFlag(env, 'FRAME12_LINKS');
+    if (env.FORCE_HYPERLINK === '0')
+        return false;
+    if (env.FORCE_HYPERLINK === '1')
+        return true;
+    if (ctx.dumb || !ctx.isTTY || ctx.ci)
+        return false;
+    if (ctx.multiplexer)
+        return false;
+    return terminalSupportsLinks(env);
+}
+function resolveAmbiguousWide(env) {
+    const v = env.FRAME12_AMBIGUOUS_WIDE;
+    if (v !== undefined && v !== '')
+        return envFlag(env, 'FRAME12_AMBIGUOUS_WIDE');
+    return isCjkLocale(env);
+}
+function clampInt(n, lo, hi) {
+    return Math.min(hi, Math.max(lo, Math.floor(n)));
+}
+function positive(v) {
+    const n = typeof v === 'string' ? Number(v) : v;
+    return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : undefined;
+}
+/**
+ * Detects what the terminal can do. Pure: pass `process.env`, `{ stdin, stdout, stderr }` and
+ * `process.argv` (or test doubles). Every flag has a CLI override: `--color`/`--no-color`,
+ * `--ascii`/`--unicode`, `--links`/`--no-links`, `--screen-reader`, `--columns N`, `--rows N`.
+ */
+export function detectCapabilities(env = {}, streams = {}, argv = [], options = {}) {
+    const platform = options.platform ?? (typeof process !== 'undefined' ? process?.platform : undefined) ?? 'linux';
+    const isTTY = streams.stdout?.isTTY === true;
+    const stderrIsTTY = streams.stderr?.isTTY === true;
+    const stdinTTY = streams.stdin?.isTTY === true;
+    const { ci, provider } = detectCi(env);
+    const dumb = env.TERM === 'dumb';
+    const multiplexer = detectMultiplexer(env);
+    const ttyStream = isTTY ? streams.stdout : stderrIsTTY ? streams.stderr : undefined;
+    const columns = clampInt(positive(flagValue(argv, '--columns')) ?? positive(ttyStream?.columns) ?? positive(env.COLUMNS) ?? 80, MIN_COLUMNS, MAX_COLUMNS);
+    const rows = clampInt(positive(flagValue(argv, '--rows')) ?? positive(ttyStream?.rows) ?? positive(env.LINES) ?? 24, MIN_ROWS, MAX_ROWS);
+    const screenReader = hasFlag(argv, '--screen-reader') || envFlag(env, 'FRAME12_SCREEN_READER') || env.INK_SCREEN_READER === 'true';
+    const interactive = stdinTTY && isTTY && !ci && !dumb && typeof streams.stdin?.setRawMode === 'function';
+    const colorLevel = resolveColorLevel(env, argv, isTTY);
+    const stderrColorLevel = resolveColorLevel(env, argv, stderrIsTTY);
+    return {
+        colorLevel,
+        stderrColorLevel,
+        attributes: colorLevel > 0 || (isTTY && !dumb),
+        stderrAttributes: stderrColorLevel > 0 || (stderrIsTTY && !dumb),
+        unicode: resolveUnicode(env, argv, platform),
+        ambiguousWide: resolveAmbiguousWide(env),
+        links: resolveLinks(env, argv, { isTTY, ci, dumb, multiplexer }),
+        columns,
+        rows,
+        isTTY,
+        stderrIsTTY,
+        interactive,
+        screenReader,
+        ci,
+        ciProvider: provider,
+        dumb,
+        multiplexer,
+    };
+}
