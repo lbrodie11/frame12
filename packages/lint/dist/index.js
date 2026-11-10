@@ -1475,40 +1475,87 @@ function lintInkAutoplayWithTypeScript(ts, content, filePath, violations) {
     return null;
   };
 
-  /** Finds `const name = …` or `const [name, setter] = useState(…)` visible from `node`. */
-  function resolveBinding(node, name) {
+  /** Adds every identifier a binding name declares (plain, object or array destructuring). */
+  const bindingIdentifiers = (nameNode, out) => {
+    if (!nameNode) return out;
+    if (ts.isIdentifier(nameNode)) out.push(nameNode);
+    else if (ts.isObjectBindingPattern(nameNode) || ts.isArrayBindingPattern(nameNode)) {
+      for (const el of nameNode.elements) if (ts.isBindingElement(el)) bindingIdentifiers(el.name, out);
+    }
+    return out;
+  };
+  const declaredIn = (decls, name) => {
+    for (const d of decls) {
+      const hit = bindingIdentifiers(d.name, []).find((id) => id.text === name);
+      if (hit) return hit;
+    }
+    return null;
+  };
+
+  /**
+   * The identifier that declares `name` as seen from `node`: the nearest enclosing scope wins
+   * (function parameters, block/file declarations, for/catch bindings), so sibling components
+   * and shadowing resolve to their own bindings.
+   */
+  function findDeclaration(node, name) {
     for (let cur = node.parent; cur; cur = cur.parent) {
+      if (ts.isFunctionLike(cur) && cur.parameters) {
+        const hit = declaredIn(cur.parameters, name);
+        if (hit) return hit;
+      }
+      if (ts.isCatchClause(cur) && cur.variableDeclaration) {
+        const hit = declaredIn([cur.variableDeclaration], name);
+        if (hit) return hit;
+      }
+      if (
+        (ts.isForStatement(cur) || ts.isForOfStatement(cur) || ts.isForInStatement(cur)) &&
+        cur.initializer &&
+        ts.isVariableDeclarationList(cur.initializer)
+      ) {
+        const hit = declaredIn(cur.initializer.declarations, name);
+        if (hit) return hit;
+      }
       const statements =
-        ts.isSourceFile(cur) || ts.isBlock(cur) || ts.isModuleBlock(cur) ? cur.statements : null;
+        ts.isSourceFile(cur) || ts.isBlock(cur) || ts.isModuleBlock(cur) || ts.isCaseClause(cur) || ts.isDefaultClause(cur)
+          ? cur.statements
+          : null;
       if (!statements) continue;
       for (const stmt of statements) {
-        if (!ts.isVariableStatement(stmt)) continue;
-        const isConst = (stmt.declarationList.flags & ts.NodeFlags.Const) !== 0;
-        for (const decl of stmt.declarationList.declarations) {
-          if (ts.isIdentifier(decl.name) && decl.name.text === name) {
-            return { kind: 'var', isConst, init: decl.initializer };
-          }
-          if (ts.isArrayBindingPattern(decl.name)) {
-            const [first, second] = decl.name.elements;
-            if (first && ts.isBindingElement(first) && ts.isIdentifier(first.name) && first.name.text === name) {
-              const init = decl.initializer && unwrap(decl.initializer);
-              if (init && ts.isCallExpression(init) && calleeName(init) === 'useState') {
-                const setter =
-                  second && ts.isBindingElement(second) && ts.isIdentifier(second.name)
-                    ? second.name.text
-                    : null;
-                return { kind: 'state', initial: init.arguments[0], setter };
-              }
-              return { kind: 'unknown' };
-            }
-          }
+        if (ts.isVariableStatement(stmt)) {
+          const hit = declaredIn(stmt.declarationList.declarations, name);
+          if (hit) return hit;
+        } else if ((ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt)) && stmt.name?.text === name) {
+          return stmt.name;
         }
       }
     }
     return null;
   }
 
-  /** Every call of `setter` in the file, with whether it sits in a mount-only effect. */
+  /** Classifies the binding `name` resolves to from `node`: a const, a useState pair, or unknown. */
+  function resolveBinding(node, name) {
+    const id = findDeclaration(node, name);
+    if (!id) return null;
+    const parent = id.parent;
+    if (ts.isVariableDeclaration(parent) && parent.name === id) {
+      const isConst = (parent.parent.flags & ts.NodeFlags.Const) !== 0;
+      return { kind: 'var', isConst, init: parent.initializer };
+    }
+    if (ts.isBindingElement(parent) && ts.isArrayBindingPattern(parent.parent)) {
+      const pattern = parent.parent;
+      const decl = pattern.parent;
+      const [first, second] = pattern.elements;
+      const init = ts.isVariableDeclaration(decl) && decl.initializer && unwrap(decl.initializer);
+      if (first === parent && init && ts.isCallExpression(init) && calleeName(init) === 'useState') {
+        const setter =
+          second && ts.isBindingElement(second) && ts.isIdentifier(second.name) ? second.name : null;
+        return { kind: 'state', initial: init.arguments[0], setter };
+      }
+    }
+    return { kind: 'unknown' };
+  }
+
+  /** Every reference to the `setter` declaration (by binding, not just by name), with whether it sits in a mount-only effect. */
   function setterUses(setter) {
     const uses = [];
     const visit = (n, inMountEffect) => {
@@ -1518,7 +1565,7 @@ function lintInkAutoplayWithTypeScript(ts, content, filePath, violations) {
         if (deps && ts.isArrayLiteralExpression(deps) && deps.elements.length === 0) mount = true;
         else if (!deps) mount = true; // no deps: runs on mount (and every render)
       }
-      if (ts.isIdentifier(n) && n.text === setter && !(ts.isBindingElement(n.parent) && n.parent.name === n)) {
+      if (ts.isIdentifier(n) && n !== setter && n.text === setter.text && findDeclaration(n, n.text) === setter) {
         const call = ts.isCallExpression(n.parent) && n.parent.expression === n ? n.parent : null;
         uses.push({ call, mount });
       }

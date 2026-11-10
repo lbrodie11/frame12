@@ -655,6 +655,16 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
   );
   const clean = lintSource(fx('ink-autoplay-clean.tsx'), 'ink-autoplay-clean.tsx');
   check(clean.length === 0, 'ink-autoplay: play driven by a user action, `false` or a prop passes', JSON.stringify(clean));
+  const scopes = lintSource(fx('ink-autoplay-scopes.tsx'), 'ink-autoplay-scopes.tsx').filter(
+    (v) => v.rule === 'ink-autoplay',
+  );
+  check(
+    scopes.length === 2 &&
+      scopes[0].line === 27 && /mount effect/.test(scopes[0].message) &&
+      scopes[1].line === 64 && /constant `true`/.test(scopes[1].message),
+    'ink-autoplay: setters and constants resolve by lexical binding: same-named setters in sibling components, a shadowed setter in a nested function and a parameter shadowing a module constant pass; genuine autoplay in the right component is flagged',
+    JSON.stringify(scopes.map((v) => [v.line, v.message.slice(0, 50)])),
+  );
   const fb = lintSource(fx('ink-autoplay-literal.tsx'), 'ink-autoplay-literal.tsx', {
     disableTypeScript: true,
     quietFallbackWarning: true,
