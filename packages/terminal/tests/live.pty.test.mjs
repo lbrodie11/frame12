@@ -118,11 +118,25 @@ function cursorRestored(raw) {
   return raw.lastIndexOf('\u001b[?25l') < raw.lastIndexOf('\u001b[?25h') || !raw.includes('\u001b[?25l');
 }
 
+/**
+ * The app wrote no cursor movement (only sequences `allowed` rejects are counted). Under ConPTY the
+ * bytes a pty reader sees are Windows' own repaint of the screen (?9001h, 2J, X, C, K), not the
+ * app's output, so there the check is what is visible: no live region was drawn.
+ */
+function assertAppendOnly(app, counts, message) {
+  if (WIN) {
+    assert.doesNotMatch(app.screen(), /j\/k move/, `${message} (no live region under ConPTY)`);
+    return;
+  }
+  const csi = [...app.raw.matchAll(/\u001b\[([0-9;?]*)([A-Za-z])/g)].filter((m) => m[0] !== '\u001b[?25h' && counts(m));
+  assert.deepEqual(csi.map((m) => m[0]), [], message);
+}
+
 function exitLine(raw) {
   return /F12-EXIT raw=(true|false) code=(\d+)/.exec(raw);
 }
 
-import { afterEach } from 'node:test';
+import { after, afterEach } from 'node:test';
 afterEach(() => {
   for (const child of spawned) {
     try {
@@ -132,6 +146,13 @@ afterEach(() => {
     }
   }
   spawned.clear();
+});
+// node-pty's ConPTY handles (and its console-list agent) can outlive every killed pty on Windows,
+// keeping this test process alive after the last test until the CI job times out. Once the suite
+// is done, give the runner time to report, then exit with the code it set. The timer is unref'd:
+// it only fires if something else is still holding the process open.
+after(() => {
+  if (WIN) setTimeout(() => process.exit(), 3000).unref();
 });
 
 describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not installed in packages/terminal/.pty (CI installs it)' : false, timeout: 120_000 }, () => {
@@ -216,8 +237,7 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
     const { exitCode } = await app.exited;
     assert.equal(exitCode, 0);
     assert.match(app.raw, /Live view off: the terminal has fewer than 10 rows/);
-    const csi = [...app.raw.matchAll(/\u001b\[([0-9;?]*)([A-Za-z])/g)].filter((m) => m[2] !== 'm' && m[0] !== '\u001b[?25h');
-    assert.deepEqual(csi.map((m) => m[0]), [], 'append-only: only styling sequences');
+    assertAppendOnly(app, (m) => m[2] !== 'm', 'append-only: only styling sequences');
   });
 
   it('linear mode honors Ctrl-C too: cancel, results, exit 130 (first review)', async () => {
@@ -323,8 +343,7 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
     assert.match(app.raw, /Note: screen-reader mode prints append-only lines/);
     assert.match(app.raw, /^Cut C-01 resolve-workspace "Resolve workspace": done/m, 'self-describing plain lines');
     assert.match(app.raw, /^Finding F-01 pair-001 \(top finding, needs review\)/m);
-    const csi = [...app.raw.matchAll(/\u001b\[([0-9;?]*)([A-Za-z])/g)].filter((m) => m[0] !== '\u001b[?25h');
-    assert.deepEqual(csi.map((m) => m[0]), [], 'no cursor movement and no styling');
+    assertAppendOnly(app, () => true, 'no cursor movement and no styling');
     assert.doesNotMatch(app.raw, /[\u2500-\u257f]/, 'no box drawing');
   });
 
