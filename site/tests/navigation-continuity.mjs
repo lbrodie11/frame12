@@ -703,8 +703,8 @@ async function runEngine(engineName, engine) {
         JSON.stringify({ atActive, activeInView, atStart, atEnd }),
       );
       check(
-        reached.length === 9 && reached.every((r) => r.inRow),
-        T(`mobile ${label}: all 9 nav links reachable by keyboard, scrolled into the row and clear of the cue`),
+        reached.length === 10 && reached.every((r) => r.inRow),
+        T(`mobile ${label}: all 10 nav links reachable by keyboard, scrolled into the row and clear of the cue`),
         JSON.stringify(reached),
       );
       await ctx.close();

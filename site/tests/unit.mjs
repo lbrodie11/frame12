@@ -56,6 +56,8 @@ const hf = await load('src/lib/history-focus.ts');
     ['/experiments/agent-approval', 'nav-agents', 'true'],
     ['/experiments', null, null],
     ['/experiments/other', null, null],
+    ['/static', 'nav-static', 'page'],
+    ['/static/report.html', null, null],
     ['/style-sheet', 'nav-style-sheet', 'page'],
     ['/get-started', 'nav-get-started', 'page'],
     ['/get-started-now', null, null],
@@ -73,8 +75,8 @@ const hf = await load('src/lib/history-focus.ts');
 
   const ids = new Set(nav.NAV_ITEMS.map((n) => n.id));
   check(
-    nav.NAV_ITEMS.length === 9 && nav.NAV_OWNERSHIP.every((r) => ids.has(r.id)),
-    'nav-ownership: 9 nav items, every ownership row points at a real nav item',
+    nav.NAV_ITEMS.length === 10 && nav.NAV_OWNERSHIP.every((r) => ids.has(r.id)),
+    'nav-ownership: 10 nav items, every ownership row points at a real nav item',
   );
   check(
     nav.NAV_ITEMS.every((item) => nav.resolveNavOwnership(item.href)?.current === 'page'),

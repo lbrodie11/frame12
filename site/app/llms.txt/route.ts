@@ -42,6 +42,7 @@ export async function GET() {
     `- [Workspace Settings Operational Block](${SITE_URL}/blocks/workspace-settings): Installable Quiet-first operational settings experience (\`${REGISTRY_BASE_URL}/workspace-settings.json\`) covering profile, workspace preferences, notification routing, appearance, motion grammar, team RBAC directory, and danger zone confirmation flows.`,
     `- [Revenue Recovery Analytics Block](${SITE_URL}/blocks/analytics-dashboard): Installable analytics composition (\`${REGISTRY_BASE_URL}/analytics-dashboard.json\`) combining the Expressive Storyboard (\`C-01\`–\`C-04\`) with Quiet period-over-period comparison, checkout segment breakdown, and filterable daily attribution ledgers (\`C-05\`).`,
     `- [AI Agent Skill & Static Linter](${SITE_URL}/agents): Documentation for \`SKILL.md\`, \`scripts/check-frame12.mjs\`, and ESLint integration.`,
+    `- [Static HTML](${SITE_URL}/static): \`@frame12/static\`, framework-free HTML renderers with the React components' contract, shown side by side with the React kit.`,
     `- [Style Sheet & Tokens](${SITE_URL}/style-sheet): Token tables, typography hierarchy, screentone specimens, and gutter rules.`,
     `- [Get Started Guide](${SITE_URL}/get-started): Step-by-step Next.js App Router, font binding, and theme setup.`,
     `- [Full LLM Context (${SITE_URL}/llms-full.txt)](${SITE_URL}/llms-full.txt): Complete single-file reference combining \`SKILL.md\`, progressive-disclosure references, registry manifest index, and all component prop tables and code templates.`,

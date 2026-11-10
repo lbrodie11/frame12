@@ -100,7 +100,7 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
     { cwd: REPO_ROOT, encoding: 'utf8' },
   );
   check(
-    repoWrapperOut === 'PASS  check-frame12: 89 file(s) checked, 0 violations.\n' &&
+    repoWrapperOut === 'PASS  check-frame12: 94 file(s) checked, 0 violations.\n' &&
       repoBinOut === repoWrapperOut,
     'CLI parity: repo default check output is byte-identical to baseline',
     `Got: ${JSON.stringify(repoWrapperOut)}`,
@@ -242,6 +242,17 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
 // ---------------------------------------------------------------------------
 // 3. lintHtml() — one fixture per rule + line/column verification
 // ---------------------------------------------------------------------------
+{
+  // Objects with a string form (e.g. @frame12/static Html values) are linted as their string,
+  // not indexed character by character (which used to lint nothing or never finish).
+  const htmlLike = { toString: () => '<a href="javascript:alert(1)">x</a>' };
+  const fromObject = lintHtml(htmlLike).map((v) => v.rule);
+  check(
+    fromObject.length === 1 && fromObject[0] === 'unsafe-html' && lintHtml(null).length === 0,
+    'lintHtml: accepts an object with a string form (and null) and lints its string',
+    JSON.stringify(fromObject),
+  );
+}
 {
   // 3a. color-literal in <style> and style="..."
   const htmlColor = [

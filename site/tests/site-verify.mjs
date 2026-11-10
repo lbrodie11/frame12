@@ -137,7 +137,7 @@ const NAMES = () => {
   return { unnamed, dup: Object.keys(ids).filter((k) => ids[k] > 1) };
 };
 
-const GRAMMAR_DOM = () => {
+const GRAMMAR_DOM = (roots = null) => {
   const scenes = [...document.querySelectorAll('.f12-scene')];
   const sceneGaps = scenes.map((s) =>
     parseFloat(getComputedStyle(s).rowGap || getComputedStyle(s).gap),
@@ -153,17 +153,24 @@ const GRAMMAR_DOM = () => {
     cuts.length > 0 &&
     cuts.every((c, idx) => c === `C-${String(idx + 1).padStart(2, '0')}`);
 
-  const rects = cutEls.map((e) => {
-    const r = e.getBoundingClientRect();
-    return { top: Math.round(r.top), left: Math.round(r.left) };
-  });
-  let readingOrder = rects.length > 0;
-  for (let i = 1; i < rects.length; i++) {
-    const prev = rects[i - 1];
-    const cur = rects[i];
-    const sameRow = Math.abs(cur.top - prev.top) < 40;
-    if (sameRow && cur.left < prev.left) readingOrder = false;
-    if (!sameRow && cur.top < prev.top - 40) readingOrder = false;
+  // Reading order is checked per independent sheet when `roots` lists them (e.g. side-by-side
+  // sheets on /static); otherwise across the whole page.
+  const groupsForOrder = roots
+    ? roots.map((sel) => cutEls.filter((e) => e.closest(sel)))
+    : [cutEls];
+  let readingOrder = cutEls.length > 0;
+  for (const group of groupsForOrder) {
+    const rects = group.map((e) => {
+      const r = e.getBoundingClientRect();
+      return { top: Math.round(r.top), left: Math.round(r.left) };
+    });
+    for (let i = 1; i < rects.length; i++) {
+      const prev = rects[i - 1];
+      const cur = rects[i];
+      const sameRow = Math.abs(cur.top - prev.top) < 40;
+      if (sameRow && cur.left < prev.left) readingOrder = false;
+      if (!sameRow && cur.top < prev.top - 40) readingOrder = false;
+    }
   }
 
   const markerRgb = 'rgb(255, 214, 10)';
@@ -245,6 +252,7 @@ const ROUTES = [
   '/blocks/analytics-dashboard',
   '/experiments/agent-approval',
   '/agents',
+  '/static',
   '/style-sheet',
   '/get-started',
 ];
@@ -447,11 +455,27 @@ try {
       const c = await page.evaluate(CONTRAST);
       const axe = await new AxeBuilder({ page }).analyze();
       const n = await page.evaluate(NAMES);
-      const g = await page.evaluate(GRAMMAR_DOM);
+      const g = await page.evaluate(
+        GRAMMAR_DOM,
+        route === '/static' ? ['#static-intro', '#static-compare-react', '#static-compare-static'] : null,
+      );
       g.cuts = await getRenderedCuts(page, { panelsOnly: true });
-      g.sequential =
-        g.cuts.length > 0 &&
-        g.cuts.every((cut, idx) => cut === `C-${String(idx + 1).padStart(2, '0')}`);
+      const isSequence = (cuts) =>
+        cuts.length > 0 && cuts.every((cut, idx) => cut === `C-${String(idx + 1).padStart(2, '0')}`);
+      if (route === '/static') {
+        // /static shows three sheets (intro, React report, static report); cut numbering restarts
+        // per sheet (counter-reset on .f12-sheet), so each sheet must read C-01… on its own.
+        const groups = [];
+        for (const rootId of ['static-intro', 'static-compare-react', 'static-compare-static']) {
+          groups.push(await getRenderedCuts(page, { rootId, panelsOnly: true }));
+        }
+        g.sequential =
+          groups.every(isSequence) &&
+          groups[1].join() === groups[2].join() &&
+          groups.flat().length === g.cuts.length;
+      } else {
+        g.sequential = isSequence(g.cuts);
+      }
       const f = await focusMissesAll(page);
       const sw = await page.evaluate(() => document.documentElement.scrollWidth);
 

@@ -2198,7 +2198,10 @@ function parseHtmlTagAttributes(html, startIdx) {
  *   (`<iframe>`, `<object>`, `<embed>`, `srcdoc`), `<meta http-equiv="refresh">`,
  *   `<base href>`, `on*=` attributes, and `javascript:` URLs.
  */
-export function lintHtml(html, opts = {}) {
+export function lintHtml(input, opts = {}) {
+  // Accept objects with a string form (e.g. @frame12/static `Html` values) by converting them
+  // once; indexing a non-string character by character would never terminate or lint nothing.
+  const html = typeof input === 'string' ? input : String(input ?? '');
   const filePath = opts.file ?? 'input.html';
   const tokenStyleIds = new Set(opts.tokenStyleIds ?? []);
   const violations = [];

@@ -977,3 +977,27 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
     overflow-wrap: anywhere;
   }
 }
+
+/* /static: React and @frame12/static reports side by side (stacked below 1100px). */
+.f12-static-compare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--f-gutter-change);
+  margin-top: var(--f-gutter-change);
+}
+@media (min-width: 1100px) {
+  .f12-static-compare {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.f12-static-compare-col {
+  min-width: 0;
+}
+.f12-static-compare-h {
+  margin: 0 0 12px;
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--f-ink-2);
+}
