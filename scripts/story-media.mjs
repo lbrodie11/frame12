@@ -26,20 +26,67 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const IMAGES = join(ROOT, 'docs/images');
 const SIDECAR = join(IMAGES, 'story-media.json');
 const OUTPUTS = ['story.webm', 'story.gif', 'story-og.png'];
-/** Everything that decides what the drawing looks like. */
+/**
+ * Everything that decides what the recorded frames show. Whole files where the file is the
+ * story's own; marked regions of shared stylesheets; the token values the geometry reads; and the
+ * component count quoted in a caption. Page chrome around the drawing (Panel, Tag and type
+ * styles) is deliberately out of scope: it changes with any unrelated CSS edit.
+ */
 const SOURCES = [
-  'site/src/lib/story-geometry.ts',
-  'site/src/components/how-a-frame-gets-made.tsx',
-  'registry/ui/ink-pencil.ts',
+  { file: 'site/src/lib/story-geometry.ts' },
+  { file: 'site/src/components/how-a-frame-gets-made.tsx' },
+  { file: 'site/src/components/story-shell.tsx' },
+  { file: 'registry/ui/ink-pencil.ts' },
+  { file: 'registry/ui/ink.tsx' },
+  { file: 'registry/ui/ink-sequence.tsx' },
+  {
+    file: 'registry/styles/frame12.css',
+    from: '/* ===================================================================== Ink (line art on twos)',
+    to: '/* ===================================================================== Forced Colors (High Contrast) */',
+  },
+  { file: 'site/app/site.css', from: '/* Home: "How a frame gets made"', to: '/* end: How a frame gets made */' },
 ];
+
+/** The text of one source, or of its marked region (a missing marker is an error, never a silent pass). */
+function sourceText({ file, from, to }) {
+  const text = readFileSync(join(ROOT, file), 'utf8');
+  if (!from) return text;
+  const i = text.indexOf(from);
+  const j = text.indexOf(to, i + 1);
+  if (i < 0 || j < 0) throw new Error(`story-media: region markers not found in ${file} (${from} … ${to})`);
+  return text.slice(i, j);
+}
+
+/** Token values the geometry and the stroke widths read. */
+function tokenText() {
+  const t = JSON.parse(readFileSync(join(ROOT, 'packages/tokens/src/tokens.source.json'), 'utf8'));
+  return JSON.stringify({ gutter: t.gutter, stroke: t.stroke, pose: t.motion?.pose });
+}
+
+/** COMPONENT_COUNT, quoted in the C-03 caption ("Browse N Components"). */
+function componentCount() {
+  const require = createRequire(join(ROOT, 'package.json'));
+  const ts = require('typescript');
+  const src = readFileSync(join(ROOT, 'site/src/lib/catalog.ts'), 'utf8');
+  const out = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const mod = { exports: {} };
+  new Function('exports', 'require', 'module', out)(mod.exports, () => ({ REGISTRY_BASE_URL: '' }), mod);
+  return String(mod.exports.COMPONENT_COUNT);
+}
 
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 export function sourceHash() {
   const h = createHash('sha256');
-  for (const rel of SOURCES) {
-    h.update(rel);
+  const parts = [
+    ...SOURCES.map((src) => [src.from ? `${src.file}#region` : src.file, sourceText(src)]),
+    ['packages/tokens/src/tokens.source.json#gutter,stroke,pose', tokenText()],
+    ['site/src/lib/catalog.ts#COMPONENT_COUNT', componentCount()],
+  ];
+  for (const [name, text] of parts) {
+    h.update(name);
     h.update('\0');
-    h.update(readFileSync(join(ROOT, rel)));
+    h.update(text);
+    h.update('\0');
   }
   return h.digest('hex');
 }
@@ -135,7 +182,7 @@ try {
   execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-framerate', '12', '-i', frames, '-vf', 'scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=16[p];[b][p]paletteuse=dither=none', '-loop', '0', join(IMAGES, 'story.gif')]);
 
   const files = Object.fromEntries(OUTPUTS.map((f) => [f, sha256(readFileSync(join(IMAGES, f)))]));
-  writeFileSync(SIDECAR, `${JSON.stringify({ sources: SOURCES, sourceHash: sourceHash(), frames: total, fps: 12, files }, null, 2)}\n`);
+  writeFileSync(SIDECAR, `${JSON.stringify({ sources: [...SOURCES.map((x) => (x.from ? `${x.file} (ink/story region)` : x.file)), 'packages/tokens/src/tokens.source.json (gutter, stroke, pose)', 'site/src/lib/catalog.ts (COMPONENT_COUNT)'], sourceHash: sourceHash(), frames: total, fps: 12, files }, null, 2)}\n`);
   console.log(`Wrote ${OUTPUTS.map((f) => `docs/images/${f}`).join(', ')} (${total} frames at 12 fps = ${(total / 12).toFixed(1)} s) and docs/images/story-media.json`);
 } finally {
   server.kill();
