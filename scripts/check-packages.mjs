@@ -617,7 +617,18 @@ if (present.includes('@frame12/terminal')) {
   const schemaPath = fileURLToPath(import.meta.resolve('@frame12/terminal/schema.json'));
   const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
   assert.equal(schema.oneOf.length, term.EVENT_TYPES.length, 'schema.json must list every event type');
-  results.terminal = { fixtures: testing.FIXTURE_NAMES.length, events, schemaEvents: schema.oneOf.length };
+  let renderBytes = 0;
+  if (fs.existsSync(fileURLToPath(new URL('./render/index.js', import.meta.resolve('@frame12/terminal'))))) {
+    // ./render without React: run the gallery fixture through every linear renderer.
+    const render = await import('@frame12/terminal/render');
+    const snap = testing.fixture('forty-findings').snapshot;
+    const rich = render.renderRich(snap, { style: 'truecolor', unicode: true, ambiguousWide: false, links: false, columns: 80 });
+    assert.ok(rich.includes('FINDINGS') && rich.includes('pair-001'), './render must render the gallery fixture');
+    assert.deepEqual(JSON.parse(render.renderJson(snap)), snap, 'renderJson must round-trip');
+    assert.ok(!render.renderPlain(snap).includes('\\u001b'), 'renderPlain must not emit escape sequences');
+    renderBytes = rich.length;
+  }
+  results.terminal = { fixtures: testing.FIXTURE_NAMES.length, events, schemaEvents: schema.oneOf.length, renderBytes };
 }
 
 if (present.includes('@frame12/static')) {

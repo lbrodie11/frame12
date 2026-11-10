@@ -51,11 +51,23 @@ const PIPELINE = [
     { cut: 'pair-changes', title: 'Pair changes', progress: { total: 1200, unit: 'pairs' } },
     { cut: 'rank-findings', title: 'Rank findings' },
 ];
+/** A deterministic, realistic-looking 40-hex SHA (FNV-1a chained; not a real commit). */
+function fakeSha(seed) {
+    let h = 0x811c9dc5;
+    let out = '';
+    for (let round = 0; out.length < 40; round++) {
+        for (const ch of `${seed}:${round}`) {
+            h ^= ch.charCodeAt(0);
+            h = Math.imul(h, 0x01000193) >>> 0;
+        }
+        out += h.toString(16).padStart(8, '0');
+    }
+    return out.slice(0, 40);
+}
 function receipt(i, j) {
-    const hex = ((i * 7919 + j * 104729) >>> 0).toString(16).padStart(8, '0');
     return {
         kind: 'commit',
-        value: `${hex}${'0123456789abcdef0123456789abcdef'.slice(0, 32)}`,
+        value: fakeSha(`pair-${i}-change-${j}`),
         at: new Date(Date.UTC(2026, 9, 28 - ((i + j) % 27))).toISOString(),
         note: `change ${j + 1} touching both sides of pair ${i + 1}`,
     };
@@ -74,6 +86,7 @@ function finding(i, total, receipts) {
         strength: { value, low: Math.max(0, Math.round((value - 0.18) * 100) / 100), high: Math.min(1, Math.round((value + 0.07) * 100) / 100), label: 'follow-up rate (historical activity, not correctness)' },
         prominence,
         status: i % 7 === 3 ? 'warning' : 'review',
+        relation: i % 3 === 1 ? 'direct' : 'history-only',
         receipts: Array.from({ length: receipts }, (_, j) => receipt(i, j)),
     };
 }
@@ -204,6 +217,7 @@ function repoArchaeologyPlan() {
         ],
         strength: { value: p.confidence, label: 'follow-up rate (historical activity, not correctness)' },
         prominence: p.relationship === 'ghost' ? 'hero' : 'primary',
+        relation: p.relationship === 'ghost' ? 'history-only' : p.relationship,
         status: p.relationship === 'ghost' ? 'review' : 'info',
         receipts: p.evidence.map(([sha, date, subject]) => ({ kind: 'commit', value: sha, at: `${date}T00:00:00.000Z`, note: subject })),
     }))

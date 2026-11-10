@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "runId": "run-success",
+  "title": "Investigate coupling in payments-service",
+  "status": "completed",
+  "startedAt": "2026-11-10T09:00:00.000Z",
+  "finishedAt": "2026-11-10T09:00:12.325Z",
+  "cuts": [
+    {
+      "cut": "resolve-workspace",
+      "title": "Resolve workspace",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 140
+    },
+    {
+      "cut": "read-history",
+      "title": "Read history",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 2380
+    },
+    {
+      "cut": "pair-changes",
+      "title": "Pair changes",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 1710
+    },
+    {
+      "cut": "rank-findings",
+      "title": "Rank findings",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 95
+    }
+  ],
+  "metrics": [
+    {
+      "name": "commits-read",
+      "label": "Commits read",
+      "value": 400
+    },
+    {
+      "name": "files-seen",
+      "label": "Files seen",
+      "value": 212
+    },
+    {
+      "name": "findings",
+      "label": "Findings",
+      "value": 3
+    }
+  ],
+  "findings": [
+    {
+      "id": "pair-001",
+      "title": "Settlement runner moves with the ledger reconciler",
+      "summary": "9 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-1/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-1/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.92,
+        "low": 0.74,
+        "high": 0.99,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "hero",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "8947a1508ddf29b0f66cde497e3b0b35011109ac",
+          "at": "2026-10-28T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 1"
+        },
+        {
+          "kind": "commit",
+          "value": "8125f33f60e0ff069b0353dc0ead4ff170adbd2f",
+          "at": "2026-10-27T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 1"
+        },
+        {
+          "kind": "commit",
+          "value": "444a006ebb4b9468b63bb0cb800f32e10e401896",
+          "at": "2026-10-26T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 1"
+        },
+        {
+          "kind": "commit",
+          "value": "2ad77cf5d0cb2d326d12fe1e009f3bc54198b0a9",
+          "at": "2026-10-25T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 1"
+        },
+        {
+          "kind": "commit",
+          "value": "edfb8a24c62858804abd763528d536ede14c28a0",
+          "at": "2026-10-24T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 1"
+        },
+        {
+          "kind": "commit",
+          "value": "c5b29a43911db1f6a0a64ba80e4b48c129acac43",
+          "at": "2026-10-23T00:00:00.000Z",
+          "note": "change 6 touching both sides of pair 1"
+        }
+      ]
+    },
+    {
+      "id": "pair-002",
+      "title": "Module 2 moves with its neighbor",
+      "summary": "7 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-2/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-2/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.72,
+        "low": 0.54,
+        "high": 0.79,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "8949ffc5ab98c43203c77cee4b9b9e752a93a189",
+          "at": "2026-10-27T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 2"
+        },
+        {
+          "kind": "commit",
+          "value": "a2bc833eb2f0cb58584952377442d5c9de29ad9e",
+          "at": "2026-10-26T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 2"
+        },
+        {
+          "kind": "commit",
+          "value": "df98760fd658ff5a26008448c23b570175fbbbdf",
+          "at": "2026-10-25T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 2"
+        }
+      ]
+    },
+    {
+      "id": "pair-003",
+      "title": "Module 3 moves with its neighbor",
+      "summary": "5 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-3/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-3/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.52,
+        "low": 0.34,
+        "high": 0.59,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "d7ba2462f265156c968ee31f5f7993999de869da",
+          "at": "2026-10-26T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 3"
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}

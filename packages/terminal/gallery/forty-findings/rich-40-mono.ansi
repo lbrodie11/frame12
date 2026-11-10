@@ -1,0 +1,262 @@
+[2mFRAME/12 · [22m[1mInvestigate coupling in[22m
+[1m           payments-service[22m
+[2m────────────────────────────────────────[22m
+
+[2mRUN · [22m[1m4 CUTS[22m           [1m✓ completed[22m  [2m4.3s[22m
+[2mC-03 · [22m[1mPAIR CHANGES[22m      [1m▲ warning[22m  [2m1.7s[22m
+  [2m312 pairs below the noise floor were[22m
+  [2mdropped.[22m
+
+
+[1mFINDINGS[22m  [2m40 (1 top, 9 primary, 30[22m
+          [2msecondary)[22m
+
+[1;7m F-01 [22;27m  [1mSettlement runner moves with the[22m
+[1m        ledger reconciler[22m
+[1m┃[22m [1mneeds review · top finding · pair-001[22m
+[1m┃[22m 9 of 10 changes to one side also
+[1m┃[22m changed the other.
+[1m┃[22m src/module-1/runner.ts
+[1m┃[22m [2m  ⇢ changes with it, no code link[22m
+[1m┃[22m src/module-1/ledger.ts
+[1m┃[22m [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m92%[22m[2m (range 74–99%)[22m
+[1m┃[22m [2mfollow-up rate (historical activity,[22m
+[1m┃[22m [2mnot correctness)[22m
+[1m┃[22m [2mE-01[22m  8947a15  [2m2026-10-28[22m  change 1 t…
+
+[1mF-02[22m  [1mModule 2 moves with its neighbor[22m
+  [1mneeds review · primary · pair-002[22m
+  9 of 10 changes to one side also
+  changed the other.
+  src/module-2/runner.ts
+  [2m  → references it directly[22m
+  src/module-2/ledger.ts
+  [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m91%[22m[2m (range 73–98%)[22m
+  [2mfollow-up rate (historical activity,[22m
+  [2mnot correctness)[22m
+  [2mE-02[22m  8949ffc  [2m2026-10-27[22m  change 1 t…
+  [2mE-03[22m  a2bc833  [2m2026-10-26[22m  change 2 t…
+
+[1mF-03[22m  [1mModule 3 moves with its neighbor[22m
+  [1mneeds review · primary · pair-003[22m
+  9 of 10 changes to one side also
+  changed the other.
+  src/module-3/runner.ts
+  [2m  ⇢ changes with it, no code link[22m
+  src/module-3/ledger.ts
+  [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m89%[22m[2m (range 71–96%)[22m
+  [2mfollow-up rate (historical activity,[22m
+  [2mnot correctness)[22m
+  [2mE-04[22m  d7ba246  [2m2026-10-26[22m  change 1 t…
+  [2mE-05[22m  bf84d56  [2m2026-10-25[22m  change 2 t…
+  [2mE-06[22m  3e1c3b9  [2m2026-10-24[22m  change 3 t…
+
+[1mF-04[22m  [1mModule 4 moves with its neighbor[22m
+  [1mwarning · primary · pair-004[22m
+  9 of 10 changes to one side also
+  changed the other.
+  src/module-4/runner.ts
+  [2m  ⇢ changes with it, no code link[22m
+  src/module-4/ledger.ts
+  [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m88%[22m[2m (range 70–95%)[22m
+  [2mfollow-up rate (historical activity,[22m
+  [2mnot correctness)[22m
+  [2mE-07[22m  873c2c5  [2m2026-10-25[22m  change 1 t…
+  [2mE-08[22m  909b0ee  [2m2026-10-24[22m  change 2 t…
+  [2mE-09[22m  322aea8  [2m2026-10-23[22m  change 3 t…
+  [2m+1 more receipt[22m
+
+[1mF-05[22m  [1mModule 5 moves with its neighbor[22m
+  [1mneeds review · primary · pair-005[22m
+  9 of 10 changes to one side also
+  changed the other.
+  src/module-5/runner.ts
+  [2m  → references it directly[22m
+  src/module-5/ledger.ts
+  [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m86%[22m[2m (range 68–93%)[22m
+  [2mfollow-up rate (historical activity,[22m
+  [2mnot correctness)[22m
+  [2mE-11[22m  06e5d75  [2m2026-10-24[22m  change 1 t…
+  [2mE-12[22m  dd5fb2f  [2m2026-10-23[22m  change 2 t…
+  [2mE-13[22m  a083c02  [2m2026-10-22[22m  change 3 t…
+  [2m+2 more receipts[22m
+
+[1mF-06[22m  [1mModule 6 moves with its neighbor[22m
+  [1mneeds review · primary · pair-006[22m
+  9 of 10 changes to one side also
+  changed the other.
+  src/module-6/runner.ts
+  [2m  ⇢ changes with it, no code link[22m
+  src/module-6/ledger.ts
+  [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m85%[22m[2m (range 67–92%)[22m
+  [2mfollow-up rate (historical activity,[22m
+  [2mnot correctness)[22m
+  [2mE-16[22m  3551986  [2m2026-10-23[22m  change 1 t…
+  [2mE-17[22m  4d86e76  [2m2026-10-22[22m  change 2 t…
+  [2mE-18[22m  8a62da3  [2m2026-10-21[22m  change 3 t…
+  [2m+3 more receipts[22m
+
+[1mF-07[22m  [1mModule 7 moves with its neighbor[22m
+  [1mneeds review · primary · pair-007[22m
+  8 of 10 changes to one side also
+  changed the other.
+  src/module-7/runner.ts
+  [2m  ⇢ changes with it, no code link[22m
+  src/module-7/ledger.ts
+  [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m83%[22m[2m (range 65–90%)[22m
+  [2mfollow-up rate (historical activity,[22m
+  [2mnot correctness)[22m
+  [2mE-22[22m  a3da561  [2m2026-10-22[22m  change 1 t…
+
+[1mF-08[22m  [1mModule 8 moves with its neighbor[22m
+  [1mneeds review · primary · pair-008[22m
+  8 of 10 changes to one side also
+  changed the other.
+  src/module-8/runner.ts
+  [2m  → references it directly[22m
+  src/module-8/ledger.ts
+  [1m▰▰▰▰▰▰▰[22m[2m▱[22m [1m82%[22m[2m (range 64–89%)[22m
+  [2mfollow-up rate (historical activity,[22m
+  [2mnot correctness)[22m
+  [2mE-23[22m  96e5882  [2m2026-10-21[22m  change 1 t…
+  [2mE-24[22m  206c43a  [2m2026-10-20[22m  change 2 t…
+
+[1mF-09[22m  [1mModule 9 moves with its neighbor[22m
+  [1mneeds review · primary · pair-009[22m
+  8 of 10 changes to one side also
+  changed the other.
+  src/module-9/runner.ts
+  [2m  ⇢ changes with it, no code link[22m
+  src/module-9/ledger.ts
+  [1m▰▰▰▰▰▰[22m[2m▱▱[22m [1m80%[22m[2m (range 62–87%)[22m
+  [2mfollow-up rate (historical activity,[22m
+  [2mnot correctness)[22m
+  [2mE-25[22m  b693b22  [2m2026-10-20[22m  change 1 t…
+  [2mE-26[22m  ad34cf9  [2m2026-10-19[22m  change 2 t…
+  [2mE-27[22m  5058aa6  [2m2026-10-18[22m  change 3 t…
+
+[1mF-10[22m  [1mModule 10 moves with its neighbor[22m
+  [1mneeds review · primary · pair-010[22m
+  8 of 10 changes to one side also
+  changed the other.
+  src/module-10/runner.ts
+  [2m  ⇢ changes with it, no code link[22m
+  src/module-10/ledger.ts
+  [1m▰▰▰▰▰▰[22m[2m▱▱[22m [1m79%[22m[2m (range 61–86%)[22m
+  [2mfollow-up rate (historical activity,[22m
+  [2mnot correctness)[22m
+  [2mE-28[22m  b2a908f  [2m2026-10-19[22m  change 1 t…
+  [2mE-29[22m  ac1b5a1  [2m2026-10-18[22m  change 2 t…
+  [2mE-30[22m  08f77f4  [2m2026-10-17[22m  change 3 t…
+  [2m+1 more receipt[22m
+
+[1mF-11[22m  Module 11 moves with its neighbor
+  [2m77% (59–84%) · 5 receipts · warning ·…[22m
+  [2msrc/mo…/runner.ts → src/mod…/ledger.ts[22m
+[1mF-12[22m  Module 12 moves with its neighbor
+  [2m76% (58–83%) · 6 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-13[22m  Module 13 moves with its neighbor
+  [2m74% (56–81%) · 1 receipt · needs revi…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-14[22m  Module 14 moves with its neighbor
+  [2m73% (55–80%) · 2 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts → src/mod…/ledger.ts[22m
+[1mF-15[22m  Module 15 moves with its neighbor
+  [2m71% (53–78%) · 3 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-16[22m  Module 16 moves with its neighbor
+  [2m70% (52–77%) · 4 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-17[22m  Module 17 moves with its neighbor
+  [2m68% (50–75%) · 5 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts → src/mod…/ledger.ts[22m
+[1mF-18[22m  Module 18 moves with its neighbor
+  [2m67% (49–74%) · 6 receipts · warning ·…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-19[22m  Module 19 moves with its neighbor
+  [2m65% (47–72%) · 1 receipt · needs revi…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-20[22m  Module 20 moves with its neighbor
+  [2m64% (46–71%) · 2 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts → src/mod…/ledger.ts[22m
+[1mF-21[22m  Module 21 moves with its neighbor
+  [2m62% (44–69%) · 3 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-22[22m  Module 22 moves with its neighbor
+  [2m61% (43–68%) · 4 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-23[22m  Module 23 moves with its neighbor
+  [2m59% (41–66%) · 5 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts → src/mod…/ledger.ts[22m
+[1mF-24[22m  Module 24 moves with its neighbor
+  [2m58% (40–65%) · 6 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-25[22m  Module 25 moves with its neighbor
+  [2m56% (38–63%) · 1 receipt · warning · …[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-26[22m  Module 26 moves with its neighbor
+  [2m55% (37–62%) · 2 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts → src/mod…/ledger.ts[22m
+[1mF-27[22m  Module 27 moves with its neighbor
+  [2m53% (35–60%) · 3 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-28[22m  Module 28 moves with its neighbor
+  [2m52% (34–59%) · 4 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-29[22m  Module 29 moves with its neighbor
+  [2m50% (32–57%) · 5 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts → src/mod…/ledger.ts[22m
+[1mF-30[22m  Module 30 moves with its neighbor
+  [2m49% (31–56%) · 6 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-31[22m  Module 31 moves with its neighbor
+  [2m47% (29–54%) · 1 receipt · needs revi…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-32[22m  Module 32 moves with its neighbor
+  [2m46% (28–53%) · 2 receipts · warning ·…[22m
+  [2msrc/mo…/runner.ts → src/mod…/ledger.ts[22m
+[1mF-33[22m  Module 33 moves with its neighbor
+  [2m44% (26–51%) · 3 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-34[22m  Module 34 moves with its neighbor
+  [2m43% (25–50%) · 4 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-35[22m  Module 35 moves with its neighbor
+  [2m41% (23–48%) · 5 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts → src/mod…/ledger.ts[22m
+[1mF-36[22m  Module 36 moves with its neighbor
+  [2m40% (22–47%) · 6 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-37[22m  Module 37 moves with its neighbor
+  [2m38% (20–45%) · 1 receipt · needs revi…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-38[22m  Module 38 moves with its neighbor
+  [2m37% (19–44%) · 2 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts → src/mod…/ledger.ts[22m
+[1mF-39[22m  Module 39 moves with its neighbor
+  [2m35% (17–42%) · 3 receipts · warning ·…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+[1mF-40[22m  Module 40 moves with its neighbor
+  [2m34% (16–41%) · 4 receipts · needs rev…[22m
+  [2msrc/mo…/runner.ts ⇢ src/mod…/ledger.ts[22m
+
+
+[1mMETRICS[22m
+  [2mCommits read[22m  [1m400[22m
+  [2mFiles seen  [22m  [1m212[22m
+  [2mFindings    [22m  [1m40[22m
+
+
+[1mWARNINGS[22m
+  [1m▲ warning: 312 low-signal pairs were[22m
+  [1m  dropped; pass --include-noise to[22m
+  [1m  keep them.[22m
+
+
+[1mNEXT STEPS[22m
+  [1mrepo-archaeology explain src/module-1…[22m
+    [2mShow the commits behind the top[22m
+    [2mfinding.[22m
+  [1mframe12-term render --from run.f12rec…[22m
+    [2mReplay this run.[22m

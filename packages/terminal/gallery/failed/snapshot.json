@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "runId": "run-failed",
+  "title": "Investigate coupling in payments-service",
+  "status": "failed",
+  "startedAt": "2026-11-10T09:00:00.000Z",
+  "finishedAt": "2026-11-10T09:00:08.825Z",
+  "cuts": [
+    {
+      "cut": "resolve-workspace",
+      "title": "Resolve workspace",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 140
+    },
+    {
+      "cut": "read-history",
+      "title": "Read history",
+      "status": "error",
+      "scene": "analysis",
+      "durationMs": 2380
+    },
+    {
+      "cut": "pair-changes",
+      "title": "Pair changes",
+      "status": "skipped",
+      "scene": "analysis",
+      "durationMs": 1710
+    },
+    {
+      "cut": "rank-findings",
+      "title": "Rank findings",
+      "status": "skipped",
+      "scene": "analysis",
+      "durationMs": 95
+    }
+  ],
+  "metrics": [],
+  "findings": [],
+  "warnings": [
+    "Results are incomplete: 2 cuts were skipped."
+  ],
+  "error": "History could not be read: object 3f9a2c1 is missing (shallow clone?)."
+}

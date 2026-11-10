@@ -1,0 +1,258 @@
+import { glyph } from '../core/glyphs.js';
+import { createSanitizer } from '../core/safety.js';
+import { paint } from '../core/tokens.js';
+import { createStreamValidator, describeIssues } from '../core/validate.js';
+import { wrap } from '../core/width.js';
+import { CUT_STATUS_WORDS, FINDING_STATUS_WORDS, RELATION_SENTENCES, RUN_STATUS_WORDS, compactFinding, cut, evidenceCard, formatDuration, hintBar, label, masthead, metricRows, pct, renderCapsFor, sectionLabel, tidy, widthTier, } from './grammar.js';
+export * from './grammar.js';
+export { GLYPHS, glyph } from '../core/glyphs.js';
+// Characters JSON.stringify leaves raw that a terminal could act on or reorder: DEL, C1 controls,
+// line/paragraph separators and bidi controls. Escaping them keeps the JSON identical in meaning.
+const JSON_UNSAFE = /[\u007f-\u009f\u2028\u2029\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+/** The snapshot verbatim (2-space JSON, trailing newline). Re-rendering parsed output is byte-identical. */
+export function renderJson(snapshot) {
+    return `${JSON.stringify(snapshot, null, 2).replace(JSON_UNSAFE, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`)}\n`;
+}
+const PROMINENCE_ORDER = { hero: 0, primary: 1, secondary: 2 };
+/** Findings in reading order (hero, primary, secondary; stable), with frame and receipt numbers. */
+export function orderFindings(findings) {
+    const sorted = findings.map((f, i) => ({ f, i })).sort((a, b) => PROMINENCE_ORDER[a.f.prominence] - PROMINENCE_ORDER[b.f.prominence] || a.i - b.i);
+    let receipt = 1;
+    return sorted.map(({ f }, n) => {
+        const out = { finding: f, frame: label('F', n + 1), firstReceipt: receipt };
+        receipt += (f.receipts ?? []).length;
+        return out;
+    });
+}
+function countBy(findings) {
+    const c = { hero: 0, primary: 0, secondary: 0 };
+    for (const f of findings)
+        c[f.prominence]++;
+    const parts = [c.hero ? `${c.hero} top` : '', c.primary ? `${c.primary} primary` : '', c.secondary ? `${c.secondary} secondary` : ''].filter(Boolean);
+    return parts.join(', ');
+}
+const RUN_TO_CUT = { completed: 'ok', failed: 'error', canceled: 'canceled' };
+// ------------------------------------------------------------------------------------ plain
+/**
+ * Plain text: no escape sequences, no glyphs, ASCII template text, one self-describing fact per
+ * line, every receipt and full path printed. Stable for diffing (independent of terminal width).
+ */
+export function renderPlain(snapshot, options = {}) {
+    const s = createSanitizer({ ...options.safety, ascii: true }).snapshot(snapshot);
+    const out = [];
+    const product = options.product ?? 'FRAME/12';
+    if (s.replay)
+        out.push('Replay: this output was recorded earlier; it is not a live run.');
+    out.push(`${product} run "${s.title}" (${s.runId}): ${RUN_STATUS_WORDS[s.status]}`);
+    out.push(`Run started ${s.startedAt}, finished ${s.finishedAt}.`);
+    s.cuts.forEach((c, i) => {
+        const d = formatDuration(c.durationMs);
+        out.push(`Cut ${label('C', i + 1)} ${c.cut} "${c.title}": ${CUT_STATUS_WORDS[c.status]}${d ? ` in ${d}` : ''}`);
+        if (c.summary)
+            out.push(`Cut ${label('C', i + 1)} note: ${c.summary}`);
+    });
+    if (s.error)
+        out.push(`Error: ${s.error}`);
+    out.push(s.findings.length === 0 ? 'Findings: none' : `Findings: ${s.findings.length} (${countBy(s.findings)})`);
+    for (const { finding: f, frame, firstReceipt } of orderFindings(s.findings)) {
+        const top = f.prominence === 'hero' ? 'top finding' : f.prominence;
+        out.push(`Finding ${frame} ${f.id} (${top}, ${FINDING_STATUS_WORDS[f.status]}): ${f.title}`);
+        if (f.summary)
+            out.push(`Finding ${frame} summary: ${f.summary}`);
+        f.subject.forEach((sub, i) => out.push(`Finding ${frame} subject ${i + 1} (${sub.kind}): ${sub.label}${sub.href ? ` <${sub.href}>` : ''}`));
+        if (f.subject.length >= 2)
+            out.push(`Finding ${frame} relation (${f.relation ?? 'history-only'}): subject 1 ${RELATION_SENTENCES[f.relation ?? 'history-only']}`);
+        if (f.strength) {
+            const range = f.strength.low !== undefined && f.strength.high !== undefined ? ` (range ${Math.round(f.strength.low * 100)}-${pct(f.strength.high)})` : '';
+            out.push(`Finding ${frame} strength: ${pct(f.strength.value)}${range}, ${f.strength.label}`);
+        }
+        (f.receipts ?? []).forEach((r, i) => {
+            const at = r.at ? ` ${r.at.slice(0, 10)}` : '';
+            out.push(`Receipt ${label('E', firstReceipt + i)} for ${frame} (${r.kind}): ${r.value}${at}${r.note ? `: ${r.note}` : ''}${r.href ? ` <${r.href}>` : ''}`);
+        });
+    }
+    for (const m of s.metrics)
+        out.push(`Metric ${m.name}${m.label ? ` "${m.label}"` : ''}: ${m.value}${m.unit ? ` ${m.unit}` : ''}`);
+    for (const wn of s.warnings)
+        out.push(`Warning: ${wn}`);
+    for (const step of options.nextSteps ?? [])
+        out.push(`Next step: ${createSanitizer(options.safety).text(step.command)} (${createSanitizer(options.safety).text(step.description)})`);
+    out.push(`End of results: ${s.findings.length} finding${s.findings.length === 1 ? '' : 's'}, ${s.warnings.length} warning${s.warnings.length === 1 ? '' : 's'}, run ${RUN_STATUS_WORDS[s.status]}.`);
+    return `${out.join('\n')}\n`;
+}
+// ------------------------------------------------------------------------------------- rich
+/** The FRAME/12 grammar: masthead, run line, findings by prominence, metrics, warnings, next steps. */
+export function renderRich(snapshot, rc, options = {}) {
+    const san = createSanitizer({ ...options.safety, ascii: !rc.unicode, ambiguousWide: rc.ambiguousWide });
+    const s = san.snapshot(snapshot);
+    const p = (t, role) => paint(t, role, rc.style);
+    const blank = (n) => Array(n).fill('');
+    const out = [];
+    const narrow = widthTier(rc.columns) === 'narrow';
+    out.push(masthead({ product: options.product ?? 'FRAME/12', title: s.title, ...(s.replay ? { replay: true } : {}) }, rc));
+    // Run line: status word, cut count, total time. Cuts are listed only when something went wrong.
+    const total = s.cuts.reduce((acc, c) => acc + (c.durationMs ?? 0), 0);
+    const runCut = cut({ label: 'RUN', title: `${s.cuts.length} cut${s.cuts.length === 1 ? '' : 's'}`, status: RUN_TO_CUT[s.status], word: RUN_STATUS_WORDS[s.status], ...(total ? { durationMs: total } : {}) }, rc);
+    out.push(...blank(1), runCut);
+    s.cuts.forEach((c, i) => {
+        if (c.status !== 'ok')
+            out.push(cut({ label: label('C', i + 1), title: c.title, status: c.status, ...(c.durationMs !== undefined ? { durationMs: c.durationMs } : {}), ...(c.summary ? { summary: c.summary } : {}) }, rc));
+    });
+    if (s.error) {
+        out.push(...blank(1), sectionLabel('ERROR', rc));
+        for (const l of wrap(s.error, rc.columns - 2, rc))
+            out.push(`  ${p(l, 'status-danger')}`);
+    }
+    // Findings, by prominence. The marker chip goes on the first hero's label and nowhere else.
+    out.push(...blank(2));
+    const tally = s.findings.length === 0 ? 'none' : `${s.findings.length} (${countBy(s.findings)})`;
+    const tallyLines = wrap(tally, rc.columns - 10, { ...rc, indent: '' });
+    out.push(`${sectionLabel('FINDINGS', rc)}  ${p(tallyLines[0] ?? '', 'ink2')}`);
+    for (const l of tallyLines.slice(1))
+        out.push(`          ${p(l, 'ink2')}`);
+    if (s.findings.length === 0) {
+        const why = s.status === 'completed' ? 'The run completed and found nothing to report.' : `The run ${RUN_STATUS_WORDS[s.status]} before producing findings.`;
+        for (const l of wrap(why, rc.columns - 2, rc))
+            out.push(`  ${p(l, 'ink2')}`);
+    }
+    let markerUsed = false;
+    let inSecondary = false;
+    for (const { finding, frame, firstReceipt } of orderFindings(s.findings)) {
+        if (finding.prominence === 'secondary' && !narrow) {
+            if (!inSecondary)
+                out.push(...blank(1));
+            inSecondary = true;
+            out.push(compactFinding(finding, frame, rc));
+            continue;
+        }
+        const marker = finding.prominence === 'hero' && !markerUsed;
+        markerUsed ||= marker;
+        out.push(...blank(1), evidenceCard(finding, { frame, firstReceipt, marker }, rc));
+    }
+    if (s.metrics.length > 0)
+        out.push(...blank(2), sectionLabel('METRICS', rc), ...metricRows(s.metrics, rc));
+    if (s.warnings.length > 0) {
+        out.push(...blank(2), sectionLabel('WARNINGS', rc));
+        const mark = glyph('warning', rc);
+        for (const wn of s.warnings) {
+            const lines = wrap(`${mark} warning: ${wn}`, rc.columns - 2, { ...rc, indent: '  ' });
+            for (const l of lines)
+                out.push(`  ${p(l, 'status-warning')}`);
+        }
+    }
+    const steps = (options.nextSteps ?? []).map((st) => ({ ...st, command: san.text(st.command), description: san.text(st.description) }));
+    if (steps.length > 0)
+        out.push(...blank(2), ...hintBar(steps, rc));
+    return `${tidy(out.join('\n'))}\n`;
+}
+/**
+ * Drives a linear renderer from an event stream. Narration (cut endings, warnings, errors, dropped
+ * events) goes to stderr as append-only lines: no cursor movement and no spinner, ever. Results go
+ * to stdout once, from the snapshot, so `cmd > out.txt` captures only results and `--json` writes
+ * only JSON to stdout. Nothing is delayed: every line is written as soon as its event arrives.
+ */
+export function createLinearWriter(options) {
+    const err = renderCapsFor(options.caps, 'stderr', options.verbose ? { verbose: true } : {});
+    const out = renderCapsFor(options.caps, 'stdout', options.verbose ? { verbose: true } : {});
+    const plainErr = { ...err, style: 'none', unicode: false, links: false };
+    const narr = options.format === 'rich' ? err : plainErr;
+    const san = createSanitizer({ ...options.safety, ascii: !narr.unicode, ambiguousWide: narr.ambiguousWide });
+    const stream = createStreamValidator(options.validation);
+    const cutLabels = new Map();
+    const cutTitles = new Map();
+    let status;
+    let snapshot;
+    let invalid = 0;
+    let ignored = 0;
+    let seen = 0;
+    let narrated = false;
+    const say = (line) => {
+        narrated = true;
+        options.stderr.write(`${tidy(line)}\n`);
+    };
+    const warn = (text) => {
+        if (options.format === 'plain')
+            return say(`Warning: ${san.text(text)}`);
+        const mark = glyph('warning', narr);
+        for (const l of wrap(`${mark} warning: ${san.text(text)}`, narr.columns, { ...narr, indent: '  ' }))
+            say(paint(l, 'status-warning', narr.style));
+    };
+    return {
+        write(raw) {
+            seen++;
+            const r = stream.push(raw);
+            if (!r.ok) {
+                if (r.ignorable)
+                    ignored++;
+                else
+                    invalid++;
+                warn(`${r.ignorable ? 'ignored' : 'dropped'} event ${seen}: ${describeIssues(r.issues)}`);
+                return;
+            }
+            const ev = san.event(r.value);
+            switch (ev.type) {
+                case 'cut-start': {
+                    cutLabels.set(ev.cut, label('C', cutLabels.size + 1));
+                    cutTitles.set(ev.cut, ev.title);
+                    return;
+                }
+                case 'cut-end': {
+                    if (options.format === 'json')
+                        return;
+                    const l = cutLabels.get(ev.cut) ?? ev.cut;
+                    const title = cutTitles.get(ev.cut) ?? ev.cut;
+                    if (options.format === 'plain') {
+                        const d = formatDuration(ev.durationMs);
+                        say(`Cut ${l} ${ev.cut} "${title}": ${CUT_STATUS_WORDS[ev.status]}${d ? ` in ${d}` : ''}`);
+                        if (ev.summary)
+                            say(`Cut ${l} note: ${ev.summary}`);
+                        return;
+                    }
+                    say(cut({ label: l, title, status: ev.status, ...(ev.durationMs !== undefined ? { durationMs: ev.durationMs } : {}), ...(ev.summary ? { summary: ev.summary } : {}) }, narr));
+                    return;
+                }
+                case 'warning':
+                    return warn(ev.message);
+                case 'log':
+                    if (ev.level === 'error' || ev.level === 'warn' || options.verbose) {
+                        for (const line of ev.text.split('\n')) {
+                            if (options.format === 'plain')
+                                say(`Log ${ev.level}: ${line}`);
+                            else
+                                for (const l of wrap(`${ev.level}: ${line}`, narr.columns, { ...narr, indent: '  ' }))
+                                    say(paint(l, ev.level === 'error' ? 'status-danger' : 'ink2', narr.style));
+                        }
+                    }
+                    return;
+                case 'run-end':
+                    status = ev.status;
+                    return;
+                case 'snapshot': {
+                    // Results come from the snapshot, never from narration. JSON is written verbatim.
+                    snapshot = r.value.type === 'snapshot' ? r.value.snapshot : undefined;
+                    if (!snapshot)
+                        return;
+                    // On a terminal, separate narration from results with one blank line (pair gutter).
+                    if (narrated && options.format !== 'json' && options.caps.stderrIsTTY && options.caps.isTTY)
+                        say('');
+                    if (options.format === 'json')
+                        options.stdout.write(renderJson(snapshot));
+                    else if (options.format === 'plain')
+                        options.stdout.write(renderPlain(snapshot, options));
+                    else
+                        options.stdout.write(renderRich(snapshot, out, options));
+                    return;
+                }
+                default:
+                    return;
+            }
+        },
+        end() {
+            for (const i of stream.finish())
+                warn(i.message);
+            if (!snapshot)
+                warn('No result snapshot arrived, so no results are shown. Narration is not a substitute for results.');
+            return { status, snapshot, invalid, ignored };
+        },
+    };
+}

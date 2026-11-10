@@ -23,3 +23,5 @@ launch/
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+
+packages/terminal/gallery/review/

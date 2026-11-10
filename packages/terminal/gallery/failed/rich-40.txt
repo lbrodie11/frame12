@@ -1,0 +1,27 @@
+FRAME/12 · Investigate coupling in
+           payments-service
+────────────────────────────────────────
+
+RUN · 4 CUTS              ✕ failed  4.3s
+C-02 · READ HISTORY       ✕ failed  2.4s
+C-03 · PAIR CHANGES      ○ skipped  1.7s
+C-04 · RANK FINDINGS    ○ skipped  0.10s
+
+ERROR
+  History could not be read: object
+  3f9a2c1 is missing (shallow clone?).
+
+
+FINDINGS  none
+  The run failed before producing
+  findings.
+
+
+WARNINGS
+  ▲ warning: Results are incomplete: 2
+    cuts were skipped.
+
+
+NEXT STEPS
+  frame12-term render --from run.f12rec…
+    Replay this run.

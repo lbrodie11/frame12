@@ -1,0 +1,22 @@
+[2mFRAME/12 · [22m[1mInvestigate coupling in[22m
+[1m           payments-service[22m
+[2m────────────────────────────────────────[22m
+
+[2mRUN · [22m[1m4 CUTS[22m            [1m⊘ canceled[22m  [2m4.3s[22m
+[2mC-03 · [22m[1mPAIR CHANGES[22m     [1m⊘ canceled[22m  [2m1.7s[22m
+  [2mCanceled by the user (SIGINT).[22m
+[2mC-04 · [22m[1mRANK FINDINGS[22m    [2m○ skipped[22m  [2m0.10s[22m
+
+
+[1mFINDINGS[22m  [2mnone[22m
+  [2mThe run canceled before producing[22m
+  [2mfindings.[22m
+
+
+[1mMETRICS[22m
+  [2mCommits read[22m  [1m400[22m
+
+
+[1mNEXT STEPS[22m
+  [1mframe12-term render --from run.f12rec…[22m
+    [2mReplay this run.[22m

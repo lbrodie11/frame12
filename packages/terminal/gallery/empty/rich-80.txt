@@ -1,0 +1,18 @@
+FRAME/12 · Investigate coupling in payments-service
+────────────────────────────────────────────────────────────────────────────────
+
+RUN · 4 CUTS                        ✓ completed  4.3s
+
+
+FINDINGS  none
+  The run completed and found nothing to report.
+
+
+METRICS
+  Commits read  400    Files seen    212
+  Findings      0
+
+
+NEXT STEPS
+  frame12-term render --from run.f12rec --replay
+    Replay this run.

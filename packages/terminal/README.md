@@ -4,9 +4,9 @@ FRAME/12's interface language for the command line. A long-running command reads
 of **cuts** (`C-01`, `C-02`…), the finding that matters comes first as a **frame** (`F-01`), and
 every claim carries **receipts** (`E-01`).
 
-> **Status: 0.1.0, foundation (F12-13 PR 1).** This release contains the core: the event
-> contract, validation, capability detection, motion, safety, width and tokens. The linear
-> renderers (`./render`), the live Ink view (`./ink`), `spawnLogged` (`./process`) and the
+> **Status: 0.1.0 in progress (F12-13 PRs 1–2).** The core (event contract, validation,
+> capabilities, motion, safety, width, tokens) and the zero-dependency linear renderers
+> (`./render`) are in. The live Ink view (`./ink`), `spawnLogged` (`./process`) and the
 > `frame12-term` CLI arrive in later pull requests and are not exported yet.
 
 ```sh
@@ -83,6 +83,73 @@ stream validator also checks the run lifecycle: `run-start` first, each cut star
 progresses or ends and ended before `run-end`, and receipts only for announced findings. Pass
 `{ lifecycle: false }` to read a partial stream, and call `stream.finish()` at end of input to
 learn whether the run was incomplete.
+
+## Rendering (`@frame12/terminal/render`)
+
+Three linear renderers, all zero-dependency and all sanitizing their input first:
+
+| Renderer | For | Output |
+| --- | --- | --- |
+| `renderJson(snapshot)` | automation | the snapshot verbatim (2-space JSON); re-rendering parsed output is byte-identical |
+| `renderPlain(snapshot)` | CI logs, pipes, screen readers, diffs | no escape sequences, ASCII template text, one self-describing fact per line, every receipt and full path; independent of width |
+| `renderRich(snapshot, renderCaps)` | people at a terminal | the FRAME/12 grammar below, styled to the terminal's color level |
+
+`createLinearWriter({ format, caps, stdout, stderr })` drives them from an event stream:
+narration (cut endings, warnings, errors, dropped events) goes to **stderr** as append-only lines,
+and results go to **stdout** once, from the snapshot. So `cmd > out.txt` captures only results and
+`--json` writes only JSON to stdout. There is no spinner and no cursor movement in linear output,
+and nothing is delayed for effect.
+
+```ts
+import { detectCapabilities } from '@frame12/terminal';
+import { createLinearWriter } from '@frame12/terminal/render';
+
+const caps = detectCapabilities(process.env, process, process.argv);
+const writer = createLinearWriter({ format: 'rich', caps, stdout: process.stdout, stderr: process.stderr });
+for (const event of events) writer.write(event);
+const { status, snapshot } = writer.end();
+```
+
+### The grammar
+
+```
+FRAME/12 · Investigate coupling in payments-service
+────────────────────────────────────────────────────
+
+RUN · 4 CUTS                        ✓ completed  4.3s
+
+
+FINDINGS  3 (1 top, 2 primary)
+
+ F-01   Settlement runner moves with the ledger reconciler      ← the one marker chip
+┃ needs review · top finding · pair-001                         ← heavy rule: the hero only
+┃ src/module-1/runner.ts
+┃   ⇢ changes with it, no code link                             ← typed connector + words
+┃ src/module-1/ledger.ts
+┃ ▰▰▰▰▰▰▰▱ 92% (range 74–99%)                                   ← tone bar, number always printed
+┃ E-01  8947a15  2026-10-28  change 1 touching both sides
+┃ +3 more receipts
+```
+
+- `masthead`, `cut` (`C-01 · READ HISTORY  ✓ done  2.4s`), `panel`, `panelPair`, `evidenceCard`,
+  `compactFinding`, `receiptList`, `toneBar`, `metricRows`, `hintBar` (printed once as
+  "Next steps" in linear output) are exported as pure functions: data and `RenderCaps` in, text out.
+- **One marker chip per render,** on the top finding's label. Never yellow text.
+- **No boxes.** A panel is a label line and an indented body; only the hero gets `┃`.
+- **Every status is a word** (`✓ done`, `✕ failed`, `○ skipped`; ASCII `[ok]`, `[fail]`, `[skip]`).
+- **Glyph rule.** Every non-ASCII glyph is in `GLYPHS` with its East Asian Width and an ASCII
+  twin. Ambiguous-width glyphs switch to their twins when ambiguous characters render wide (CJK
+  locales, `FRAME12_AMBIGUOUS_WIDE=1`); wide and emoji-capable glyphs are never used.
+- **Width tiers.** Under 40 columns: one fact per line, no rules. 40–79: standard. 80–119:
+  two-column metrics. 120+: wider truncation only. No line is ever wider than the terminal, and
+  paths are middle-truncated, never wrapped (`verbose` prints the full path on its own line).
+
+### Gallery
+
+`npm run gallery --workspace=@frame12/terminal` writes the design-review matrix to `gallery/`:
+6 fixtures × rich at 40/80/120 columns × mono/16/256/truecolor, plus plain, JSON and the full
+terminal view. Add `-- --png` for light and dark PNGs rendered through `@xterm/headless` (a real
+terminal parser) in Playwright. The committed `.txt`/`.ansi` files are the test goldens.
 
 ## Capabilities
 

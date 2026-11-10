@@ -1,0 +1,11 @@
+FRAME/12 run "Investigate coupling in payments-service" (run-failed): failed
+Run started 2026-11-10T09:00:00.000Z, finished 2026-11-10T09:00:08.825Z.
+Cut C-01 resolve-workspace "Resolve workspace": done in 0.14s
+Cut C-02 read-history "Read history": failed in 2.4s
+Cut C-03 pair-changes "Pair changes": skipped in 1.7s
+Cut C-04 rank-findings "Rank findings": skipped in 0.10s
+Error: History could not be read: object 3f9a2c1 is missing (shallow clone?).
+Findings: none
+Warning: Results are incomplete: 2 cuts were skipped.
+Next step: frame12-term render --from run.f12rec --replay (Replay this run.)
+End of results: 0 findings, 1 warning, run failed.

@@ -1,0 +1,26 @@
+[2mC-01 · [22m[1mRESOLVE WORKSPACE[22m   [1m✓ done[22m  [2m0.14s[22m
+[2mC-02 · [22m[1mREAD HISTORY[22m         [1m✓ done[22m  [2m2.4s[22m
+[2mC-03 · [22m[1mPAIR CHANGES[22m         [1m✓ done[22m  [2m1.7s[22m
+[2mC-04 · [22m[1mRANK FINDINGS[22m       [1m✓ done[22m  [2m0.10s[22m
+
+[2mFRAME/12 · [22m[1mInvestigate coupling in[22m
+[1m           payments-service[22m
+[2m────────────────────────────────────────[22m
+
+[2mRUN · [22m[1m4 CUTS[22m           [1m✓ completed[22m  [2m4.3s[22m
+
+
+[1mFINDINGS[22m  [2mnone[22m
+  [2mThe run completed and found nothing to[22m
+  [2mreport.[22m
+
+
+[1mMETRICS[22m
+  [2mCommits read[22m  [1m400[22m
+  [2mFiles seen  [22m  [1m212[22m
+  [2mFindings    [22m  [1m0[22m
+
+
+[1mNEXT STEPS[22m
+  [1mframe12-term render --from run.f12rec…[22m
+    [2mReplay this run.[22m

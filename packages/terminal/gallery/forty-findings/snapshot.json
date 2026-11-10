@@ -1,0 +1,1917 @@
+{
+  "schemaVersion": 1,
+  "runId": "run-forty",
+  "title": "Investigate coupling in payments-service",
+  "status": "completed",
+  "startedAt": "2026-11-10T09:00:00.000Z",
+  "finishedAt": "2026-11-10T09:00:53.325Z",
+  "cuts": [
+    {
+      "cut": "resolve-workspace",
+      "title": "Resolve workspace",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 140
+    },
+    {
+      "cut": "read-history",
+      "title": "Read history",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 2380
+    },
+    {
+      "cut": "pair-changes",
+      "title": "Pair changes",
+      "status": "warning",
+      "scene": "analysis",
+      "durationMs": 1710,
+      "summary": "312 pairs below the noise floor were dropped."
+    },
+    {
+      "cut": "rank-findings",
+      "title": "Rank findings",
+      "status": "ok",
+      "scene": "analysis",
+      "durationMs": 95
+    }
+  ],
+  "metrics": [
+    {
+      "name": "commits-read",
+      "label": "Commits read",
+      "value": 400
+    },
+    {
+      "name": "files-seen",
+      "label": "Files seen",
+      "value": 212
+    },
+    {
+      "name": "findings",
+      "label": "Findings",
+      "value": 40
+    }
+  ],
+  "findings": [
+    {
+      "id": "pair-001",
+      "title": "Settlement runner moves with the ledger reconciler",
+      "summary": "9 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-1/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-1/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.92,
+        "low": 0.74,
+        "high": 0.99,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "hero",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "8947a1508ddf29b0f66cde497e3b0b35011109ac",
+          "at": "2026-10-28T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 1"
+        }
+      ]
+    },
+    {
+      "id": "pair-002",
+      "title": "Module 2 moves with its neighbor",
+      "summary": "9 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-2/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-2/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.91,
+        "low": 0.73,
+        "high": 0.98,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "8949ffc5ab98c43203c77cee4b9b9e752a93a189",
+          "at": "2026-10-27T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 2"
+        },
+        {
+          "kind": "commit",
+          "value": "a2bc833eb2f0cb58584952377442d5c9de29ad9e",
+          "at": "2026-10-26T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 2"
+        }
+      ]
+    },
+    {
+      "id": "pair-003",
+      "title": "Module 3 moves with its neighbor",
+      "summary": "9 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-3/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-3/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.89,
+        "low": 0.71,
+        "high": 0.96,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "d7ba2462f265156c968ee31f5f7993999de869da",
+          "at": "2026-10-26T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 3"
+        },
+        {
+          "kind": "commit",
+          "value": "bf84d569c2b8493291b6d2666a93d5e57d1c89d5",
+          "at": "2026-10-25T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 3"
+        },
+        {
+          "kind": "commit",
+          "value": "3e1c3b948c210c84e715c34d8b23d9d55ebbccf8",
+          "at": "2026-10-24T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 3"
+        }
+      ]
+    },
+    {
+      "id": "pair-004",
+      "title": "Module 4 moves with its neighbor",
+      "summary": "9 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-4/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-4/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.88,
+        "low": 0.7,
+        "high": 0.95,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "warning",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "873c2c575efd35fa4e1a96dcc498f199f5c4468f",
+          "at": "2026-10-25T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 4"
+        },
+        {
+          "kind": "commit",
+          "value": "909b0ee83ba303b03edee8b1f5cdbd55b9b596a4",
+          "at": "2026-10-24T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 4"
+        },
+        {
+          "kind": "commit",
+          "value": "322aea8da374c562a6e3e6c2ab4924b5e0283491",
+          "at": "2026-10-23T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 4"
+        },
+        {
+          "kind": "commit",
+          "value": "2a60072639583d74bcdcce176074b0e134d20ace",
+          "at": "2026-10-22T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 4"
+        }
+      ]
+    },
+    {
+      "id": "pair-005",
+      "title": "Module 5 moves with its neighbor",
+      "summary": "9 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-5/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-5/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.86,
+        "low": 0.68,
+        "high": 0.93,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "06e5d7544bada280107b79c5fff7300dcc9a7d90",
+          "at": "2026-10-24T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 5"
+        },
+        {
+          "kind": "commit",
+          "value": "dd5fb2f359e7580e6961e3207650bc095632839b",
+          "at": "2026-10-23T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 5"
+        },
+        {
+          "kind": "commit",
+          "value": "a083c0226c5e9a08998aae97ca5aad39c0486f92",
+          "at": "2026-10-22T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 5"
+        },
+        {
+          "kind": "commit",
+          "value": "884e7129ed812f2a996cc9aa560de2bd0e25aaad",
+          "at": "2026-10-21T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 5"
+        },
+        {
+          "kind": "commit",
+          "value": "223125002bca35106e465639d84dc2b51de55cdc",
+          "at": "2026-10-20T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 5"
+        }
+      ]
+    },
+    {
+      "id": "pair-006",
+      "title": "Module 6 moves with its neighbor",
+      "summary": "9 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-6/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-6/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.85,
+        "low": 0.67,
+        "high": 0.92,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "35519869236612da15c3b3faafe6bb2d54ef053d",
+          "at": "2026-10-23T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 6"
+        },
+        {
+          "kind": "commit",
+          "value": "4d86e762a219d80896259eb307f288d954bb6362",
+          "at": "2026-10-22T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 6"
+        },
+        {
+          "kind": "commit",
+          "value": "8a62da3373e97432341409942a7ff2394c4c545b",
+          "at": "2026-10-21T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 6"
+        },
+        {
+          "kind": "commit",
+          "value": "b3e8fe9470a941dc364fd3bde21996a5fdfe3ca8",
+          "at": "2026-10-20T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 6"
+        },
+        {
+          "kind": "commit",
+          "value": "f0c4f1653beb0bf2155bd2feadcef8150fd13749",
+          "at": "2026-10-19T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 6"
+        },
+        {
+          "kind": "commit",
+          "value": "0a3774de6f49d228c1acd0cfa1e92211f37f26c6",
+          "at": "2026-10-18T00:00:00.000Z",
+          "note": "change 6 touching both sides of pair 6"
+        }
+      ]
+    },
+    {
+      "id": "pair-007",
+      "title": "Module 7 moves with its neighbor",
+      "summary": "8 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-7/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-7/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.83,
+        "low": 0.65,
+        "high": 0.9,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "a3da56162ba9d4d4e155bb0bfff20c596c60588e",
+          "at": "2026-10-22T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 7"
+        }
+      ]
+    },
+    {
+      "id": "pair-008",
+      "title": "Module 8 moves with its neighbor",
+      "summary": "8 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-8/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-8/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.82,
+        "low": 0.64,
+        "high": 0.89,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "96e5882bc9c5ece2ed2fd4183c1d32a978bc41f3",
+          "at": "2026-10-21T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 8"
+        },
+        {
+          "kind": "commit",
+          "value": "206c43acd9c836a095743a2dd36ad86dacd06a28",
+          "at": "2026-10-20T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 8"
+        }
+      ]
+    },
+    {
+      "id": "pair-009",
+      "title": "Module 9 moves with its neighbor",
+      "summary": "8 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-9/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-9/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.8,
+        "low": 0.62,
+        "high": 0.87,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "b693b2288dea41406ed7fe21e01efca5e760a154",
+          "at": "2026-10-20T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 9"
+        },
+        {
+          "kind": "commit",
+          "value": "ad34cf97dd4fe566a9d4273423cb7511073fc6c7",
+          "at": "2026-10-19T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 9"
+        },
+        {
+          "kind": "commit",
+          "value": "5058aa66e185fc98e0e022b3832060117feff85e",
+          "at": "2026-10-18T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 9"
+        }
+      ]
+    },
+    {
+      "id": "pair-010",
+      "title": "Module 10 moves with its neighbor",
+      "summary": "8 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-10/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-10/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.79,
+        "low": 0.61,
+        "high": 0.86,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "primary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "b2a908fdb15582b2dbb00d165c4a8375d07d0dc1",
+          "at": "2026-10-19T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 10"
+        },
+        {
+          "kind": "commit",
+          "value": "ac1b5a162067b6a80af0a6fff3d0980994de97a6",
+          "at": "2026-10-18T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 10"
+        },
+        {
+          "kind": "commit",
+          "value": "08f77f47af23e9da51d735c0e3ac2d61e62b5137",
+          "at": "2026-10-17T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 10"
+        },
+        {
+          "kind": "commit",
+          "value": "925598586f6abaecdf384051dac82ab501bdfc74",
+          "at": "2026-10-16T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 10"
+        }
+      ]
+    },
+    {
+      "id": "pair-011",
+      "title": "Module 11 moves with its neighbor",
+      "summary": "8 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-11/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-11/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.77,
+        "low": 0.59,
+        "high": 0.84,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "warning",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "3996f22f5a11d5c28d7fabf648c245cda81552fb",
+          "at": "2026-10-18T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 11"
+        },
+        {
+          "kind": "commit",
+          "value": "c2f50b4031ac005e5012b511a79effd595409bbc",
+          "at": "2026-10-17T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 11"
+        },
+        {
+          "kind": "commit",
+          "value": "e485b06556a25cf236c16f58116d8a9df9e20221",
+          "at": "2026-10-16T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 11"
+        },
+        {
+          "kind": "commit",
+          "value": "fdf833de8855378eb1475d8b222000f5b3651b7a",
+          "at": "2026-10-15T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 11"
+        },
+        {
+          "kind": "commit",
+          "value": "7e2399335fbc6772f753b75ad1443765750ea11f",
+          "at": "2026-10-14T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 11"
+        }
+      ]
+    },
+    {
+      "id": "pair-012",
+      "title": "Module 12 moves with its neighbor",
+      "summary": "8 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-12/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-12/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.76,
+        "low": 0.58,
+        "high": 0.83,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "30747dfad757c9da6e4122279b3c0d0133a0e3a2",
+          "at": "2026-10-17T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 12"
+        },
+        {
+          "kind": "commit",
+          "value": "1701fa81aef9542a55f30970e71837390b696699",
+          "at": "2026-10-16T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 12"
+        },
+        {
+          "kind": "commit",
+          "value": "76d662ccb50d476ef6c7cf415d67cc91d58ba914",
+          "at": "2026-10-15T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 12"
+        },
+        {
+          "kind": "commit",
+          "value": "6d5070cbbfec67def54d73d2e3c58509291805d3",
+          "at": "2026-10-14T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 12"
+        },
+        {
+          "kind": "commit",
+          "value": "cbe7a496f89099325d256d3385550a5939a55136",
+          "at": "2026-10-13T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 12"
+        },
+        {
+          "kind": "commit",
+          "value": "d275537db2a4fe920d04870c49531a51af0b7b7d",
+          "at": "2026-10-12T00:00:00.000Z",
+          "note": "change 6 touching both sides of pair 12"
+        }
+      ]
+    },
+    {
+      "id": "pair-013",
+      "title": "Module 13 moves with its neighbor",
+      "summary": "7 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-13/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-13/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.74,
+        "low": 0.56,
+        "high": 0.81,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "5511269d60e9a3122d05896c02189b4dedc13769",
+          "at": "2026-10-16T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 13"
+        }
+      ]
+    },
+    {
+      "id": "pair-014",
+      "title": "Module 14 moves with its neighbor",
+      "summary": "7 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-14/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-14/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.73,
+        "low": 0.55,
+        "high": 0.8,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "7479d4c887251f92efa4b8ed04247bd90558ad90",
+          "at": "2026-10-15T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 14"
+        },
+        {
+          "kind": "commit",
+          "value": "6b1af23744138b5e6fe3030a8b4cf7b92b0ae387",
+          "at": "2026-10-14T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 14"
+        }
+      ]
+    },
+    {
+      "id": "pair-015",
+      "title": "Module 15 moves with its neighbor",
+      "summary": "7 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-15/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-15/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.71,
+        "low": 0.53,
+        "high": 0.78,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "b37eee237ea6bb22f9c602da37c7fbb5e626bbff",
+          "at": "2026-10-14T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 15"
+        },
+        {
+          "kind": "commit",
+          "value": "dd05128477dc72be5633389d803c304571bbc2b8",
+          "at": "2026-10-13T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 15"
+        },
+        {
+          "kind": "commit",
+          "value": "5d3077d99100d9e20bd7879c3f21869dafcd478d",
+          "at": "2026-10-12T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 15"
+        }
+      ]
+    },
+    {
+      "id": "pair-016",
+      "title": "Module 16 moves with its neighbor",
+      "summary": "7 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-16/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-16/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.7,
+        "low": 0.52,
+        "high": 0.77,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "804bcb6ec17a181a3164ed8b87ba84f179053426",
+          "at": "2026-10-13T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 16"
+        },
+        {
+          "kind": "commit",
+          "value": "66d947f58afb20b22b17b64c11abecc18fb088b5",
+          "at": "2026-10-12T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 16"
+        },
+        {
+          "kind": "commit",
+          "value": "c5496c50861247e67d226bc5ce326f0994c27ee0",
+          "at": "2026-10-11T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 16"
+        },
+        {
+          "kind": "commit",
+          "value": "bd27be3fdb9f9056b552876683b83b699dfe6657",
+          "at": "2026-10-10T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 16"
+        }
+      ]
+    },
+    {
+      "id": "pair-017",
+      "title": "Module 17 moves with its neighbor",
+      "summary": "7 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-17/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-17/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.68,
+        "low": 0.5,
+        "high": 0.75,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "ef7d63018fde697274b0d2c07077f9756aefb85d",
+          "at": "2026-10-12T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 17"
+        },
+        {
+          "kind": "commit",
+          "value": "08efe67ad6cc35b2e7f0426721c361fd8dcb3f56",
+          "at": "2026-10-11T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 17"
+        },
+        {
+          "kind": "commit",
+          "value": "45cbd94b663c7842fbb0e57ebd802f8597c93257",
+          "at": "2026-10-10T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 17"
+        },
+        {
+          "kind": "commit",
+          "value": "4f51cb4ca79645026b4b872df432019dc0fbb428",
+          "at": "2026-10-09T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 17"
+        },
+        {
+          "kind": "commit",
+          "value": "aaf0bbfd06d5b81249df69c40cdbf345d3d12731",
+          "at": "2026-10-08T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 17"
+        }
+      ]
+    },
+    {
+      "id": "pair-018",
+      "title": "Module 18 moves with its neighbor",
+      "summary": "7 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-18/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-18/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.67,
+        "low": 0.49,
+        "high": 0.74,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "warning",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "94bf3c8cd971c092a20791c1d9b140092070ccf4",
+          "at": "2026-10-11T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 18"
+        },
+        {
+          "kind": "commit",
+          "value": "8b394a8b2df3651eb61e020691b1b2d110d69163",
+          "at": "2026-10-10T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 18"
+        },
+        {
+          "kind": "commit",
+          "value": "4e5d57ba45a7a8d637895487ef3f31e9cc441692",
+          "at": "2026-10-09T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 18"
+        },
+        {
+          "kind": "commit",
+          "value": "34ead4418446fbe2970166d4267626f1de9ccf39",
+          "at": "2026-10-08T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 18"
+        },
+        {
+          "kind": "commit",
+          "value": "d00abc98f2db1b2274cb502d78662ec952843a10",
+          "at": "2026-10-07T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 18"
+        },
+        {
+          "kind": "commit",
+          "value": "46aca38752e86a46596f5772f6b38a41a826470f",
+          "at": "2026-10-06T00:00:00.000Z",
+          "note": "change 6 touching both sides of pair 18"
+        }
+      ]
+    },
+    {
+      "id": "pair-019",
+      "title": "Module 19 moves with its neighbor",
+      "summary": "7 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-19/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-19/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.65,
+        "low": 0.47,
+        "high": 0.72,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "9a3fe27702a4f802213a0c0eb2e7d69d766d40a3",
+          "at": "2026-10-10T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 19"
+        }
+      ]
+    },
+    {
+      "id": "pair-020",
+      "title": "Module 20 moves with its neighbor",
+      "summary": "6 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-20/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-20/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.64,
+        "low": 0.46,
+        "high": 0.71,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "36a1fc02eee3df2a9759721f784bd001e4ba10da",
+          "at": "2026-10-09T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 20"
+        },
+        {
+          "kind": "commit",
+          "value": "1d2f78894e9b646a89c94cd87fef38e9024bd991",
+          "at": "2026-10-08T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 20"
+        }
+      ]
+    },
+    {
+      "id": "pair-021",
+      "title": "Module 21 moves with its neighbor",
+      "summary": "6 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-21/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-21/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.62,
+        "low": 0.44,
+        "high": 0.69,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "add0c6d67206bc9ec4382e43e94cf335e6e9cab2",
+          "at": "2026-10-08T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 21"
+        },
+        {
+          "kind": "commit",
+          "value": "b45e75bd09d28092065d1e50158e978d01b20289",
+          "at": "2026-10-07T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 21"
+        },
+        {
+          "kind": "commit",
+          "value": "940b051856dd784e2404a729320b785562c82494",
+          "at": "2026-10-06T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 21"
+        }
+      ]
+    },
+    {
+      "id": "pair-022",
+      "title": "Module 22 moves with its neighbor",
+      "summary": "6 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-22/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-22/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.61,
+        "low": 0.43,
+        "high": 0.68,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "c47b1ceb1d0ac396b4c9eea2881efe71efd6f42b",
+          "at": "2026-10-07T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 22"
+        },
+        {
+          "kind": "commit",
+          "value": "4e01d86ca6a78f6eb7f2f549601565e9fe57a81c",
+          "at": "2026-10-06T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 22"
+        },
+        {
+          "kind": "commit",
+          "value": "ef6aa4a1f1e930aacac26608f2b90761e3d79eb1",
+          "at": "2026-10-05T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 22"
+        },
+        {
+          "kind": "commit",
+          "value": "08dd281a397eccf25b6945e76af15ec91658011a",
+          "at": "2026-10-04T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 22"
+        }
+      ]
+    },
+    {
+      "id": "pair-023",
+      "title": "Module 23 moves with its neighbor",
+      "summary": "6 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-23/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-23/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.59,
+        "low": 0.41,
+        "high": 0.66,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "af7d271499516d82d81d2965d91718ed38bb6e80",
+          "at": "2026-10-06T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 23"
+        },
+        {
+          "kind": "commit",
+          "value": "85f702b345f21022046dee16b8da91ed86766a17",
+          "at": "2026-10-05T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 23"
+        },
+        {
+          "kind": "commit",
+          "value": "491b0fe2d6309e42bc9cc48fd57e22158d3ed146",
+          "at": "2026-10-04T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 23"
+        },
+        {
+          "kind": "commit",
+          "value": "30e5c0e9a1e3aa2a4629f54022d0dea58a35e495",
+          "at": "2026-10-03T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 23"
+        },
+        {
+          "kind": "commit",
+          "value": "cac874c0209b5f8a198fe8211d464f4da6583804",
+          "at": "2026-10-02T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 23"
+        }
+      ]
+    },
+    {
+      "id": "pair-024",
+      "title": "Module 24 moves with its neighbor",
+      "summary": "6 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-24/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-24/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.58,
+        "low": 0.4,
+        "high": 0.65,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "0fc78529d5fa325a34b3b18c12f1dba1937e4829",
+          "at": "2026-10-05T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 24"
+        },
+        {
+          "kind": "commit",
+          "value": "27fcd4220ea2fb1ef1dadd57943bb761d31b47fa",
+          "at": "2026-10-04T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 24"
+        },
+        {
+          "kind": "commit",
+          "value": "64d8c6f3df4a3546f995bc368bbcb6d978ddc0fb",
+          "at": "2026-10-03T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 24"
+        },
+        {
+          "kind": "commit",
+          "value": "8e5eeb54ba7c3332fd5dd0d17ba4d6597885b224",
+          "at": "2026-10-02T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 24"
+        },
+        {
+          "kind": "commit",
+          "value": "cb3ade2550b0c7f265e49d1098866521d162c145",
+          "at": "2026-10-28T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 24"
+        },
+        {
+          "kind": "commit",
+          "value": "e4ad619e459c306ebeb1044b5f1f4491ac5bd136",
+          "at": "2026-10-27T00:00:00.000Z",
+          "note": "change 6 touching both sides of pair 24"
+        }
+      ]
+    },
+    {
+      "id": "pair-025",
+      "title": "Module 25 moves with its neighbor",
+      "summary": "6 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-25/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-25/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.56,
+        "low": 0.38,
+        "high": 0.63,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "warning",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "bf671722a1340cde7850aedf5b1edec5e9c9f9d6",
+          "at": "2026-10-04T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 25"
+        }
+      ]
+    },
+    {
+      "id": "pair-026",
+      "title": "Module 26 moves with its neighbor",
+      "summary": "6 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-26/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-26/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.55,
+        "low": 0.37,
+        "high": 0.62,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "a79abb17abb97f565496f89ef24ddb094214541f",
+          "at": "2026-10-03T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 26"
+        },
+        {
+          "kind": "commit",
+          "value": "b0f99da8abc65a860f313b5d656da049d19ab628",
+          "at": "2026-10-02T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 26"
+        }
+      ]
+    },
+    {
+      "id": "pair-027",
+      "title": "Module 27 moves with its neighbor",
+      "summary": "5 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-27/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-27/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.53,
+        "low": 0.35,
+        "high": 0.6,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "d097dd107cfa069a42a77a21d545c7fd0121bd44",
+          "at": "2026-10-02T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 27"
+        },
+        {
+          "kind": "commit",
+          "value": "c8762eff0a3807821b53f3baf0fc9bd51ad48f23",
+          "at": "2026-10-28T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 27"
+        },
+        {
+          "kind": "commit",
+          "value": "8b9a3c2e6516d12a9424c2fb7f7bb97d537a2102",
+          "at": "2026-10-27T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 27"
+        }
+      ]
+    },
+    {
+      "id": "pair-028",
+      "title": "Module 28 moves with its neighbor",
+      "summary": "5 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-28/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-28/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.52,
+        "low": 0.34,
+        "high": 0.59,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "a9a88e85a05976b290f7ed28c42ce8b9a3e0f48d",
+          "at": "2026-10-28T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 28"
+        },
+        {
+          "kind": "commit",
+          "value": "c31b11fe4059f836ae3b532bea945aa179d32746",
+          "at": "2026-10-27T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 28"
+        },
+        {
+          "kind": "commit",
+          "value": "fff704cf5b51f696167de2226b025139fb346757",
+          "at": "2026-10-26T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 28"
+        },
+        {
+          "kind": "commit",
+          "value": "0955e7602ba9719a824322bd9e25e3e18ca8e6b8",
+          "at": "2026-10-25T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 28"
+        }
+      ]
+    },
+    {
+      "id": "pair-029",
+      "title": "Module 29 moves with its neighbor",
+      "summary": "5 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-29/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-29/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.5,
+        "low": 0.32,
+        "high": 0.57,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "10d0390ec244f29e01312c3bd777e895b8e5b04a",
+          "at": "2026-10-27T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 29"
+        },
+        {
+          "kind": "commit",
+          "value": "f89aea1598a82272f539a7d8e669fb5d98a3f721",
+          "at": "2026-10-26T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 29"
+        },
+        {
+          "kind": "commit",
+          "value": "d70a44f012e7d9defd6b8011f78cf0a5183f5a9c",
+          "at": "2026-10-25T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 29"
+        },
+        {
+          "kind": "commit",
+          "value": "cdab625f62186202c79011f69da1c17dfc0d690b",
+          "at": "2026-10-24T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 29"
+        },
+        {
+          "kind": "commit",
+          "value": "555ce012dd39111681ef948f604fefcd6efe16ee",
+          "at": "2026-10-23T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 29"
+        }
+      ]
+    },
+    {
+      "id": "pair-030",
+      "title": "Module 30 moves with its neighbor",
+      "summary": "5 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-30/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-30/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.49,
+        "low": 0.31,
+        "high": 0.56,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "03189bc3375660262518b3ba631410110469d483",
+          "at": "2026-10-26T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 30"
+        },
+        {
+          "kind": "commit",
+          "value": "2b618ba45380e00ead3d956191601c4994804644",
+          "at": "2026-10-25T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 30"
+        },
+        {
+          "kind": "commit",
+          "value": "acca257999532c1a888f1a50bc628c810f6cbd09",
+          "at": "2026-10-24T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 30"
+        },
+        {
+          "kind": "commit",
+          "value": "c63ca8f2266a1aa2f5d74ddf87ef27f94ab32b92",
+          "at": "2026-10-23T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 30"
+        },
+        {
+          "kind": "commit",
+          "value": "be8bf4bf25535036e8b371d6859f668969ffa4f7",
+          "at": "2026-10-22T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 30"
+        },
+        {
+          "kind": "commit",
+          "value": "c6ada2d0c04dba5ebca0ab4d466ea1b1f0d85c88",
+          "at": "2026-10-21T00:00:00.000Z",
+          "note": "change 6 touching both sides of pair 30"
+        }
+      ]
+    },
+    {
+      "id": "pair-031",
+      "title": "Module 31 moves with its neighbor",
+      "summary": "5 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-31/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-31/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.47,
+        "low": 0.29,
+        "high": 0.54,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "71eeb955a0960e723f82c71827774f7d98979311",
+          "at": "2026-10-25T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 31"
+        }
+      ]
+    },
+    {
+      "id": "pair-032",
+      "title": "Module 32 moves with its neighbor",
+      "summary": "5 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-32/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-32/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.46,
+        "low": 0.28,
+        "high": 0.53,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "warning",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "9afc75a0872a975ec7af87558fe1614909ce80f8",
+          "at": "2026-10-24T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 32"
+        },
+        {
+          "kind": "commit",
+          "value": "919d930f7b9069ce14810076e1dc8e01f4776717",
+          "at": "2026-10-23T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 32"
+        }
+      ]
+    },
+    {
+      "id": "pair-033",
+      "title": "Module 33 moves with its neighbor",
+      "summary": "4 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-33/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-33/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.44,
+        "low": 0.26,
+        "high": 0.51,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "7f054de7e5888172af843ec255f183c5dd351d9b",
+          "at": "2026-10-23T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 33"
+        },
+        {
+          "kind": "commit",
+          "value": "8726fbf86825397a7867f6f92f8b22a5d46d6924",
+          "at": "2026-10-22T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 33"
+        },
+        {
+          "kind": "commit",
+          "value": "28b6d79d822c25b29457e364da4fcc3da2185899",
+          "at": "2026-10-21T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 33"
+        }
+      ]
+    },
+    {
+      "id": "pair-034",
+      "title": "Module 34 moves with its neighbor",
+      "summary": "4 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-34/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-34/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.43,
+        "low": 0.25,
+        "high": 0.5,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "fba084b2986ac6be1c2742574beb3c59cf45b502",
+          "at": "2026-10-22T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 34"
+        },
+        {
+          "kind": "commit",
+          "value": "e22e0139695929ea1901886c55ee54a98af21dc1",
+          "at": "2026-10-21T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 34"
+        },
+        {
+          "kind": "commit",
+          "value": "60c567647b61792a566d3fc9e9fefec16014eb9c",
+          "at": "2026-10-20T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 34"
+        },
+        {
+          "kind": "commit",
+          "value": "387c77832f2fb3eef84952ce99385a4134c59873",
+          "at": "2026-10-19T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 34"
+        }
+      ]
+    },
+    {
+      "id": "pair-035",
+      "title": "Module 35 moves with its neighbor",
+      "summary": "4 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-35/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-35/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.41,
+        "low": 0.23,
+        "high": 0.48,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "f5ed7df9e321f17273c8cea4b4b6fb3d52e81ecd",
+          "at": "2026-10-21T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 35"
+        },
+        {
+          "kind": "commit",
+          "value": "0f6001721bec113e94525a2f224fdd3d4253c7ae",
+          "at": "2026-10-20T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 35"
+        },
+        {
+          "kind": "commit",
+          "value": "4c3bf443fe9f30d2e1537ca2ea6286650b2dd1af",
+          "at": "2026-10-19T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 35"
+        },
+        {
+          "kind": "commit",
+          "value": "7484e4240d1d8bc6c877b7fd5a6c804563006458",
+          "at": "2026-10-18T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 35"
+        },
+        {
+          "kind": "commit",
+          "value": "b160d6f57da8c0323531e400b3b32d4551728c29",
+          "at": "2026-10-17T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 35"
+        }
+      ]
+    },
+    {
+      "id": "pair-036",
+      "title": "Module 36 moves with its neighbor",
+      "summary": "4 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-36/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-36/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.4,
+        "low": 0.22,
+        "high": 0.47,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "d4362e24f290c7c625e47c6190538ca1d03ce374",
+          "at": "2026-10-20T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 36"
+        },
+        {
+          "kind": "commit",
+          "value": "abed3e4362a154eeac3a3b5ae7e8c36154117e0b",
+          "at": "2026-10-19T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 36"
+        },
+        {
+          "kind": "commit",
+          "value": "6f114b72bf4ad8a24a55011fa40116999aecfe1a",
+          "at": "2026-10-18T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 36"
+        },
+        {
+          "kind": "commit",
+          "value": "559ec7f9dd26f5a216a4a99849ca280930476bd9",
+          "at": "2026-10-17T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 36"
+        },
+        {
+          "kind": "commit",
+          "value": "6f8245500a3bb10e3d481595029509390320f258",
+          "at": "2026-10-16T00:00:00.000Z",
+          "note": "change 5 touching both sides of pair 36"
+        },
+        {
+          "kind": "commit",
+          "value": "6760973fd4cca596dc59d7dee5cd8b6948c7d99f",
+          "at": "2026-10-15T00:00:00.000Z",
+          "note": "change 6 touching both sides of pair 36"
+        }
+      ]
+    },
+    {
+      "id": "pair-037",
+      "title": "Module 37 moves with its neighbor",
+      "summary": "4 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-37/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-37/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.38,
+        "low": 0.2,
+        "high": 0.45,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "93571abb89dff5b2d0805e3e5875b9256b0a3a67",
+          "at": "2026-10-19T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 37"
+        }
+      ]
+    },
+    {
+      "id": "pair-038",
+      "title": "Module 38 moves with its neighbor",
+      "summary": "4 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-38/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-38/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.37,
+        "low": 0.19,
+        "high": 0.44,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "direct",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "0808cd2681ff39c61fd01b5360a79bf12d76e67e",
+          "at": "2026-10-18T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 38"
+        },
+        {
+          "kind": "commit",
+          "value": "0fd3b08d56206e12f83972006c24e50974948be5",
+          "at": "2026-10-17T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 38"
+        }
+      ]
+    },
+    {
+      "id": "pair-039",
+      "title": "Module 39 moves with its neighbor",
+      "summary": "4 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-39/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-39/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.35,
+        "low": 0.17,
+        "high": 0.42,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "warning",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "f667e68dc501ea82fc1863d02789812d1b4620e9",
+          "at": "2026-10-17T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 39"
+        },
+        {
+          "kind": "commit",
+          "value": "ee9d03260fc065be10e305c3a396c20583ae76b2",
+          "at": "2026-10-16T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 39"
+        },
+        {
+          "kind": "commit",
+          "value": "4b792857808917c29fdc351e05be7a2d72c2f833",
+          "at": "2026-10-15T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 39"
+        }
+      ]
+    },
+    {
+      "id": "pair-040",
+      "title": "Module 40 moves with its neighbor",
+      "summary": "3 of 10 changes to one side also changed the other.",
+      "subject": [
+        {
+          "kind": "file",
+          "label": "src/module-40/runner.ts"
+        },
+        {
+          "kind": "file",
+          "label": "src/module-40/ledger.ts"
+        }
+      ],
+      "strength": {
+        "value": 0.34,
+        "low": 0.16,
+        "high": 0.41,
+        "label": "follow-up rate (historical activity, not correctness)"
+      },
+      "prominence": "secondary",
+      "status": "review",
+      "relation": "history-only",
+      "receipts": [
+        {
+          "kind": "commit",
+          "value": "8f99ef783d67cd1e62ad5d5dcea99ac98ac50690",
+          "at": "2026-10-16T00:00:00.000Z",
+          "note": "change 1 touching both sides of pair 40"
+        },
+        {
+          "kind": "commit",
+          "value": "877841670201ce0e4b6c487efe720ee18c0a017f",
+          "at": "2026-10-15T00:00:00.000Z",
+          "note": "change 2 touching both sides of pair 40"
+        },
+        {
+          "kind": "commit",
+          "value": "aa9ce5b6c4d742526b56e98b36f796198824a72e",
+          "at": "2026-10-14T00:00:00.000Z",
+          "note": "change 3 touching both sides of pair 40"
+        },
+        {
+          "kind": "commit",
+          "value": "3129cb1dc38931e28568b5745da9acf10511f525",
+          "at": "2026-10-13T00:00:00.000Z",
+          "note": "change 4 touching both sides of pair 40"
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "312 low-signal pairs were dropped; pass --include-noise to keep them."
+  ]
+}

@@ -26,6 +26,13 @@ export declare const FINDING_STATUSES: readonly ["review", "info", "ok", "warnin
 export type FindingStatus = (typeof FINDING_STATUSES)[number];
 export declare const RECEIPT_KINDS: readonly ["commit", "file", "link", "log", "test", "tool-call"];
 export type ReceiptKind = (typeof RECEIPT_KINDS)[number];
+/**
+ * How the first two subjects of a finding are connected. `history-only`: they change together
+ * with no code link (a ghost wire). `direct`: one references the other. `indirect`: connected
+ * through other modules.
+ */
+export declare const RELATIONS: readonly ["history-only", "direct", "indirect"];
+export type Relation = (typeof RELATIONS)[number];
 export declare const LOG_LEVELS: readonly ["debug", "info", "warn", "error"];
 export type LogLevel = (typeof LOG_LEVELS)[number];
 export declare const LOG_STREAMS: readonly ["stdout", "stderr"];
@@ -61,6 +68,8 @@ export interface Finding {
     strength?: Strength;
     prominence: Prominence;
     status: FindingStatus;
+    /** How `subject[0]` and `subject[1]` are connected; renderers draw a typed connector. */
+    relation?: Relation;
     receipts?: ReceiptRef[];
 }
 export interface Metric {

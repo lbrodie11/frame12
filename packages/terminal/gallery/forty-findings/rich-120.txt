@@ -1,0 +1,234 @@
+FRAME/12 · Investigate coupling in payments-service
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+RUN · 4 CUTS                        ✓ completed  4.3s
+C-03 · PAIR CHANGES                 ▲ warning  1.7s
+  312 pairs below the noise floor were dropped.
+
+
+FINDINGS  40 (1 top, 9 primary, 30 secondary)
+
+ F-01   Settlement runner moves with the ledger reconciler
+┃ needs review · top finding · pair-001
+┃ 9 of 10 changes to one side also changed the other.
+┃ src/module-1/runner.ts
+┃   ⇢ changes with it, no code link
+┃ src/module-1/ledger.ts
+┃ ▰▰▰▰▰▰▰▱ 92% (range 74–99%)
+┃ follow-up rate (historical activity, not correctness)
+┃ E-01  8947a15  2026-10-28  change 1 touching both sides of pair 1
+
+F-02  Module 2 moves with its neighbor
+  needs review · primary · pair-002
+  9 of 10 changes to one side also changed the other.
+  src/module-2/runner.ts
+    → references it directly
+  src/module-2/ledger.ts
+  ▰▰▰▰▰▰▰▱ 91% (range 73–98%)
+  follow-up rate (historical activity, not correctness)
+  E-02  8949ffc  2026-10-27  change 1 touching both sides of pair 2
+  E-03  a2bc833  2026-10-26  change 2 touching both sides of pair 2
+
+F-03  Module 3 moves with its neighbor
+  needs review · primary · pair-003
+  9 of 10 changes to one side also changed the other.
+  src/module-3/runner.ts
+    ⇢ changes with it, no code link
+  src/module-3/ledger.ts
+  ▰▰▰▰▰▰▰▱ 89% (range 71–96%)
+  follow-up rate (historical activity, not correctness)
+  E-04  d7ba246  2026-10-26  change 1 touching both sides of pair 3
+  E-05  bf84d56  2026-10-25  change 2 touching both sides of pair 3
+  E-06  3e1c3b9  2026-10-24  change 3 touching both sides of pair 3
+
+F-04  Module 4 moves with its neighbor
+  warning · primary · pair-004
+  9 of 10 changes to one side also changed the other.
+  src/module-4/runner.ts
+    ⇢ changes with it, no code link
+  src/module-4/ledger.ts
+  ▰▰▰▰▰▰▰▱ 88% (range 70–95%)
+  follow-up rate (historical activity, not correctness)
+  E-07  873c2c5  2026-10-25  change 1 touching both sides of pair 4
+  E-08  909b0ee  2026-10-24  change 2 touching both sides of pair 4
+  E-09  322aea8  2026-10-23  change 3 touching both sides of pair 4
+  +1 more receipt
+
+F-05  Module 5 moves with its neighbor
+  needs review · primary · pair-005
+  9 of 10 changes to one side also changed the other.
+  src/module-5/runner.ts
+    → references it directly
+  src/module-5/ledger.ts
+  ▰▰▰▰▰▰▰▱ 86% (range 68–93%)
+  follow-up rate (historical activity, not correctness)
+  E-11  06e5d75  2026-10-24  change 1 touching both sides of pair 5
+  E-12  dd5fb2f  2026-10-23  change 2 touching both sides of pair 5
+  E-13  a083c02  2026-10-22  change 3 touching both sides of pair 5
+  +2 more receipts
+
+F-06  Module 6 moves with its neighbor
+  needs review · primary · pair-006
+  9 of 10 changes to one side also changed the other.
+  src/module-6/runner.ts
+    ⇢ changes with it, no code link
+  src/module-6/ledger.ts
+  ▰▰▰▰▰▰▰▱ 85% (range 67–92%)
+  follow-up rate (historical activity, not correctness)
+  E-16  3551986  2026-10-23  change 1 touching both sides of pair 6
+  E-17  4d86e76  2026-10-22  change 2 touching both sides of pair 6
+  E-18  8a62da3  2026-10-21  change 3 touching both sides of pair 6
+  +3 more receipts
+
+F-07  Module 7 moves with its neighbor
+  needs review · primary · pair-007
+  8 of 10 changes to one side also changed the other.
+  src/module-7/runner.ts
+    ⇢ changes with it, no code link
+  src/module-7/ledger.ts
+  ▰▰▰▰▰▰▰▱ 83% (range 65–90%)
+  follow-up rate (historical activity, not correctness)
+  E-22  a3da561  2026-10-22  change 1 touching both sides of pair 7
+
+F-08  Module 8 moves with its neighbor
+  needs review · primary · pair-008
+  8 of 10 changes to one side also changed the other.
+  src/module-8/runner.ts
+    → references it directly
+  src/module-8/ledger.ts
+  ▰▰▰▰▰▰▰▱ 82% (range 64–89%)
+  follow-up rate (historical activity, not correctness)
+  E-23  96e5882  2026-10-21  change 1 touching both sides of pair 8
+  E-24  206c43a  2026-10-20  change 2 touching both sides of pair 8
+
+F-09  Module 9 moves with its neighbor
+  needs review · primary · pair-009
+  8 of 10 changes to one side also changed the other.
+  src/module-9/runner.ts
+    ⇢ changes with it, no code link
+  src/module-9/ledger.ts
+  ▰▰▰▰▰▰▱▱ 80% (range 62–87%)
+  follow-up rate (historical activity, not correctness)
+  E-25  b693b22  2026-10-20  change 1 touching both sides of pair 9
+  E-26  ad34cf9  2026-10-19  change 2 touching both sides of pair 9
+  E-27  5058aa6  2026-10-18  change 3 touching both sides of pair 9
+
+F-10  Module 10 moves with its neighbor
+  needs review · primary · pair-010
+  8 of 10 changes to one side also changed the other.
+  src/module-10/runner.ts
+    ⇢ changes with it, no code link
+  src/module-10/ledger.ts
+  ▰▰▰▰▰▰▱▱ 79% (range 61–86%)
+  follow-up rate (historical activity, not correctness)
+  E-28  b2a908f  2026-10-19  change 1 touching both sides of pair 10
+  E-29  ac1b5a1  2026-10-18  change 2 touching both sides of pair 10
+  E-30  08f77f4  2026-10-17  change 3 touching both sides of pair 10
+  +1 more receipt
+
+F-11  Module 11 moves with its neighbor
+  77% (59–84%) · 5 receipts · warning · pair-011
+  src/module-11/runner.ts → src/module-11/ledger.ts
+F-12  Module 12 moves with its neighbor
+  76% (58–83%) · 6 receipts · needs review · pair-012
+  src/module-12/runner.ts ⇢ src/module-12/ledger.ts
+F-13  Module 13 moves with its neighbor
+  74% (56–81%) · 1 receipt · needs review · pair-013
+  src/module-13/runner.ts ⇢ src/module-13/ledger.ts
+F-14  Module 14 moves with its neighbor
+  73% (55–80%) · 2 receipts · needs review · pair-014
+  src/module-14/runner.ts → src/module-14/ledger.ts
+F-15  Module 15 moves with its neighbor
+  71% (53–78%) · 3 receipts · needs review · pair-015
+  src/module-15/runner.ts ⇢ src/module-15/ledger.ts
+F-16  Module 16 moves with its neighbor
+  70% (52–77%) · 4 receipts · needs review · pair-016
+  src/module-16/runner.ts ⇢ src/module-16/ledger.ts
+F-17  Module 17 moves with its neighbor
+  68% (50–75%) · 5 receipts · needs review · pair-017
+  src/module-17/runner.ts → src/module-17/ledger.ts
+F-18  Module 18 moves with its neighbor
+  67% (49–74%) · 6 receipts · warning · pair-018
+  src/module-18/runner.ts ⇢ src/module-18/ledger.ts
+F-19  Module 19 moves with its neighbor
+  65% (47–72%) · 1 receipt · needs review · pair-019
+  src/module-19/runner.ts ⇢ src/module-19/ledger.ts
+F-20  Module 20 moves with its neighbor
+  64% (46–71%) · 2 receipts · needs review · pair-020
+  src/module-20/runner.ts → src/module-20/ledger.ts
+F-21  Module 21 moves with its neighbor
+  62% (44–69%) · 3 receipts · needs review · pair-021
+  src/module-21/runner.ts ⇢ src/module-21/ledger.ts
+F-22  Module 22 moves with its neighbor
+  61% (43–68%) · 4 receipts · needs review · pair-022
+  src/module-22/runner.ts ⇢ src/module-22/ledger.ts
+F-23  Module 23 moves with its neighbor
+  59% (41–66%) · 5 receipts · needs review · pair-023
+  src/module-23/runner.ts → src/module-23/ledger.ts
+F-24  Module 24 moves with its neighbor
+  58% (40–65%) · 6 receipts · needs review · pair-024
+  src/module-24/runner.ts ⇢ src/module-24/ledger.ts
+F-25  Module 25 moves with its neighbor
+  56% (38–63%) · 1 receipt · warning · pair-025
+  src/module-25/runner.ts ⇢ src/module-25/ledger.ts
+F-26  Module 26 moves with its neighbor
+  55% (37–62%) · 2 receipts · needs review · pair-026
+  src/module-26/runner.ts → src/module-26/ledger.ts
+F-27  Module 27 moves with its neighbor
+  53% (35–60%) · 3 receipts · needs review · pair-027
+  src/module-27/runner.ts ⇢ src/module-27/ledger.ts
+F-28  Module 28 moves with its neighbor
+  52% (34–59%) · 4 receipts · needs review · pair-028
+  src/module-28/runner.ts ⇢ src/module-28/ledger.ts
+F-29  Module 29 moves with its neighbor
+  50% (32–57%) · 5 receipts · needs review · pair-029
+  src/module-29/runner.ts → src/module-29/ledger.ts
+F-30  Module 30 moves with its neighbor
+  49% (31–56%) · 6 receipts · needs review · pair-030
+  src/module-30/runner.ts ⇢ src/module-30/ledger.ts
+F-31  Module 31 moves with its neighbor
+  47% (29–54%) · 1 receipt · needs review · pair-031
+  src/module-31/runner.ts ⇢ src/module-31/ledger.ts
+F-32  Module 32 moves with its neighbor
+  46% (28–53%) · 2 receipts · warning · pair-032
+  src/module-32/runner.ts → src/module-32/ledger.ts
+F-33  Module 33 moves with its neighbor
+  44% (26–51%) · 3 receipts · needs review · pair-033
+  src/module-33/runner.ts ⇢ src/module-33/ledger.ts
+F-34  Module 34 moves with its neighbor
+  43% (25–50%) · 4 receipts · needs review · pair-034
+  src/module-34/runner.ts ⇢ src/module-34/ledger.ts
+F-35  Module 35 moves with its neighbor
+  41% (23–48%) · 5 receipts · needs review · pair-035
+  src/module-35/runner.ts → src/module-35/ledger.ts
+F-36  Module 36 moves with its neighbor
+  40% (22–47%) · 6 receipts · needs review · pair-036
+  src/module-36/runner.ts ⇢ src/module-36/ledger.ts
+F-37  Module 37 moves with its neighbor
+  38% (20–45%) · 1 receipt · needs review · pair-037
+  src/module-37/runner.ts ⇢ src/module-37/ledger.ts
+F-38  Module 38 moves with its neighbor
+  37% (19–44%) · 2 receipts · needs review · pair-038
+  src/module-38/runner.ts → src/module-38/ledger.ts
+F-39  Module 39 moves with its neighbor
+  35% (17–42%) · 3 receipts · warning · pair-039
+  src/module-39/runner.ts ⇢ src/module-39/ledger.ts
+F-40  Module 40 moves with its neighbor
+  34% (16–41%) · 4 receipts · needs review · pair-040
+  src/module-40/runner.ts ⇢ src/module-40/ledger.ts
+
+
+METRICS
+  Commits read  400    Files seen    212
+  Findings      40
+
+
+WARNINGS
+  ▲ warning: 312 low-signal pairs were dropped; pass --include-noise to keep them.
+
+
+NEXT STEPS
+  repo-archaeology explain src/module-1/runner.ts
+    Show the commits behind the top finding.
+  frame12-term render --from run.f12rec --replay
+    Replay this run.

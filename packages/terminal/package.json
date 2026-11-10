@@ -12,6 +12,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./render": {
+      "types": "./dist/render/index.d.ts",
+      "default": "./dist/render/index.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
@@ -32,7 +36,8 @@
     "build": "node scripts/build.mjs",
     "check": "node scripts/build.mjs --check",
     "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && node ../../node_modules/typescript/bin/tsc -p tests/tsconfig.json",
-    "test": "node scripts/build.mjs --check && npm run typecheck && node --test \"tests/*.test.mjs\""
+    "test": "node scripts/build.mjs --check && npm run typecheck && node scripts/gallery.mjs --check && node --test \"tests/*.test.mjs\"",
+    "gallery": "node scripts/gallery.mjs"
   },
   "repository": {
     "type": "git",
@@ -50,5 +55,8 @@
   ],
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@xterm/headless": "5.5.0"
   }
 }

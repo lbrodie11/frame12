@@ -41,5 +41,11 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     derived at build time from `@frame12/tokens`; truecolor, computed nearest 256, a
     hand-tuned 16-color table, and `mono` / `none` levels. Marker yellow is only ever a
     background chip.
+  - **Linear renderers** (F12-13 PR 2, `@frame12/terminal/render`): `renderJson`, `renderPlain`,
+    `renderRich` and `createLinearWriter` (narration to stderr, results to stdout, append-only,
+    no spinner). The grammar as pure functions (`masthead`, `cut`, `panel`, `panelPair`,
+    `evidenceCard`, `compactFinding`, `receiptList`, `toneBar`, `metricRows`, `hintBar`), the
+    `GLYPHS` table with ASCII twins, width tiers, and one marker chip per render.
+  - Contract: optional `Finding.relation` (`history-only | direct | indirect`) for typed connectors.
   - `@frame12/terminal/testing`: `createEventFactory` (injected clock), `fakeStreams`, and seven
     deterministic v1 fixtures, including PR #2's Repo Archaeology fixture converted once to v1.
