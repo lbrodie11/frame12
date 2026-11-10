@@ -857,14 +857,31 @@ try {
         text.includes('peak 248k at 15:00 UTC')
       );
     });
+    // "Retry telemetry sync" (above) queues a focus move to the populated-dataset control that the
+    // block applies immediately and again one animation frame later. Let it settle first: on a slow
+    // runner that late refocus landed between page.focus() and Enter below, so Enter activated the
+    // wrong control (CI flake on deab9f4; reproduced by delaying requestAnimationFrame by 50ms).
+    await page.waitForFunction(
+      () => document.activeElement?.id === 'dev-console-dataset-state-populated',
+    );
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
     // Keyboard activation of #dev-console-focus-degraded-svc must move focus to persistent #int-dev-console-svc-bar-svc-inventory-ledger
     await page.focus('#dev-console-focus-degraded-svc');
     await page.keyboard.press('Enter');
-    const overlayKeyboardFocusOk = await settle(
+    await page
+      .waitForFunction(
+        () => document.activeElement?.id === 'int-dev-console-svc-bar-svc-inventory-ledger',
+        null,
+        { timeout: 2000 },
+      )
+      .catch(() => {});
+    const overlayKeyboardFocusOk = await page.evaluate(
       () => document.activeElement?.id === 'int-dev-console-svc-bar-svc-inventory-ledger',
     );
-    // Diagnostics for a failure that could not be reproduced locally (CI run 42774860864): where
-    // focus actually went, and which service overlay the Overview shows.
+    // If this check fails again, report where focus actually went and which service overlay the
+    // Overview shows (the original flake was a late refocus from the retry step; see above).
     const focusDiagnostics = await page.evaluate(() => ({
       activeElementId: document.activeElement?.id || document.activeElement?.tagName || null,
       overlayLabel: (document.getElementById('dev-console-sheet')?.textContent || '').match(/OVERLAY: [A-Z0-9-]+/)?.[0] ?? null,
