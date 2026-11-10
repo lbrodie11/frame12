@@ -672,7 +672,7 @@ async function runEngine(engineName, engine) {
       // Every nav link is reachable by keyboard and scrolls into the row when focused.
       await page.evaluate(() => document.activeElement?.blur());
       const reached = [];
-      for (let i = 0; i < 40 && reached.length < 9; i++) {
+      for (let i = 0; i < 40 && reached.length < 10; i++) {
         await page.keyboard.press('Tab');
         // Focus scrolling inside the row can land a frame later (scroll snapping).
         await page.waitForTimeout(120);

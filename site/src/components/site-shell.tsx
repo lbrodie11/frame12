@@ -120,13 +120,25 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   useIsomorphicLayoutEffect(() => {
     const list = navListRef.current;
     if (!list) return;
-    const centerActive = () => {
+    let settleRaf = 0;
+    const centerActive = (settle = true) => {
       if (list.scrollWidth <= list.clientWidth) return;
       const active = list.querySelector<HTMLElement>('[aria-current]');
       if (!active) return;
       const offset = active.getBoundingClientRect().left - list.getBoundingClientRect().left;
       const target = list.scrollLeft + offset - (list.clientWidth - active.offsetWidth) / 2;
       list.scrollLeft = Math.max(0, Math.min(target, list.scrollWidth - list.clientWidth));
+      if (!settle) return;
+      // Centering can switch the overflow cue on, which widens the scroll padding and makes the
+      // browser re-snap the row to the nearest link start. For a link near either end that can
+      // leave it partly off-screen (seen with the 10th nav item), so check once more after the
+      // padding has changed and re-apply the position if the link is not fully visible.
+      window.cancelAnimationFrame(settleRaf);
+      settleRaf = window.requestAnimationFrame(() => {
+        const lr = list.getBoundingClientRect();
+        const r = active.getBoundingClientRect();
+        if (r.left < lr.left || r.right > lr.right) centerActive(false);
+      });
     };
     centerActive();
     let prevWidth = list.clientWidth;
@@ -138,8 +150,12 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
         }
       });
       ro.observe(list);
-      return () => ro.disconnect();
+      return () => {
+        window.cancelAnimationFrame(settleRaf);
+        ro.disconnect();
+      };
     }
+    return () => window.cancelAnimationFrame(settleRaf);
   }, [pathname]);
 
   useIsomorphicLayoutEffect(() => {
