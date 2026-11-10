@@ -1,0 +1,949 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://frame12.dev/schema/terminal/events.v1.json",
+  "title": "@frame12/terminal event contract",
+  "description": "Event contract v1. One JSON object per NDJSON line. Events larger than 8 KiB (snapshots: 1 MiB) are rejected; unknown event types are ignored with a warning; unknown fields are preserved. Generated from src/core/contract.ts — do not edit by hand.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Event_run-start"
+    },
+    {
+      "$ref": "#/$defs/Event_scene-start"
+    },
+    {
+      "$ref": "#/$defs/Event_cut-start"
+    },
+    {
+      "$ref": "#/$defs/Event_cut-progress"
+    },
+    {
+      "$ref": "#/$defs/Event_metric"
+    },
+    {
+      "$ref": "#/$defs/Event_finding"
+    },
+    {
+      "$ref": "#/$defs/Event_receipt"
+    },
+    {
+      "$ref": "#/$defs/Event_log"
+    },
+    {
+      "$ref": "#/$defs/Event_warning"
+    },
+    {
+      "$ref": "#/$defs/Event_cut-end"
+    },
+    {
+      "$ref": "#/$defs/Event_scene-end"
+    },
+    {
+      "$ref": "#/$defs/Event_run-end"
+    },
+    {
+      "$ref": "#/$defs/Event_snapshot"
+    }
+  ],
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "description": "A stable domain id. Presentation labels (C-01, F-01, E-01) are assigned by renderers and rejected here.",
+      "pattern": "^[^\\s\\u0000-\\u001f\\u007f-\\u009f]{1,128}$",
+      "not": {
+        "pattern": "^[CFEcfe]-\\d+$"
+      }
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "Subject": {
+      "type": "object",
+      "description": "A thing a finding is about.",
+      "required": [
+        "kind",
+        "label"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "href": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "additionalProperties": true
+    },
+    "Strength": {
+      "type": "object",
+      "description": "Bounded strength in [0, 1], an optional uncertainty range, and a human label.",
+      "required": [
+        "value",
+        "label"
+      ],
+      "properties": {
+        "value": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "low": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "high": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "ReceiptRef": {
+      "type": "object",
+      "description": "A piece of evidence.",
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "commit",
+            "file",
+            "link",
+            "log",
+            "test",
+            "tool-call"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "href": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Finding": {
+      "type": "object",
+      "description": "A result worth reading. Prominence orders it; status says what it means.",
+      "required": [
+        "id",
+        "title",
+        "subject",
+        "prominence",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "subject": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Subject"
+          },
+          "maxItems": 64
+        },
+        "prominence": {
+          "enum": [
+            "hero",
+            "primary",
+            "secondary"
+          ]
+        },
+        "status": {
+          "enum": [
+            "review",
+            "info",
+            "ok",
+            "warning",
+            "danger"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "strength": {
+          "$ref": "#/$defs/Strength"
+        },
+        "receipts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReceiptRef"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "Metric": {
+      "type": "object",
+      "description": "A named measurement.",
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Id"
+        },
+        "value": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "CutSummary": {
+      "type": "object",
+      "description": "How one cut ended.",
+      "required": [
+        "cut",
+        "title",
+        "status"
+      ],
+      "properties": {
+        "cut": {
+          "$ref": "#/$defs/Id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "warning",
+            "error",
+            "skipped",
+            "canceled"
+          ]
+        },
+        "scene": {
+          "$ref": "#/$defs/Id"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "durationMs": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "Snapshot": {
+      "type": "object",
+      "description": "The authoritative final result of a run.",
+      "required": [
+        "schemaVersion",
+        "runId",
+        "title",
+        "status",
+        "startedAt",
+        "finishedAt",
+        "cuts",
+        "metrics",
+        "findings",
+        "warnings"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed",
+            "canceled"
+          ]
+        },
+        "startedAt": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "finishedAt": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "cuts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CutSummary"
+          }
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Metric"
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Finding"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "error": {
+          "type": "string"
+        },
+        "replay": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_run-start": {
+      "type": "object",
+      "description": "A run begins.",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "title"
+      ],
+      "properties": {
+        "type": {
+          "const": "run-start"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "product": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "command": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_scene-start": {
+      "type": "object",
+      "description": "A group of cuts begins.",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "scene",
+        "title"
+      ],
+      "properties": {
+        "type": {
+          "const": "scene-start"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "scene": {
+          "$ref": "#/$defs/Id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_cut-start": {
+      "type": "object",
+      "description": "A step begins.",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "cut",
+        "title"
+      ],
+      "properties": {
+        "type": {
+          "const": "cut-start"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "cut": {
+          "$ref": "#/$defs/Id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "scene": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_cut-progress": {
+      "type": "object",
+      "description": "Progress within a cut. `done` never decreases within a cut.",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "cut"
+      ],
+      "properties": {
+        "type": {
+          "const": "cut-progress"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "cut": {
+          "$ref": "#/$defs/Id"
+        },
+        "done": {
+          "type": "number",
+          "minimum": 0
+        },
+        "total": {
+          "type": "number",
+          "minimum": 0
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_metric": {
+      "type": "object",
+      "description": "A measurement (narration; results come from the snapshot).",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "metric"
+      ],
+      "properties": {
+        "type": {
+          "const": "metric"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "metric": {
+          "$ref": "#/$defs/Metric"
+        },
+        "cut": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_finding": {
+      "type": "object",
+      "description": "A finding (narration; results come from the snapshot).",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "finding"
+      ],
+      "properties": {
+        "type": {
+          "const": "finding"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "finding": {
+          "$ref": "#/$defs/Finding"
+        },
+        "cut": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_receipt": {
+      "type": "object",
+      "description": "A receipt for a finding already announced.",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "finding",
+        "receipt"
+      ],
+      "properties": {
+        "type": {
+          "const": "receipt"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "finding": {
+          "$ref": "#/$defs/Id"
+        },
+        "receipt": {
+          "$ref": "#/$defs/ReceiptRef"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_log": {
+      "type": "object",
+      "description": "A log line (from the tool or a child process).",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "level",
+        "text"
+      ],
+      "properties": {
+        "type": {
+          "const": "log"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "level": {
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "cut": {
+          "$ref": "#/$defs/Id"
+        },
+        "stream": {
+          "enum": [
+            "stdout",
+            "stderr"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_warning": {
+      "type": "object",
+      "description": "Something the reader should know that did not stop the run.",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "message"
+      ],
+      "properties": {
+        "type": {
+          "const": "warning"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "cut": {
+          "$ref": "#/$defs/Id"
+        },
+        "code": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_cut-end": {
+      "type": "object",
+      "description": "A step ends.",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "cut",
+        "status"
+      ],
+      "properties": {
+        "type": {
+          "const": "cut-end"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "cut": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "warning",
+            "error",
+            "skipped",
+            "canceled"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "durationMs": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_scene-end": {
+      "type": "object",
+      "description": "A group of cuts ends.",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "scene"
+      ],
+      "properties": {
+        "type": {
+          "const": "scene-end"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "scene": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_run-end": {
+      "type": "object",
+      "description": "The run ends.",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "status"
+      ],
+      "properties": {
+        "type": {
+          "const": "run-end"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed",
+            "canceled"
+          ]
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Event_snapshot": {
+      "type": "object",
+      "description": "The authoritative final result.",
+      "required": [
+        "type",
+        "schemaVersion",
+        "runId",
+        "seq",
+        "ts",
+        "id",
+        "snapshot"
+      ],
+      "properties": {
+        "type": {
+          "const": "snapshot"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/Snapshot"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
