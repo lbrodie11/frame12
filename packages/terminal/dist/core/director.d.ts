@@ -12,9 +12,10 @@
  *   advances only on the tempo grid: every 83.33 ms at `twos`, every frame at `ones`, never at
  *   `still`. Data never waits for the pose.
  *
- * Memory is bounded: logs are a ring buffer (default 500 lines), warnings are capped, and past
- * `maxEvents` (default 5,000) new narrated findings and receipts are only counted
- * (`dropped.events`): the snapshot, not narration, carries the full result.
+ * Memory is bounded: logs are a ring buffer (default 500 lines), warnings are capped, events past
+ * `maxEvents` are only counted, and at most `maxItems` (default 5,000) cuts, findings, receipts and
+ * metrics are stored. Past that, updates to stored items still apply, new items are only counted
+ * (`dropped.items`): the snapshot, not narration, carries the full result.
  */
 import type { Capabilities } from './capabilities.js';
 import type { CutStatus, Finding, LogLevel, Metric, RunStatus, Snapshot, TerminalEvent } from './contract.js';
@@ -74,6 +75,7 @@ export interface RunState {
         logs: number;
         warnings: number;
         events: number;
+        items: number;
     };
 }
 /** Timers the Director uses; inject fakes in tests. */
@@ -94,6 +96,11 @@ export interface DirectorOptions {
     maxLogs?: number;
     /** Events counted in detail before older ones are only summarized. Default 5,000. */
     maxEvents?: number;
+    /**
+     * Cuts, findings, receipts and metrics stored, together. Past it, updates to stored items still
+     * apply and new ones are counted in `dropped.items`. Default 5,000.
+     */
+    maxItems?: number;
     /** Warnings kept; later ones are counted in `dropped.warnings`. Default 200. */
     maxWarnings?: number;
     safety?: SafetyOptions;

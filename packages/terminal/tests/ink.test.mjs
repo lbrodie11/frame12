@@ -33,6 +33,21 @@ describe('ink: the live view draws the PR 2 grammar', () => {
     app.unmount();
   });
 
+  it('writes the masthead and each completed cut once when events arrive after mount (fourth review)', async () => {
+    const director = createDirector({ caps: { interactive: true }, motion: 'still' });
+    const app = render(React.createElement(Storyboard, { director, rc, rows: 30, onQuit() {}, onInterrupt() {} }));
+    for (const ev of fixture('success').events) {
+      director.push(ev);
+      await tick();
+    }
+    const last = stripAnsi(app.lastFrame() ?? '');
+    assert.equal(last.split('FRAME/12').length - 1, 1, `masthead once:\n${last}`);
+    for (const c of ['C-01 · RESOLVE WORKSPACE', 'C-02 · READ HISTORY', 'C-03 · PAIR CHANGES', 'C-04 · RANK FINDINGS']) {
+      assert.equal(last.split(c).length - 1, 1, `${c} once:\n${last}`);
+    }
+    app.unmount();
+  });
+
   it('shows a running cut with its progress, and the pose only as decoration', async () => {
     const events = fixture('success').events;
     const upTo = events.findIndex((e) => e.type === 'cut-progress' && e.cut === 'read-history') + 1;
@@ -205,5 +220,102 @@ describe('ink: lifecycle helpers', () => {
     assert.match(linearReason({ ...base, screenReader: true }), /screen-reader/);
     assert.match(linearReason({ ...base, ci: true }), /CI/);
     assert.match(linearReason({ ...base, isTTY: false }), /stdout is not a terminal/);
+  });
+});
+
+describe('ink: startLive end to end with fake streams (fourth review)', async () => {
+  const { PassThrough, Writable } = await import('node:stream');
+  const { detectCapabilities } = await import('@frame12/terminal');
+  const { startLive } = await import('@frame12/terminal/ink');
+  const { spawnLogged } = await import('@frame12/terminal/process');
+
+  /** A Writable that records text; `failOn` makes the matching write fail asynchronously. */
+  const out = ({ tty = false, failOn, code = 'EPIPE' } = {}) => {
+    let text = '';
+    const w = new Writable({
+      write(chunk, _enc, cb) {
+        const s = String(chunk);
+        if (failOn?.test(stripAnsi(s))) return setImmediate(() => cb(Object.assign(new Error(`write ${code}`), { code })));
+        text += s;
+        cb();
+      },
+    });
+    return Object.assign(w, tty ? { isTTY: true, columns: 80, rows: 30 } : {}, { text: () => text });
+  };
+  const ttyIn = () => Object.assign(new PassThrough(), { isTTY: true, setRawMode() {}, ref() {}, unref() {} });
+  const capsFor = (live) => ({
+    ...detectCapabilities({ TERM: 'xterm-256color' }, { stdout: { isTTY: live, columns: 80, rows: 30 }, stderr: { isTTY: live } }, [], { platform: 'linux' }),
+    interactive: live,
+  });
+  const start = (live, extra = {}) =>
+    startLive({ caps: capsFor(live), motion: 'still', stdin: ttyIn(), stdout: out({ tty: live }), stderr: out({ tty: live }), handleSignals: false, devWarnings: false, ...extra });
+
+  it('the final results keep the cut labels the live view showed, whatever the snapshot order', async () => {
+    const stdout = out({ tty: true });
+    const run = start(true, { stdout });
+    assert.equal(run.mode, 'live');
+    const events = fixture('failed').events;
+    for (const ev of events.slice(0, -1)) run.push(ev);
+    const last = events.at(-1);
+    run.push({ ...last, snapshot: { ...last.snapshot, cuts: [...last.snapshot.cuts].reverse() } });
+    assert.equal(await run.done, 1);
+    const text = stripAnsi(stdout.text());
+    const results = text.slice(text.lastIndexOf('RUN · 4 CUTS'));
+    // The failed-run summary lists the cuts that did not finish ok, in snapshot (reversed) order.
+    const listed = run.director.snapshot().cuts.filter((c) => results.includes(`· ${c.title.toUpperCase()}`));
+    assert.ok(listed.length >= 3, results);
+    for (const c of listed) assert.match(results, new RegExp(`${c.label} · ${c.title.toUpperCase()}`), c.title);
+  });
+
+  for (const live of [true, false]) {
+    const view = live ? 'live' : 'linear';
+    it(`calls onCancel once for a Director the host supplied (${view})`, async () => {
+      const director = createDirector({ caps: capsFor(live), motion: 'still' });
+      const reasons = [];
+      const run = start(live, { director, onCancel: (why) => reasons.push(why) });
+      assert.equal(run.mode, view);
+      run.push(fixture('success').events[0]);
+      director.cancel('SIGINT');
+      director.cancel('again');
+      assert.deepEqual(reasons, ['SIGINT']);
+      assert.equal(director.snapshot().status, 'canceled');
+      void run.end();
+      await run.done;
+    });
+
+    it(`an asynchronous EPIPE while printing the final results exits 0 quietly (${view})`, async () => {
+      const exits = [];
+      const stdout = out({ tty: live, failOn: /FINDINGS\s+3 \(/ });
+      const run = start(live, { stdout, exit: (c) => exits.push(c) });
+      for (const ev of fixture('success').events) run.push(ev);
+      await run.done;
+      await new Promise((r) => setTimeout(r, 50));
+      assert.deepEqual(exits, [0]);
+    });
+  }
+
+  it('narrates a child process failure in the linear view (spawnLogged through startLive)', async () => {
+    const stderr = out();
+    const run = start(false, { stderr });
+    run.push(fixture('success').events[0]);
+    const r = await spawnLogged(run.director, process.execPath, ['-e', "process.stderr.write('UNIQUE_CHILD_ERROR\\n'); process.exit(3)"], { stderrLevel: 'error' });
+    assert.equal(r.code, 3);
+    for (const ev of fixture('success').events.slice(1)) run.push(ev);
+    await run.done;
+    const text = stderr.text();
+    assert.equal(text.split('UNIQUE_CHILD_ERROR').length - 1, 1, `printed once:\n${text}`);
+    assert.match(text, /exited with code 3/);
+  });
+
+  it('does not print an event-borne log line twice in the linear view', async () => {
+    const stderr = out();
+    const run = start(false, { stderr });
+    const events = fixture('success').events;
+    const { snapshot: _s, ...envelope } = events[0];
+    const list = [events[0], { ...envelope, type: 'log', id: `${events[0].id}-log`, seq: events[0].seq + 1, level: 'error', text: 'EVENT_LOG_LINE' }];
+    for (const ev of events.slice(1)) list.push({ ...ev, seq: ev.seq + 1 });
+    for (const ev of list) run.push(ev);
+    await run.done;
+    assert.equal(stderr.text().split('EVENT_LOG_LINE').length - 1, 1, stderr.text());
   });
 });

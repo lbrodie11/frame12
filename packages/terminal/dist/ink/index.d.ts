@@ -19,7 +19,7 @@ export interface LiveOptions {
     safety?: SafetyOptions;
     /** Supply your own Director (e.g. one shared with `spawnLogged`); one is created otherwise. */
     director?: Director;
-    /** Called when the run is canceled (first Ctrl-C, SIGINT, SIGTERM, SIGHUP, or `q` while running). */
+    /** Called once when the run is canceled (first Ctrl-C, SIGINT, SIGTERM, SIGHUP, or `q` while running), also for a supplied Director. */
     onCancel?: (reason: string) => void;
     /** Install SIGINT/SIGTERM/SIGHUP, exit and crash handlers. Default true. */
     handleSignals?: boolean;

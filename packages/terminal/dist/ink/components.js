@@ -63,21 +63,26 @@ export function Storyboard({ director, rc, rows, product, nextSteps, onQuit, onI
     const [helpOpen, setHelpOpen] = React.useState(false);
     const [confirmUrl, setConfirmUrl] = React.useState(undefined);
     // Completed cuts move into <Static>: written once, never redrawn. Append in the order they end.
+    // Static memoizes `items.slice(index)` on the array's identity, so every append must hand it a
+    // new array; pushing into the same one would let its index move past entries it never drew.
     const doneRef = React.useRef([]);
     const doneIds = React.useRef(new Set());
-    if (doneIds.current.size === 0 && state.title !== undefined) {
+    const added = [];
+    if (!doneIds.current.has(' masthead') && state.title !== undefined) {
         doneIds.current.add(' masthead');
-        doneRef.current.push({ key: ' masthead', text: masthead({ product: product ?? state.product ?? 'FRAME/12', title: state.title }, rc) });
+        added.push({ key: ' masthead', text: masthead({ product: product ?? state.product ?? 'FRAME/12', title: state.title }, rc) });
     }
     for (const c of state.cuts) {
         if (c.status === 'running' || doneIds.current.has(c.cut))
             continue;
         doneIds.current.add(c.cut);
-        doneRef.current.push({
+        added.push({
             key: c.cut,
             text: cut({ label: c.label, title: c.title, status: c.status, ...(c.durationMs !== undefined ? { durationMs: c.durationMs } : {}), ...(c.summary ? { summary: c.summary } : {}) }, rc),
         });
     }
+    if (added.length > 0)
+        doneRef.current = [...doneRef.current, ...added];
     const ordered = orderFindings(liveFindings(state));
     // Focus follows the finding, not its row: when the snapshot arrives or a new finding is narrated
     // and the order changes, the cursor (and an open Inspector) stays on the same finding. If that

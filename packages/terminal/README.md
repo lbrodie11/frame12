@@ -176,8 +176,9 @@ process.exitCode = await run.end();
   into one `RunState`. Errors, warnings, cut and run endings, the snapshot, cancellation and key
   echo publish immediately; everything else coalesces to one publish per frame (newest wins);
   only the decorative pose follows the tempo (83.33 ms at `twos`, never at `still`), and only while
-  a cut is running. Memory is bounded (500-line log ring, 200 warnings; past 5,000 events, new
-  narrated findings and receipts are only counted, since the snapshot carries the full result).
+  a cut is running. Memory is bounded (500-line log ring, 200 warnings, at most 5,000 stored cuts,
+  findings, receipts and metrics; past that, updates still apply and new items are only counted,
+  since the snapshot carries the full result).
 - **Keys:** `j`/`k` or arrows move, `Enter` inspects (every receipt), `Esc` closes, `o` opens the
   focused receipt's link after a `y/N` confirmation (https only), `?` toggles help, `q` quits.
 - **Ctrl-C:** the first cancels gracefully (running cuts become `canceled`, results print, exit
@@ -203,7 +204,11 @@ const { code } = await spawnLogged(run.director, 'npm', ['test'], { cut: 'test' 
 
 `spawnLogged` never uses a shell, logs each stdout line as `info` and stderr line as `warn`
 (sanitized and redacted), and resolves with the exit code. When the run is canceled it sends the
-child SIGTERM, then SIGKILL if it is still running after `killAfterMs` (default 5000).
+child SIGTERM, then SIGKILL if it is still running after `killAfterMs` (default 5000). A line
+that never ends is bounded: past `maxLineLength` (default 16,384) its head is logged, the rest is
+dropped, and one line says how many characters were not logged; carriage-return progress keeps
+only its latest text. In the linear view these lines are narrated like log events (errors and
+warnings always), so a child's failure reason reaches CI logs too.
 
 ## Capabilities
 

@@ -47,13 +47,17 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     `evidenceCard`, `compactFinding`, `receiptList`, `toneBar`, `metricRows`, `hintBar`), the
     `GLYPHS` table with ASCII twins, width tiers, and one marker chip per render.
   - **Director and live view** (F12-13 PR 3): `createDirector` (core) with immediate, coalesced
-    and tempo-paced publishing and bounded memory (receipts merged in linear time and without
-    duplicates; a cancel that lands before run-start sticks); `@frame12/terminal/ink` (`startLive`,
+    and tempo-paced publishing and bounded memory (`maxItems` caps stored cuts, findings, receipts
+    and metrics; receipts merged in linear time and without duplicates; a cancel that lands before
+    run-start sticks); `@frame12/terminal/ink` (`startLive`,
     `Storyboard`, `Cut`, `Inspector`, `HintBar`) on optional `ink@^8` / `react@^19.3` peers, with
     keys, Ctrl-C/SIGINT/SIGTERM/SIGHUP handling, exit codes, terminal restoration on every exit
     path, EPIPE handling, a linear fallback, focus that follows its finding when the order
-    changes, and reflow-aware resizing; `@frame12/terminal/process` (`spawnLogged` with SIGKILL
-    after `killAfterMs` when a canceled child ignores SIGTERM, `openUrl`).
+    changes, final results that keep the live view's cut labels, `onCancel` for a host-supplied
+    Director too, and reflow-aware resizing; `@frame12/terminal/process` (`spawnLogged` with SIGKILL
+    after `killAfterMs` when a canceled child ignores SIGTERM, bounded pending lines via
+    `maxLineLength`, and child output narrated in the linear view; `openUrl`). `LinearWriter.log()`
+    narrates log lines that did not arrive as events.
   - Contract: optional `Finding.relation` (`history-only | direct | indirect`) for typed connectors;
     the stream validator rejects a second `snapshot` (`duplicate-snapshot`).
   - `@frame12/terminal/testing`: `createEventFactory` (injected clock), `fakeStreams`, and seven

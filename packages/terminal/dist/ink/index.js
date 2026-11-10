@@ -42,7 +42,6 @@ export function startLive(options) {
             caps,
             motion: options.motion,
             ...(options.safety ? { safety: options.safety } : {}),
-            ...(options.onCancel ? { onCancel: options.onCancel } : {}),
         });
     // A Director the host passed in is the host's to dispose; only our own is disposed at the end.
     const ownsDirector = options.director === undefined;
@@ -87,7 +86,14 @@ export function startLive(options) {
     };
     // EPIPE on stdout (`| head`): results already written are enough; exit quietly. Any other stdout
     // error (EIO when the terminal goes away) is a crash: listening here stops Node from throwing it.
+    // The listener stays until the final output has flushed (see `flushed`), because a Writable
+    // reports a failed write asynchronously; after the first error, later ones (a destroyed stream
+    // failing the next write) are ignored.
+    let stdoutFailed = false;
     const onStdoutError = (err) => {
+        if (stdoutFailed)
+            return;
+        stdoutFailed = true;
         restore();
         if (err.code === 'EPIPE')
             return exit(0);
@@ -100,7 +106,42 @@ export function startLive(options) {
         exit(1);
     };
     stdout.on('error', onStdoutError);
-    cleanups.push(() => stdout.off('error', onStdoutError));
+    /** Resolves once everything written to stdout so far has flushed (or failed, handled above). */
+    const flushed = () => new Promise((resolve) => {
+        // A Writable calls write callbacks in order; a test sink that is not a Writable has nothing to flush.
+        if (typeof stdout.writableLength !== 'number' || stdout.writableEnded || stdout.destroyed)
+            return resolve();
+        try {
+            stdout.write('', () => resolve());
+        }
+        catch {
+            resolve();
+        }
+    });
+    /** The last step of both views: wait for the final output, then stop listening for its errors. */
+    const settle = async (code) => {
+        await flushed();
+        stdout.off('error', onStdoutError);
+        resolveDone(code);
+        return code;
+    };
+    // The host's onCancel runs once on the first cancel, whoever created the Director.
+    if (options.onCancel) {
+        const onCancel = options.onCancel;
+        let called = false;
+        const unsubscribeCancel = director.subscribe((s) => {
+            if (called || !s.canceled)
+                return;
+            called = true;
+            try {
+                onCancel(s.canceled.reason);
+            }
+            catch {
+                // The host's callback failing must not stop the cancel.
+            }
+        });
+        cleanups.push(unsubscribeCancel);
+    }
     /**
      * The one interrupt rule for both views: the first Ctrl-C/SIGINT cancels a running job (the
      * cancel is acknowledged at once); when nothing is running any more it finishes; a second
@@ -139,9 +180,24 @@ export function startLive(options) {
         const writer = createLinearWriter({ format: caps.screenReader ? 'plain' : 'rich', caps, stdout, stderr, ...renderOpts });
         if (caps.isTTY || caps.stderrIsTTY)
             stderr.write(`${caps.screenReader ? 'Note' : 'Live view off'}: ${reason}.\n`);
+        // Log lines that did not arrive as events (the host's director.log, spawnLogged's child output)
+        // are narrated too; lines that came from events were already printed by the writer. Counted
+        // through the ring buffer: total = kept + dropped.
+        const logTotal = () => director.snapshot().logs.length + director.snapshot().dropped.logs;
+        let logsSeen = logTotal();
+        const forwardLogs = () => {
+            const logs = director.snapshot().logs;
+            const fresh = Math.min(logTotal() - logsSeen, logs.length);
+            for (const l of logs.slice(logs.length - fresh))
+                writer.log(l.level, l.text);
+            logsSeen = logTotal();
+        };
+        let pushing = false;
+        cleanups.push(director.subscribe(() => !finished && !pushing && forwardLogs()));
         finish = async () => {
             if (finished)
                 return done;
+            forwardLogs(); // info lines may still be coalescing
             finished = true;
             writer.end();
             for (const c of cleanups)
@@ -149,8 +205,7 @@ export function startLive(options) {
             const code = exitCodeFor(director.snapshot().status);
             if (ownsDirector)
                 director.dispose();
-            resolveDone(code);
-            return code;
+            return settle(code);
         };
         installSignals(() => interrupt('SIGINT'), cancelOnSignal);
         return {
@@ -160,8 +215,16 @@ export function startLive(options) {
             push(event) {
                 // The writer first: the Director finishing on a snapshot ends the writer, which must have
                 // printed that snapshot by then.
+                forwardLogs();
                 writer.write(event);
-                director.push(event);
+                pushing = true;
+                try {
+                    director.push(event);
+                }
+                finally {
+                    pushing = false;
+                }
+                logsSeen = logTotal(); // this event's own log line was printed by the writer
             },
             end: () => finish(),
             done,
@@ -187,16 +250,16 @@ export function startLive(options) {
         for (const c of cleanups)
             c();
         const state = director.snapshot();
-        // Results are printed linearly: nothing important lives only in a live redraw.
+        // Results are printed linearly: nothing important lives only in a live redraw. Cuts keep the
+        // labels the live view gave them (in start order), whatever order the snapshot lists them in.
+        const cutLabels = new Map(state.cuts.map((c) => [c.cut, c.label]));
         if (state.snapshot)
-            stdout.write(renderRich(state.snapshot, renderCapsFor(caps, 'stdout'), renderOpts));
+            stdout.write(renderRich(state.snapshot, renderCapsFor(caps, 'stdout'), { ...renderOpts, cutLabels }));
         else
             stderr.write('No result snapshot arrived, so no results are shown.\n');
         if (ownsDirector)
             director.dispose();
-        const code = exitCodeFor(state.status);
-        resolveDone(code);
-        return code;
+        return settle(exitCodeFor(state.status));
     };
     finish = finishLive;
     const view = () => (_jsx(Storyboard, { director: director, rc: rc(), rows: rows(), ...(options.product ? { product: options.product } : {}), ...(options.nextSteps ? { nextSteps: options.nextSteps } : {}), onQuit: () => {

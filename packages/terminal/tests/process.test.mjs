@@ -66,6 +66,26 @@ describe('process: spawnLogged', () => {
     assert.equal(d.snapshot().logs.length, 1, 'no bogus exit line after the start failure (second review)');
   });
 
+  it('bounds a line that never ends: logs its head, then how much was dropped (fourth review)', async () => {
+    const d = director();
+    const [cmd, args] = node("const c = 'x'.repeat(65536); let n = 0; const t = setInterval(() => { process.stdout.write(c); if (++n === 32) { clearInterval(t); process.stdout.write('END'); } }, 1)");
+    const r = await spawnLogged(d, cmd, args, { maxLineLength: 1000 });
+    assert.equal(r.code, 0);
+    const lines = d.snapshot().logs.filter((l) => l.stream === 'stdout').map((l) => l.text);
+    assert.equal(lines[0], 'x'.repeat(1000));
+    assert.equal(lines[1], `[line truncated: ${32 * 65536 + 3 - 1000} more characters were not logged]`);
+    assert.match(lines[2], /exited with code 0/);
+  });
+
+  it('carriage-return progress keeps only the latest text, and \\r\\n split across chunks is one line break (fourth review)', async () => {
+    const d = director();
+    const [cmd, args] = node("for (let i = 0; i < 5000; i++) process.stdout.write(`progress ${i}%\\r`); setTimeout(() => { process.stdout.write('next\\r'); setTimeout(() => process.stdout.write('\\nafter\\n'), 20); }, 20)");
+    const r = await spawnLogged(d, cmd, args);
+    assert.equal(r.code, 0);
+    const lines = d.snapshot().logs.filter((l) => l.stream === 'stdout').map((l) => l.text);
+    assert.deepEqual(lines.slice(0, -1), ['next', 'after']);
+  });
+
   it('sends SIGKILL when a canceled child ignores SIGTERM (second review)', { skip: process.platform === 'win32' && 'kill() is forceful on Windows' }, async () => {
     const d = director();
     const [cmd, args] = node("process.on('SIGTERM', () => {}); console.log('ready'); setInterval(() => {}, 1000)");

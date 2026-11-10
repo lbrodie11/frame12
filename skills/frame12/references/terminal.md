@@ -57,12 +57,12 @@ renderJson(snapshot: Snapshot): string;
 renderPlain(snapshot: Snapshot, o?: { product?; nextSteps?: NextStep[]; safety? }): string;
 renderRich(snapshot: Snapshot, rc: RenderCaps, o?: { product?; nextSteps?; safety? }): string;
 renderCapsFor(caps: Capabilities, stream?: 'stdout' | 'stderr', o?: { verbose?: boolean }): RenderCaps;
-createLinearWriter(o: { format: 'rich' | 'plain' | 'json'; caps: Capabilities; stdout; stderr; verbose?; nextSteps?; safety?; validation? }): { write(raw: unknown): void; end(): LinearResult };
+createLinearWriter(o: { format: 'rich' | 'plain' | 'json'; caps: Capabilities; stdout; stderr; verbose?; nextSteps?; safety?; validation? }): { write(raw: unknown): void; log(level, text): void; end(): LinearResult };
 
 // Director (core) and live view (@frame12/terminal/ink).
-createDirector(o: { caps; motion: Tempo; onEvent?; onCancel?; maxLogs?; maxEvents?; maxWarnings?; safety?; validation?; scheduler? }): Director;
+createDirector(o: { caps; motion: Tempo; onEvent?; onCancel?; maxLogs?; maxEvents?; maxItems?; maxWarnings?; safety?; validation?; scheduler? }): Director;
 startLive(o: { caps; motion; stdin?; stdout?; stderr?; fullscreen?; product?; nextSteps?; safety?; director?; onCancel?; handleSignals?; exit?; devWarnings? }): { director; mode: 'live' | 'linear'; reason?; push(e); end(): Promise<number>; done };
-spawnLogged(director, cmd: string, args?: string[], o?: { cwd?; env?; cut?; signal?; stderrLevel?; killAfterMs? }): Promise<{ code; signal; error? }>; // @frame12/terminal/process
+spawnLogged(director, cmd: string, args?: string[], o?: { cwd?; env?; cut?; signal?; stderrLevel?; killAfterMs?; maxLineLength? }): Promise<{ code; signal; error? }>; // @frame12/terminal/process
 
 ## Rules
 

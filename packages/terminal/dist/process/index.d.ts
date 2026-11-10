@@ -10,6 +10,11 @@ export interface SpawnLoggedOptions {
     stderrLevel?: 'info' | 'warn' | 'error';
     /** After a cancel, how long a child gets to exit on SIGTERM before it is sent SIGKILL. Default 5000 ms. */
     killAfterMs?: number;
+    /**
+     * Longest line kept while waiting for its newline. Past it the head is logged, the rest dropped,
+     * and one line says how many characters were not logged. Default 16,384.
+     */
+    maxLineLength?: number;
 }
 export interface SpawnResult {
     /** The exit code, or null when the process was killed or never started. */

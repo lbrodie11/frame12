@@ -249,7 +249,30 @@ describe('director: state', () => {
     const s = director.snapshot();
     assert.ok(s.findings[0].receipts.length < 5000, `receipts kept: ${s.findings[0].receipts.length}`);
     assert.equal(s.dropped.events, 40_003 - 5000);
+    assert.equal(s.dropped.items, 40_000 + 2 - 5000, 'past maxItems receipts are only counted');
     assert.ok(ms < 3000, `40,000 receipts took ${Math.round(ms)} ms`);
+  });
+
+  it('bounds stored items: finding updates with fresh receipts, new metrics and many cuts (fourth review)', () => {
+    const { director, f } = setup('still', { maxItems: 50 });
+    director.push(f.next('run-start', { title: 'T' }));
+    director.push(f.next('cut-start', { cut: 'rank', title: 'Rank' }));
+    const finding = { ...aFinding(), receipts: [] };
+    director.push(f.next('finding', { cut: 'rank', finding }));
+    for (let i = 0; i < 1000; i++) {
+      director.push(f.next('finding', { cut: 'rank', finding: { ...finding, status: i % 2 ? 'ok' : 'review', receipts: [{ kind: 'commit', value: `u${i}` }] } }));
+    }
+    for (let i = 0; i < 1000; i++) director.push(f.next('metric', { metric: { name: `m${i}`, value: i } }));
+    for (let i = 0; i < 1000; i++) {
+      director.push(f.next('cut-start', { cut: `c${i}`, title: `C${i}` }));
+      director.push(f.next('cut-end', { cut: `c${i}`, status: 'ok' }));
+    }
+    const s = director.snapshot();
+    assert.deepEqual(s.warnings, [], 'every event was valid');
+    const stored = s.cuts.length + s.findings.length + s.metrics.length + s.findings.reduce((n, x) => n + x.receipts.length, 0);
+    assert.ok(stored <= 50, `stored ${stored}`);
+    assert.equal(s.dropped.items, 3002 - 50);
+    assert.equal(s.findings[0].status, 'ok', 'updates to a stored finding still apply past the cap');
   });
 
   it('a cancel before run-start stays canceled, and later cuts start canceled (third review)', () => {

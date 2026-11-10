@@ -15,6 +15,17 @@ export function createDirector(options) {
     const sched = options.scheduler ?? defaultScheduler;
     const maxLogs = Math.max(1, options.maxLogs ?? 500);
     const maxEvents = Math.max(1, options.maxEvents ?? 5000);
+    const maxItems = Math.max(1, options.maxItems ?? 5000);
+    let stored = 0;
+    /** Takes one storage slot for a new cut, finding, receipt or metric; false (and counted) when full. */
+    const take = () => {
+        if (stored >= maxItems) {
+            state.dropped.items++;
+            return false;
+        }
+        stored++;
+        return true;
+    };
     const maxWarnings = Math.max(1, options.maxWarnings ?? 200);
     const san = createSanitizer(options.safety);
     const stream = createStreamValidator(options.validation);
@@ -30,7 +41,7 @@ export function createDirector(options) {
         warnings: [],
         logs: [],
         pose: 0,
-        dropped: { invalid: 0, ignored: 0, logs: 0, warnings: 0, events: 0 },
+        dropped: { invalid: 0, ignored: 0, logs: 0, warnings: 0, events: 0, items: 0 },
     };
     const cutIndex = new Map();
     const findingIndex = new Map();
@@ -131,7 +142,7 @@ export function createDirector(options) {
         const list = state.findings[i].receipts;
         for (const r of receipts) {
             const k = receiptKey(r);
-            if (keys.has(k))
+            if (keys.has(k) || !take())
                 continue;
             keys.add(k);
             list.push(r);
@@ -153,6 +164,8 @@ export function createDirector(options) {
             case 'scene-end':
                 return false;
             case 'cut-start': {
+                if (!take())
+                    return false;
                 cutIndex.set(ev.cut, state.cuts.length);
                 state.cuts.push({
                     cut: ev.cut,
@@ -189,7 +202,10 @@ export function createDirector(options) {
             case 'cut-end': {
                 let i = cutIndex.get(ev.cut);
                 if (i === undefined) {
-                    // A partial stream: the cut's start was never seen. Show it anyway.
+                    // A partial stream: the cut's start was never seen. Show it anyway (when there is room).
+                    if (stored >= maxItems)
+                        return true; // its cut-start was already counted as dropped
+                    stored++;
                     i = state.cuts.length;
                     cutIndex.set(ev.cut, i);
                     state.cuts.push({ cut: ev.cut, label: `C-${String(i + 1).padStart(2, '0')}`, title: ev.cut, status: 'running', startedAt: ev.ts });
@@ -206,6 +222,8 @@ export function createDirector(options) {
             case 'metric': {
                 const i = metricIndex.get(ev.metric.name);
                 if (i === undefined) {
+                    if (!take())
+                        return false;
                     metricIndex.set(ev.metric.name, state.metrics.length);
                     state.metrics.push(ev.metric);
                 }
@@ -216,8 +234,8 @@ export function createDirector(options) {
             case 'finding': {
                 const i = findingIndex.get(ev.finding.id);
                 if (i === undefined) {
-                    if (seen > maxEvents)
-                        return false; // Counted in dropped.events; the snapshot has it.
+                    if (!take())
+                        return false; // Counted in dropped.items; the snapshot has it.
                     findingIndex.set(ev.finding.id, state.findings.length);
                     receiptKeys.set(ev.finding.id, new Set());
                     state.findings.push({ ...ev.finding, receipts: [] });
@@ -228,8 +246,7 @@ export function createDirector(options) {
                 return false;
             }
             case 'receipt':
-                if (seen <= maxEvents)
-                    mergeReceipts(ev.finding, [ev.receipt]);
+                mergeReceipts(ev.finding, [ev.receipt]);
                 return false;
             case 'log':
                 addLog({ level: ev.level, text: ev.text, ...(ev.cut !== undefined ? { cut: ev.cut } : {}), ...(ev.stream !== undefined ? { stream: ev.stream } : {}) });

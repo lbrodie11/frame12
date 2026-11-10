@@ -21,6 +21,11 @@ export interface SpawnLoggedOptions {
   stderrLevel?: 'info' | 'warn' | 'error';
   /** After a cancel, how long a child gets to exit on SIGTERM before it is sent SIGKILL. Default 5000 ms. */
   killAfterMs?: number;
+  /**
+   * Longest line kept while waiting for its newline. Past it the head is logged, the rest dropped,
+   * and one line says how many characters were not logged. Default 16,384.
+   */
+  maxLineLength?: number;
 }
 
 export interface SpawnResult {
@@ -32,22 +37,72 @@ export interface SpawnResult {
   error?: string;
 }
 
-/** Splits a stream into complete lines, keeping a partial last line until more arrives. */
-function lineSplitter(onLine: (line: string) => void): { push(chunk: Buffer): void; end(): void } {
+/** The default for `maxLineLength`: well above the sanitizer's own per-line cap. */
+const DEFAULT_SPAWN_MAX_LINE = 16_384;
+
+/** A carriage return rewrites the line, as on a terminal: keep what follows the last one. */
+function afterLastCR(s: string): string {
+  const i = s.lastIndexOf('\r');
+  return i === -1 ? s : s.slice(i + 1);
+}
+
+/**
+ * Splits a stream into complete lines, keeping a partial last line until more arrives. Memory is
+ * bounded: a pending line keeps only what follows its last carriage return (progress output), and
+ * past `maxLine` characters its head is logged, the rest is dropped and one note says how much.
+ */
+function lineSplitter(onLine: (line: string) => void, maxLine = DEFAULT_SPAWN_MAX_LINE): { push(chunk: Buffer | string): void; end(): void } {
   let rest = '';
+  let held = ''; // a trailing \r that may be the first half of \r\n
+  let dropped = -1; // characters dropped from the current line, once its head was logged (-1: none)
   // A streaming decoder keeps a multi-byte character split across two chunks intact.
   const decoder = new StringDecoder('utf8');
+  const closeLine = () => {
+    if (dropped >= 0) {
+      if (dropped > 0) onLine(`[line truncated: ${dropped} more characters were not logged]`);
+    } else onLine(afterLastCR(rest));
+    rest = '';
+    dropped = -1;
+  };
+  const extend = (text: string) => {
+    if (dropped >= 0) {
+      dropped += text.length;
+      return;
+    }
+    rest = afterLastCR(rest + text);
+    if (rest.length > maxLine) {
+      // Do not split a surrogate pair at the cut.
+      let at = maxLine;
+      const c = rest.charCodeAt(at - 1);
+      if (c >= 0xd800 && c <= 0xdbff) at--;
+      onLine(rest.slice(0, at));
+      dropped = rest.length - at;
+      rest = '';
+    }
+  };
+  const feed = (text: string) => {
+    text = held + text;
+    held = '';
+    if (text.endsWith('\r')) {
+      held = '\r';
+      text = text.slice(0, -1);
+    }
+    const parts = text.split(/\r?\n/);
+    const last = parts.pop() ?? '';
+    for (const p of parts) {
+      extend(p);
+      closeLine();
+    }
+    extend(last);
+  };
   return {
     push(chunk) {
-      const text = rest + decoder.write(chunk);
-      const parts = text.split(/\r?\n/);
-      rest = parts.pop() ?? '';
-      for (const p of parts) onLine(p);
+      feed(typeof chunk === 'string' ? chunk : decoder.write(chunk));
     },
     end() {
-      rest += decoder.end();
-      if (rest !== '') onLine(rest);
-      rest = '';
+      feed(decoder.end());
+      held = '';
+      if (rest !== '' || dropped >= 0) closeLine();
     },
   };
 }
@@ -69,8 +124,9 @@ export function spawnLogged(director: Director, cmd: string, args: readonly stri
       director.log('error', `${cmd} could not start: ${message}`, meta('stderr'));
       return resolve({ code: null, signal: null, error: message });
     }
-    const out = lineSplitter((line) => director.log('info', line, meta('stdout')));
-    const err = lineSplitter((line) => director.log(options.stderrLevel ?? 'warn', line, meta('stderr')));
+    const max = Math.max(1, options.maxLineLength ?? DEFAULT_SPAWN_MAX_LINE);
+    const out = lineSplitter((line) => director.log('info', line, meta('stdout')), max);
+    const err = lineSplitter((line) => director.log(options.stderrLevel ?? 'warn', line, meta('stderr')), max);
     child.stdout?.on('data', (c: Buffer) => out.push(c));
     child.stderr?.on('data', (c: Buffer) => err.push(c));
     // SIGTERM first; a child that ignores it (or is stuck) gets SIGKILL, so a cancel always ends it.

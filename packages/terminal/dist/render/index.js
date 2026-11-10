@@ -186,7 +186,21 @@ export function createLinearWriter(options) {
         for (const l of wrap(`${mark} warning: ${san.text(text)}`, narr.columns, { ...narr, indent: '  ' }))
             say(paint(l, 'status-warning', narr.style));
     };
+    const narrateLog = (level, text) => {
+        if (level !== 'error' && level !== 'warn' && !options.verbose)
+            return;
+        for (const line of text.split('\n')) {
+            if (options.format === 'plain')
+                say(`Log ${level}: ${line}`);
+            else
+                for (const l of wrap(`${level}: ${line}`, narr.columns, { ...narr, indent: '  ' }))
+                    say(paint(l, level === 'error' ? 'status-danger' : 'ink2', narr.style));
+        }
+    };
     return {
+        log(level, text) {
+            narrateLog(level, san.text(text, 'log', 'log'));
+        },
         write(raw) {
             seen++;
             const r = stream.push(raw);
@@ -226,16 +240,7 @@ export function createLinearWriter(options) {
                 case 'warning':
                     return warn(ev.message);
                 case 'log':
-                    if (ev.level === 'error' || ev.level === 'warn' || options.verbose) {
-                        for (const line of ev.text.split('\n')) {
-                            if (options.format === 'plain')
-                                say(`Log ${ev.level}: ${line}`);
-                            else
-                                for (const l of wrap(`${ev.level}: ${line}`, narr.columns, { ...narr, indent: '  ' }))
-                                    say(paint(l, ev.level === 'error' ? 'status-danger' : 'ink2', narr.style));
-                        }
-                    }
-                    return;
+                    return narrateLog(ev.level, ev.text);
                 case 'run-end':
                     status = ev.status;
                     return;

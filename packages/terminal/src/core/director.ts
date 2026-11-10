@@ -12,9 +12,10 @@
  *   advances only on the tempo grid: every 83.33 ms at `twos`, every frame at `ones`, never at
  *   `still`. Data never waits for the pose.
  *
- * Memory is bounded: logs are a ring buffer (default 500 lines), warnings are capped, and past
- * `maxEvents` (default 5,000) new narrated findings and receipts are only counted
- * (`dropped.events`): the snapshot, not narration, carries the full result.
+ * Memory is bounded: logs are a ring buffer (default 500 lines), warnings are capped, events past
+ * `maxEvents` are only counted, and at most `maxItems` (default 5,000) cuts, findings, receipts and
+ * metrics are stored. Past that, updates to stored items still apply, new items are only counted
+ * (`dropped.items`): the snapshot, not narration, carries the full result.
  */
 import type { Capabilities } from './capabilities.js';
 import type { CutStatus, Finding, LogLevel, Metric, ReceiptRef, RunStatus, Snapshot, TerminalEvent } from './contract.js';
@@ -64,7 +65,7 @@ export interface RunState {
   /** Decorative animation pose: advances only on the tempo grid. */
   pose: number;
   /** What was dropped or summarized to keep memory bounded. */
-  dropped: { invalid: number; ignored: number; logs: number; warnings: number; events: number };
+  dropped: { invalid: number; ignored: number; logs: number; warnings: number; events: number; items: number };
 }
 
 /** Timers the Director uses; inject fakes in tests. */
@@ -86,6 +87,11 @@ export interface DirectorOptions {
   maxLogs?: number;
   /** Events counted in detail before older ones are only summarized. Default 5,000. */
   maxEvents?: number;
+  /**
+   * Cuts, findings, receipts and metrics stored, together. Past it, updates to stored items still
+   * apply and new ones are counted in `dropped.items`. Default 5,000.
+   */
+  maxItems?: number;
   /** Warnings kept; later ones are counted in `dropped.warnings`. Default 200. */
   maxWarnings?: number;
   safety?: SafetyOptions;
@@ -144,6 +150,17 @@ export function createDirector(options: DirectorOptions): Director {
   const sched = options.scheduler ?? defaultScheduler;
   const maxLogs = Math.max(1, options.maxLogs ?? 500);
   const maxEvents = Math.max(1, options.maxEvents ?? 5000);
+  const maxItems = Math.max(1, options.maxItems ?? 5000);
+  let stored = 0;
+  /** Takes one storage slot for a new cut, finding, receipt or metric; false (and counted) when full. */
+  const take = () => {
+    if (stored >= maxItems) {
+      state.dropped.items++;
+      return false;
+    }
+    stored++;
+    return true;
+  };
   const maxWarnings = Math.max(1, options.maxWarnings ?? 200);
   const san = createSanitizer(options.safety);
   const stream = createStreamValidator(options.validation);
@@ -160,7 +177,7 @@ export function createDirector(options: DirectorOptions): Director {
     warnings: [],
     logs: [],
     pose: 0,
-    dropped: { invalid: 0, ignored: 0, logs: 0, warnings: 0, events: 0 },
+    dropped: { invalid: 0, ignored: 0, logs: 0, warnings: 0, events: 0, items: 0 },
   };
   const cutIndex = new Map<string, number>();
   const findingIndex = new Map<string, number>();
@@ -258,7 +275,7 @@ export function createDirector(options: DirectorOptions): Director {
     const list = state.findings[i]!.receipts!;
     for (const r of receipts) {
       const k = receiptKey(r);
-      if (keys.has(k)) continue;
+      if (keys.has(k) || !take()) continue;
       keys.add(k);
       list.push(r);
     }
@@ -278,6 +295,7 @@ export function createDirector(options: DirectorOptions): Director {
       case 'scene-end':
         return false;
       case 'cut-start': {
+        if (!take()) return false;
         cutIndex.set(ev.cut, state.cuts.length);
         state.cuts.push({
           cut: ev.cut,
@@ -307,7 +325,9 @@ export function createDirector(options: DirectorOptions): Director {
       case 'cut-end': {
         let i = cutIndex.get(ev.cut);
         if (i === undefined) {
-          // A partial stream: the cut's start was never seen. Show it anyway.
+          // A partial stream: the cut's start was never seen. Show it anyway (when there is room).
+          if (stored >= maxItems) return true; // its cut-start was already counted as dropped
+          stored++;
           i = state.cuts.length;
           cutIndex.set(ev.cut, i);
           state.cuts.push({ cut: ev.cut, label: `C-${String(i + 1).padStart(2, '0')}`, title: ev.cut, status: 'running', startedAt: ev.ts });
@@ -324,6 +344,7 @@ export function createDirector(options: DirectorOptions): Director {
       case 'metric': {
         const i = metricIndex.get(ev.metric.name);
         if (i === undefined) {
+          if (!take()) return false;
           metricIndex.set(ev.metric.name, state.metrics.length);
           state.metrics.push(ev.metric);
         } else state.metrics[i] = ev.metric;
@@ -332,7 +353,7 @@ export function createDirector(options: DirectorOptions): Director {
       case 'finding': {
         const i = findingIndex.get(ev.finding.id);
         if (i === undefined) {
-          if (seen > maxEvents) return false; // Counted in dropped.events; the snapshot has it.
+          if (!take()) return false; // Counted in dropped.items; the snapshot has it.
           findingIndex.set(ev.finding.id, state.findings.length);
           receiptKeys.set(ev.finding.id, new Set());
           state.findings.push({ ...ev.finding, receipts: [] });
@@ -341,7 +362,7 @@ export function createDirector(options: DirectorOptions): Director {
         return false;
       }
       case 'receipt':
-        if (seen <= maxEvents) mergeReceipts(ev.finding, [ev.receipt]);
+        mergeReceipts(ev.finding, [ev.receipt]);
         return false;
       case 'log':
         addLog({ level: ev.level, text: ev.text, ...(ev.cut !== undefined ? { cut: ev.cut } : {}), ...(ev.stream !== undefined ? { stream: ev.stream } : {}) });
