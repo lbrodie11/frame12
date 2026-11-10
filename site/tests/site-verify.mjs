@@ -4,12 +4,13 @@
 import { chromium, firefox, webkit } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 import { getRenderedCuts } from '../../registry/tests/lib.mjs';
+import { readIco } from '../scripts/build-favicon.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SITE_ROOT = resolve(__dirname, '..');
@@ -349,6 +350,24 @@ try {
     );
   }
 
+  // 1c. /favicon.ico (requested by browsers on head-less documents such as /llms.txt) is a valid
+  // ICO with 16/32/48 px PNG entries generated from app/icon.svg (pixel-compared after launch).
+  const faviconRes = await fetch(`${baseUrl}/favicon.ico`);
+  const faviconBuf = Buffer.from(await faviconRes.arrayBuffer());
+  let faviconEntries = [];
+  try {
+    faviconEntries = readIco(faviconBuf);
+  } catch {
+    faviconEntries = [];
+  }
+  check(
+    faviconRes.status === 200 &&
+      /image\/(x-icon|vnd\.microsoft\.icon)/.test(faviconRes.headers.get('content-type') || '') &&
+      faviconEntries.map((e) => e.size).join('/') === '16/32/48',
+    `site /favicon.ico returns HTTP 200 ICO with 16/32/48 px entries (${faviconBuf.length} bytes)`,
+    `status=${faviconRes.status} type=${faviconRes.headers.get('content-type')}`,
+  );
+
   // 2. Verify Open Graph image routes return HTTP 200 image/png
   for (const ogPath of [
     '/opengraph-image',
@@ -374,6 +393,51 @@ try {
     executablePath: process.env.CHROME_PATH || undefined,
     args: ['--no-sandbox'],
   });
+
+  // 1d. The favicon.ico artwork is the site icon: each entry matches app/icon.svg rendered at the
+  // same size (mean per-channel difference, tolerant of rasterizer anti-aliasing only).
+  {
+    const svgB64 = readFileSync(resolve(SITE_ROOT, 'app/icon.svg')).toString('base64');
+    const page = await browser.newPage();
+    const diffs = [];
+    for (const { size, png } of faviconEntries) {
+      diffs.push(
+        await page.evaluate(
+          async ({ size, a, b }) => {
+            const load = (src) =>
+              new Promise((ok, fail) => {
+                const img = new Image(size, size);
+                img.onload = () => ok(img);
+                img.onerror = fail;
+                img.src = src;
+              });
+            const pixels = async (src) => {
+              const c = document.createElement('canvas');
+              c.width = c.height = size;
+              const ctx = c.getContext('2d');
+              ctx.drawImage(await load(src), 0, 0, size, size);
+              return ctx.getImageData(0, 0, size, size).data;
+            };
+            const [pa, pb] = await Promise.all([pixels(a), pixels(b)]);
+            let sum = 0;
+            for (let i = 0; i < pa.length; i++) sum += Math.abs(pa[i] - pb[i]);
+            return { size, meanDiff: sum / pa.length };
+          },
+          {
+            size,
+            a: `data:image/png;base64,${png.toString('base64')}`,
+            b: `data:image/svg+xml;base64,${svgB64}`,
+          },
+        ),
+      );
+    }
+    await page.close();
+    check(
+      diffs.length === 3 && diffs.every((d) => d.meanDiff < 8),
+      'site /favicon.ico artwork matches app/icon.svg at 16, 32 and 48 px',
+      JSON.stringify(diffs.map((d) => ({ ...d, meanDiff: +d.meanDiff.toFixed(2) }))),
+    );
+  }
 
   // 3. Desktop (1280px) light & dark verification across all routes + screenshots
   for (const route of ROUTES) {
