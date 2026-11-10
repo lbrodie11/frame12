@@ -98,8 +98,10 @@ import {
     if (item.name === 'frame12-tokens' && (!hasDirectTokens || item.type !== 'registry:ui')) {
       manifestIssues.push(`${item.name}: must be registry:ui with styles/frame12-tokens.css`);
     }
+    // Pure hook items (no markup, no classes) do not need the stylesheet.
     if (
       item.name !== 'use-on-twos' &&
+      item.name !== 'use-tempo' &&
       item.name !== 'frame12-tokens' &&
       !hasDirectStyles &&
       !hasDepStyles

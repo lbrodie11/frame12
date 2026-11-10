@@ -24,7 +24,15 @@ export function reactVersion(major) {
   return REACT_BASES[major]('react/package.json').version;
 }
 
-function aliasPlugin(major, { externalReact = false } = {}) {
+function aliasPlugin(
+  major,
+  {
+    externalReact = false,
+    hooksDir = resolve(REGISTRY_ROOT, 'hooks'),
+    uiDir = resolve(REGISTRY_ROOT, 'ui'),
+    blocksDir = resolve(REGISTRY_ROOT, 'blocks'),
+  } = {},
+) {
   const req = REACT_BASES[major];
   return {
     name: 'f12-fixture-alias',
@@ -33,20 +41,19 @@ function aliasPlugin(major, { externalReact = false } = {}) {
         externalReact ? { path: args.path, external: true } : { path: req.resolve(args.path) },
       );
       b.onResolve({ filter: /^@\/hooks\/(.*)$/ }, (args) => ({
-        path: resolve(REGISTRY_ROOT, 'hooks', `${args.path.replace(/^@\/hooks\//, '')}.ts`),
+        path: resolve(hooksDir, `${args.path.replace(/^@\/hooks\//, '')}.ts`),
       }));
       b.onResolve({ filter: /^@\/components\/frame12$/ }, () => ({
-        path: resolve(REGISTRY_ROOT, 'ui/index.ts'),
+        path: resolve(uiDir, 'index.ts'),
       }));
       b.onResolve({ filter: /^@\/components\/frame12\/blocks\/(.*)$/ }, (args) => ({
         path: resolve(
-          REGISTRY_ROOT,
-          'blocks',
+          blocksDir,
           `${args.path.replace(/^@\/components\/frame12\/blocks\//, '')}.tsx`,
         ),
       }));
       b.onResolve({ filter: /^@\/components\/frame12\/(.*)$/ }, (args) => ({
-        path: resolve(REGISTRY_ROOT, 'ui', `${args.path.replace(/^@\/components\/frame12\//, '')}.tsx`),
+        path: resolve(uiDir, `${args.path.replace(/^@\/components\/frame12\//, '')}.tsx`),
       }));
     },
   };
@@ -56,7 +63,10 @@ const HOST_RESET =
   ':root{color-scheme:light}body{margin:0;background:var(--f-desk);color:var(--f-ink);font:15px/1.5 var(--font-f-body)}[hidden]{display:none!important}';
 
 /** Bundles `entry` for the browser and returns a complete HTML document. */
-export async function bundlePage(entry, { react = 18, nodeEnv = 'production', head = '' } = {}) {
+export async function bundlePage(
+  entry,
+  { react = 18, nodeEnv = 'production', head = '', dirs = {}, returnJs = false } = {},
+) {
   const res = await build({
     entryPoints: [entry],
     bundle: true,
@@ -66,9 +76,10 @@ export async function bundlePage(entry, { react = 18, nodeEnv = 'production', he
     target: ['es2020'],
     legalComments: 'none',
     define: { 'process.env.NODE_ENV': JSON.stringify(nodeEnv) },
-    plugins: [aliasPlugin(react)],
+    plugins: [aliasPlugin(react, dirs)],
     logLevel: 'silent',
   });
+  if (returnJs) return res.outputFiles[0].text;
   const js = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const css = readFileSync(resolve(REGISTRY_ROOT, 'styles/frame12.css'), 'utf8');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>fixture</title>${head}<style>${HOST_RESET}</style><style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`;

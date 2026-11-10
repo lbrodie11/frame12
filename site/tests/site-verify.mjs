@@ -569,9 +569,11 @@ try {
       () => document.documentElement.getAttribute('data-theme') === 'dark',
     );
     await page.keyboard.press('t');
+    // M cycles the tempo auto → twos → ones → still → auto (F12-08); four presses restore auto.
+    await page.keyboard.press('m');
     await page.keyboard.press('m');
     const isSmoothViaShortcut = await page.evaluate(() =>
-      Boolean(document.querySelector('.site-root.f12-m-smooth')),
+      Boolean(document.querySelector('.site-root.f12-m-smooth[data-f12-tempo="ones"]')),
     );
     await page.keyboard.press('m');
     await page.keyboard.press('m');
@@ -1160,11 +1162,12 @@ try {
     await page.click('#site-theme-light');
     await page.waitForTimeout(40);
 
-    // Initial synchronized posture + host motion toggle ('M') does not mark draft dirty
-    await page.keyboard.press('m');
-    await page.waitForTimeout(40);
-    await page.keyboard.press('m');
-    await page.waitForTimeout(40);
+    // Initial synchronized posture + host tempo shortcut ('M') does not mark draft dirty
+    // (four presses: a full auto → twos → ones → still → auto cycle)
+    for (let i = 0; i < 4; i++) {
+      await page.keyboard.press('m');
+      await page.waitForTimeout(40);
+    }
     const initialPosture = await page.evaluate(() => {
       const bar = document.querySelector('#ws-settings-persistence-bar');
       const saveBtn = document.querySelector('#ws-settings-save-btn');
@@ -2857,7 +2860,7 @@ try {
               });
               await coldPage.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
               const beforeFont = await coldPage.evaluate(() => {
-                const groups = [...document.querySelectorAll('.site-controls > .f12-rng')].map((g) =>
+                const groups = [...document.querySelectorAll('.site-controls > .f12-rng, .site-controls > .f12-tempo')].map((g) =>
                   g.getBoundingClientRect(),
                 );
                 const navTop = document.querySelector('.site-nav')?.getBoundingClientRect().top ?? 0;
@@ -2878,7 +2881,7 @@ try {
               await coldPage.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
               await coldPage.waitForTimeout(80);
               const afterFont = await coldPage.evaluate(() => {
-                const groups = [...document.querySelectorAll('.site-controls > .f12-rng')].map((g) =>
+                const groups = [...document.querySelectorAll('.site-controls > .f12-rng, .site-controls > .f12-tempo')].map((g) =>
                   g.getBoundingClientRect(),
                 );
                 const navTop = document.querySelector('.site-nav')?.getBoundingClientRect().top ?? 0;
@@ -2895,7 +2898,9 @@ try {
                 };
               });
               const navDelta = Math.abs(afterFont.navTop - beforeFont.navTop);
-              const expectedStacked = vw === 320;
+              // F12-08: the header holds the theme switch and the 4-option TempoControl (44px
+              // targets), which need ~420px side by side, so both phone widths stack (≤ 460px).
+              const expectedStacked = vw === 320 || vw === 390;
               if (
                 heldFonts === 0 ||
                 beforeFont.loadedWoff2 > 0 ||
@@ -2912,7 +2917,7 @@ try {
             }
             check(
               coldFontShifts.length === 0,
-              `site [${engineName}] cold-font (.woff2 gated) .site-controls row placement deterministic at 320px (stacked) and 390px (single-row) with 0px nav jump`,
+              `site [${engineName}] cold-font (.woff2 gated) .site-controls row placement deterministic at 320px and 390px (stacked) with 0px nav jump`,
               coldFontShifts.join('; '),
             );
           }

@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "node tests/unit.mjs",
     "test:navigation": "node tests/navigation-continuity.mjs",
-    "test": "npm run build && npm run typecheck && node ../scripts/check-frame12.mjs src app && npm run test:unit && node tests/site-verify.mjs && npm run test:navigation"
+    "test:tempo": "node tests/tempo.mjs",
+    "test": "npm run build && npm run typecheck && node ../scripts/check-frame12.mjs src app && npm run test:unit && node tests/site-verify.mjs && npm run test:tempo && npm run test:navigation"
   },
   "dependencies": {
     "@frame12/static": "0.2.0",
