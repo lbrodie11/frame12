@@ -149,7 +149,6 @@ try {
   await page.evaluate(() => document.fonts.ready);
   await page.clock.pauseAt(10_000);
   // Only the strip of four panels, without the page around it.
-  await page.addStyleTag({ content: '.home-story-track::after{display:none!important}.home-story-stage{position:static!important}' });
   await page.evaluate(() => document.getElementById('home-story').scrollIntoView({ block: 'start' }));
   await page.click('#home-story-play');
   await page.waitForTimeout(100);
