@@ -2,6 +2,7 @@ node_modules/
 dist/
 !packages/tokens/dist/
 !packages/lint/dist/
+!packages/static/dist/
 lab/dist/
 registry/dist/
 eval/dist/

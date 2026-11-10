@@ -1,0 +1,49 @@
+{
+  "name": "@frame12/static",
+  "version": "0.2.0",
+  "description": "FRAME/12 framework-free HTML renderers: pure functions returning escaped, deterministic HTML with the React components' contract.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./static.css": "./dist/static.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@frame12/tokens": "0.2.0"
+  },
+  "devDependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/build.mjs --check",
+    "test": "node scripts/build.mjs --check && node tests/run.mjs",
+    "test:unit": "node tests/run.mjs escaping parity render css manifest",
+    "test:cross-browser": "BROWSERS=chromium,firefox,webkit node tests/run.mjs browser"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lbrodie11/frame12.git",
+    "directory": "packages/static"
+  },
+  "homepage": "https://frame12.dev/static",
+  "engines": {
+    "node": ">=20"
+  }
+}
