@@ -9,8 +9,8 @@
  * caps lines with a visible `…+N chars`.
  *
  * Links are `https:` only (plus `http:` to localhost when allowed) with credentials removed.
- * A redaction hook runs on every field, and so does the default redactor, which masks common
- * token shapes wherever they appear (commands, errors and warnings leak secrets as often as logs).
+ * A redaction hook runs on every field. The default redactor masks common token shapes in every
+ * text field (commands, errors, warnings, titles, logs and receipts), but not in ids and paths.
  */
 import { type TerminalEvent, type Snapshot } from './contract.js';
 import { type WidthOptions } from './width.js';
@@ -63,7 +63,7 @@ export interface RedactContext {
 /** A redaction hook. Receives sanitized text; its output is sanitized again. */
 export type Redactor = (text: string, context: RedactContext) => string;
 export declare const REDACTED = "[redacted]";
-/** Token shapes masked by default in every string an event or snapshot carries. */
+/** Token shapes masked by default in every text field an event or snapshot carries. */
 export declare const DEFAULT_REDACTION_PATTERNS: ReadonlyArray<{
     name: string;
     pattern: RegExp;
@@ -73,7 +73,7 @@ export declare function redactSecrets(text: string): string;
 export interface SafetyOptions extends WidthOptions {
     /** Extra redaction, run on every string field after the default redactor. */
     redact?: Redactor;
-    /** Mask common token shapes in every string field (titles, commands, errors, logs, receipts). Default true. */
+    /** Mask common token shapes in every text field (not ids or paths). Default true. */
     defaultRedaction?: boolean;
     maxLineLength?: number;
     tabWidth?: number;

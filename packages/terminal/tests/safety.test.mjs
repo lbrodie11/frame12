@@ -150,11 +150,14 @@ describe('safety: review regressions (PR #31)', () => {
     }
   });
 
-  it('is idempotent with line caps, and a second cut adds to the count', () => {
+  it('is idempotent with line caps, and never trusts a count from the input', () => {
     const once = sanitizeText('x'.repeat(30), { maxLineLength: 10 });
     assert.equal(once, `${'x'.repeat(10)}…+20 chars`);
     assert.equal(sanitizeText(once, { maxLineLength: 10 }), once);
-    assert.equal(sanitizeText(once, { maxLineLength: 4 }), `${'x'.repeat(4)}…+26 chars`, 'every removed grapheme is counted');
+    assert.equal(sanitizeText(once, { maxLineLength: 4 }), `${'x'.repeat(4)}…+16 chars`, 'a recap counts the old marker as text');
+    // Forged markers in untrusted text are plain text (second review).
+    assert.equal(sanitizeText('short …+999 chars', { maxLineLength: 3 }), 'sho…+14 chars');
+    assert.equal(sanitizeText(`${'y'.repeat(10)}…+${'9'.repeat(23)} chars`, { maxLineLength: 5 }), `yyyyy…+${10 + 8 + 23 - 5} chars`);
     const ascii = sanitizeText('y'.repeat(30), { maxLineLength: 10, ascii: true });
     assert.equal(sanitizeText(ascii, { maxLineLength: 10, ascii: true }), ascii);
   });
@@ -165,6 +168,14 @@ describe('safety: review regressions (PR #31)', () => {
     assert.equal(Object.getPrototypeOf(clean), Object.prototype);
     assert.equal(clean.done, undefined);
     assert.equal(clean.total, undefined);
+  });
+});
+
+describe('safety: source hygiene', () => {
+  it('the sanitizer source contains no literal bidi or invisible characters (they are \\u escapes)', async () => {
+    const fs = await import('node:fs');
+    const src = fs.readFileSync(new URL('../src/core/safety.ts', import.meta.url), 'utf8');
+    assert.ok(!/[\u00ad\u034f\u061c\u115f\u1160\u180e\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060-\u2069\u3164\ufeff\uffa0]/.test(src));
   });
 });
 
@@ -204,7 +215,7 @@ describe('safety: redaction', () => {
   const shapes = {
     'github-token': [join('ghp', '_', 'a1B2'.repeat(9)), join('gho', '_', 'Z'.repeat(36)), join('ghs', '_', '0'.repeat(40))],
     'github-fine-grained-token': [join('github', '_pat_', '11', 'ABCDEFG', '0123456789', '_', 'abcdefghij'.repeat(4))],
-    'openai-or-anthropic-key': [join('sk', '-', 'a'.repeat(48)), join('sk', '-proj-', 'Ab9_'.repeat(10)), join('sk', '-ant-api03-', 'x'.repeat(40))],
+    'openai-or-anthropic-key': [join('sk', '-', 'aB3dE5'.repeat(8)), join('sk', '-proj-', 'Ab9_'.repeat(10)), join('sk', '-ant-api03-', 'Xy7-Qz2_'.repeat(5))],
     'slack-token': [join('xox', 'b-', '1'.repeat(12), '-', '2'.repeat(13), '-', 'abcdefgh'.repeat(2)), join('xox', 'p-1-2-3-', 'abcdef0123'), join('xox', 'a-2-', 'abcdefghij'), join('xox', 'r-', 'abcdefghijkl')],
     'aws-access-key-id': [join('AK', 'IA', 'TESTONLY'.repeat(2)), join('AS', 'IA', 'ABCDEFGHIJKLMNOP')],
     jwt: [join('eyJ', 'hbGciOiJub25lIn0', '.', 'eyJ', 'zdWIiOiJ0ZXN0In0', '.', 'c2lnbmF0dXJlLW5vdC1yZWFs')],
@@ -232,6 +243,9 @@ describe('safety: redaction', () => {
       '3f2504e0-4f89-11d3-9a0c-0305e82c3301',
       'src/sk-tests/ghp_helpers.ts',
       'task-runner skeleton xox',
+      'packages/sk-experimental-feature-flags.ts',
+      'risk-sk-assessment-for-payments-module',
+      'sk-lowercase-words-only-and-long-enough',
       'AKIA is a prefix',
       'eyJ alone',
     ];
@@ -255,6 +269,17 @@ describe('safety: redaction', () => {
     assert.equal(receipt.receipt.value, `curl -H "Authorization: Bearer ${REDACTED}"`);
     assert.equal(receipt.receipt.note, `with ${REDACTED}`);
     assert.ok(seen.includes('log') && seen.includes('receipt') && seen.includes('text') && seen.includes('identifier'));
+  });
+
+  it('does not run the default redactor on ids and paths, so links between findings and receipts survive', () => {
+    const f = createEventFactory();
+    const token = ['ghp', '_', 'q'.repeat(36)].join('');
+    const ev = createSanitizer().event(f.next('finding', { finding: { id: 'pair-1', title: `uses ${token}`, subject: [{ kind: 'file', label: 'packages/sk-experimental-feature-flags.ts' }], prominence: 'hero', status: 'review' } }));
+    assert.equal(ev.finding.subject[0].label, 'packages/sk-experimental-feature-flags.ts');
+    assert.equal(ev.finding.title, `uses ${REDACTED}`, 'text fields are still masked');
+    const seen = [];
+    createSanitizer({ redact: (t, ctx) => (seen.push(ctx.field), t) }).event(ev);
+    assert.ok(seen.includes('identifier'), 'the hook still sees identifiers');
   });
 
   it('cannot be undone by a hook: hook output is sanitized again, and a throwing hook redacts everything', () => {

@@ -32,7 +32,7 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     one sanitizer merged from Repo Archaeology and PR #2 for CSI, OSC (incl. OSC 8 and OSC 52),
     DCS/APC/PM/SOS, ESC and C1 forms, CR/BS overwrite tricks, bidi controls, zero-width
     characters, tabs and oversized lines; `https:`-only links without credentials; a redaction
-    hook and default masks, on every string field, for GitHub, OpenAI/Anthropic, Slack, AWS, JWT
+    hook and default masks, on every text field (not ids or paths), for GitHub, OpenAI/Anthropic, Slack, AWS, JWT
     and URL-credential shapes.
   - **Width** (`stringWidth`, `graphemeWidth`, `truncateMiddle`, `truncateEnd`, `wrap`,
     `padEnd`): grapheme clusters, UAX #11 from Unicode 17.0.0 with the ambiguous-width switch,

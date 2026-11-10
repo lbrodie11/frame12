@@ -147,6 +147,23 @@ describe('tokens: roles obey the grammar', () => {
     }
   });
 
+  it('never mistakes extended-color operands for resets (second review)', () => {
+    const inner = '\u001b[38;2;0;22;0mX\u001b[39m';
+    const out = paint(`a ${inner} b`, 'marker', 'truecolor');
+    const open = roleSgr('marker', 'truecolor').open;
+    assert.ok(out.includes(`\u001b[38;2;0;22;0mX`), 'the inner color is kept');
+    assert.ok(!out.includes(`\u001b[38;2;0;22;0m${open}`), 'the marker is not re-opened over the inner color');
+    assert.ok(out.includes(`\u001b[39m${open} b`), 'it is re-opened after the inner color ends (39 is a marker close code)');
+    const dim = paint(`d \u001b[48;5;22mY\u001b[49m d`, 'ink2', 'ansi256');
+    assert.ok(!dim.includes(`48;5;22m${roleSgr('ink2', 'ansi256').open}`), '48;5;22 is a color, not "normal intensity"');
+  });
+
+  it('memoizes the nearest-256 search', () => {
+    const t0 = performance.now();
+    for (let i = 0; i < 10_000; i++) roleSgr('marker', 'ansi256');
+    assert.ok(performance.now() - t0 < 50, 'roleSgr must not re-run the 240-color search on every call');
+  });
+
   it('closes what it opens', () => {
     for (const level of LEVELS) {
       for (const role of ROLES) {

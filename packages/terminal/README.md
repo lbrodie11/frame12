@@ -147,14 +147,14 @@ snapshot before a renderer sees it:
 - **Trojan Source:** bidi controls are shown as `\u{202e}` escapes. Zero-width characters are
   shown as escapes in ids, paths and labels.
 - **Tabs and length:** tabs expand at fixed 4-cell stops; lines over 2,000 graphemes end in
-  `…+N chars`. Sanitizing twice changes nothing; cutting again adds to the count.
+  `…+N chars`. Sanitizing twice changes nothing, and a count is never read from the input.
 - **Unterminated sequences** end at the line break, so they can never hide the lines after them.
 - **Links:** `https:` only (`http:` to localhost when allowed), credentials removed, and the
   only OSC 8 sequences in output are ones this package emits.
 - **Redaction:** GitHub (`ghp_`, `gho_`, `ghs_`, `github_pat_`), OpenAI and Anthropic (`sk-`),
   Slack (`xoxa-`, `xoxb-`, `xoxp-`, `xoxr-`), AWS access key ids, JWTs and URL credentials are
-  masked as `[redacted]` in every string field: commands, errors, warnings, titles, logs and
-  receipts. Pass `redact(text, { field, source })` for
+  masked as `[redacted]` in every text field: commands, errors, warnings, titles, logs and
+  receipts. Ids, paths and labels are left intact so findings and receipts stay linked. Pass `redact(text, { field, source })` for
   your own secrets; it runs on every field, and its output is sanitized again.
 
 ## Width

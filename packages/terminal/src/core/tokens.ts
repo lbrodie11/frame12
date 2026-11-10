@@ -59,8 +59,18 @@ function distance(a: Rgb, b: Rgb): number {
   return (2 + rMean / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rMean) / 256) * db * db;
 }
 
-/** Nearest xterm-256 index (16–255) to a `#rrggbb` color. Ties go to the lower index. */
+const nearestCache = new Map<string, number>();
+
+/** Nearest xterm-256 index (16–255) to a `#rrggbb` color. Ties go to the lower index. Memoized. */
 export function nearestAnsi256(hex: string): number {
+  const cached = nearestCache.get(hex);
+  if (cached !== undefined) return cached;
+  const best = searchAnsi256(hex);
+  nearestCache.set(hex, best);
+  return best;
+}
+
+function searchAnsi256(hex: string): number {
   const rgb = hexToRgb(hex);
   let best = 16;
   let bestD = Number.POSITIVE_INFINITY;
@@ -176,6 +186,24 @@ export function roleSgr(role: Role, level: StyleLevel): Sgr {
 const SGR_RE = /\u001b\[([0-9;]*)m/g;
 
 /**
+ * True when an SGR parameter list contains a full reset (`0` or empty) or one of `codes`.
+ * Extended-color operands (`38;5;n`, `38;2;r;g;b`, and the 48 / 58 forms) are skipped, so a color
+ * component that happens to be `0` or `22` is never mistaken for a reset.
+ */
+function endsAny(params: string, codes: ReadonlySet<string>): boolean {
+  const ps = params === '' ? ['0'] : params.split(';');
+  for (let i = 0; i < ps.length; i++) {
+    const p = ps[i]!;
+    if (p === '38' || p === '48' || p === '58') {
+      i += ps[i + 1] === '5' ? 2 : ps[i + 1] === '2' ? 4 : 0;
+      continue;
+    }
+    if (p === '0' || p === '' || codes.has(p)) return true;
+  }
+  return false;
+}
+
+/**
  * Wraps already-sanitized text in a role's escape sequences. Nesting is safe: SGR closes are
  * shared (`22` ends both bold and dim, `0` ends everything), so wherever the text contains a
  * sequence that would end this role's attributes, the role is opened again right after it.
@@ -185,10 +213,7 @@ export function paint(text: string, role: Role, level: StyleLevel): string {
   const { open, close } = roleSgr(role, level);
   if (open === '' || text === '') return text;
   const ours = new Set(close.slice(2, -1).split(';'));
-  const inner = text.replace(SGR_RE, (seq, params: string) => {
-    const resets = params === '' ? ['0'] : params.split(';');
-    return resets.some((p) => p === '0' || ours.has(p)) ? `${seq}${open}` : seq;
-  });
+  const inner = text.replace(SGR_RE, (seq, params: string) => (endsAny(params, ours) ? `${seq}${open}` : seq));
   return `${open}${inner}${close}`;
 }
 

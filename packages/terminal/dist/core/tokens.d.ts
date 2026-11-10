@@ -24,7 +24,7 @@ export declare function styleLevel(colorLevel: ColorLevel, attributes: boolean):
 export declare function hexToRgb(hex: string): Rgb;
 /** The RGB value of an xterm-256 palette index in 16–255 (0–15 are theme-defined). */
 export declare function xterm256Rgb(index: number): Rgb;
-/** Nearest xterm-256 index (16–255) to a `#rrggbb` color. Ties go to the lower index. */
+/** Nearest xterm-256 index (16–255) to a `#rrggbb` color. Ties go to the lower index. Memoized. */
 export declare function nearestAnsi256(hex: string): number;
 /**
  * Hand-tuned 16-color table: SGR foreground / background codes per token and theme. Bright yellow

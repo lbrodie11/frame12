@@ -34,7 +34,10 @@ export declare function validateEvent(raw: unknown, options?: ValidateOptions): 
 /** Validates a result snapshot. Never throws. */
 export declare function validateSnapshot(raw: unknown, options?: ValidateOptions): ValidationResult<Snapshot>;
 export interface StreamValidatorOptions extends ValidateOptions {
-    /** How many recent event ids to remember for duplicate detection. Default 10,000. */
+    /**
+     * How many recent event ids, finding ids and ended cut ids to remember. Default 10,000. Older
+     * entries are forgotten, so memory stays bounded on long runs.
+     */
     idMemory?: number;
     /**
      * Enforce the run lifecycle: `run-start` first, cuts started before they progress or end and

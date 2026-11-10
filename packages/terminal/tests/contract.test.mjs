@@ -287,6 +287,22 @@ describe('contract v1: stream rules', () => {
     assert.equal(createStreamValidator().push(tail[0]).ok, false);
   });
 
+  it('bounds finding and ended-cut memory too (second review)', () => {
+    const f = createEventFactory();
+    const v = createStreamValidator({ idMemory: 3 });
+    v.push(f.next('run-start', { title: 'T' }));
+    const base = fixture('one-finding').snapshot.findings[0];
+    for (let i = 0; i < 10; i++) {
+      assert.ok(v.push(f.next('cut-start', { cut: `c${i}`, title: 'C' })).ok);
+      assert.ok(v.push(f.next('cut-progress', { cut: `c${i}`, done: 1 })).ok);
+      assert.ok(v.push(f.next('finding', { finding: { ...base, id: `f${i}`, receipts: undefined } })).ok);
+      assert.ok(v.push(f.next('cut-end', { cut: `c${i}`, status: 'ok' })).ok);
+    }
+    assert.ok(v.push(f.next('receipt', { finding: 'f9', receipt: { kind: 'log', value: 'x' } })).ok, 'recent findings are remembered');
+    assert.equal(v.push(f.next('receipt', { finding: 'f0', receipt: { kind: 'log', value: 'x' } })).issues[0].code, 'unknown-finding', 'old ones are forgotten');
+    assert.equal(v.push(f.next('cut-start', { cut: 'c9', title: 'again' })).issues[0].code, 'cut-already-started');
+  });
+
   it('bounds id memory', () => {
     const f = createEventFactory();
     const v = createStreamValidator({ idMemory: 2, lifecycle: false });

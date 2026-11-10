@@ -9,8 +9,8 @@
  * caps lines with a visible `…+N chars`.
  *
  * Links are `https:` only (plus `http:` to localhost when allowed) with credentials removed.
- * A redaction hook runs on every field, and so does the default redactor, which masks common
- * token shapes wherever they appear (commands, errors and warnings leak secrets as often as logs).
+ * A redaction hook runs on every field. The default redactor masks common token shapes in every
+ * text field (commands, errors, warnings, titles, logs and receipts), but not in ids and paths.
  */
 import { FORBIDDEN_KEYS, type TerminalEvent, type Snapshot } from './contract.js';
 
@@ -48,12 +48,12 @@ const CSI_RE = /(?:\u001b\[|\u009b)[0-?]*[ -/]*[@-~]?/g;
 const ESC_RE = /\u001b[\x20-\x2f]*[\x30-\x7e]?/g;
 
 /** Bidirectional formatting controls (Trojan Source, CVE-2021-42574). Always made visible. */
-const BIDI_RE = /[؜‎‏‪-‮⁦-⁩]/g;
+const BIDI_RE = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 /** Invisible characters used for spoofing and smuggling. */
-const INVISIBLE = /[​‌‍⁠-⁤﻿᠎͏ᅟᅠㅤﾠ­]/;
+const INVISIBLE = /[\u200b\u200c\u200d\u2060-\u2064\ufeff\u180e\u034f\u115f\u1160\u3164\uffa0\u00ad]/;
 const INVISIBLE_G = new RegExp(INVISIBLE.source, 'g');
 /** Joiners that shape real scripts (ZWNJ in Persian, ZWJ in emoji and Indic text). */
-const SHAPING_JOINERS = /[‌‍]/;
+const SHAPING_JOINERS = /[\u200c\u200d]/;
 const PICTOGRAPHIC_RE = /\p{Extended_Pictographic}/u;
 const CONTROL_RE = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
 
@@ -101,7 +101,7 @@ function handleInvisible(line: string, mode: 'text' | 'identifier'): string {
     .map((g) => {
       if (!INVISIBLE.test(g)) return g;
       const emoji = PICTOGRAPHIC_RE.test(g);
-      return g.replace(INVISIBLE_G, (ch) => (emoji && ch === '‍' ? ch : visibleEscape(ch)));
+      return g.replace(INVISIBLE_G, (ch) => (emoji && ch === '\u200d' ? ch : visibleEscape(ch)));
     })
     .join('');
 }
@@ -110,18 +110,19 @@ function handleInvisible(line: string, mode: 'text' | 'identifier'): string {
 const CAP_MARKER_RE = /(?:…|\.\.\.)\+(\d+) chars$/;
 
 /**
- * Caps a line at `max` graphemes with a visible `…+N chars`. Idempotent: a line that already ends
- * in a marker is measured without it, and if it must be cut again the counts are added, so the
- * marker always reports every grapheme removed from the original text.
+ * Caps a line at `max` graphemes with a visible `…+N chars`. Idempotent: a line this function
+ * already capped at the same `max` is returned unchanged. Capping again at a smaller `max` counts
+ * the earlier marker as text, so the count never comes from (possibly forged) input.
  */
 function capLine(line: string, max: number, ascii: boolean): string {
   if (!Number.isFinite(max) || line.length <= max) return line;
+  // Trust a marker only when it is exactly what this function writes: `max` graphemes, then the
+  // marker with a sane count. Anything else (a marker forged in untrusted text) is plain text.
   const marker = CAP_MARKER_RE.exec(line);
-  const body = marker ? line.slice(0, marker.index) : line;
-  const earlier = marker ? Number(marker[1]) : 0;
-  const gs = graphemes(body);
+  if (marker && marker[1]!.length <= 15 && graphemes(line.slice(0, marker.index)).length === max) return line;
+  const gs = graphemes(line);
   if (gs.length <= max) return line;
-  return `${gs.slice(0, max).join('')}${ascii ? '...' : '…'}+${gs.length - max + earlier} chars`;
+  return `${gs.slice(0, max).join('')}${ascii ? '...' : '\u2026'}+${gs.length - max} chars`;
 }
 
 /**
@@ -160,7 +161,7 @@ export interface LinkPolicy {
 }
 
 const LOCALHOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-const UNSAFE_URL_CHARS = /[\u0000- \u007f-\u009f­؜​-‏‪-‮⁠-⁩﻿]/;
+const UNSAFE_URL_CHARS = /[\u0000- \u007f-\u009f\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/;
 
 /**
  * Returns a normalized URL safe to put in an OSC 8 link, or `undefined`. Only `https:` (and,
@@ -212,11 +213,13 @@ export type Redactor = (text: string, context: RedactContext) => string;
 
 export const REDACTED = '[redacted]';
 
-/** Token shapes masked by default in every string an event or snapshot carries. */
+/** Token shapes masked by default in every text field an event or snapshot carries. */
 export const DEFAULT_REDACTION_PATTERNS: ReadonlyArray<{ name: string; pattern: RegExp }> = [
   { name: 'github-token', pattern: /\bgh[pousr]_[A-Za-z0-9]{36,255}\b/g },
   { name: 'github-fine-grained-token', pattern: /\bgithub_pat_[A-Za-z0-9_]{22,255}\b/g },
-  { name: 'openai-or-anthropic-key', pattern: /\bsk-(?:[A-Za-z0-9]+-)*[A-Za-z0-9_-]{20,}\b/g },
+  // Real keys end in a random run with uppercase letters and digits; requiring both keeps
+  // hyphenated words such as `sk-experimental-feature-flags` from matching.
+  { name: 'openai-or-anthropic-key', pattern: /\bsk-(?:[A-Za-z0-9]+-)*(?=[A-Za-z0-9_-]*[A-Z])(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{20,}\b/g },
   { name: 'slack-token', pattern: /\bxox[abpr]-[A-Za-z0-9-]{10,}\b/g },
   { name: 'aws-access-key-id', pattern: /\b(?:AKIA|ASIA|ABIA|ACCA)[A-Z0-9]{16}\b/g },
   { name: 'jwt', pattern: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g },
@@ -235,7 +238,7 @@ export function redactSecrets(text: string): string {
 export interface SafetyOptions extends WidthOptions {
   /** Extra redaction, run on every string field after the default redactor. */
   redact?: Redactor;
-  /** Mask common token shapes in every string field (titles, commands, errors, logs, receipts). Default true. */
+  /** Mask common token shapes in every text field (not ids or paths). Default true. */
   defaultRedaction?: boolean;
   maxLineLength?: number;
   tabWidth?: number;
@@ -280,7 +283,9 @@ export function createSanitizer(options: SafetyOptions = {}): Sanitizer {
       maxLineLength: Number.POSITIVE_INFINITY,
     };
     let s = sanitizeText(value, opts);
-    if (defaults) s = redactSecrets(s);
+    // Ids, paths and labels are not redacted by default: rewriting them would break links between
+    // findings and receipts and corrupt paths. The hook still sees them.
+    if (defaults && field !== 'identifier') s = redactSecrets(s);
     if (options.redact) {
       try {
         s = sanitizeText(options.redact(s, { field, source }), opts);

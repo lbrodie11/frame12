@@ -298,6 +298,13 @@ export function createStreamValidator(options = {}) {
     const openCuts = new Set();
     const endedCuts = new Set();
     const findings = new Set();
+    /** Adds to a set that forgets its oldest entry beyond `idMemory`, keeping memory bounded. */
+    const remember = (set, value) => {
+        set.delete(value);
+        set.add(value);
+        if (set.size > idMemory)
+            set.delete(set.values().next().value);
+    };
     const lifecycleIssues = (ev) => {
         const out = [];
         if (!started && ev.type !== 'run-start') {
@@ -367,14 +374,13 @@ export function createStreamValidator(options = {}) {
                 openCuts.add(ev.cut);
             if (ev.type === 'cut-end') {
                 openCuts.delete(ev.cut);
-                endedCuts.add(ev.cut);
+                progress.delete(ev.cut); // Progress only matters while a cut is open.
+                remember(endedCuts, ev.cut);
             }
             if (ev.type === 'finding')
-                findings.add(ev.finding.id);
+                remember(findings, ev.finding.id);
             lastSeq = ev.seq;
-            ids.add(ev.id);
-            if (ids.size > idMemory)
-                ids.delete(ids.values().next().value);
+            remember(ids, ev.id);
             if (ev.type === 'cut-progress' && ev.done !== undefined)
                 progress.set(ev.cut, ev.done);
             if (ev.type === 'run-end')

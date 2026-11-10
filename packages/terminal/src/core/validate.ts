@@ -315,7 +315,10 @@ export function validateSnapshot(raw: unknown, options: ValidateOptions = {}): V
 }
 
 export interface StreamValidatorOptions extends ValidateOptions {
-  /** How many recent event ids to remember for duplicate detection. Default 10,000. */
+  /**
+   * How many recent event ids, finding ids and ended cut ids to remember. Default 10,000. Older
+   * entries are forgotten, so memory stays bounded on long runs.
+   */
   idMemory?: number;
   /**
    * Enforce the run lifecycle: `run-start` first, cuts started before they progress or end and
@@ -352,6 +355,12 @@ export function createStreamValidator(options: StreamValidatorOptions = {}): Str
   const openCuts = new Set<string>();
   const endedCuts = new Set<string>();
   const findings = new Set<string>();
+  /** Adds to a set that forgets its oldest entry beyond `idMemory`, keeping memory bounded. */
+  const remember = (set: Set<string>, value: string): void => {
+    set.delete(value);
+    set.add(value);
+    if (set.size > idMemory) set.delete(set.values().next().value as string);
+  };
 
   const lifecycleIssues = (ev: TerminalEvent): ValidationIssue[] => {
     const out: ValidationIssue[] = [];
@@ -414,12 +423,12 @@ export function createStreamValidator(options: StreamValidatorOptions = {}): Str
       if (ev.type === 'cut-start') openCuts.add(ev.cut);
       if (ev.type === 'cut-end') {
         openCuts.delete(ev.cut);
-        endedCuts.add(ev.cut);
+        progress.delete(ev.cut); // Progress only matters while a cut is open.
+        remember(endedCuts, ev.cut);
       }
-      if (ev.type === 'finding') findings.add(ev.finding.id);
+      if (ev.type === 'finding') remember(findings, ev.finding.id);
       lastSeq = ev.seq;
-      ids.add(ev.id);
-      if (ids.size > idMemory) ids.delete(ids.values().next().value as string);
+      remember(ids, ev.id);
       if (ev.type === 'cut-progress' && ev.done !== undefined) progress.set(ev.cut, ev.done);
       if (ev.type === 'run-end') ended = true;
       return res;

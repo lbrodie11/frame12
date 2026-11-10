@@ -9,8 +9,8 @@
  * caps lines with a visible `…+N chars`.
  *
  * Links are `https:` only (plus `http:` to localhost when allowed) with credentials removed.
- * A redaction hook runs on every field, and so does the default redactor, which masks common
- * token shapes wherever they appear (commands, errors and warnings leak secrets as often as logs).
+ * A redaction hook runs on every field. The default redactor masks common token shapes in every
+ * text field (commands, errors, warnings, titles, logs and receipts), but not in ids and paths.
  */
 import { FORBIDDEN_KEYS } from './contract.js';
 const FORBIDDEN = new Set(FORBIDDEN_KEYS);
@@ -28,12 +28,12 @@ const CSI_RE = /(?:\u001b\[|\u009b)[0-?]*[ -/]*[@-~]?/g;
 // nF / Fp / Fe / Fs escapes (ESC ( B, ESC 7, ESC c …) and any lone ESC.
 const ESC_RE = /\u001b[\x20-\x2f]*[\x30-\x7e]?/g;
 /** Bidirectional formatting controls (Trojan Source, CVE-2021-42574). Always made visible. */
-const BIDI_RE = /[؜‎‏‪-‮⁦-⁩]/g;
+const BIDI_RE = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 /** Invisible characters used for spoofing and smuggling. */
-const INVISIBLE = /[​‌‍⁠-⁤﻿᠎͏ᅟᅠㅤﾠ­]/;
+const INVISIBLE = /[\u200b\u200c\u200d\u2060-\u2064\ufeff\u180e\u034f\u115f\u1160\u3164\uffa0\u00ad]/;
 const INVISIBLE_G = new RegExp(INVISIBLE.source, 'g');
 /** Joiners that shape real scripts (ZWNJ in Persian, ZWJ in emoji and Indic text). */
-const SHAPING_JOINERS = /[‌‍]/;
+const SHAPING_JOINERS = /[\u200c\u200d]/;
 const PICTOGRAPHIC_RE = /\p{Extended_Pictographic}/u;
 const CONTROL_RE = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
 /** `\x07` for code points below 0x100, `\u{202e}` above. */
@@ -82,27 +82,29 @@ function handleInvisible(line, mode) {
         if (!INVISIBLE.test(g))
             return g;
         const emoji = PICTOGRAPHIC_RE.test(g);
-        return g.replace(INVISIBLE_G, (ch) => (emoji && ch === '‍' ? ch : visibleEscape(ch)));
+        return g.replace(INVISIBLE_G, (ch) => (emoji && ch === '\u200d' ? ch : visibleEscape(ch)));
     })
         .join('');
 }
 /** A cap marker this function wrote: `…+N chars` or `...+N chars` at the end of a line. */
 const CAP_MARKER_RE = /(?:…|\.\.\.)\+(\d+) chars$/;
 /**
- * Caps a line at `max` graphemes with a visible `…+N chars`. Idempotent: a line that already ends
- * in a marker is measured without it, and if it must be cut again the counts are added, so the
- * marker always reports every grapheme removed from the original text.
+ * Caps a line at `max` graphemes with a visible `…+N chars`. Idempotent: a line this function
+ * already capped at the same `max` is returned unchanged. Capping again at a smaller `max` counts
+ * the earlier marker as text, so the count never comes from (possibly forged) input.
  */
 function capLine(line, max, ascii) {
     if (!Number.isFinite(max) || line.length <= max)
         return line;
+    // Trust a marker only when it is exactly what this function writes: `max` graphemes, then the
+    // marker with a sane count. Anything else (a marker forged in untrusted text) is plain text.
     const marker = CAP_MARKER_RE.exec(line);
-    const body = marker ? line.slice(0, marker.index) : line;
-    const earlier = marker ? Number(marker[1]) : 0;
-    const gs = graphemes(body);
+    if (marker && marker[1].length <= 15 && graphemes(line.slice(0, marker.index)).length === max)
+        return line;
+    const gs = graphemes(line);
     if (gs.length <= max)
         return line;
-    return `${gs.slice(0, max).join('')}${ascii ? '...' : '…'}+${gs.length - max + earlier} chars`;
+    return `${gs.slice(0, max).join('')}${ascii ? '...' : '\u2026'}+${gs.length - max} chars`;
 }
 /**
  * Makes untrusted text safe to print. The result contains no ESC, BEL, C1 control or bidi
@@ -132,7 +134,7 @@ export function sanitizeText(input, options = {}) {
     return capLine(lines.join(newlines === 'escape' ? '\\n' : ' '), maxLine, ascii);
 }
 const LOCALHOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-const UNSAFE_URL_CHARS = /[\u0000- \u007f-\u009f­؜​-‏‪-‮⁠-⁩﻿]/;
+const UNSAFE_URL_CHARS = /[\u0000- \u007f-\u009f\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/;
 /**
  * Returns a normalized URL safe to put in an OSC 8 link, or `undefined`. Only `https:` (and,
  * when allowed, `http:` to localhost). User names and passwords are removed.
@@ -173,11 +175,13 @@ export function formatLink(text, href, enabled, policy = {}) {
     return `\u001b]8;;${url}\u001b\\${text}\u001b]8;;\u001b\\`;
 }
 export const REDACTED = '[redacted]';
-/** Token shapes masked by default in every string an event or snapshot carries. */
+/** Token shapes masked by default in every text field an event or snapshot carries. */
 export const DEFAULT_REDACTION_PATTERNS = [
     { name: 'github-token', pattern: /\bgh[pousr]_[A-Za-z0-9]{36,255}\b/g },
     { name: 'github-fine-grained-token', pattern: /\bgithub_pat_[A-Za-z0-9_]{22,255}\b/g },
-    { name: 'openai-or-anthropic-key', pattern: /\bsk-(?:[A-Za-z0-9]+-)*[A-Za-z0-9_-]{20,}\b/g },
+    // Real keys end in a random run with uppercase letters and digits; requiring both keeps
+    // hyphenated words such as `sk-experimental-feature-flags` from matching.
+    { name: 'openai-or-anthropic-key', pattern: /\bsk-(?:[A-Za-z0-9]+-)*(?=[A-Za-z0-9_-]*[A-Z])(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{20,}\b/g },
     { name: 'slack-token', pattern: /\bxox[abpr]-[A-Za-z0-9-]{10,}\b/g },
     { name: 'aws-access-key-id', pattern: /\b(?:AKIA|ASIA|ABIA|ACCA)[A-Z0-9]{16}\b/g },
     { name: 'jwt', pattern: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g },
@@ -214,7 +218,9 @@ export function createSanitizer(options = {}) {
             maxLineLength: Number.POSITIVE_INFINITY,
         };
         let s = sanitizeText(value, opts);
-        if (defaults)
+        // Ids, paths and labels are not redacted by default: rewriting them would break links between
+        // findings and receipts and corrupt paths. The hook still sees them.
+        if (defaults && field !== 'identifier')
             s = redactSecrets(s);
         if (options.redact) {
             try {
