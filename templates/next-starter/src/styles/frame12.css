@@ -3827,7 +3827,7 @@ dialog.f12-dialog > .f12-cut {
   gap: var(--f-gutter-pair);
   min-width: 0;
 }
-.f12-xs-body[data-swap] {
+.f12-xs-content[data-swap] {
   animation: var(--f12-enter-animation, none);
 }
 .f12-xs-head > p {
@@ -3945,7 +3945,7 @@ dialog.f12-dialog > .f12-cut {
   .f12-xs-row > .f12-xs-f {
     transition: none;
   }
-  .f12-xs-body[data-swap] {
+  .f12-xs-content[data-swap] {
     animation: none;
   }
 }

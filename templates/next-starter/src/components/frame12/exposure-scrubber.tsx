@@ -442,14 +442,18 @@ export function ExposureScrubber({
     else ex.announceSettled();
   };
   const contentKeys = React.useRef<WeakSet<Event>>(new WeakSet());
-  // After following a cause (or going back) the activated button unmounts with the old panel;
-  // move focus to the new frame's title instead of losing it.
-  const focusTitle = React.useRef(false);
+  // After following a cause (or going back) the activated button unmounts; move focus to the
+  // frame title instead of losing it. A counter (not a flag) so every request is consumed in
+  // the commit it causes, even when the frame does not change, and never fires later.
+  const [focusRequest, setFocusRequest] = React.useState(0);
   React.useEffect(() => {
-    if (!focusTitle.current) return;
-    focusTitle.current = false;
+    if (focusRequest === 0) return;
     document.getElementById(`${prefix}-title`)?.focus();
-  }, [ex.panelIndex, prefix]);
+  }, [focusRequest, prefix]);
+  const markStep = (direction: 1 | -1, e: React.MouseEvent<HTMLButtonElement>) => {
+    if (e.currentTarget.getAttribute('aria-disabled') === 'true') return;
+    ex.stepMarker(direction, e.detail === 0 ? 'keyboard' : 'pointer');
+  };
 
   // ------------------------------------------------------------------ shortcuts (scoped)
   const onRootKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -565,7 +569,7 @@ export function ExposureScrubber({
               className="f12-xs-tbtn"
               id={`${prefix}-prev-mark`}
               aria-disabled={!multi || !ex.markers.some((m) => m < index)}
-              onClick={() => ex.stepMarker(-1)}
+              onClick={(e) => markStep(-1, e)}
             >
               <span aria-hidden="true">‹◆ </span>Prev mark
             </button>
@@ -574,7 +578,7 @@ export function ExposureScrubber({
               className="f12-xs-tbtn"
               id={`${prefix}-next-mark`}
               aria-disabled={!multi || !ex.markers.some((m) => m > index)}
-              onClick={() => ex.stepMarker(1)}
+              onClick={(e) => markStep(1, e)}
             >
               Next mark<span aria-hidden="true"> ◆›</span>
             </button>
@@ -697,15 +701,10 @@ export function ExposureScrubber({
                 </p>
               )}
             </div>
-          ) : ex.flipping ? (
-            <div className="f12-xs-slate">
-              <p className="f12-xs-slate-t">FLIPPING</p>
-              <p className="f12-xs-slate-s">
-                12 poses per second{ex.rate !== 1 ? ` × ${ex.rate}` : ''}. Watch the sheet&apos;s rhythm; pause to read a frame.
-              </p>
-            </div>
           ) : panelEntry ? (
-            <div className="f12-xs-body" key={panelEntry.key} data-swap={swapped ? 'true' : undefined}>
+            // The body and header persist across frames (a focused title survives j/k); only the
+            // consumer content is keyed per frame (fresh error boundary, swap transition).
+            <div className="f12-xs-body">
               <div className="f12-xs-head">
                 <p className="f12-xs-pos">
                   <span className="f12-xs-pnum">{frameNo(panelEntry.index)}</span>
@@ -729,59 +728,74 @@ export function ExposureScrubber({
                   </p>
                 )}
               </div>
-              <div
-                className="f12-xs-content"
-                data-exposure-content=""
-                onKeyDown={(e) => {
-                  contentKeys.current.add(e.nativeEvent);
-                }}
-              >
-                <FrameBoundary frameId={panelEntry.key}>
-                  <FrameSlot
-                    render={renderFrame}
-                    frame={panelEntry.source}
-                    index={panelEntry.index}
-                    scrubbing={ex.scrubbing}
-                    settled={ex.settled}
-                  />
-                </FrameBoundary>
-              </div>
-              {(panelEntry.causes.length > 0 || ex.back) && (
-                <div className="f12-xs-links">
-                  {panelEntry.causes.length > 0 && (
-                    <>
-                      <p className="f12-xs-links-h" id={`${prefix}-from`}>
-                        Led here from
-                      </p>
-                      <ul className="f12-xs-links-l" aria-labelledby={`${prefix}-from`}>
-                        {panelEntry.causes.map((ci) => (
-                          <li key={entries[ci].key}>
-                            <button
-                              type="button"
-                              className="f12-xs-tbtn f12-xs-cause"
-                              disabled={!ready}
-                              onClick={() => {
-                                ex.followCause(ci);
-                                focusTitle.current = true;
-                              }}
-                            >
-                              {`${frameNo(ci)} · ${entries[ci].label}`}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                  {ex.back && (
-                    <button type="button" className="f12-xs-tbtn f12-xs-back" disabled={!ready} onClick={() => {
-                        ex.goBack();
-                        focusTitle.current = true;
-                      }}>
-                      <span aria-hidden="true">↩ </span>
-                      {`Back to ${frameNo(ex.back.index)}`}
-                    </button>
-                  )}
+              {ex.flipping ? (
+                // While flipping the header holds the frame where the flip started and the content
+                // is a static slate: the panel does not update (and a focused title survives).
+                <div className="f12-xs-slate">
+                  <p className="f12-xs-slate-t">FLIPPING</p>
+                  <p className="f12-xs-slate-s">
+                    12 poses per second{ex.rate !== 1 ? ` × ${ex.rate}` : ''}. Watch the sheet&apos;s rhythm; pause to read a frame.
+                  </p>
                 </div>
+              ) : (
+                <>
+                  <div
+                    className="f12-xs-content"
+                    key={panelEntry.key}
+                    data-swap={swapped ? 'true' : undefined}
+                    data-exposure-content=""
+                    onKeyDown={(e) => {
+                      contentKeys.current.add(e.nativeEvent);
+                    }}
+                  >
+                    <FrameBoundary frameId={panelEntry.key}>
+                      <FrameSlot
+                        render={renderFrame}
+                        frame={panelEntry.source}
+                        index={panelEntry.index}
+                        scrubbing={ex.scrubbing}
+                        settled={ex.settled}
+                      />
+                    </FrameBoundary>
+                  </div>
+                  {(panelEntry.causes.length > 0 || ex.back) && (
+                    <div className="f12-xs-links">
+                      {panelEntry.causes.length > 0 && (
+                        <>
+                          <p className="f12-xs-links-h" id={`${prefix}-from`}>
+                            Led here from
+                          </p>
+                          <ul className="f12-xs-links-l" aria-labelledby={`${prefix}-from`}>
+                            {panelEntry.causes.map((ci) => (
+                              <li key={entries[ci].key}>
+                                <button
+                                  type="button"
+                                  className="f12-xs-tbtn f12-xs-cause"
+                                  disabled={!ready}
+                                  onClick={() => {
+                                    ex.followCause(ci);
+                                    setFocusRequest((r) => r + 1);
+                                  }}
+                                >
+                                  {`${frameNo(ci)} · ${entries[ci].label}`}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                      {ex.back && (
+                        <button type="button" className="f12-xs-tbtn f12-xs-back" disabled={!ready} onClick={() => {
+                            ex.goBack();
+                            setFocusRequest((r) => r + 1);
+                          }}>
+                          <span aria-hidden="true">↩ </span>
+                          {`Back to ${frameNo(ex.back.index)}`}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : null}

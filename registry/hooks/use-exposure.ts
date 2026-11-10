@@ -212,7 +212,8 @@ export function normalizeExposureFrames(frames: readonly ExposureFrame[]): Expos
     }
     const seen = new Set<number>();
     for (const c of causes) {
-      const target = typeof c === 'string' ? keyIndex.get(c) : undefined;
+      // Real ids only (first occurrence): a generated key ("#3", "a#2") is never a cause.
+      const target = typeof c === 'string' ? firstById.get(c) : undefined;
       if (target === undefined) {
         issues.push(`Frame "${e.key}" names unknown cause "${String(c)}"; link dropped.`);
       } else if (target === e.index) {
@@ -319,7 +320,8 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
   if (tag === 'INPUT') {
     // A range input is a playhead, not a text field: j/k/p still apply there.
-    return (el as HTMLInputElement).type !== 'range';
+    const type = (el as HTMLInputElement).type;
+    return type !== 'range' && type !== 'radio' && type !== 'checkbox' && type !== 'button';
   }
   return el.closest('[contenteditable=""],[contenteditable="true"],[contenteditable="plaintext-only"]') !== null;
 }
@@ -381,7 +383,8 @@ export interface ExposureState {
   announcement: string;
   select: (index: number, reason: ExposureValueReason) => void;
   step: (delta: number, reason: ExposureValueReason) => void;
-  stepMarker: (direction: 1 | -1) => void;
+  /** `via: 'pointer'` (a click) announces at once instead of starting a keyboard scrub. */
+  stepMarker: (direction: 1 | -1, via?: 'keyboard' | 'pointer') => void;
   followCause: (index: number) => void;
   goBack: () => void;
   play: () => void;
@@ -551,6 +554,13 @@ export function useExposure(options: UseExposureOptions): ExposureState {
     return markers[0];
   }, [markers, primaryMarker, keyIndex, entries]);
   React.useEffect(() => {
+    if (!valueControlled && defaultValue !== undefined && count > 0 && !keyIndex.has(defaultValue)) {
+      devError(`defaultValue "${defaultValue}" is not a frame id; showing the first frame.`);
+    }
+    // Initial value only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  React.useEffect(() => {
     if (primaryMarker === undefined) return;
     const i = keyIndex.get(primaryMarker);
     if (i === undefined || !entries[i].marker) {
@@ -591,11 +601,21 @@ export function useExposure(options: UseExposureOptions): ExposureState {
   const announcer = React.useRef<{ lastAt: number; timer: ReturnType<typeof setTimeout> | null; pending: string | null; last: string }>(
     { lastAt: -Infinity, timer: null, pending: null, last: '' },
   );
+  // Nothing announces after unmount (a queued microtask or timer may still fire once).
+  const mounted = React.useRef(false);
+  React.useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const announce = React.useCallback((text: string) => {
+    if (!mounted.current) return;
     const a = announcer.current;
     const emit = (t: string) => {
       // Identical consecutive text would not be re-read; alternate a trailing no-break space.
       const next = t === a.last.replace(/\u00a0$/, '') && !a.last.endsWith('\u00a0') ? `${t}\u00a0` : t;
+      if (!mounted.current) return;
       a.last = next;
       a.lastAt = performance.now();
       setAnnouncement(next);
@@ -683,9 +703,15 @@ export function useExposure(options: UseExposureOptions): ExposureState {
     }, EXPOSURE_SETTLE_MS);
   }, [announceCurrent]);
 
+  const settleAnnounceTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const announceSettled = React.useCallback(() => {
-    // After React applies the selection (it commits before the next task).
-    setTimeout(announceCurrent, 0);
+    // After React applies the selection (it commits before the next task). Tracked, so unmount
+    // cancels it.
+    if (settleAnnounceTimer.current !== null) clearTimeout(settleAnnounceTimer.current);
+    settleAnnounceTimer.current = setTimeout(() => {
+      settleAnnounceTimer.current = null;
+      announceCurrent();
+    }, 0);
   }, [announceCurrent]);
 
   const pointerScrubRef = React.useRef(false);
@@ -713,7 +739,7 @@ export function useExposure(options: UseExposureOptions): ExposureState {
   );
 
   const stepMarker = React.useCallback(
-    (direction: 1 | -1) => {
+    (direction: 1 | -1, via: 'keyboard' | 'pointer' = 'keyboard') => {
       const l = latest.current;
       let target = -1;
       for (const e of direction > 0 ? l.entries : [...l.entries].reverse()) {
@@ -724,10 +750,12 @@ export function useExposure(options: UseExposureOptions): ExposureState {
       }
       if (target >= 0) {
         select(target, 'marker');
-        noteKeyScrub();
+        // A click is already settled; only key presses count as a scrub.
+        if (via === 'keyboard') noteKeyScrub();
+        else announceSettled();
       }
     },
-    [select, noteKeyScrub],
+    [select, noteKeyScrub, announceSettled],
   );
 
   const [back, setBack] = React.useState<{ key: string; index: number } | null>(null);
@@ -745,15 +773,20 @@ export function useExposure(options: UseExposureOptions): ExposureState {
   const goBack = React.useCallback(() => {
     const l = latest.current;
     if (!back) return;
-    const i = keyIndex.get(back.key) ?? Math.min(back.index, l.count - 1);
+    const i = keyIndex.get(back.key);
     setBack(null);
-    if (i >= 0) {
-      select(i, 'cause');
-      const e = l.entries[i];
-      if (e) announce(describeExposureFrame(e, l.count));
-    }
+    if (i === undefined) return;
+    select(i, 'cause');
+    const e = l.entries[i];
+    if (e) announce(describeExposureFrame(e, l.count));
   }, [back, keyIndex, select, announce]);
-  const backEntry = back ? entries[keyIndex.get(back.key) ?? -1] ?? null : null;
+  // "Back" exists only while its frame still exists and is not the frame being shown (a reader
+  // who returns there another way no longer needs it). One rule for the button and goBack.
+  const backIndex = back ? keyIndex.get(back.key) : undefined;
+  const backEntry = backIndex !== undefined && backIndex !== index ? entries[backIndex] : null;
+  React.useEffect(() => {
+    if (back && (backIndex === undefined || backIndex === index)) setBack(null);
+  }, [back, backIndex, index]);
 
   // ------------------------------------------------------------------ play / pause
   const clock = React.useRef<{ deadline: number; pending: string | null }>({ deadline: 0, pending: null });
@@ -879,8 +912,10 @@ export function useExposure(options: UseExposureOptions): ExposureState {
   React.useEffect(
     () => () => {
       if (settleTimer.current !== null) clearTimeout(settleTimer.current);
+      if (settleAnnounceTimer.current !== null) clearTimeout(settleAnnounceTimer.current);
       if (announcer.current.timer !== null) clearTimeout(announcer.current.timer);
       settleTimer.current = null;
+      settleAnnounceTimer.current = null;
       announcer.current.timer = null;
     },
     [],

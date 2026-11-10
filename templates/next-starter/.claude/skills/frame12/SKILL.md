@@ -168,7 +168,7 @@ Use it when the run is finished and its shape matters (where the time went, the 
 - **Timing modes:** `even` (default, one readable step: `stepMs × hold ÷ rate`), `elapsed` (the run's real rhythm: `clamp(gap, 250, 3000) ÷ rate`, gap = `durationMs` or the `at` difference), `flipbook` (12 poses per second × `hold`; the panel shows a `FLIPPING` slate; unavailable under reduced motion or a `still` tempo). Never autoplay: start playback only from a user action.
 - **Never invent causes.** Order is not causality. Fill `causes` only from links your data states (a parent span id, a tool call id, a cut id); the component drops unknown, self and forward links. Never invent `durationMs` or `at` either: missing timing stays missing.
 - **One marker gets yellow:** `primaryMarker` (default: the first `marker: true` frame). Mark only the moments that matter.
-- **Redact first:** strip secrets, tokens and personal data from tool payloads before they reach any client component (including `detail` and whatever `renderFrame` shows).
+- **Redact first:** strip secrets, tokens and personal data from tool payloads before they reach any client component (including `detail` and whatever `renderFrame` shows). Build frames in a server component and pass only the redacted result: raw data imported into a `'use client'` module ships to the browser even if it is never rendered.
 - **`renderFrame` is pure** (no fetching, logging or state updates); render a light version when `ctx.scrubbing` is true.
 - **Keep `frames` stable** (`useMemo` or state): a new array every render re-normalizes the run and re-renders every row.
 - Deep-link a frame with a controlled `value` and `history.replaceState` (skip `reason === 'playback'`); URL syncing is not built in.
