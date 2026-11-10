@@ -257,7 +257,7 @@ export function evidenceCard(finding, labels, rc) {
             body.push(p(l, 'ink2', rc));
     }
     const receipts = finding.receipts ?? [];
-    const shown = receipts.slice(0, MAX_CARD_RECEIPTS).map((receipt, i) => ({ label: label('E', labels.firstReceipt + i), receipt }));
+    const shown = receipts.slice(0, labels.maxReceipts ?? MAX_CARD_RECEIPTS).map((receipt, i) => ({ label: label('E', labels.firstReceipt + i), receipt }));
     body.push(...receiptList(shown, rc, inner, receipts.length - shown.length));
     return panel({ label: header.join('\n'), body, prominence: finding.prominence }, rc);
 }
