@@ -248,7 +248,7 @@ function plan(name) {
     switch (name) {
         case 'success': {
             const findings = [finding(0, 3, 6), finding(1, 3, 3), finding(2, 3, 1)];
-            return { name, description: 'A completed run with a hero, a primary and a secondary finding.', title: 'Investigate coupling in payments-service', runId: 'run-success', cuts: pipeline(['ok', 'ok', 'ok', 'ok']), metrics: metrics(3), findings, warnings: [], status: 'completed' };
+            return { name, description: 'A completed run with a top finding and two primary findings.', title: 'Investigate coupling in payments-service', runId: 'run-success', cuts: pipeline(['ok', 'ok', 'ok', 'ok']), metrics: metrics(3), findings, warnings: [], status: 'completed' };
         }
         case 'failed': {
             const error = 'History could not be read: object 3f9a2c1 is missing (shallow clone?).';

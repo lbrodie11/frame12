@@ -54,6 +54,17 @@ jobs:
       - name: Run full verification & cross-browser suite (unit, a11y, cross-browser, linter, eval, site, next-starter)
         run: npm test
 
+      - name: Render the @frame12/terminal design-review gallery (light and dark PNGs)
+        run: npm run gallery --workspace=@frame12/terminal -- --png
+
+      - name: Upload the @frame12/terminal gallery
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frame12-terminal-gallery
+          path: packages/terminal/gallery/review/png/*
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Run shadcn registry smoke-install verification (single-component & full kit)
         run: node scripts/smoke-install.mjs
 
