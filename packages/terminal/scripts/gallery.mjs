@@ -172,7 +172,7 @@ async function main() {
       if (!fs.existsSync(p) || fs.readFileSync(p, 'utf8') !== body) drift.push(rel);
     }
     // Goldens left behind by a removed fixture, width or level are drift too.
-    for (const dir of fs.readdirSync(OUT, { withFileTypes: true })) {
+    for (const dir of fs.existsSync(OUT) ? fs.readdirSync(OUT, { withFileTypes: true }) : []) {
       if (!dir.isDirectory() || dir.name === 'review') continue;
       for (const f of fs.readdirSync(path.join(OUT, dir.name))) {
         const rel = `${dir.name}/${f}`;

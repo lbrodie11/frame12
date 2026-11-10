@@ -294,7 +294,9 @@ export function createLinearWriter(options: LinearWriterOptions): LinearWriter {
         }
         case 'cut-end': {
           if (options.format === 'json') return;
-          const l = cutLabels.get(ev.cut) ?? ev.cut;
+          // A cut whose start was never seen (a partial stream) still gets the next C-xx label.
+          if (!cutLabels.has(ev.cut)) cutLabels.set(ev.cut, label('C', cutLabels.size + 1));
+          const l = cutLabels.get(ev.cut)!;
           const title = cutTitles.get(ev.cut) ?? ev.cut;
           if (options.format === 'plain') {
             const d = formatDuration(ev.durationMs);

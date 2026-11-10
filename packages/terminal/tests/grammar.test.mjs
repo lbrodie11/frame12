@@ -123,6 +123,24 @@ describe('grammar rules on every gallery render', () => {
     assert.match(out.split('\n')[0], /^REPLAY/);
   });
 
+  it('gallery --check reports missing goldens instead of crashing when gallery/ is absent', async () => {
+    const { spawnSync } = await import('node:child_process');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const pkg = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'f12-gallery-'));
+    try {
+      // A copy of the package without gallery/ (scripts copied; dist linked, it imports only itself).
+      fs.cpSync(path.join(pkg, 'scripts'), path.join(tmp, 'scripts'), { recursive: true });
+      fs.symlinkSync(path.join(pkg, 'dist'), path.join(tmp, 'dist'), 'junction');
+      const r = spawnSync(process.execPath, ['scripts/gallery.mjs', '--check'], { cwd: tmp, encoding: 'utf8' });
+      assert.equal(r.status, 1, r.stderr);
+      assert.match(r.stderr, /Gallery goldens differ/);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('gallery --check reports goldens left behind by a removed fixture, width or level (review of PR #33)', async () => {
     const { spawnSync } = await import('node:child_process');
     const stale = new URL('../gallery/success/rich-200-truecolor.ansi', import.meta.url);

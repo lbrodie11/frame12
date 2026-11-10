@@ -9,7 +9,9 @@ export function renderCapsFor(caps, stream = 'stdout', options = {}) {
         style: styleLevel(out ? caps.colorLevel : caps.stderrColorLevel, out ? caps.attributes : caps.stderrAttributes),
         unicode: caps.unicode,
         ambiguousWide: caps.ambiguousWide,
-        links: caps.links && (out ? caps.isTTY : caps.stderrIsTTY),
+        // detectCapabilities already turns links off for pipes unless --links / FRAME12_LINKS=1 asked
+        // for them; an explicit request is honored on either stream.
+        links: caps.links,
         columns: caps.columns,
         ...(options.verbose ? { verbose: true } : {}),
     };
@@ -142,7 +144,7 @@ export function cut(input, rc) {
         const statusCol = Math.min(36, rc.columns - rightW);
         const title = fit(input.title.toUpperCase(), statusCol - w(head, rc) - 2, rc);
         const gap = Math.max(2, statusCol - w(head, rc) - w(title, rc));
-        lines.push(`${p(head, 'ink2', rc)}${p(title, 'strong', rc)}${' '.repeat(gap)}${right}`);
+        lines.push(tidy(`${p(head, 'ink2', rc)}${p(title, 'strong', rc)}${' '.repeat(gap)}${right}`));
     }
     if (input.summary)
         for (const l of wrap(input.summary, rc.columns - 2, rc))
@@ -314,7 +316,7 @@ export function metricRows(metrics, rc) {
     const two = tier !== 'standard' && 2 + colW * 2 + 4 <= rc.columns;
     for (let i = 0; i < cells.length; i += two ? 2 : 1) {
         const right = two && cells[i + 1] ? `    ${pair(cells[i + 1])}` : '';
-        lines.push(`  ${pair(cells[i])}${right}`);
+        lines.push(tidy(`  ${pair(cells[i])}${right}`));
     }
     return lines;
 }
@@ -329,8 +331,9 @@ export function wrapCommand(command, width, rc) {
     let line = '';
     const push = (text) => lines.push(text);
     for (const word of command.split(' ')) {
+        // Every line but the last ends in ` \\`, so a line may hold at most `max - 2` cells of text.
         const candidate = line === '' ? word : `${line} ${word}`;
-        if (w(candidate, rc) + 2 <= max || (line === '' && w(word, rc) <= max)) {
+        if (w(candidate, rc) + 2 <= max) {
             line = candidate;
             continue;
         }
@@ -338,9 +341,12 @@ export function wrapCommand(command, width, rc) {
             push(`${line} \\`);
         line = '';
         let rest = word;
-        while (w(rest, rc) > max) {
+        while (w(rest, rc) + 2 > max) {
+            // Split off a piece that leaves at least one grapheme behind, so the word's end stays on
+            // the line that may still take ` \\` and the space before the next word is never lost.
+            const gs = graphemes(rest);
             let head = '';
-            for (const ch of graphemes(rest)) {
+            for (const ch of gs.slice(0, -1)) {
                 if (w(head + ch, rc) + 1 > max)
                     break;
                 head += ch;

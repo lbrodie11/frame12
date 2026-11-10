@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { detectCapabilities, stringWidth, stripAnsi } from '@frame12/terminal';
-import { createLinearWriter, orderFindings, renderJson, renderPlain, renderRich, shortValue, wrapCommand, MAX_CARD_RECEIPTS } from '@frame12/terminal/render';
+import { createLinearWriter, cut, metricRows, orderFindings, renderCapsFor, renderJson, renderPlain, renderRich, shortValue, wrapCommand, MAX_CARD_RECEIPTS } from '@frame12/terminal/render';
 import { createEventFactory, fakeStreams, fixture, FIXTURE_NAMES } from '@frame12/terminal/testing';
 
 const rcAt = (columns, style = 'truecolor') => ({ style, unicode: true, ambiguousWide: false, links: false, columns });
@@ -96,6 +96,14 @@ describe('review regressions (PR #33)', () => {
       assert.equal(lines.join('\n').replace(/ \\\n/g, ' ').replace(/\\\n/g, ''), command, `${columns}: the command survives copy-paste`);
     }
     // Plain's own text is ASCII: a next step long enough to be capped gets the ASCII marker.
+    // A word that nearly fills the line still leaves room for the ` \\` continuation (second review).
+    for (const max of [6, 9, 10, 11, 18]) {
+      for (const cmd of ['abcdefghij next', 'abcdefghi next', `${'x'.repeat(max)} y`, `a ${'z'.repeat(max * 3)} b`]) {
+        const lines = wrapCommand(cmd, max, rcAt(80));
+        for (const l of lines) assert.ok(stringWidth(l) <= max, `${max}: ${JSON.stringify(lines)}`);
+        assert.equal(lines.join('\n').replace(/ \\\n/g, ' ').replace(/\\\n/g, ''), cmd);
+      }
+    }
     const plain = renderPlain(fixture('success').snapshot, { nextSteps: [{ command, description: 'x'.repeat(2100) }] });
     assert.ok(plain.includes(command));
     const step = plain.split('\n').find((l) => l.startsWith('Next step'));
@@ -129,6 +137,23 @@ describe('review regressions (PR #33)', () => {
       assert.match(out, /C-02 . LINT|Cut C-02 lint/, `${format}: results call lint C-02 too, though the snapshot lists it first`);
       assert.match(out, /Cut C-01 build|^(?![\s\S]*C-01 . LINT)/, `${format}: build keeps C-01`);
     }
+  });
+
+  it('honors an explicit --links on a pipe, and labels a cut whose start was never seen (second review)', () => {
+    const caps = detectCapabilities({}, { stdout: { isTTY: false }, stderr: { isTTY: false } }, ['--links'], { platform: 'linux' });
+    assert.equal(renderCapsFor(caps, 'stdout').links, true);
+    assert.equal(renderCapsFor(detectCapabilities({}, fakeStreams({ tty: false }), [], { platform: 'linux' }), 'stdout').links, false);
+    const tail = fixture('success').events.filter((e) => e.type === 'cut-end');
+    let err = '';
+    const w = createLinearWriter({ format: 'plain', caps, stdout: { write() {} }, stderr: { write: (s) => void (err += s) }, validation: { lifecycle: false } });
+    for (const ev of tail) w.write(ev);
+    assert.deepEqual([...err.matchAll(/^Cut (C-\d+) /gm)].map((m) => m[1]), ['C-01', 'C-02', 'C-03', 'C-04']);
+  });
+
+  it('exported grammar functions leave no trailing padding either', () => {
+    const rc = rcAt(80);
+    for (const line of metricRows(fixture('success').snapshot.metrics, rc)) assert.ok(!/ $/.test(stripAnsi(line)), JSON.stringify(line));
+    assert.ok(!/ $/.test(stripAnsi(cut({ label: 'C-01', title: 'Read', status: 'ok' }, rc))));
   });
 
   it('--json stays one valid JSON document when a producer sends two snapshots', () => {
