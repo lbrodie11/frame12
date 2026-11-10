@@ -111,9 +111,9 @@ export interface DirectorOptions {
     validation?: StreamValidatorOptions;
     scheduler?: Scheduler;
     /**
-     * Records the run as `.f12rec` lines (see `recording.ts`): every accepted event, sanitized and
-     * redacted (links too), timed by the scheduler's clock, ending with the snapshot; then
-     * `end()`. Deterministic with an injected scheduler.
+     * Records the run as `.f12rec` lines (see `recording.ts`): the header at once, then every accepted
+     * event, sanitized and redacted (links too), timed by its own `ts`, ending with the snapshot; then
+     * `end()`. A sink that throws stops the recording with a warning (and `end()`). Deterministic.
      */
     record?: RecordSink;
 }

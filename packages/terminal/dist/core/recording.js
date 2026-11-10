@@ -12,7 +12,21 @@ export function recordingLine(t, event) {
 }
 /** True when a parsed line is a recording header this version understands. */
 export function isRecordingHeader(value) {
-    return typeof value === 'object' && value !== null && value.f12rec === RECORDING_VERSION;
+    return recordingHeaderIssue(value) === undefined;
+}
+/**
+ * For a parsed first line: `undefined` when it is a header this version reads, a message when it is
+ * a recording header of another version (or schema), and `'not a recording'` otherwise.
+ */
+export function recordingHeaderIssue(value) {
+    if (typeof value !== 'object' || value === null || !('f12rec' in value))
+        return 'not a recording';
+    const { f12rec, schemaVersion } = value;
+    if (f12rec !== RECORDING_VERSION)
+        return `unsupported recording version ${JSON.stringify(f12rec)} (this version reads ${RECORDING_VERSION})`;
+    if (schemaVersion !== SCHEMA_VERSION)
+        return `unsupported event schema ${JSON.stringify(schemaVersion)} in the recording (this version reads ${SCHEMA_VERSION})`;
+    return undefined;
 }
 /**
  * Reads one parsed entry line: `{ t, event }` with a finite, non-negative `t`. The event itself is
@@ -40,7 +54,16 @@ export function redactLinks(value, redact, source, policy, depth = 0) {
     const out = {};
     for (const [k, v] of Object.entries(value)) {
         if (k === 'href' && typeof v === 'string') {
-            const safe = safeLink(redact(v, { field: 'link', source }), policy);
+            // A hook that throws (say, an exhaustive switch written before `link` existed) drops the
+            // link, as the sanitizer turns a throwing hook into [redacted]; the recording goes on.
+            let redacted;
+            try {
+                redacted = redact(v, { field: 'link', source });
+            }
+            catch {
+                redacted = undefined;
+            }
+            const safe = safeLink(redacted, policy);
             if (safe !== undefined)
                 out[k] = safe;
             continue;

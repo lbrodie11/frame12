@@ -184,25 +184,17 @@ describe('frame12-term render: replay', () => {
 });
 
 describe('frame12-term render: recordings', () => {
-  /** A clock the test moves: one step per event read, never by itself. */
-  const steppingScheduler = () => {
-    let now = 0;
-    return {
-      scheduler: { now: () => now, setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h) },
-      step: () => (now += 25),
-    };
+  const record = async (file, input = ndjson('success'), extra = []) => {
+    const r = await cli(['render', '--plain', '--record', file, ...extra], input);
+    return { code: r.code, out: r.out, err: r.err };
   };
-  const record = async (file) => {
-    const { scheduler, step } = steppingScheduler();
-    const lines = fixture('success').events.map((e) => JSON.stringify(e));
-    const stdin = Object.assign(Readable.from((function* () { for (const l of lines) { step(); yield Buffer.from(`${l}\n`); } })()), { isTTY: false });
-    const stdout = sink();
-    const stderr = sink();
-    const code = await main(['render', '--plain', '--record', file], { stdin, stdout, stderr, env: {}, handleSignals: false, scheduler });
-    return { code, out: stdout.text() };
+  /** The fixture's own times: ms since its first event. */
+  const fixtureTimes = () => {
+    const ts = fixture('success').events.map((e) => Date.parse(e.ts));
+    return ts.map((t) => t - ts[0]);
   };
 
-  it('--record writes a deterministic .f12rec: byte-identical across runs with the same clock', async () => {
+  it('--record writes a deterministic .f12rec: byte-identical across runs (no clock is read)', async () => {
     const dir = tmp();
     const [a, b] = [path.join(dir, 'a.f12rec'), path.join(dir, 'b.f12rec')];
     assert.equal((await record(a)).code, 0);
@@ -221,7 +213,16 @@ describe('frame12-term render: recordings', () => {
     assert.equal(entries.at(-1).event.type, 'snapshot');
     const ts = entries.map((e) => e.t);
     assert.deepEqual(ts, [...ts].sort((x, y) => x - y), 'times never go backwards');
-    assert.ok(ts.at(-1) > 0);
+    assert.deepEqual(ts, fixtureTimes(), 't is the events\' own timing, however fast they were read (review of #40, item 5)');
+  });
+
+  it('re-recording a replay keeps the original timing (review of #40, item 5)', async () => {
+    const dir = tmp();
+    const [a, b] = [path.join(dir, 'a.f12rec'), path.join(dir, 'b.f12rec')];
+    await record(a);
+    const r = await cli(['render', '--plain', '--replay', '--from', a, '--record', b], '', { sleep: async () => {} });
+    assert.equal(r.code, 0, r.err);
+    assert.equal(fs.readFileSync(b, 'utf8'), fs.readFileSync(a, 'utf8'));
   });
 
   it('a recording renders back to the same results, labeled REPLAY', async () => {
@@ -238,7 +239,9 @@ describe('frame12-term render: recordings', () => {
     await record(file);
     const waits = [];
     await cli(['render', '--plain', '--replay', '--from', file], '', { sleep: async (ms) => void waits.push(ms) });
-    assert.ok(waits.length > 0 && waits.every((w) => w === 25 / 4), JSON.stringify(waits));
+    const t = fixtureTimes();
+    const expected = t.slice(1).map((x, i) => x - t[i]).filter((g) => g > 0).map((g) => Math.min(1000, g / 4));
+    assert.deepEqual(waits, expected);
   });
 
   it('the Director records sanitized events and runs links through the redaction hook', () => {
@@ -312,5 +315,147 @@ describe('frame12-term: the executable', () => {
     // Bash's PIPESTATUS[0] is the CLI's own exit code, not head's.
     const r = spawnSync('bash', ['-c', `"${process.execPath}" "${BIN}" render --plain 2>/dev/null | head -1 >/dev/null; echo "\${PIPESTATUS[0]}"`], { cwd: PKG, input: ndjson('forty-findings'), encoding: 'utf8' });
     assert.equal(r.stdout.trim(), '0', r.stderr);
+  });
+});
+
+describe('frame12-term: review of #40', () => {
+  const ghp = ['ghp', '_', 'A'.repeat(36)].join('');
+
+  for (const viaFrom of [false, true]) {
+    it(`1. --record to a path that cannot be opened is a clear usage error (${viaFrom ? '--from' : 'stdin'})`, async () => {
+      const dir = tmp();
+      const input = path.join(dir, 'in.ndjson');
+      fs.writeFileSync(input, ndjson('success'));
+      const bad = path.join(dir, 'nodir', 'x.f12rec');
+      const r = await cli(['render', '--plain', '--record', bad, ...(viaFrom ? ['--from', input] : [])], viaFrom ? '' : ndjson('success'));
+      assert.equal(r.code, 2);
+      assert.match(r.err, /^frame12-term: cannot write .*nodir.*x\.f12rec: /m);
+      assert.doesNotMatch(r.err, /cannot read|\n\s+at /, 'blames the record path, no stack trace');
+    });
+  }
+
+  it('2. --record onto the --from file is refused, and the input is untouched', async () => {
+    const dir = tmp();
+    const same = path.join(dir, 'same.ndjson');
+    fs.writeFileSync(same, ndjson('success'));
+    const r = await cli(['render', '--plain', '--from', same, '--record', path.join(dir, '.', 'same.ndjson')]);
+    assert.equal(r.code, 2);
+    assert.match(r.err, /is the --from file/);
+    assert.equal(fs.readFileSync(same, 'utf8'), ndjson('success'));
+  });
+
+  it('3. a redaction hook that throws on links drops the link; the recording is still complete', () => {
+    const lines = [];
+    const redact = (text, { field }) => {
+      switch (field) {
+        case 'log': case 'receipt': case 'text': case 'identifier': return text;
+        default: throw new Error(`unexpected field ${field}`);
+      }
+    };
+    const d = createDirector({ caps: {}, motion: 'still', safety: { redact }, record: { write: (l) => lines.push(l), end: () => lines.push('END') } });
+    // Receipts with links, so the hook really sees `field: 'link'`.
+    for (const e of fixture('success').events) d.push(e.type === 'receipt' ? { ...e, receipt: { ...e.receipt, href: 'https://example.com/c/1' } } : e);
+    assert.ok(!lines.join('').includes('example.com'), 'the links the hook threw on were dropped');
+    assert.equal(lines.at(-1), 'END');
+    assert.match(lines.at(-2), /"type":"snapshot"/);
+    assert.equal(lines.length, 1 + fixture('success').events.length + 1);
+    assert.deepEqual(d.snapshot().warnings, []);
+  });
+
+  it('3. a sink that fails mid-run stops the recording with a warning, calls end(), and the CLI exits 1', async () => {
+    let writes = 0;
+    let ended = 0;
+    const openRecord = () => ({
+      write() {
+        if (++writes === 5) throw new Error('ENOSPC: no space left on device');
+      },
+      end: () => ended++,
+    });
+    const r = await cli(['render', '--plain', '--record', 'r.f12rec'], ndjson('success'), { openRecord });
+    assert.equal(r.code, 1, 'the run completed, but the requested recording did not');
+    assert.equal(ended, 1);
+    assert.match(r.err, /Recording stopped: ENOSPC: no space left on device; r\.f12rec is incomplete/);
+    assert.match(r.out, /completed/, 'the run itself goes on');
+  });
+
+  it('4. a token in a link is masked: never in the recording, never in an OSC 8 link', async () => {
+    const { createSanitizer } = await import('@frame12/terminal');
+    const href = `https://ci.example.com/run/1?access_token=${ghp}`;
+    assert.doesNotMatch(String(createSanitizer().href(href)), /ghp_/);
+    const events = fixture('success').events.map((e) =>
+      e.type === 'receipt' ? { ...e, receipt: { ...e.receipt, href } } : e,
+    );
+    const file = path.join(tmp(), 'tok.f12rec');
+    const r = await cli(['render', '--plain', '--record', file], toNdjson(events));
+    assert.equal(r.code, 0, r.err);
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /ghp_/);
+    const linked = await cli(['render', '--links', '--color'], toNdjson(events), { env: { TERM_PROGRAM: 'iTerm.app', FORCE_COLOR: '3' } });
+    assert.doesNotMatch(linked.out + linked.err, /ghp_/);
+  });
+
+  it('6. a recording of another version is one clear error (exit 2), not one per line', async () => {
+    for (const header of [{ f12rec: 2, schemaVersion: 1 }, { f12rec: 1, schemaVersion: 2 }]) {
+      const entries = fixture('success').events.map((e, i) => JSON.stringify({ t: i, event: e }));
+      const r = await cli(['render', '--plain'], [JSON.stringify(header), ...entries]);
+      assert.equal(r.code, 2);
+      assert.equal(r.err.trim().split('\n').length, 1, r.err);
+      assert.match(r.err, /line 1: unsupported (recording version 2|event schema 2)/);
+    }
+  });
+
+  it('7. a UTF-8 byte-order mark does not cost line 1', async () => {
+    const r = await cli(['render', '--plain', '--strict'], `﻿${ndjson('success')}`);
+    assert.equal(r.code, 0, r.err);
+  });
+
+  it('8. recording an empty input still writes a recognizable recording', async () => {
+    const file = path.join(tmp(), 'empty.f12rec');
+    await cli(['render', '--plain', '--record', file], '');
+    assert.ok(isRecordingHeader(JSON.parse(fs.readFileSync(file, 'utf8'))));
+    const replay = await cli(['render', '--plain', '--from', file]);
+    assert.doesNotMatch(replay.err, /not valid|dropped/);
+  });
+
+  it('9. thousands of malformed lines give 20 warnings and one summary, not thousands', async () => {
+    const garbage = Array.from({ length: 5000 }, (_, i) => `garbage ${i}`);
+    const r = await cli(['render', '--plain'], [...garbage, ...fixture('success').events.map((e) => JSON.stringify(e))]);
+    assert.equal(r.code, 0, r.err.slice(0, 500));
+    assert.equal((r.err.match(/: not valid JSON \(/g) ?? []).length, 20);
+    assert.match(r.err, /… and 4980 more problems with the input, the first at line 21 \(skipped\)/);
+  });
+
+  it('nit: --version is the package version', async () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(PKG, 'package.json'), 'utf8'));
+    assert.equal((await cli(['--version'])).out.trim(), pkg.version);
+  });
+
+  it('nit: reading events from a terminal says how to end them; --speed without --replay says it does nothing', async () => {
+    const stdout = sink();
+    const stderr = sink();
+    const stdin = Object.assign(Readable.from([Buffer.from(ndjson('success'))]), { isTTY: true });
+    await main(['render', '--plain', '--speed', '2'], { stdin, stdout, stderr, env: {}, handleSignals: false });
+    assert.match(stderr.text(), /reading events from the terminal \(Ctrl-D ends them\)/);
+    assert.match(stderr.text(), /--speed has no effect without --replay/);
+  });
+
+  it('nit: an event stamped earlier adds no wait during --replay', async () => {
+    const evs = fixture('one-finding').events;
+    const base = Date.parse(evs[0].ts);
+    const offsets = [0, 10_000, 5_000, 6_000];
+    const lines = evs.map((e, i) => JSON.stringify({ ...e, ts: new Date(base + (offsets[i] ?? 6_000 + i)).toISOString() }));
+    const waits = [];
+    await cli(['render', '--plain', '--replay'], lines, { sleep: async (ms) => void waits.push(ms) });
+    // 0 → 10 s: one capped wait. 5 s and 6 s are earlier than 10 s: no wait at all.
+    assert.equal(waits[0], 1000);
+    assert.deepEqual(waits.slice(1, 3), [], `no wait measured from the earlier stamps: ${JSON.stringify(waits)}`);
+  });
+
+  it('nit: a flag value is not read as a capability flag (--from --no-color)', async () => {
+    const r = await cli(['render', '--from', '--no-color'], '', {
+      env: { FORCE_COLOR: '3', TERM: 'xterm-256color' },
+      open: () => Readable.from([Buffer.from(ndjson('success'))]),
+    });
+    assert.equal(r.code, 0, r.err);
+    assert.match(r.out, /\u001b\[/, 'color stays on: "--no-color" was the file name');
   });
 });

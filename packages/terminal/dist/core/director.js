@@ -268,9 +268,11 @@ export function createDirector(options) {
                 return true;
         }
     };
-    // Recording: header before the first accepted event, then one line per event, closed after the
-    // snapshot (the run's last word) or on dispose. A failing sink stops the recording, not the run.
+    // Recording: the header at once, then one line per accepted event, timed by the events' own `ts`,
+    // closed after the snapshot (the run's last word) or on dispose. A failing sink stops the
+    // recording, never the run, and says so: an incomplete recording must not pass for a whole one.
     let recordOrigin;
+    let lastT = 0;
     let recording = options.record !== undefined;
     const endRecording = () => {
         if (!recording)
@@ -283,21 +285,32 @@ export function createDirector(options) {
             // Ignore: the run goes on.
         }
     };
+    const recordWrite = (line) => {
+        try {
+            options.record.write(line);
+            return true;
+        }
+        catch (err) {
+            const name = options.record.name ? `${options.record.name} is` : 'it is';
+            // A host warning (not only state): the linear view narrates it and the live view shows it.
+            addLog({ level: 'warn', text: san.text(`Recording stopped: ${err instanceof Error ? err.message : String(err)}; ${name} incomplete.`, 'log', 'log'), origin: 'host' });
+            endRecording();
+            return false;
+        }
+    };
+    if (recording)
+        recordWrite(recordingHeader());
     const record = (ev) => {
         if (!recording)
-            return;
-        try {
-            if (recordOrigin === undefined) {
-                recordOrigin = sched.now();
-                options.record.write(recordingHeader());
-            }
-            options.record.write(recordingLine(sched.now() - recordOrigin, redactLinks(ev, options.safety?.redact, ev.type, options.safety?.links)));
-        }
-        catch {
-            recording = false;
-        }
-        if (ev.type === 'snapshot')
+            return false;
+        const ts = Date.parse(ev.ts);
+        recordOrigin ??= Number.isFinite(ts) ? ts : 0;
+        // Never decreasing, never negative: a producer's clock can step back.
+        lastT = Math.max(lastT, Number.isFinite(ts) ? ts - recordOrigin : lastT);
+        const ok = recordWrite(recordingLine(lastT, redactLinks(ev, options.safety?.redact, ev.type, options.safety?.links)));
+        if (ok && ev.type === 'snapshot')
             endRecording();
+        return !ok;
     };
     const push = (raw, where) => {
         if (disposed)
@@ -325,8 +338,8 @@ export function createDirector(options) {
             return;
         }
         const ev = san.event(r.value);
-        record(ev);
-        const immediate = fold(ev);
+        const recordFailed = record(ev);
+        const immediate = fold(ev) || recordFailed;
         try {
             options.onEvent?.(ev);
         }

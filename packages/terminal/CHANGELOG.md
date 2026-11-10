@@ -68,9 +68,11 @@ This package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     limit, line-numbered reports of malformed lines, `--strict`, `--replay` (original timing,
     `--speed`, default ×4, gaps capped at 1 s, labeled `REPLAY`) and `--record`. Deterministic
     `.f12rec` recordings (`createDirector({ record })`, `startLive({ record })`): sanitized events
-    with their times, ending with the snapshot; links go through the redaction hook (`RedactField`
-    gains `link`). `startLive` gains `format`, `verbose`, `replay`, `record` and `scheduler`, and its
-    session runs without React or Ink for the linear formats. Go, Python and Rust emitters in the
+    timed by their own `ts`, ending with the snapshot; tokens are masked in links (live OSC 8 links
+    too) and links go through the redaction hook. **Note for redaction hooks:** `RedactField` gains
+    `link`, so a hook with an exhaustive `switch` needs a case for it (at runtime a hook that throws
+    on a link only drops that link). `startLive` gains `format`, `verbose`, `replay` and `record`,
+    and its session runs without React or Ink for the linear formats. Go, Python and Rust emitters in the
     README, tested through the CLI.
   - Contract: optional `Finding.relation` (`history-only | direct | indirect`) for typed connectors;
     the stream validator rejects a second `snapshot` (`duplicate-snapshot`).

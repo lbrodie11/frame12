@@ -241,13 +241,17 @@ npx frame12-term render --from run.f12rec --replay --speed 2
 
 Capability flags (`--color`, `--no-color`, `--ascii`, `--links`, `--screen-reader`, `--motion`,
 `--columns`, `--rows`) and environment variables work as everywhere else in the package. Exit
-codes: `0` completed, `1` failed or incomplete, `2` usage error or `--strict` failure, `130`
-canceled. Narration goes to stderr and results to stdout, as with the linear writer.
+codes: `0` completed; `1` failed, incomplete, or the requested recording could not be completed;
+`2` usage error or `--strict` failure (it wins over the others); `130` canceled. Narration goes to
+stderr and results to stdout, as with the linear writer.
 
 **Input limits.** A line longer than 64 KiB, or one that is not JSON, is reported with its line
 number (`line 12: not valid JSON (…) (skipped)`) and skipped without being buffered; an invalid
-event is dropped with a warning naming its line. `--strict` turns the first of these into a stop.
-Everything quoted from the input is sanitized before it is printed.
+event is dropped with a warning naming its line. The first 20 problems are listed, the rest counted
+in one line. `--strict` turns the first problem into a stop. A UTF-8 byte-order mark is ignored, a
+recording of another version is one clear error (exit 2), and everything quoted from the input is
+sanitized before it is printed. `--record` is opened before any input is read: a path that cannot
+be written, or the `--from` file itself, is a usage error.
 
 ### Emitters
 
@@ -346,18 +350,24 @@ fn main() {
 ### Recordings (`.f12rec`)
 
 A recording is the run's data, not its screen: NDJSON whose first line is the header
-`{"f12rec":1,"schemaVersion":1}`, then one `{"t":<ms since the first event>,"event":{…}}` line per
-accepted event, ending with the snapshot. Events are recorded after validation and sanitization,
-and links (remotes) also go through the redaction hook (paths already do, as identifiers), so a
-recording never holds what the renderers would not print. Given the same events and clock
-readings, the bytes are identical. A recording always renders labeled `REPLAY`.
+`{"f12rec":1,"schemaVersion":1}` (written as soon as recording starts, so even an empty recording is
+recognizable), then one `{"t":<ms>,"event":{…}}` line per accepted event, ending with the snapshot.
+`t` comes from the events' own `ts` (ms since the first event's, never decreasing), so a recording
+keeps the run's real rhythm however fast its events were read, and re-recording a replay keeps it
+too; the same events always give the same bytes. Events are recorded after validation and
+sanitization: tokens are masked in links as in text, and links (remotes) also go through the
+redaction hook (paths already do, as identifiers), so a recording never holds what the renderers
+would not print. A hook that throws on a link drops that link. A sink that fails stops the
+recording with a visible warning ("Recording stopped: …; run.f12rec is incomplete"), never
+silently. A recording always renders labeled `REPLAY`.
 
 - **CLI:** `--record <file>`; play back with `render --from <file>` (add `--replay` for timing).
-- **Live view:** `startLive({ record: 'run.f12rec' })`.
+- **Live view:** `startLive({ record: 'run.f12rec' })` (a path, or a sink).
 - **Director:** `createDirector({ record: sink })`, where a sink is `{ write(line), end?() }`. Core
   has no file system, so it can run in a browser (the docs site plays recordings); in Node, for
   example `{ write: (l) => fs.appendFileSync(path, l) }`.
-- **Reading:** `isRecordingHeader(value)` and `parseRecordingEntry(value)` from the core.
+- **Reading:** `isRecordingHeader(value)`, `recordingHeaderIssue(value)` and `parseRecordingEntry(value)`
+  from the core.
 
 ## Capabilities
 

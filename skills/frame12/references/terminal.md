@@ -62,10 +62,11 @@ createLinearWriter(o: { format: 'rich' | 'plain' | 'json'; caps: Capabilities; s
 // Director (core) and live view (@frame12/terminal/ink).
 createDirector(o: { caps; motion: Tempo; onEvent?; onCancel?; maxLogs?; maxEvents?; maxItems?; maxWarnings?; safety?; validation?; scheduler?; record?: { write(line): void; end?(): void } }): Director;
 // Director: { push(raw, where?); tap((raw, where?) => void); subscribe(state => void); snapshot(); cancel(reason); log(level, text, meta?); flush(); signal; dispose() }. LogLine.origin: 'event' | 'host'.
-startLive(o: { caps; motion; stdin?; stdout?; stderr?; format?: 'live' | 'rich' | 'plain' | 'json'; verbose?; fullscreen?; product?; nextSteps?; safety?; replay?; record?: string; scheduler?; director?; onCancel?; handleSignals?; exit?; devWarnings? }): { director; mode: 'live' | 'linear'; reason?; push(e, where?); end(): Promise<number>; done };
+startLive(o: { caps; motion; stdin?; stdout?; stderr?; format?: 'live' | 'rich' | 'plain' | 'json'; verbose?; fullscreen?; product?; nextSteps?; safety?; replay?; record?: string | RecordSink; director?; onCancel?; handleSignals?; exit?; devWarnings? }): { director; mode: 'live' | 'linear'; reason?; push(e, where?); end(): Promise<number>; done };
 
 // Recordings (.f12rec, core): header {"f12rec":1,"schemaVersion":1}, then {"t": ms, "event": {...}} lines ending with the snapshot.
-recordingHeader(): string; recordingLine(t, event): string; isRecordingHeader(v): boolean; parseRecordingEntry(v): { t; event } | undefined; redactLinks(value, redact?, source, policy?);
+// t comes from the events' own ts; tokens in links are masked; a sink that throws stops the recording with a warning.
+recordingHeader(): string; recordingLine(t, event): string; isRecordingHeader(v): boolean; recordingHeaderIssue(v): string | undefined; parseRecordingEntry(v): { t; event } | undefined; redactLinks(value, redact?, source, policy?);
 spawnLogged(director, cmd: string, args?: string[], o?: { cwd?; env?; cut?; signal?; stderrLevel?; killAfterMs?; maxLineLength?; drainMs? }): Promise<{ code; signal; error? }>; // @frame12/terminal/process
 
 ## The `frame12-term` CLI

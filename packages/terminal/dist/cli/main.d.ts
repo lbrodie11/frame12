@@ -1,10 +1,12 @@
-import type { Scheduler } from '../core/director.js';
+import { type RecordSink } from '../core/recording.js';
 import { type LiveOptions, type LiveRun } from '../ink/session.js';
 /** Lines longer than this (in bytes, without the newline) are skipped. */
 export declare const MAX_LINE_BYTES: number;
 /** Default replay speed, and the longest wait between two replayed events. */
 export declare const DEFAULT_SPEED = 4;
 export declare const MAX_REPLAY_GAP_MS = 1000;
+/** Problems with the input reported one by one; the rest are counted in one summary line. */
+export declare const MAX_REPORTED_PROBLEMS = 20;
 /** Everything the CLI touches, injectable for tests. */
 export interface CliIO {
     stdin: NodeJS.ReadStream;
@@ -17,8 +19,8 @@ export interface CliIO {
     };
     /** Waits between replayed events. Default: a timer. */
     sleep?: (ms: number) => Promise<void>;
-    /** The Director's clock (recording offsets). Default: the real one. */
-    scheduler?: Scheduler;
+    /** Opens `--record`. Default: a synchronous file sink. */
+    openRecord?: (path: string) => RecordSink;
     /** Loads the live adapter. Default: `import('../ink/index.js')`. */
     loadLive?: () => Promise<{
         startLive(options: LiveOptions): LiveRun;

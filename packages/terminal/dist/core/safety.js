@@ -233,7 +233,9 @@ export function createSanitizer(options = {}) {
         return sanitizeText(s, { ...opts, maxLineLength: base.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH });
     };
     const text = (value, field = 'text', source = 'text') => clean(value, field, source, field === 'identifier' ? 'identifier' : 'text');
-    const href = (value) => safeLink(value, options.links);
+    // Links get the default redactor too (a token in a query string), before the safety check; a
+    // link that no longer passes it is dropped.
+    const href = (value) => safeLink(defaults && typeof value === 'string' ? redactSecrets(value) : value, options.links);
     const walk = (value, key, source, inReceipt, inLog, depth) => {
         if (depth > 16)
             return undefined;

@@ -14,21 +14,28 @@
  * - A `.f12rec` recording (first line `{"f12rec":1,...}`) is always labeled REPLAY. `--replay`
  *   plays any input with its original timing (recording offsets, or event timestamps), `--speed`
  *   times faster (default 4), never waiting more than 1 s between two events.
- * - `--record <file>` writes the run as a `.f12rec` recording.
+ * - `--record <file>` writes the run as a `.f12rec` recording. The file is opened before any input
+ *   is read: a path that cannot be written, or the input file itself, is a usage error.
  */
-import { createReadStream } from 'node:fs';
+import { createReadStream, realpathSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { basename, dirname, join, resolve } from 'node:path';
 import { detectCapabilities } from '../core/capabilities.js';
 import { createStreamValidator, describeIssues } from '../core/validate.js';
 import { resolveTerminalMotion } from '../core/motion.js';
-import { isRecordingHeader, parseRecordingEntry } from '../core/recording.js';
+import { parseRecordingEntry, recordingHeaderIssue } from '../core/recording.js';
 import { sanitizeText } from '../core/safety.js';
+import { fileRecordSink } from '../node/record-file.js';
 import { startSession } from '../ink/session.js';
 /** Lines longer than this (in bytes, without the newline) are skipped. */
 export const MAX_LINE_BYTES = 64 * 1024;
 /** Default replay speed, and the longest wait between two replayed events. */
 export const DEFAULT_SPEED = 4;
 export const MAX_REPLAY_GAP_MS = 1000;
-const VERSION = '0.1.0';
+/** Problems with the input reported one by one; the rest are counted in one summary line. */
+export const MAX_REPORTED_PROBLEMS = 20;
+/** The package's own version (dist/cli/main.js → package.json), so it cannot drift. */
+const VERSION = createRequire(import.meta.url)('../../package.json').version;
 const USAGE = `Usage: frame12-term render [options]
 
 Renders FRAME/12 terminal events (NDJSON, contract v1) from stdin or a file.
@@ -48,15 +55,18 @@ Options:
   -h, --help            Show this help
   --version             Show the version
 
-Exit codes: 0 completed, 1 failed or incomplete, 2 usage error or --strict failure, 130 canceled.
+Exit codes: 0 completed; 1 failed, incomplete, or the recording could not be completed;
+2 usage error or --strict failure (it wins over the others); 130 canceled.
 `;
 const VALUE_FLAGS = new Set(['--from', '--format', '--speed', '--record', '--motion', '--columns', '--rows']);
 const BOOLEAN_FLAGS = new Set(['--strict', '--replay', '--verbose', '--plain', '--json', '--color', '--no-color', '--ascii', '--unicode', '--links', '--no-links', '--screen-reader', '--help', '-h', '--version']);
+/** Flags read by capability and motion detection; only these (and their values) reach them. */
+const CAPABILITY_FLAGS = new Set(['--motion', '--columns', '--rows', '--color', '--no-color', '--ascii', '--unicode', '--links', '--no-links', '--screen-reader']);
 const FORMATS = ['rich', 'plain', 'json', 'live'];
 class UsageError extends Error {
 }
 function parseArgs(argv) {
-    const out = { command: undefined, format: 'rich', strict: false, replay: false, speed: DEFAULT_SPEED, verbose: false, help: false, version: false };
+    const out = { command: undefined, format: 'rich', strict: false, replay: false, speed: DEFAULT_SPEED, speedGiven: false, verbose: false, help: false, version: false, capabilityArgs: [] };
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         if (arg === '--')
@@ -73,6 +83,8 @@ function parseArgs(argv) {
             const value = eq === -1 ? argv[++i] : arg.slice(eq + 1);
             if (value === undefined || value === '')
                 throw new UsageError(`${name} needs a value.`);
+            if (CAPABILITY_FLAGS.has(name))
+                out.capabilityArgs.push(name, value);
             if (name === '--from')
                 out.from = value;
             else if (name === '--record')
@@ -87,11 +99,14 @@ function parseArgs(argv) {
                 if (!Number.isFinite(n) || n <= 0)
                     throw new UsageError('--speed must be a number greater than 0.');
                 out.speed = n;
+                out.speedGiven = true;
             }
             continue;
         }
         if (eq !== -1 || !BOOLEAN_FLAGS.has(name))
             throw new UsageError(`Unknown option: ${name}`);
+        if (CAPABILITY_FLAGS.has(name))
+            out.capabilityArgs.push(name);
         if (name === '--strict')
             out.strict = true;
         else if (name === '--replay')
@@ -130,7 +145,11 @@ async function* numberedLines(source, max) {
     };
     const line = () => {
         n++;
-        const out = tooLong ? { n } : { n, text: Buffer.concat(parts, size).toString('utf8').replace(/\r$/, '') };
+        let text = tooLong ? undefined : Buffer.concat(parts, size).toString('utf8').replace(/\r$/, '');
+        // A byte-order mark (files saved by Windows editors) belongs to the file, not to line 1.
+        if (n === 1 && text?.startsWith('\ufeff'))
+            text = text.slice(1);
+        const out = text === undefined ? { n } : { n, text };
         parts = [];
         size = 0;
         tooLong = false;
@@ -176,19 +195,57 @@ export async function main(argv, io) {
         return 2;
     }
     // Events come from stdin unless --from: then stdin cannot also be the keyboard.
-    const detected = detectCapabilities(io.env, { stdin: io.stdin, stdout: io.stdout, stderr: io.stderr }, argv);
+    const detected = detectCapabilities(io.env, { stdin: io.stdin, stdout: io.stdout, stderr: io.stderr }, args.capabilityArgs);
     const caps = args.from === undefined ? { ...detected, interactive: false } : detected;
-    const { tempo } = resolveTerminalMotion({ argv, env: io.env, caps });
+    const { tempo } = resolveTerminalMotion({ argv: args.capabilityArgs, env: io.env, caps });
+    if (args.speedGiven && !args.replay)
+        io.stderr.write('frame12-term: --speed has no effect without --replay.\n');
+    if (args.from === undefined && io.stdin.isTTY) {
+        io.stderr.write('frame12-term: reading events from the terminal (Ctrl-D ends them). Pipe a producer in, or use --from <file>.\n');
+    }
+    // The recording is opened before any input is read: a bad path is a usage error, and it must not
+    // be the input file (opening it for writing would truncate what is being read).
+    let recordSink;
+    let recordFailed = false;
+    if (args.record !== undefined) {
+        if (args.from !== undefined && sameFile(args.from, args.record)) {
+            io.stderr.write(`frame12-term: --record ${quote(args.record)} is the --from file; record to another file.\n`);
+            return 2;
+        }
+        try {
+            const sink = (io.openRecord ?? fileRecordSink)(args.record);
+            // Remember a failed write: the run goes on, but the requested recording is incomplete.
+            recordSink = {
+                ...(sink.name !== undefined ? { name: sink.name } : { name: args.record }),
+                write(line) {
+                    try {
+                        sink.write(line);
+                    }
+                    catch (err) {
+                        recordFailed = true;
+                        throw err;
+                    }
+                },
+                end: () => sink.end?.(),
+            };
+        }
+        catch (err) {
+            io.stderr.write(`frame12-term: cannot write ${quote(args.record)}: ${quote(err.message)}\n`);
+            return 2;
+        }
+    }
     let source;
     try {
         source = args.from === undefined ? io.stdin : (io.open ?? ((p) => createReadStream(p)))(args.from);
     }
     catch (err) {
+        recordSink?.end?.();
         io.stderr.write(`frame12-term: cannot read ${quote(args.from ?? '')}: ${quote(err.message)}\n`);
         return 2;
     }
     // Replays always say so; a recording is a replay even without --replay.
     let replay = args.replay;
+    let stopped = false;
     const options = () => ({
         caps,
         motion: tempo,
@@ -197,8 +254,7 @@ export async function main(argv, io) {
         stderr: io.stderr,
         format: args.format,
         ...(args.verbose ? { verbose: true } : {}),
-        ...(args.record ? { record: args.record } : {}),
-        ...(io.scheduler ? { scheduler: io.scheduler } : {}),
+        ...(recordSink ? { record: recordSink } : {}),
         ...(replay ? { replay: true } : {}),
         ...(io.handleSignals === false ? { handleSignals: false } : {}),
         ...(io.exit ? { exit: io.exit } : {}),
@@ -207,7 +263,6 @@ export async function main(argv, io) {
             source.destroy?.();
         },
     });
-    let stopped = false;
     let run;
     const start = async () => {
         let started;
@@ -237,97 +292,156 @@ export async function main(argv, io) {
     let recording = false;
     let firstLine = true;
     let failed;
-    /** One problem with the input: fatal under --strict, otherwise a warning in the run. */
+    let problems = 0;
+    let firstUnreported;
+    let summarized = 0;
+    /** The count of problems not listed one by one, said once before the results (and at the end). */
+    const summarize = () => {
+        const unlisted = problems - MAX_REPORTED_PROBLEMS;
+        if (!run || firstUnreported === undefined || unlisted <= summarized)
+            return;
+        run.director.log('warn', `… and ${unlisted - summarized} more problems with the input, the first at ${firstUnreported} (skipped).`);
+        summarized = unlisted;
+        firstUnreported = undefined;
+    };
+    /** One problem with the input: fatal under --strict, otherwise a warning (the first 20, then counted). */
     const problem = async (where, message) => {
         const text = `${where}: ${message}`;
-        if (args.strict)
-            failed = text;
         run ??= await start();
-        run.director.log(args.strict ? 'error' : 'warn', args.strict ? `${text} (stopped: --strict)` : `${text} (skipped)`);
+        if (args.strict) {
+            failed = text;
+            run.director.log('error', `${text} (stopped: --strict)`);
+            return;
+        }
+        problems++;
+        if (problems <= MAX_REPORTED_PROBLEMS)
+            run.director.log('warn', `${text} (skipped)`);
+        else
+            firstUnreported ??= where;
+    };
+    /** The whole read; any error it throws is turned into an exit code by the caller. */
+    const read = async () => {
+        try {
+            for await (const { n, text } of numberedLines(source, MAX_LINE_BYTES)) {
+                if (stopped || failed)
+                    break;
+                const where = `line ${n}`;
+                if (text === undefined) {
+                    await problem(where, `longer than ${MAX_LINE_BYTES / 1024} KiB`);
+                    continue;
+                }
+                if (text.trim() === '')
+                    continue;
+                let value;
+                try {
+                    value = JSON.parse(text);
+                }
+                catch (err) {
+                    await problem(where, `not valid JSON (${quote(err.message)})`);
+                    continue;
+                }
+                if (firstLine) {
+                    firstLine = false;
+                    const issue = recordingHeaderIssue(value);
+                    if (issue === undefined) {
+                        recording = true;
+                        replay = true;
+                        continue;
+                    }
+                    // A recording this version cannot read is one clear error, not one per line.
+                    if (issue !== 'not a recording') {
+                        io.stderr.write(`frame12-term: ${where}: ${issue}.\n`);
+                        return 2;
+                    }
+                }
+                let event = value;
+                let at;
+                if (recording) {
+                    const entry = parseRecordingEntry(value);
+                    if (!entry) {
+                        await problem(where, 'not a recording entry ({"t":…,"event":…})');
+                        continue;
+                    }
+                    event = entry.event;
+                    at = entry.t;
+                }
+                else {
+                    const ts = Date.parse(String(value?.ts ?? ''));
+                    at = Number.isFinite(ts) ? ts : undefined;
+                }
+                if (strictValidator) {
+                    const r = strictValidator.push(event);
+                    if (!r.ok && !r.ignorable) {
+                        await problem(where, describeIssues(r.issues));
+                        continue;
+                    }
+                }
+                if (args.replay && at !== undefined) {
+                    // Gaps run from the latest time seen: an event stamped earlier adds no wait.
+                    if (lastTime !== undefined && at > lastTime)
+                        await sleep(Math.min(MAX_REPLAY_GAP_MS, (at - lastTime) / args.speed));
+                    lastTime = Math.max(lastTime ?? at, at);
+                }
+                run ??= await start();
+                if (stopped)
+                    break;
+                if (event?.type === 'snapshot')
+                    summarize();
+                run.push(event, where);
+            }
+        }
+        catch (err) {
+            if (err instanceof UsageError)
+                throw err;
+            // `--from` that cannot be opened fails before anything was read.
+            if (args.from !== undefined && run === undefined && err.code !== undefined) {
+                io.stderr.write(`frame12-term: cannot read ${quote(args.from)}: ${quote(err.message)}\n`);
+                return 2;
+            }
+            // A canceled read ends with a premature-close error; anything else is reported.
+            if (!stopped) {
+                run ??= await start();
+                run.director.log('error', `reading the input failed: ${quote(err.message)}`);
+            }
+        }
+        return undefined;
     };
     try {
-        for await (const { n, text } of numberedLines(source, MAX_LINE_BYTES)) {
-            if (stopped || failed)
-                break;
-            const where = `line ${n}`;
-            if (text === undefined) {
-                await problem(where, `longer than ${MAX_LINE_BYTES / 1024} KiB`);
-                continue;
-            }
-            if (text.trim() === '')
-                continue;
-            let value;
-            try {
-                value = JSON.parse(text);
-            }
-            catch (err) {
-                await problem(where, `not valid JSON (${quote(err.message)})`);
-                continue;
-            }
-            if (firstLine) {
-                firstLine = false;
-                if (isRecordingHeader(value)) {
-                    recording = true;
-                    replay = true;
-                    continue;
-                }
-            }
-            let event = value;
-            let at;
-            if (recording) {
-                const entry = parseRecordingEntry(value);
-                if (!entry) {
-                    await problem(where, 'not a recording entry ({"t":…,"event":…})');
-                    continue;
-                }
-                event = entry.event;
-                at = entry.t;
-            }
-            else {
-                const ts = Date.parse(String(value?.ts ?? ''));
-                at = Number.isFinite(ts) ? ts : undefined;
-            }
-            if (strictValidator) {
-                const r = strictValidator.push(event);
-                if (!r.ok && !r.ignorable) {
-                    await problem(where, describeIssues(r.issues));
-                    continue;
-                }
-            }
-            if (args.replay && at !== undefined) {
-                if (lastTime !== undefined && at > lastTime)
-                    await sleep(Math.min(MAX_REPLAY_GAP_MS, (at - lastTime) / args.speed));
-                lastTime = at;
-            }
-            run ??= await start();
-            if (stopped)
-                break;
-            run.push(event, where);
+        const early = await read();
+        if (early !== undefined) {
+            recordSink?.end?.();
+            return early;
         }
-    }
-    catch (err) {
-        if (err instanceof UsageError) {
-            io.stderr.write(`frame12-term: ${err.message}\n`);
-            return 2;
-        }
-        // `--from` that cannot be opened fails before anything was read.
-        if (args.from !== undefined && run === undefined && err.code !== undefined) {
-            io.stderr.write(`frame12-term: cannot read ${quote(args.from)}: ${quote(err.message)}\n`);
-            return 2;
-        }
-        // A canceled read ends with a premature-close error; anything else is reported.
-        if (!stopped) {
-            run ??= await start();
-            run.director.log('error', `reading the input failed: ${quote(err.message)}`);
-        }
-    }
-    try {
         run ??= await start();
     }
     catch (err) {
-        io.stderr.write(`frame12-term: ${err.message}\n`);
+        recordSink?.end?.();
+        io.stderr.write(`frame12-term: ${quote(err.message)}\n`);
         return 2;
     }
+    summarize();
     const code = await run.end();
-    return failed ? 2 : code;
+    // --strict wins; then a recording that could not be completed; then the run's own code.
+    if (failed)
+        return 2;
+    if (recordFailed && code === 0)
+        return 1;
+    return code;
+}
+/** True when two paths name the same file (the second may not exist yet). */
+function sameFile(a, b) {
+    const real = (p) => {
+        try {
+            return realpathSync(p);
+        }
+        catch {
+            try {
+                return join(realpathSync(dirname(resolve(p))), basename(p));
+            }
+            catch {
+                return resolve(p);
+            }
+        }
+    };
+    return real(a) === real(b);
 }

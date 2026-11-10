@@ -8,6 +8,7 @@ export function fileRecordSink(path) {
     const fd = openSync(path, 'w');
     let open = true;
     return {
+        name: path,
         write(line) {
             if (open)
                 writeSync(fd, line);

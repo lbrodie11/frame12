@@ -40,8 +40,7 @@ export function startSession(options, mountLive) {
             caps,
             motion: options.motion,
             ...(options.safety ? { safety: options.safety } : {}),
-            ...(options.record ? { record: fileRecordSink(options.record) } : {}),
-            ...(options.scheduler ? { scheduler: options.scheduler } : {}),
+            ...(options.record ? { record: typeof options.record === 'string' ? fileRecordSink(options.record) : options.record } : {}),
         });
     // A Director the host passed in is the host's to dispose; only our own is disposed at the end.
     const ownsDirector = options.director === undefined;

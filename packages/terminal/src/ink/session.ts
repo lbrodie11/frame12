@@ -18,7 +18,8 @@
  *   in a live redraw.
  */
 import type { Capabilities } from '../core/capabilities.js';
-import { createDirector, type Director, type Scheduler } from '../core/director.js';
+import { createDirector, type Director } from '../core/director.js';
+import type { RecordSink } from '../core/recording.js';
 import type { Tempo } from '../core/motion.js';
 import type { SafetyOptions } from '../core/safety.js';
 import type { NextStep, RenderOptions } from '../render/index.js';
@@ -46,12 +47,10 @@ export interface LiveOptions {
   format?: 'live' | LinearFormat;
   /** The linear view also narrates `info` and `debug` log lines. */
   verbose?: boolean;
-  /** Timers and clock for the Director startLive creates (inject for deterministic recordings). */
-  scheduler?: Scheduler;
   /** Label the run `REPLAY` (masthead and results): it was recorded earlier. */
   replay?: boolean;
-  /** Record the run to this `.f12rec` file (only for a Director startLive creates). */
-  record?: string;
+  /** Record the run to this `.f12rec` file, or into this sink (only for a Director startLive creates). */
+  record?: string | RecordSink;
   /** Supply your own Director (e.g. one shared with `spawnLogged`); one is created otherwise. */
   director?: Director;
   /** Called once when the run is canceled (first Ctrl-C, SIGINT, SIGTERM, SIGHUP, or `q` while running), also for a supplied Director. */
@@ -140,8 +139,7 @@ export function startSession(options: LiveOptions, mountLive?: MountLive): LiveR
       caps,
       motion: options.motion,
       ...(options.safety ? { safety: options.safety } : {}),
-      ...(options.record ? { record: fileRecordSink(options.record) } : {}),
-      ...(options.scheduler ? { scheduler: options.scheduler } : {}),
+      ...(options.record ? { record: typeof options.record === 'string' ? fileRecordSink(options.record) : options.record } : {}),
     });
   // A Director the host passed in is the host's to dispose; only our own is disposed at the end.
   const ownsDirector = options.director === undefined;
