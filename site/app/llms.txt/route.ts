@@ -1,5 +1,6 @@
 import { CATALOG, BLOCK_CATALOG, COMPONENT_CATEGORIES, COMPONENT_COUNT } from '@/lib/catalog';
 import { SITE_URL, REGISTRY_BASE_URL } from '@/lib/config';
+import registryManifest from '../../public/r/registry.json';
 
 export const dynamic = 'force-static';
 
@@ -46,7 +47,7 @@ export async function GET() {
     `- [Style Sheet & Tokens](${SITE_URL}/style-sheet): Token tables, typography hierarchy, screentone specimens, and gutter rules.`,
     `- [Get Started Guide](${SITE_URL}/get-started): Step-by-step Next.js App Router, font binding, and theme setup.`,
     `- [Full LLM Context (${SITE_URL}/llms-full.txt)](${SITE_URL}/llms-full.txt): Complete single-file reference combining \`SKILL.md\`, progressive-disclosure references, registry manifest index, and all component prop tables and code templates.`,
-    `- [shadcn Registry Index (${REGISTRY_BASE_URL}/registry.json)](${REGISTRY_BASE_URL}/registry.json): Machine-readable shadcn registry catalog (41 items).`,
+    `- [shadcn Registry Index (${REGISTRY_BASE_URL}/registry.json)](${REGISTRY_BASE_URL}/registry.json): Machine-readable shadcn registry catalog (${registryManifest.items.length} items).`,
     '',
     '## Core Design Grammar Rules',
     '',
@@ -56,6 +57,7 @@ export async function GET() {
     '4. **Marker-yellow discipline (`marker-misuse`):** `var(--f-marker)` is used strictly as a highlight surface paired with `var(--f-marker-ink)` text or as an inked peak dot with a `2px` `var(--f-rule)` stroke—never as raw text or border color.',
     '5. **Adapter boundary (`raw-shadcn-import`):** Import `Dialog`, `Select`, `Tooltip`, `DropdownMenu`, and `Table` from `@/components/frame12` rather than raw `@/components/ui/*`.',
     '6. **Motion on twos (`useOnTwos`):** Discrete state transitions sample at 12fps (`83.33ms` per pose); pointer hover, scrolling, typing, and crosshairs stay immediate (`0ms`); `prefers-reduced-motion: reduce` forces instant cuts.',
+    '7. **Never on load (`ink-autoplay`):** `play` on `InkStroke`, `InkReveal` and `InkSequence` changes only through a user action; ink line art is finished at rest.',
     '',
     '## Component Registry Catalog',
     '',
