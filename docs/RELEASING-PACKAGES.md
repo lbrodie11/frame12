@@ -7,8 +7,9 @@ FRAME/12 distributes its React component kit (`registry/`) through the `shadcn` 
 | `@frame12/tokens` | `packages/tokens` | In tree | Zero-dependency design tokens (`dist/tokens.css`, W3C DTCG 2025.10 `dist/tokens.json`, and TypeScript/JS `tokens` + `cssText`) | None |
 | `@frame12/lint` | `packages/lint` | In tree | Programmatic design-grammar linter (`lintSource`, `lintHtml`, `lintFiles`, `lintDirectory`) and CLI (`frame12-lint`) with an optional `typescript` peer | None |
 | `@frame12/static` | `packages/static` | In tree (F12-04) | Framework-free HTML renderers with the React components' contract: `document`, `sheet`, `scene`, `sceneArea`, `panel`, `panelPair`, `balloon`, `tag` (stamps are `tag({ variant: 'stamp' })`), `badge`, `metric`, `toneBarList`, `ghostWire`, `receipt`, `receiptList`, `fragment`, `unsafeRaw`, `escapeHtml`, `safeUrl`, `isHtml`, `toIdent`, `dedupeIds`, `fmtPct`/`fmtPPAbs`/`fmtMoney`, plus `./static.css`. The SVG/PNG social-card renderer (`renderCard`) and the `./svg` subpath arrive in F12-05. | `@frame12/tokens` (exact version) |
+| `@frame12/terminal` | `packages/terminal` | In tree (F12-13 PR 1, `0.1.0` unreleased) | FRAME/12 for the command line. PR 1 ships the core: event contract v1 and validation, capabilities, motion, safety (sanitizer, links, redaction), width (UAX #11/#29) and terminal tokens, plus `./testing` and `./schema.json`. `./render`, `./ink`, `./process` and the `frame12-term` bin arrive in PRs 2–4. Requires Node 22+. | `@frame12/tokens` (exact version) |
 
-> **Note:** The release pipeline never hard-codes package names. Both [`scripts/check-packages.mjs`](../scripts/check-packages.mjs) and [`scripts/release-packages.mjs`](../scripts/release-packages.mjs) discover publishable packages dynamically from `workspaces` entries in the root [`package.json`](../package.json) that live under `packages/` and do not set `"private": true`, then sort them in topological dependency order (`tokens` → `lint` → `static`). `@frame12/lint` (F12-02) and `@frame12/static` (F12-04) joined the pipeline this way, without workflow edits.
+> **Note:** The release pipeline never hard-codes package names. Both [`scripts/check-packages.mjs`](../scripts/check-packages.mjs) and [`scripts/release-packages.mjs`](../scripts/release-packages.mjs) discover publishable packages dynamically from `workspaces` entries in the root [`package.json`](../package.json) that live under `packages/` and do not set `"private": true`, then sort them in topological dependency order (`tokens` → `lint` → `static` → `terminal`). `@frame12/lint` (F12-02) and `@frame12/static` (F12-04) joined the pipeline this way, without workflow edits.
 
 ---
 
@@ -48,6 +49,7 @@ FRAME/12 distributes its React component kit (`registry/`) through the `shadcn` 
 
 - **`@frame12/tokens`:** imports `cssText` and `tokens`, verifying `--f-ink` and `--f-stroke` custom properties and palette tokens.
 - **`@frame12/lint`:** calls `lintHtml` on a sample HTML page, verifying clean grammar passes and a hardcoded hex color triggers `color-literal`.
+- **`@frame12/terminal`:** imports the core and `./testing` with no React or Ink installed, validates every v1 fixture as a stream, checks that unknown event types are ignorable, that `NO_COLOR` disables color and that the sanitizer removes OSC 52 and shows bidi controls, resolves `./schema.json`, and type-checks a consumer against the installed `.d.ts`.
 - **`@frame12/static`:** imports every export, blocks `node:fs` and renders a full page with `document()` (proving no filesystem reads at runtime), checks that `Html` is an object and that equal text is not trusted, resolves the `./static.css` export, and type-checks a consumer against the installed `.d.ts`. `renderCard()` checks join when F12-05 adds it.
 
 ---
@@ -62,6 +64,7 @@ Always release packages in dependency order so every internal `@frame12/*` depen
 1. tokens@<version>   (@frame12/tokens — zero dependencies)
 2. lint@<version>     (@frame12/lint   — zero runtime dependencies)
 3. static@<version>   (@frame12/static — depends on @frame12/tokens@<version>)
+4. terminal@<version> (@frame12/terminal — depends on @frame12/tokens@<version>)
 ```
 
 The release workflow enforces this order automatically: before publishing `<pkg>@<version>`, `node scripts/release-packages.mjs --verify-publish --tag <pkg>@<version>` queries `npm view <dep>@<exactVersion> version` for every internal dependency and aborts with a clear message if the required upstream version is not yet live on npm.
