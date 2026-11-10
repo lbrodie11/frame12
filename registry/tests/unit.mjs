@@ -2548,9 +2548,14 @@ await page.waitForSelector('#unit-test-fixtures');
     btn.click();
     const seen = [];
     const start = performance.now();
-    while (performance.now() - start < 560) {
+    // Sample every frame until the reveal has moved and settled back at 0 (or a 3 s deadline), not
+    // for a fixed 560 ms: a throttled CI runner can stretch the on-twos reveal past that window.
+    for (;;) {
       await new Promise((r) => requestAnimationFrame(r));
-      seen.push(Number(line.getAttribute('stroke-dashoffset') || '0'));
+      const offset = Number(line.getAttribute('stroke-dashoffset') || '0');
+      seen.push(offset);
+      const settled = seen.some((o) => o > 0) && offset === 0;
+      if (settled || performance.now() - start > 3000) break;
     }
     return {
       uniquePoses: [...new Set(seen)],

@@ -4,6 +4,10 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Flaky browser tests:** the registry GhostWire mount-pose check measured one animation frame after `createRoot().render()`, which commits asynchronously; on loaded CI runners the line did not exist yet (`firstFrameOffset: 0`, `finalOffset: -1`). It now renders with `flushSync`, waits for the element, and waits for the on-twos reveal to settle (3 s deadline) instead of fixed 480/560 ms windows. Under DevTools CPU throttling the old check failed 16/20 (4×) and 20/20 (10×, 20×); the new one passes 60/60. The site developer-console SLO check now waits for each expected state (`waitForFunction`, 3 s) instead of reading after a fixed 30 ms or immediately after a click, and reports where focus went if it fails again (its CI failure could not be reproduced locally).
+
 ### Added
 
 - **Navigation Continuity on frame12.dev (F12-12):** Back, contextual return links and focus now land where the visitor was.
