@@ -188,7 +188,8 @@ For command-line tools, don't hand-roll ANSI. Install `@frame12/terminal` and bu
 the event contract (`validateEvent`, `createStreamValidator`), `detectCapabilities`,
 `resolveTerminalMotion`, `createSanitizer`, the width helpers (`stringWidth`,
 `truncateMiddle`, `wrap`), and the linear renderers in `@frame12/terminal/render`
-(`createLinearWriter`, `renderRich`, `renderPlain`, `renderJson`). See [references/terminal.md](references/terminal.md).
+(`createLinearWriter`, `renderRich`, `renderPlain`, `renderJson`). A tool in another language prints
+NDJSON events and pipes them to `npx frame12-term render`. See [references/terminal.md](references/terminal.md).
 
 - Sanitize every untrusted string (commit subjects, paths, tool output, log lines) with
   `createSanitizer()` before printing. It removes escape sequences (including OSC 8 and OSC 52),

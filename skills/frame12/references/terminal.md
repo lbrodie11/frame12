@@ -6,8 +6,8 @@
 
 > **0.1.0** exports the core (contract, validation, capabilities, motion, safety, width,
 > tokens, the Director), the linear renderers (`./render`), the live view (`./ink`, optional
-> `ink@^8`/`react@^19.3` peers), `spawnLogged` (`./process`) and `./testing`. The
-> `frame12-term` CLI arrives in a later release.
+> `ink@^8`/`react@^19.3` peers), `spawnLogged` (`./process`), `./testing`, and the
+> `frame12-term` CLI with `.f12rec` recordings.
 
 ## Install
 
@@ -57,13 +57,30 @@ renderJson(snapshot: Snapshot): string;
 renderPlain(snapshot: Snapshot, o?: { product?; nextSteps?: NextStep[]; safety? }): string;
 renderRich(snapshot: Snapshot, rc: RenderCaps, o?: { product?; nextSteps?; safety? }): string;
 renderCapsFor(caps: Capabilities, stream?: 'stdout' | 'stderr', o?: { verbose?: boolean }): RenderCaps;
-createLinearWriter(o: { format: 'rich' | 'plain' | 'json'; caps: Capabilities; stdout; stderr; verbose?; nextSteps?; safety?; validation? }): { write(raw: unknown): void; log(level, text): void; end(): LinearResult };
+createLinearWriter(o: { format: 'rich' | 'plain' | 'json'; caps: Capabilities; stdout; stderr; verbose?; nextSteps?; safety?; validation? }): { write(raw: unknown, where?: string): void; log(level, text): void; end(): LinearResult };
 
 // Director (core) and live view (@frame12/terminal/ink).
-createDirector(o: { caps; motion: Tempo; onEvent?; onCancel?; maxLogs?; maxEvents?; maxItems?; maxWarnings?; safety?; validation?; scheduler? }): Director;
-// Director: { push(raw); tap(raw => void); subscribe(state => void); snapshot(); cancel(reason); log(level, text, meta?); flush(); signal; dispose() }. LogLine.origin: 'event' | 'host'.
-startLive(o: { caps; motion; stdin?; stdout?; stderr?; fullscreen?; product?; nextSteps?; safety?; director?; onCancel?; handleSignals?; exit?; devWarnings? }): { director; mode: 'live' | 'linear'; reason?; push(e); end(): Promise<number>; done };
+createDirector(o: { caps; motion: Tempo; onEvent?; onCancel?; maxLogs?; maxEvents?; maxItems?; maxWarnings?; safety?; validation?; scheduler?; record?: { write(line): void; end?(): void } }): Director;
+// Director: { push(raw, where?); tap((raw, where?) => void); subscribe(state => void); snapshot(); cancel(reason); log(level, text, meta?); flush(); signal; dispose() }. LogLine.origin: 'event' | 'host'.
+startLive(o: { caps; motion; stdin?; stdout?; stderr?; format?: 'live' | 'rich' | 'plain' | 'json'; verbose?; fullscreen?; product?; nextSteps?; safety?; replay?; record?: string; scheduler?; director?; onCancel?; handleSignals?; exit?; devWarnings? }): { director; mode: 'live' | 'linear'; reason?; push(e, where?); end(): Promise<number>; done };
+
+// Recordings (.f12rec, core): header {"f12rec":1,"schemaVersion":1}, then {"t": ms, "event": {...}} lines ending with the snapshot.
+recordingHeader(): string; recordingLine(t, event): string; isRecordingHeader(v): boolean; parseRecordingEntry(v): { t; event } | undefined; redactLinks(value, redact?, source, policy?);
 spawnLogged(director, cmd: string, args?: string[], o?: { cwd?; env?; cut?; signal?; stderrLevel?; killAfterMs?; maxLineLength?; drainMs? }): Promise<{ code; signal; error? }>; // @frame12/terminal/process
+
+## The `frame12-term` CLI
+
+Any language can drive FRAME/12 output: print contract v1 events as NDJSON and pipe them in.
+
+```bash
+my-tool --events | npx frame12-term render            # --format rich|plain|json|live, --plain, --json
+my-tool --events | npx frame12-term render --record run.f12rec
+npx frame12-term render --from run.f12rec --replay    # original timing, x4 (--speed), gaps <= 1 s, labeled REPLAY
+```
+
+Lines over 64 KiB and non-JSON lines are reported with their line number and skipped; `--strict`
+stops at the first problem (exit 2). Exit codes: 0 completed, 1 failed or incomplete, 2 usage or
+`--strict`, 130 canceled. The README has Go, Python and Rust emitters.
 
 ## Rules
 
