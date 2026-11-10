@@ -150,7 +150,12 @@ export function Harness(p: FixtureProps) {
       {...(p.controlledPlaying ? { playing } : {})}
       onValueChange={(id, info) => {
         W?.__xsLog.push(['value', key, id, info.index, info.reason]);
-        if (p.controlled && W?.__xsAccept !== false) setValue(id);
+        // __xsAcceptLater: the parent applies the value on a later task (like a transition or
+        // router-driven search params), so one commit happens with the old value first.
+        if (p.controlled && W?.__xsAccept !== false) {
+          if ((W as unknown as { __xsAcceptLater?: boolean })?.__xsAcceptLater) setTimeout(() => setValue(id), 30);
+          else setValue(id);
+        }
       }}
       onPlayingChange={(next, reason) => {
         W?.__xsLog.push(['playing', key, next, reason]);

@@ -1287,6 +1287,17 @@ await section('review regressions', async () => {
   const afterRowClick = await page.evaluate(() => document.activeElement?.closest('tr')?.querySelector('.f12-xs-fn')?.textContent);
   check(backGone && stillTitle === 'xa-title' && rowFocus === 'F-01' && afterBack2 === 'xa-title' && afterRowClick === 'F-06', 'Back: cleared when the reader returns to that frame another way; focus never drops to <body>; a later row activation keeps focus on that row', { backGone, stillTitle, rowFocus, afterBack2, afterRowClick });
 
+  // A controlled parent that applies the cause jump on a later task still gets "Back".
+  await mount(page, { n: 6, controlled: true, initialValue: 'f4', genOpts: { causes: { 3: ['f2'] } } });
+  await page.evaluate(() => (window.__xsAcceptLater = true));
+  await page.click('#xa .f12-xs-cause');
+  await flush(page);
+  await run(page, 50);
+  const lateBack = await page.evaluate(() => document.querySelector('#xa .f12-xs-back')?.textContent ?? null);
+  const lateIndex = (await st(page)).index;
+  await page.evaluate(() => (window.__xsAcceptLater = false));
+  check(lateIndex === 1 && /Back to F-04/.test(lateBack ?? ''), 'controlled value applied on a later task: "Back to F-04" still appears after the cause jump', { lateIndex, lateBack });
+
   // Starting a flipbook with p while the title has focus keeps focus (the header persists).
   await mount(page, { n: 30, tempo: 'twos', genOpts: { causes: { 3: ['f2'] } }, props: { defaultValue: 'f4' } });
   await page.check('#xa-timing-flipbook', { force: true });

@@ -784,8 +784,14 @@ export function useExposure(options: UseExposureOptions): ExposureState {
   // who returns there another way no longer needs it). One rule for the button and goBack.
   const backIndex = back ? keyIndex.get(back.key) : undefined;
   const backEntry = backIndex !== undefined && backIndex !== index ? entries[backIndex] : null;
+  // Clear only when the reader MOVES to the back target (or it is gone), never merely because they
+  // are equal: a controlled parent that applies the cause jump later (a transition, router
+  // search params) commits once with `back` set and the old index first.
+  const prevIndexForBack = React.useRef(index);
   React.useEffect(() => {
-    if (back && (backIndex === undefined || backIndex === index)) setBack(null);
+    const moved = prevIndexForBack.current !== index;
+    prevIndexForBack.current = index;
+    if (back && (backIndex === undefined || (moved && backIndex === index))) setBack(null);
   }, [back, backIndex, index]);
 
   // ------------------------------------------------------------------ play / pause
