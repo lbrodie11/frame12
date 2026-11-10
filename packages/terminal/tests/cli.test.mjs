@@ -365,16 +365,19 @@ describe('frame12-term: review of #40', () => {
   it('3. a sink that fails mid-run stops the recording with a warning, calls end(), and the CLI exits 1', async () => {
     let writes = 0;
     let ended = 0;
-    const openRecord = () => ({
+    const openRecord = (name) => ({
+      name,
       write() {
         if (++writes === 5) throw new Error('ENOSPC: no space left on device');
       },
       end: () => ended++,
     });
-    const r = await cli(['render', '--plain', '--record', 'r.f12rec'], ndjson('success'), { openRecord });
+    // A temp path even though the sink is injected: a run that ignored the injection must not litter the package.
+    const target = path.join(tmp(), 'r.f12rec');
+    const r = await cli(['render', '--plain', '--record', target], ndjson('success'), { openRecord: () => openRecord(target) });
     assert.equal(r.code, 1, 'the run completed, but the requested recording did not');
     assert.equal(ended, 1);
-    assert.match(r.err, /Recording stopped: ENOSPC: no space left on device; r\.f12rec is incomplete/);
+    assert.match(r.err, /Recording stopped: ENOSPC: no space left on device; .*r\.f12rec is incomplete/);
     assert.match(r.out, /completed/, 'the run itself goes on');
   });
 
