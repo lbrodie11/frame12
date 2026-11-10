@@ -100,7 +100,7 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
     { cwd: REPO_ROOT, encoding: 'utf8' },
   );
   check(
-    repoWrapperOut === 'PASS  check-frame12: 94 file(s) checked, 0 violations.\n' &&
+    repoWrapperOut === 'PASS  check-frame12: 97 file(s) checked, 0 violations.\n' &&
       repoBinOut === repoWrapperOut,
     'CLI parity: repo default check output is byte-identical to baseline',
     `Got: ${JSON.stringify(repoWrapperOut)}`,
