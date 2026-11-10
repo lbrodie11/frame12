@@ -23,7 +23,10 @@ jobs:
   verify:
     name: Build, Lint, Accessibility & Smoke Install
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # A stall guard, not a budget: a healthy run takes ~30 min (npm test alone ~28 min since the
+    # ink and story suites joined it in three engines); 40 still stops a hung run well short of the
+    # 60+ min stalls noted above.
+    timeout-minutes: 40
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
       options: --user 1001 --ipc=host

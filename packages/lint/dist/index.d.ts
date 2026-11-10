@@ -5,7 +5,8 @@ export type RuleId =
   | 'cut-order'
   | 'explicit-cut-in-autocut'
   | 'raw-shadcn-import'
-  | 'unsafe-html';
+  | 'unsafe-html'
+  | 'ink-autoplay';
 
 export interface Violation {
   rule: RuleId;

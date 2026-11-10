@@ -101,7 +101,7 @@ const EIGHT_RULES = [
   {
     num: '05',
     rule: 'Motion on twos',
-    spec: 'Discrete state changes step at 12fps (83.33ms poses). Hover, scroll, drag, typing, and crosshairs stay immediate. Reduced motion forces instant cuts.',
+    spec: 'Discrete state changes step at 12fps (83.33ms poses). Hover, scroll, drag, typing, and crosshairs stay immediate. Reduced motion forces instant cuts. Ink line art never draws on load (the ink-autoplay lint rule).',
   },
   {
     num: '06',

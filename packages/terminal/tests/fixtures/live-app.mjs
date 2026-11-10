@@ -12,6 +12,10 @@
  *   console        console.log during the live view (Ink routes it above the live region), then finish
  *   stray          a direct process.stdout.write during the live view (the dev warning), then hold
  * On exit it prints `F12-EXIT raw=<stdin raw mode> code=<exit code>` (after startLive's restore).
+ * With F12_LATENCY_LOG=<file>, it records the app's own side of keypress latency: when each key
+ * chunk is read from stdin (Ink reads with stdin.read()) and when each frame carrying the selection
+ * marker is written to stdout. Times are kept in memory and written to the file at exit, so the
+ * log adds no I/O to the measured path. The pty test pairs each key with the next such frame.
  * Nothing else is written to the terminal directly while the live view runs: a stray write would
  * move the cursor under Ink and corrupt its erase accounting (exactly what spawnLogged prevents).
  */
@@ -28,6 +32,25 @@ const scenario = opt('scenario', 'complete');
 const delay = Number(opt('delay', '10'));
 const name = opt('fixture', 'success');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const latencyLog = process.env.F12_LATENCY_LOG;
+if (latencyLog) {
+  const { writeFileSync } = await import('node:fs');
+  const keys = [];
+  const frames = [];
+  const read = process.stdin.read.bind(process.stdin);
+  process.stdin.read = (...a) => {
+    const chunk = read(...a);
+    if (chunk !== null) keys.push({ t: performance.now(), key: String(chunk) });
+    return chunk;
+  };
+  const write = process.stdout.write.bind(process.stdout);
+  process.stdout.write = (chunk, ...rest) => {
+    if (String(chunk).includes('›')) frames.push(performance.now()); // the selection marker (styled)
+    return write(chunk, ...rest);
+  };
+  process.on('exit', () => writeFileSync(latencyLog, JSON.stringify({ keys, frames })));
+}
 
 const caps = detectCapabilities(process.env, process, process.argv);
 const { tempo } = resolveTerminalMotion({ argv: process.argv, env: process.env, caps });

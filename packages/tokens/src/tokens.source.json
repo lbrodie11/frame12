@@ -501,6 +501,20 @@
         "unit": "px"
       },
       "$description": "Expressive mitered ink panel and control stroke width."
+    },
+    "pencil": {
+      "$value": {
+        "value": 1,
+        "unit": "px"
+      },
+      "$description": "Line-art pencil stroke width: decorative construction lines drawn under the ink."
+    },
+    "detail": {
+      "$value": {
+        "value": 1.5,
+        "unit": "px"
+      },
+      "$description": "Line-art detail stroke width: inked lines inside a frame (chart outlines, rules)."
     }
   },
   "motion": {

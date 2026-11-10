@@ -23,8 +23,12 @@ const CLICK_TRIGGER = `(() => {
   return el.id || el.textContent;
 })()`;
 
+// F12-14 adds pathLength="1" to Panel's measured frame polygon (an additive attribute required by
+// InkReveal; it changes no pixels, since pathLength only scales dashes). It is the one difference
+// from the pre-tempo source that is not a tempo change, so only that attribute on <polygon> is
+// removed before hashing; everything else is compared byte for byte.
 const DOM_HASH = `(() => {
-  const s = document.getElementById('root').innerHTML;
+  const s = document.getElementById('root').innerHTML.replace(/(<polygon\\b[^>]*?) pathLength="1"/gi, '$1');
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(16) + ':' + s.length;

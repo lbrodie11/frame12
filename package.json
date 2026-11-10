@@ -24,8 +24,9 @@
     "build": "npm run build --workspaces --if-present",
     "lint:frame12": "node scripts/check-frame12.mjs registry/ui registry/blocks eval/screens site/src site/app templates/next-starter/app templates/next-starter/src",
     "test:cross-browser": "npm --workspace=@frame12/registry run test:cross-browser && npm --workspace=@frame12/static run test:cross-browser",
-    "test": "npm run sync:check && npm run doc:check && npm run pkg:check && npm run lint:frame12 && npm run test --workspaces --if-present",
-    "dev": "npm run dev --workspaces --if-present"
+    "test": "npm run sync:check && npm run doc:check && npm run pkg:check && npm run lint:frame12 && npm run media:check && npm run test --workspaces --if-present",
+    "dev": "npm run dev --workspaces --if-present",
+    "media:check": "node scripts/story-media.mjs --check"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.6",

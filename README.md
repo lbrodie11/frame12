@@ -2,14 +2,14 @@
 
 [![Release: v0.2.0](https://img.shields.io/badge/Release-v0.2.0_·_Experimental-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://github.com/lbrodie11/frame12/releases/tag/v0.2.0)
 [![React 18 & 19](https://img.shields.io/badge/React-18_%26_19_·_TypeScript-121212?style=flat-square&labelColor=121212&color=ffffff)](registry/)
-[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-31_Components_·_42_Registry_Items-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
+[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-35_Components_·_52_Registry_Items-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
 [![License: MIT](https://img.shields.io/badge/License-MIT-121212?style=flat-square&labelColor=121212&color=ffffff)](LICENSE)
 
 **A React design system that makes interfaces look like comic pages and move like hand-drawn animation.**
 
 Build expressive dashboards, developer tools, and editorial interfaces with ink-framed panels, screentone charts, deliberate `12fps` motion ("on twos"), and a visual grammar that both humans and AI coding agents can follow consistently.
 
-**[Live Demo → frame12.dev](https://frame12.dev)** · **[Developer Console Block](https://frame12.dev/blocks/developer-console)** · **[Workspace Settings Block](https://frame12.dev/blocks/workspace-settings)** · **[Analytics Block](https://frame12.dev/blocks/analytics-dashboard)** · **[Motion on Twos Studio](https://frame12.dev/motion)** · **[Components (31)](https://frame12.dev/components)** · **[AI Agent Skill & Linter](https://frame12.dev/agents)** · **[Get Started Guide](https://frame12.dev/get-started)**
+**[Live Demo → frame12.dev](https://frame12.dev)** · **[Developer Console Block](https://frame12.dev/blocks/developer-console)** · **[Workspace Settings Block](https://frame12.dev/blocks/workspace-settings)** · **[Analytics Block](https://frame12.dev/blocks/analytics-dashboard)** · **[Motion on Twos Studio](https://frame12.dev/motion)** · **[Components (35)](https://frame12.dev/components)** · **[AI Agent Skill & Linter](https://frame12.dev/agents)** · **[Get Started Guide](https://frame12.dev/get-started)**
 
 ![FRAME/12 — Designing Interfaces on Twos](docs/images/social-hero.png)
 
@@ -25,6 +25,10 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 | --- | --- |
 | [![Motion on Twos — Light](docs/images/site-motion-light.png)](https://frame12.dev/motion) | [![Motion on Twos — Dark](docs/images/site-motion-dark.png)](https://frame12.dev/motion) |
 
+**How a frame gets made** (the home page story: pencil → ink → tone → cut, drawn on twos by CSS alone; regenerate with `node scripts/story-media.mjs`, [WebM](docs/images/story.webm)):
+
+![Pencil, ink, tone and cut drawn on twos across four storyboard panels](docs/images/story.gif)
+
 ---
 
 ## Install FRAME/12
@@ -35,14 +39,14 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 - **Project setup:** An initialized `shadcn` project (`components.json` with a `@/*` path alias; tested with Radix-based `shadcn` styles such as `new-york` as well as `shadcn init -d` / `base-nova`). Or start from a pre-configured repo in [`templates/next-starter/`](templates/next-starter/).
 - **TypeScript:** Tested with TypeScript 6. From TypeScript 6 on, `import '@/styles/frame12.css'` needs a `*.css` module declaration. Next.js (`next-env.d.ts`) and Vite (`vite/client`) projects already provide one; in other setups, add `declare module '*.css';` to a `.d.ts` file.
 - **Styling:** Works standalone via scoped `.f12-*` CSS custom properties (`styles/frame12.css`). Tailwind CSS is optional (`styles/frame12-tailwind.css` is included if you want Tailwind v4 utility classes).
-- **Status:** Pre-1.0 and experimental (package version `0.2.0`). The registry ships 33 components (including named-area `Scene`, `GhostWire`, `Receipt` / `ReceiptList`, and `Tag variant="stamp"`), 3 application blocks (Developer Console, Workspace Settings, Revenue Recovery Analytics), the `use-on-twos` motion hook, and 3 font packages. Release notes for `0.2.0` are in [`CHANGELOG.md`](CHANGELOG.md), the `v0.2.0` release-readiness audit is in [`docs/roadmap/v0.2-release-readiness.md`](docs/roadmap/v0.2-release-readiness.md), and planned `v0.3` / `v0.4` work is in [`docs/roadmap/v0.3-v0.4-roadmap.md`](docs/roadmap/v0.3-v0.4-roadmap.md).
+- **Status:** Pre-1.0 and experimental (package version `0.2.0`). The registry has 52 items: 35 components (including named-area `Scene`, `GhostWire`, `Receipt` / `ReceiptList`, `Tag variant="stamp"`, `TempoControl` and `ExposureScrubber`), the `TempoProvider`, 3 application blocks (Developer Console, Workspace Settings, Revenue Recovery Analytics), 3 hooks (`use-on-twos`, `use-tempo`, `use-exposure`), the opt-in ink primitives (`ink-stroke`, `ink-reveal`, `ink-sequence`), 3 font packages, and the style, token, base and full-kit items. Release notes for `0.2.0` are in [`CHANGELOG.md`](CHANGELOG.md), the `v0.2.0` release-readiness audit is in [`docs/roadmap/v0.2-release-readiness.md`](docs/roadmap/v0.2-release-readiness.md), and planned `v0.3` / `v0.4` work is in [`docs/roadmap/v0.3-v0.4-roadmap.md`](docs/roadmap/v0.3-v0.4-roadmap.md).
 
 ### 1. Add the registry kit (`@frame12` namespace or direct URL)
 
 FRAME/12 is published in the official [`shadcn` registry index](https://ui.shadcn.com/r/registries.json) under the lowercase **`@frame12`** namespace. Run the `shadcn` CLI from your project root to copy the components (`components/frame12/`), motion hooks (`hooks/use-on-twos.ts`, `hooks/use-tempo.ts`), and stylesheet (`styles/frame12.css`) into your repo:
 
 ```bash
-# Install the full 31-component kit + base styles and hook (configure fonts in Step 2 or via @frame12/frame12-base):
+# Install the full 35-component kit + base styles and hooks (configure fonts in Step 2 or via @frame12/frame12-base):
 npx shadcn@latest add @frame12/frame12
 
 # Or install an individual component:
@@ -86,7 +90,7 @@ npx shadcn@latest add https://frame12.dev/r/panel.json
 
 > **Upgrading & Customizing Tokens:** Do not edit `styles/frame12.css` directly—put custom `--f-*` token overrides in your own stylesheet (such as `app/globals.css`). When upgrading or adding components after a FRAME/12 update (or in non-interactive CI/agent shells where `shadcn add -y` will skip installing if `styles/frame12.css` differs and still exit `0`), pass `--overwrite` and verify that `components/frame12/<name>.tsx` exists on disk.
 
-Browse all 31 components and 42 registry items at **[frame12.dev/components](https://frame12.dev/components)**, or explore the **[Developer Console Block](https://frame12.dev/blocks/developer-console)**, **[Workspace Settings Block](https://frame12.dev/blocks/workspace-settings)**, and **[Analytics Block](https://frame12.dev/blocks/analytics-dashboard)**. For non-React consumers (static HTML, SVG cards, email, VS Code webviews), install the standalone token stylesheet via `npx shadcn@latest add @frame12/frame12-tokens` or use the [`@frame12/tokens`](packages/tokens/) workspace package (`tokens.css` with metric-matched `@font-face` fallbacks, W3C DTCG 2025.10 `tokens.json`, and TypeScript `tokens` + `cssText`; prepared for npm publication under `@frame12`).
+Browse all 35 components and 52 registry items at **[frame12.dev/components](https://frame12.dev/components)**, or explore the **[Developer Console Block](https://frame12.dev/blocks/developer-console)**, **[Workspace Settings Block](https://frame12.dev/blocks/workspace-settings)**, and **[Analytics Block](https://frame12.dev/blocks/analytics-dashboard)**. For non-React consumers (static HTML, SVG cards, email, VS Code webviews), install the standalone token stylesheet via `npx shadcn@latest add @frame12/frame12-tokens` or use the [`@frame12/tokens`](packages/tokens/) workspace package (`tokens.css` with metric-matched `@font-face` fallbacks, W3C DTCG 2025.10 `tokens.json`, and TypeScript `tokens` + `cssText`; prepared for npm publication under `@frame12`).
 </details>
 
 ### 2. Import the stylesheet and fonts (`app/layout.tsx`)
@@ -182,11 +186,12 @@ In addition to the `shadcn` component registry, FRAME/12 ships standalone packag
 
 | Package | Status | Purpose |
 | --- | --- | --- |
-| [`@frame12/tokens`](packages/tokens/) | `0.2.0` on npm | Zero-dependency design tokens: standalone `tokens.css` (light/dark `--f-*` custom properties and metric-matched `@font-face` fallbacks), resolved W3C DTCG 2025.10 `tokens.json`, and TypeScript/JS `tokens` + `cssText` exports. |
-| [`@frame12/lint`](packages/lint/) | `0.2.1` (`0.2.0` on npm) | Programmatic design-grammar checker (`lintSource`, `lintHtml`, `lintFiles`, `lintDirectory`) and CLI (`frame12-lint`) enforcing the FRAME/12 design rules across `.tsx`, `.jsx`, `.css`, and static `.html` files (optional `typescript` peer for TSX AST rules). |
+| [`@frame12/tokens`](packages/tokens/) | `0.2.0` on npm (unreleased on `main`: the `--f-stroke-pencil` / `--f-stroke-detail` line-art widths) | Zero-dependency design tokens: standalone `tokens.css` (light/dark `--f-*` custom properties and metric-matched `@font-face` fallbacks), resolved W3C DTCG 2025.10 `tokens.json`, and TypeScript/JS `tokens` + `cssText` exports. |
+| [`@frame12/lint`](packages/lint/) | `0.3.0` on npm | Programmatic design-grammar checker (`lintSource`, `lintHtml`, `lintFiles`, `lintDirectory`) and CLI (`frame12-lint`) enforcing the FRAME/12 design rules across `.tsx`, `.jsx`, `.css`, and static `.html` files (optional `typescript` peer for TSX AST rules). |
 | [`@frame12/static`](packages/static/) | `0.2.0` | Framework-free HTML renderers with the React components' contract (`document`, `sheet`, `scene`, `sceneArea`, `panel`, `panelPair`, `balloon`, `tag` (stamps are `tag({ variant: 'stamp' })`), `badge`, `metric`, `toneBarList`, `ghostWire`, `receipt`, `receiptList`, `fragment`, `unsafeRaw`, `escapeHtml`, `safeUrl`, `isHtml`, `toIdent`, `dedupeIds`, `fmtPct`/`fmtPPAbs`/`fmtMoney`) plus `static.css`, generated from the canonical stylesheet. Zero runtime dependencies besides `@frame12/tokens`; contextual escaping; deterministic. See [`PARITY.md`](packages/static/PARITY.md) and the side-by-side demo at [frame12.dev/static](https://frame12.dev/static). SVG/PNG export (`renderCard`, `./svg`) arrives in F12-05. |
+| [`@frame12/terminal`](packages/terminal/) | `0.1.0`, in tree (not yet on npm) | FRAME/12 for the command line: the event contract and validation, capabilities, motion, safety (sanitizer, links, redaction), width helpers, linear renderers, the Ink live view and the `frame12-term` CLI with `.f12rec` recordings. Requires Node 22+. See [`packages/terminal/README.md`](packages/terminal/README.md). |
 
-Each package has independent SemVer versioning, its own `CHANGELOG.md`, and tag-driven npm OIDC trusted-publishing releases (`<pkg>@<version>`). See [`docs/RELEASING-PACKAGES.md`](docs/RELEASING-PACKAGES.md) for the release order (`tokens` → `lint` → `static`), dry-run mode, and verification gates.
+Each package has independent SemVer versioning, its own `CHANGELOG.md`, and tag-driven npm OIDC trusted-publishing releases (`<pkg>@<version>`). See [`docs/RELEASING-PACKAGES.md`](docs/RELEASING-PACKAGES.md) for the release order (`tokens` → `lint` → `static` → `terminal`), dry-run mode, and verification gates.
 
 ---
 
@@ -208,25 +213,28 @@ node scripts/check-frame12.mjs src
 
 ## The 8 Design Rules (and How Each Is Verified)
 
-FRAME/12 replaces subjective styling feedback with eight explicit rules—**five enforced statically by `scripts/check-frame12.mjs`** and **three verified by runtime hooks, Playwright accessibility checks, and architecture constraints**:
+FRAME/12 replaces subjective styling feedback with the eight explicit rules in [`SKILL.md`](skills/frame12/SKILL.md) §2. The parts of the grammar that are visible in source are enforced statically by `scripts/check-frame12.mjs` (the [`@frame12/lint`](packages/lint/) rules); the rest are verified by runtime hooks, Playwright accessibility suites, and architecture constraints.
 
-### Statically Enforced by `scripts/check-frame12.mjs`
+### Statically Enforced by `scripts/check-frame12.mjs` (`@frame12/lint`)
 
-1. **Tokens, not literals (`color-literal`):** No hard-coded hex/RGB/HSL colors or font stacks in component or screen files. Every surface, border, and text style uses `var(--f-*)` and `var(--font-f-*)`.
-2. **Semantic gutter grammar (`illegal-gutter`):** Layout spacing between panels uses three narrative gutters so distance carries meaning:
-   - `12px` (`--f-gutter-pair` / `gutter="pair"`): tightly paired panels (`PanelPair`) across a `16px` diagonal slant.
-   - `20px` (`--f-gutter-scene` / `gutter="scene"`): panels within the same scene.
-   - `32px` (`--f-gutter-change` / `gutter="change"`): separation between scenes down the sheet.
-3. **Sequential cut numbers (`cut-order` & `explicit-cut-in-autocut`):** Prefer `<Sheet autoCut>` so panels (`C-01`, `C-02`, `C-03`…) number automatically via CSS counters in DOM and reading order (`cut={false}` suppresses a panel's cut badge). When hand-numbering outside `autoCut`, cut labels must increment sequentially starting at `C-01`, and mixing explicit `cut` strings inside `<Sheet autoCut>` is flagged by `explicit-cut-in-autocut`.
-4. **Marker-yellow discipline (`marker-misuse`):** Highlighter yellow (`--f-marker`, `#ffd60a`) is used strictly as a highlight surface paired with `--f-marker-ink` (`#121212`) text or as an inked peak dot with a `2px` `--f-rule` stroke—never as raw text on a white sheet.
-5. **Adapter boundary (`raw-shadcn-import`):** Screens import primitives from `@/components/frame12` rather than bypassing the design language with unstyled third-party UI kits.
+- **Tokens, not literals (`color-literal`):** No hard-coded hex/RGB/HSL colors or font stacks in component or screen files. Every surface, border, and text style uses `var(--f-*)` and `var(--font-f-*)`.
+- **Semantic gutter grammar (`illegal-gutter`):** Layout spacing between panels uses three narrative gutters so distance carries meaning:
+  - `12px` (`--f-gutter-pair` / `gutter="pair"`): tightly paired panels (`PanelPair`) across a `16px` diagonal slant.
+  - `20px` (`--f-gutter-scene` / `gutter="scene"`): panels within the same scene.
+  - `32px` (`--f-gutter-change` / `gutter="change"`): separation between scenes down the sheet.
+- **Sequential cut numbers (`cut-order` & `explicit-cut-in-autocut`):** Prefer `<Sheet autoCut>` so panels (`C-01`, `C-02`, `C-03`…) number automatically via CSS counters in DOM and reading order (`cut={false}` suppresses a panel's cut badge). When hand-numbering outside `autoCut`, cut labels must increment sequentially starting at `C-01`, and mixing explicit `cut` strings inside `<Sheet autoCut>` is flagged by `explicit-cut-in-autocut`.
+- **Marker-yellow discipline (`marker-misuse`):** Highlighter yellow (`--f-marker`, `#ffd60a`) is used strictly as a highlight surface paired with `--f-marker-ink` (`#121212`) text or as an inked peak dot with a `2px` `--f-rule` stroke—never as raw text on a white sheet.
+- **Adapter boundary (`raw-shadcn-import`):** Screens import primitives from `@/components/frame12` rather than bypassing the design language with unstyled third-party UI kits or animation and charting libraries.
+- **Never on load (`ink-autoplay`):** `play` on `InkStroke`, `InkReveal` and `InkSequence` is never `true` or constant at mount; ink draws only after a user action.
+- **Safe generated HTML (`unsafe-html`):** Static HTML output loads no external resources and carries no inline handlers or `javascript:` URLs.
 
 ### Verified by Runtime Hooks, Playwright Tests (`npm test`), and Conventions
 
-6. **Motion on twos (`useOnTwos`):** Discrete state transitions hold each pose for `83.33ms` (`12fps`). Pointer hover, scrolling, typing, and chart crosshairs stay immediate (`0ms`). `prefers-reduced-motion: reduce` switches transitions to instant cuts (`0ms`).
-7. **Tempo (`TempoProvider`, `TempoControl`, `@/hooks/use-tempo`):** one viewer preference for every animation: AUTO (each component's own motion), 12 (on twos), 60 (smooth) or 0 (still). OS reduced motion always wins, `still` cannot be undone by a nested provider, and tempo never turns motion on where a component says `cut`. Without a provider nothing changes. See [`skills/frame12/references/components-and-adapters.md`](skills/frame12/references/components-and-adapters.md#2b-tempo-one-motion-preference-hooksuse-tempots-uitempotsx-uitempo-controltsx).
-8. **Flashback dark mode & WCAG AA accessibility:** Dark mode flips the sheet gutters pitch black (`#050505`) while keeping panels elevated (`#19191a`). Verified by automated Playwright + `@axe-core/playwright` audits for WCAG AA contrast, visible `:focus-visible` outlines, keyboard chart navigation, and semantic `<table>` fallbacks.
-9. **Minimal dependencies & craft originality:** Zero external animation or charting libraries—charts, screentone patterns, and stepped animations are built with React, SVG, and CSS. Accessible menu and select primitives use `@radix-ui/react-dropdown-menu` and `@radix-ui/react-select` (while `Dialog` uses native `<dialog>`). The system is inspired by print and cel-animation production craft rather than copied from any named work.
+- **Motion on twos (`useOnTwos`):** Discrete state transitions hold each pose for `83.33ms` (`12fps`). Pointer hover, scrolling, typing, and chart crosshairs stay immediate (`0ms`). `prefers-reduced-motion: reduce` switches transitions to instant cuts (`0ms`).
+- **Ink (`InkStroke`, `InkReveal`, `InkSequence`; opt-in `@frame12/ink-*` items):** SVG line art drawn on twos with CSS only (`stroke-dashoffset` in `steps(poses)`, no `requestAnimationFrame`). Finished at rest (no JavaScript, print, forced colors, `still`, reduced motion) and pixel-identical to a plain path once drawn. All FRAME/12 line art is generated from the system's own geometry; no third-party artwork is used, so no extra art licence applies. See [`skills/frame12/references/components-and-adapters.md`](skills/frame12/references/components-and-adapters.md#2c-ink-line-art-on-twos-uiinktsx-uiink-revealtsx-uiink-sequencetsx).
+- **Tempo (`TempoProvider`, `TempoControl`, `@/hooks/use-tempo`):** one viewer preference for every animation: AUTO (each component's own motion), 12 (on twos), 60 (smooth) or 0 (still). OS reduced motion always wins, `still` cannot be undone by a nested provider, and tempo never turns motion on where a component says `cut`. Without a provider nothing changes. See [`skills/frame12/references/components-and-adapters.md`](skills/frame12/references/components-and-adapters.md#2b-tempo-one-motion-preference-hooksuse-tempots-uitempotsx-uitempo-controltsx).
+- **Flashback dark mode & WCAG AA accessibility:** Dark mode flips the sheet gutters pitch black (`#050505`) while keeping panels elevated (`#19191a`). Verified by automated Playwright + `@axe-core/playwright` audits for WCAG AA contrast, visible `:focus-visible` outlines, keyboard chart navigation, and semantic `<table>` fallbacks.
+- **Minimal dependencies & craft originality:** Zero external animation or charting libraries—charts, screentone patterns, line art, and stepped animations are built with React, SVG, and CSS. Accessible menu and select primitives use `@radix-ui/react-dropdown-menu` and `@radix-ui/react-select` (while `Dialog` uses native `<dialog>`). The system is inspired by print and cel-animation production craft rather than copied from any named work.
 
 ---
 
@@ -250,7 +258,7 @@ npm test                          # runs sync checks, doc checks, static linter,
 | --- | --- |
 | [`packages/tokens/`](packages/tokens/) | Zero-dependency `@frame12/tokens` package generating `dist/tokens.css`, W3C DTCG `dist/tokens.json`, and TypeScript/JS `dist/index.js` + `dist/index.d.ts` (`tokens`, `cssText`) plus the token region of `registry/styles/frame12.css` from `src/tokens.source.json`. |
 | [`packages/lint/`](packages/lint/) | Zero-dependency `@frame12/lint` package (`lintSource`, `lintFiles`, `collectFiles`, `lintHtml`, `RULES`, and `frame12-lint` CLI) enforcing FRAME/12 design grammar across TSX/JSX/TS/JS, CSS, and generated HTML. |
-| [`registry/`](registry/) | Source for the 42 `shadcn`-compatible registry payloads (`registry/ui/`, `registry/blocks/`, `registry/hooks/use-on-twos.ts`, `registry/styles/frame12.css`, `registry/styles/frame12-tokens.css`), built into `site/public/r/*.json`. |
+| [`registry/`](registry/) | Source for the 52 `shadcn`-compatible registry payloads (`registry/ui/`, `registry/blocks/`, `registry/hooks/*.ts`, `registry/styles/frame12.css`, `registry/styles/frame12-tokens.css`), built into `site/public/r/*.json`. |
 | [`skills/frame12/`](skills/frame12/) | Portable AI Agent Skill (`SKILL.md`, `references/components-and-adapters.md`, `references/examples-and-mistakes.md`) and ESLint flat config (`eslint.frame12.mjs`). |
 | [`site/`](site/) | Next.js App Router documentation and interactive showcase deployed at **[frame12.dev](https://frame12.dev)**. |
 | [`templates/next-starter/`](templates/next-starter/) | Standalone Next.js App Router + TypeScript starter template pre-configured with local WOFF2 fonts (`next/font/local`), `.claude/skills/frame12/SKILL.md`, and `scripts/check-frame12.mjs`. |
@@ -276,7 +284,8 @@ All FRAME/12 source code, components, blocks, hooks, styles, agent skills, and l
 
 ### Roadmap & Feedback
 
-- **Unreleased on `main`:** `ExposureScrubber` (`@frame12/exposure-scrubber`) reads an agent run, CI pipeline or incident like an animator's exposure sheet: a server-rendered X-sheet with a timing column, one marked moment, data-given "led here from" links and a native-range transport (even, elapsed and flipbook timing; never autoplays). Its headless engine, `useExposure` (`@frame12/use-exposure`), is the one the planned `TraceTimeline` will reuse ([`docs/architecture/exposure-engine.md`](docs/architecture/exposure-engine.md)). Demos: `/components/exposure-scrubber`.
+- **Unreleased on `main`:** the ink layer: `InkStroke`, `InkReveal` and `InkSequence` (`@frame12/ink-stroke`, `@frame12/ink-reveal`, `@frame12/ink-sequence`) draw SVG line art on twos with CSS only, never on load, and the home page's "How a frame gets made" story is built from them. `@frame12/lint` 0.3.0 adds the `ink-autoplay` rule.
+- **Also unreleased on `main`:** `ExposureScrubber` (`@frame12/exposure-scrubber`) reads an agent run, CI pipeline or incident like an animator's exposure sheet: a server-rendered X-sheet with a timing column, one marked moment, data-given "led here from" links and a native-range transport (even, elapsed and flipbook timing; never autoplays). Its headless engine, `useExposure` (`@frame12/use-exposure`), is the one the planned `TraceTimeline` will reuse ([`docs/architecture/exposure-engine.md`](docs/architecture/exposure-engine.md)). Demos: `/components/exposure-scrubber`.
 - **Public `v0.3` & `v0.4` Roadmap:** Read [`docs/roadmap/v0.3-v0.4-roadmap.md`](docs/roadmap/v0.3-v0.4-roadmap.md) for planned open-source core primitives (`CommandPalette`, `Drawer`, `Popover`, `DateRangePicker`, `Accordion`, `CodeBlock`, `Kbd`/`CopyButton`, `Avatar`), screentone charts, free application blocks (`AgentReviewConsole`, `IncidentWarRoom`), and scope classifications.
 - **Share Feedback & Requests:**
   - **Bug reports & installation issues:** Open an issue at **[github.com/lbrodie11/frame12/issues](https://github.com/lbrodie11/frame12/issues)**.

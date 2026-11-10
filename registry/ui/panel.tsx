@@ -106,7 +106,7 @@ export const Panel = React.forwardRef<HTMLElement, PanelProps>(function Panel(
       {showSvgFrame &&
         (w > 0 ? (
           <svg className="f12-panel-frame" width={w} height={h} aria-hidden="true">
-            <polygon points={pts} />
+            <polygon points={pts} pathLength={1} />
           </svg>
         ) : (
           <svg

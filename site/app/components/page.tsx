@@ -16,7 +16,7 @@ import {
   TableCell,
   TableCaption,
 } from '@/components/frame12';
-import { CATALOG, BLOCK_CATALOG, type ComponentCategory } from '@/lib/catalog';
+import { CATALOG, BLOCK_CATALOG, COMPONENT_COUNT, type ComponentCategory } from '@/lib/catalog';
 import { CopyCommand } from '@/components/copy-command';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 import {
@@ -91,7 +91,7 @@ function CategoryTable({
 }
 
 export default function ComponentsIndexPage() {
-  const componentCount = CATALOG.filter((c) => c.category !== 'Motion Hooks').length;
+  const componentCount = COMPONENT_COUNT;
   const hookAndAdapterEntries = CATALOG.filter(
     (c) => c.category === 'Motion Hooks' || c.category === 'Primitive Adapters',
   );

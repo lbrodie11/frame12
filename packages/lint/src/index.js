@@ -8,6 +8,7 @@
 //   5. explicit-cut-in-autocut — No explicit cut/topCut/bottomCut on Panel/PanelPair inside <Sheet autoCut>
 //   6. raw-shadcn-import       — No raw @/components/ui/*, @radix-ui/*, or external chart/animation imports
 //   7. unsafe-html             — No external scripts/resources, iframes/embeds, inline on*= handlers, or javascript: URLs in HTML
+//   8. ink-autoplay            — InkStroke/InkReveal/InkSequence `play` is never `true` or constant at mount (nothing plays on load)
 
 import { readdirSync, readFileSync, realpathSync, statSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -29,6 +30,8 @@ export const RULES = Object.freeze({
     'Forbid raw @/components/ui/*, @radix-ui/*, or third-party chart/motion imports where a FRAME/12 component or adapter exists.',
   'unsafe-html':
     'Forbid external resource loads (<script src>, <link href>, <img src>, CSS @import/url()), embedded frames (<iframe>, <object>, <embed>, srcdoc), <meta http-equiv="refresh">, <base href>, inline on*= handlers, and javascript: URLs in generated HTML.',
+  'ink-autoplay':
+    'Forbid `play` on InkStroke, InkReveal, or InkSequence that is the literal `true` or a value constant at mount (a `true` constant, an unchanging `useState(true)`, or state set to `true` in a mount effect); ink draws only after a user action.',
 });
 
 const CODE_EXTENSIONS = new Set(['.tsx', '.ts', '.jsx', '.js', '.css', '.html', '.htm']);
@@ -1425,6 +1428,353 @@ function lintCutsWithTypeScript(ts, content, filePath, violations) {
   validateCutSequence(cutMatches, filePath, violations);
 }
 
+const INK_TAGS = new Set(['InkStroke', 'InkReveal', 'InkSequence']);
+
+/**
+ * Local JSX names that refer to an ink primitive: the canonical names plus any alias from a
+ * named import (`import { InkSequence as Story } from …`). Maps local name → canonical name.
+ */
+function inkTagAliases(importClauses) {
+  const map = new Map([...INK_TAGS].map((t) => [t, t]));
+  for (const [imported, local] of importClauses) {
+    if (INK_TAGS.has(imported)) map.set(local, imported);
+  }
+  return map;
+}
+const EFFECT_HOOKS = new Set(['useEffect', 'useLayoutEffect', 'useInsertionEffect']);
+/** Calls whose callback runs by itself soon after it is scheduled (no user action involved). */
+const SELF_RUNNING_CALLBACKS = new Set([
+  'setTimeout',
+  'setInterval',
+  'requestAnimationFrame',
+  'requestIdleCallback',
+  'queueMicrotask',
+  'startTransition',
+  'then',
+  'finally',
+  'flushSync',
+]);
+
+/**
+ * `ink-autoplay` (TypeScript AST): `play` on an ink primitive must change after mount through a
+ * user action. Flags the shorthand `play`, `play={true}`, an identifier bound to a `true`
+ * constant, a `useState(true)` whose setter is never used, and state set to `true` inside a
+ * mount effect (`useEffect(() => …, [])`).
+ */
+function lintInkAutoplayWithTypeScript(ts, content, filePath, violations) {
+  const sf = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+
+  const unwrap = (n) => {
+    let cur = n;
+    while (
+      cur &&
+      (ts.isParenthesizedExpression(cur) ||
+        ts.isAsExpression(cur) ||
+        ts.isNonNullExpression(cur) ||
+        (ts.isSatisfiesExpression && ts.isSatisfiesExpression(cur)))
+    ) {
+      cur = cur.expression;
+    }
+    return cur;
+  };
+  const isTrue = (n) => {
+    const u = unwrap(n);
+    if (!u) return false;
+    if (u.kind === ts.SyntaxKind.TrueKeyword) return true;
+    // `!0`, `!false`
+    if (ts.isPrefixUnaryExpression(u) && u.operator === ts.SyntaxKind.ExclamationToken) {
+      const o = unwrap(u.operand);
+      return (
+        o.kind === ts.SyntaxKind.FalseKeyword || (ts.isNumericLiteral(o) && Number(o.text) === 0)
+      );
+    }
+    // `() => true`
+    if (ts.isArrowFunction(u) && !ts.isBlock(u.body)) return isTrue(u.body);
+    return false;
+  };
+  const calleeName = (call) => {
+    const e = unwrap(call.expression);
+    if (ts.isIdentifier(e)) return e.text;
+    if (ts.isPropertyAccessExpression(e)) return e.name.text;
+    return null;
+  };
+
+  /** Adds every identifier a binding name declares (plain, object or array destructuring). */
+  const bindingIdentifiers = (nameNode, out) => {
+    if (!nameNode) return out;
+    if (ts.isIdentifier(nameNode)) out.push(nameNode);
+    else if (ts.isObjectBindingPattern(nameNode) || ts.isArrayBindingPattern(nameNode)) {
+      for (const el of nameNode.elements) if (ts.isBindingElement(el)) bindingIdentifiers(el.name, out);
+    }
+    return out;
+  };
+  const declaredIn = (decls, name) => {
+    for (const d of decls) {
+      const hit = bindingIdentifiers(d.name, []).find((id) => id.text === name);
+      if (hit) return hit;
+    }
+    return null;
+  };
+
+  /**
+   * The identifier that declares `name` as seen from `node`: the nearest enclosing scope wins
+   * (function parameters, block/file declarations, for/catch bindings), so sibling components
+   * and shadowing resolve to their own bindings.
+   */
+  function findDeclaration(node, name) {
+    for (let cur = node.parent; cur; cur = cur.parent) {
+      if (ts.isFunctionLike(cur) && cur.parameters) {
+        const hit = declaredIn(cur.parameters, name);
+        if (hit) return hit;
+      }
+      if (ts.isCatchClause(cur) && cur.variableDeclaration) {
+        const hit = declaredIn([cur.variableDeclaration], name);
+        if (hit) return hit;
+      }
+      if (
+        (ts.isForStatement(cur) || ts.isForOfStatement(cur) || ts.isForInStatement(cur)) &&
+        cur.initializer &&
+        ts.isVariableDeclarationList(cur.initializer)
+      ) {
+        const hit = declaredIn(cur.initializer.declarations, name);
+        if (hit) return hit;
+      }
+      const statements =
+        ts.isSourceFile(cur) || ts.isBlock(cur) || ts.isModuleBlock(cur) || ts.isCaseClause(cur) || ts.isDefaultClause(cur)
+          ? cur.statements
+          : null;
+      if (!statements) continue;
+      for (const stmt of statements) {
+        if (ts.isVariableStatement(stmt)) {
+          const hit = declaredIn(stmt.declarationList.declarations, name);
+          if (hit) return hit;
+        } else if ((ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt)) && stmt.name?.text === name) {
+          return stmt.name;
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Classifies the binding `name` resolves to from `node`: a const, a useState pair, or unknown. */
+  function resolveBinding(node, name) {
+    const id = findDeclaration(node, name);
+    if (!id) return null;
+    const parent = id.parent;
+    if (ts.isVariableDeclaration(parent) && parent.name === id) {
+      const isConst = (parent.parent.flags & ts.NodeFlags.Const) !== 0;
+      return { kind: 'var', isConst, init: parent.initializer };
+    }
+    if (ts.isBindingElement(parent) && ts.isArrayBindingPattern(parent.parent)) {
+      const pattern = parent.parent;
+      const decl = pattern.parent;
+      const [first, second] = pattern.elements;
+      const init = ts.isVariableDeclaration(decl) && decl.initializer && unwrap(decl.initializer);
+      if (first === parent && init && ts.isCallExpression(init) && calleeName(init) === 'useState') {
+        const setter =
+          second && ts.isBindingElement(second) && ts.isIdentifier(second.name) ? second.name : null;
+        return { kind: 'state', initial: init.arguments[0], setter };
+      }
+    }
+    return { kind: 'unknown' };
+  }
+
+  /** True for a function passed as the callback of a mount effect or of a call that runs it without a user action. */
+  const runsOnItsOwn = (fn) => {
+    const call = fn.parent;
+    // The callback is the first argument (`.then(cb)` and `.finally(cb)` included).
+    if (!call || !ts.isCallExpression(call) || call.arguments[0] !== fn) return false;
+    const name = calleeName(call) ?? '';
+    return EFFECT_HOOKS.has(name) || SELF_RUNNING_CALLBACKS.has(name);
+  };
+
+  /**
+   * Every reference to the `setter` declaration (by binding, not just by name), with whether it
+   * runs at mount: directly in a mount effect's callback, or in a timer/microtask/promise callback
+   * scheduled from it. A function the effect only registers (an event listener, a subscription)
+   * runs on a later event, not at mount, so calls inside it never count as mount calls.
+   */
+  function setterUses(setter) {
+    const uses = [];
+    const visit = (n, inMountEffect) => {
+      let mount = inMountEffect;
+      if (ts.isFunctionLike(n) && !runsOnItsOwn(n)) mount = false;
+      if (ts.isCallExpression(n) && EFFECT_HOOKS.has(calleeName(n) ?? '')) {
+        const deps = n.arguments[1] && unwrap(n.arguments[1]);
+        const mountOnly = deps ? ts.isArrayLiteralExpression(deps) && deps.elements.length === 0 : true; // no deps: runs on mount (and every render)
+        if (n.arguments[0]) visit(n.arguments[0], mountOnly);
+        for (const arg of n.arguments.slice(1)) visit(arg, mount);
+        visit(n.expression, mount);
+        return;
+      }
+      if (ts.isIdentifier(n) && n !== setter && n.text === setter.text && findDeclaration(n, n.text) === setter) {
+        const call = ts.isCallExpression(n.parent) && n.parent.expression === n ? n.parent : null;
+        uses.push({ call, mount });
+      }
+      ts.forEachChild(n, (c) => visit(c, mount));
+    };
+    visit(sf, false);
+    return uses;
+  }
+
+  const report = (node, message) => {
+    const start = node.getStart(sf);
+    const { line, character } = sf.getLineAndCharacterOfPosition(start);
+    violations.push({
+      rule: 'ink-autoplay',
+      file: filePath,
+      line: line + 1,
+      column: character + 1,
+      message,
+      snippet: node.getText(sf).slice(0, 120),
+    });
+  };
+
+  const importPairs = [];
+  for (const stmt of sf.statements) {
+    const named = ts.isImportDeclaration(stmt) && stmt.importClause?.namedBindings;
+    if (named && ts.isNamedImports(named)) {
+      for (const el of named.elements) importPairs.push([(el.propertyName ?? el.name).text, el.name.text]);
+    }
+  }
+  const inkTags = inkTagAliases(importPairs);
+
+  const check = (el) => {
+    const local = ts.isPropertyAccessExpression(el.tagName) ? el.tagName.name.text : el.tagName.getText(sf);
+    const tag = inkTags.get(local);
+    if (!tag) return;
+    for (const attr of el.attributes.properties) {
+      if (!ts.isJsxAttribute(attr) || attr.name.getText(sf) !== 'play') continue;
+      if (!attr.initializer) {
+        report(attr, `<${tag} play> plays on load. Ink must never draw on initial load (rule 5): drive \`play\` from a user action (or useChanged) instead.`);
+        continue;
+      }
+      if (ts.isStringLiteral(attr.initializer)) {
+        report(attr, `<${tag} play="${attr.initializer.text}"> is constant at mount. Drive \`play\` from a user action instead.`);
+        continue;
+      }
+      const expr = ts.isJsxExpression(attr.initializer) ? unwrap(attr.initializer.expression) : null;
+      if (!expr) continue;
+      if (isTrue(expr)) {
+        report(attr, `<${tag} play={true}> plays on load. Ink must never draw on initial load (rule 5): drive \`play\` from a user action (or useChanged) instead.`);
+        continue;
+      }
+      if (!ts.isIdentifier(expr)) continue;
+      const b = resolveBinding(expr, expr.text);
+      if (!b) continue;
+      if (b.kind === 'var' && b.isConst && b.init && isTrue(b.init)) {
+        report(attr, `<${tag} play={${expr.text}}> is the constant \`true\` at mount, so the ink plays on load. Drive \`play\` from a user action instead.`);
+        continue;
+      }
+      if (b.kind === 'state') {
+        const uses = b.setter ? setterUses(b.setter) : [];
+        if (isTrue(b.initial) && uses.length === 0) {
+          report(attr, `<${tag} play={${expr.text}}> comes from useState(true) and never changes, so the ink plays on load. Start from false and set it from a user action.`);
+          continue;
+        }
+        const mountTrue = uses.find((u) => u.mount && u.call && isTrue(u.call.arguments[0]));
+        if (mountTrue) {
+          report(attr, `<${tag} play={${expr.text}}> is set to true in a mount effect, which is the same as playing on load. Set it from a user action (or useChanged) instead.`);
+        }
+      }
+    }
+  };
+
+  const walk = (n) => {
+    if (ts.isJsxSelfClosingElement(n) || ts.isJsxOpeningElement(n)) check(n);
+    ts.forEachChild(n, walk);
+  };
+  walk(sf);
+}
+
+/** Skips a `{…}` expression starting at `i` (which is `{`), honouring strings and nesting. */
+function skipBraces(src, i) {
+  let depth = 0;
+  for (; i < src.length; i++) {
+    const c = src[i];
+    if (c === '"' || c === "'" || c === '`') {
+      for (i++; i < src.length && src[i] !== c; i++) if (src[i] === '\\') i++;
+    } else if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return i + 1;
+  }
+  return src.length;
+}
+
+/**
+ * Parses the attributes of a JSX opening tag starting at `i` (just after the tag name). Handles
+ * `{…}` values (including `=>` and `>` inside them), quoted strings and spreads. Returns the
+ * attributes and the index after the tag's closing `>`.
+ */
+function scanJsxAttributes(src, i) {
+  const attrs = [];
+  while (i < src.length) {
+    while (/\s/.test(src[i] ?? '')) i++;
+    const c = src[i];
+    if (c === undefined || c === '>') return { attrs, end: i + 1 };
+    if (c === '/' && src[i + 1] === '>') return { attrs, end: i + 2 };
+    if (c === '{') {
+      i = skipBraces(src, i); // {...spread}
+      continue;
+    }
+    const nameMatch = /^[A-Za-z_$][\w$:.-]*/.exec(src.slice(i, i + 200));
+    if (!nameMatch) return { attrs, end: i + 1 };
+    const start = i;
+    i += nameMatch[0].length;
+    while (/\s/.test(src[i] ?? '')) i++;
+    let value = null;
+    if (src[i] === '=') {
+      i++;
+      while (/\s/.test(src[i] ?? '')) i++;
+      if (src[i] === '"' || src[i] === "'") {
+        const q = src[i];
+        const close = src.indexOf(q, i + 1);
+        const stop = close < 0 ? src.length : close + 1;
+        value = src.slice(i, stop);
+        i = stop;
+      } else if (src[i] === '{') {
+        const stop = skipBraces(src, i);
+        value = src.slice(i, stop);
+        i = stop;
+      }
+    }
+    attrs.push({ name: nameMatch[0], value, index: start });
+  }
+  return { attrs, end: i };
+}
+
+/** Fallback for `ink-autoplay` when the optional `typescript` peer is not installed: literal forms only. */
+function lintInkAutoplayFallback(stripped, rawContent, filePath, violations) {
+  const pairs = [];
+  for (const m of stripped.matchAll(/\bimport\s*(?:type\s+)?\{([^}]*)\}\s*from/g)) {
+    for (const part of m[1].split(',')) {
+      const [imported, local] = part.trim().split(/\s+as\s+/);
+      if (imported) pairs.push([imported.trim(), (local ?? imported).trim()]);
+    }
+  }
+  const inkTags = inkTagAliases(pairs);
+  const tagRe = /<([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g;
+  let m;
+  while ((m = tagRe.exec(stripped)) !== null) {
+    const local = m[1].split('.').pop();
+    const tag = inkTags.get(local);
+    if (!tag) continue;
+    const { attrs, end } = scanJsxAttributes(stripped, m.index + m[0].length);
+    tagRe.lastIndex = end;
+    const play = attrs.find((a) => a.name === 'play');
+    if (!play) continue;
+    const v = play.value === null ? null : play.value.replace(/^\{\s*|\s*\}$/g, '').trim();
+    if (play.value !== null && v !== 'true') continue;
+    violations.push({
+      rule: 'ink-autoplay',
+      file: filePath,
+      line: lineNumberAt(rawContent, play.index),
+      column: columnNumberAt(rawContent, play.index),
+      message: `<${tag} ${play.value === null ? 'play' : 'play={true}'}> plays on load. Ink must never draw on initial load (rule 5): drive \`play\` from a user action instead.`,
+      snippet: stripped.slice(m.index, end).slice(0, 120),
+    });
+  }
+}
+
 /**
  * Regex fallback for `cut-order` and `explicit-cut-in-autocut` when the optional
  * `typescript` peer dependency is not installed.
@@ -1843,8 +2193,10 @@ export function lintSource(content, filePath = 'input.tsx', opts = {}) {
         );
       }
       lintCutsFallback(stripped, content, filePath, violations);
+      lintInkAutoplayFallback(stripped, content, filePath, violations);
     } else {
       lintCutsWithTypeScript(ts, content, filePath, violations);
+      lintInkAutoplayWithTypeScript(ts, content, filePath, violations);
     }
   }
 

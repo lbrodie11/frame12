@@ -37,7 +37,9 @@ jobs:
   verify:
     name: Install, Build, Test & Pack Verified Tarballs
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Runs the same npm test as CI's verify job (~28 min since the ink and story suites joined it
+    # in three engines), so it gets the same 40-minute stall guard.
+    timeout-minutes: 40
     permissions:
       contents: read
     container:

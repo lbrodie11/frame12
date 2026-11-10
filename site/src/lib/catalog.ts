@@ -2659,6 +2659,235 @@ const RAW_CATALOG: CatalogEntry[] = [
     "usageTemplate": "import { TempoProvider, TempoControl } from '@/components/frame12';\n\nexport function Header() {\n  return (\n    <TempoProvider storageKey=\"my-app-tempo\">\n      <TempoControl idPrefix=\"site-tempo\" />\n    </TempoProvider>\n  );\n}"
   },
   {
+    "slug": "ink-stroke",
+    "title": "InkStroke",
+    "category": "Motion Hooks",
+    "summary": "One SVG <path pathLength=\"1\"> inked on twos by CSS alone: stroke-dashoffset 1 → 0 in steps(poses) at 83.33ms per pose. Finished and dash-free at rest, never on load. Ships the seeded inkPencil wobble helper.",
+    "registryUrl": "https://frame12.dev/r/ink-stroke.json",
+    "sourceFile": "registry/ui/ink.tsx",
+    "whenToUse": [
+      "To draw one line of explanatory line art (a frame, a chart outline, a guide) after a user action.",
+      "Inside InkSequence/InkBeat for a multi-beat drawing."
+    ],
+    "whenNotToUse": [
+      "Never on data that updates (charts redraw through their own motion).",
+      "Never with play true at mount: nothing plays on load (the ink-autoplay lint rule)."
+    ],
+    "props": [
+      {
+        "name": "d",
+        "type": "string",
+        "defaultValue": "required",
+        "description": "Path data. Paths only: convert basic shapes to d at author time so pathLength behaves the same in every engine."
+      },
+      {
+        "name": "weight",
+        "type": "InkWeight",
+        "defaultValue": "'detail'",
+        "description": "'pencil' (--f-stroke-pencil in --f-ink-2, aria-hidden), 'detail' (--f-stroke-detail in --f-ink) or 'frame' (--f-stroke in --f-rule, mitered)."
+      },
+      {
+        "name": "poses",
+        "type": "number",
+        "defaultValue": "undefined",
+        "description": "Poses the stroke takes to draw (integer 1–24). Undefined uses the beat's poses, or 6 on its own (CSS fallback)."
+      },
+      {
+        "name": "at",
+        "type": "number",
+        "defaultValue": "undefined",
+        "description": "Pose offset inside an InkBeat (or on its own) at which drawing starts."
+      },
+      {
+        "name": "play",
+        "type": "boolean",
+        "defaultValue": "false",
+        "description": "Draws when it changes to true after mount. True at mount never draws. Ignored inside an InkSequence."
+      },
+      {
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "'stepped'",
+        "description": "Resolved against the viewer's tempo: stepped → steps(poses, jump-start), smooth → linear (same duration), cut → no animation."
+      },
+      {
+        "name": "onEnd",
+        "type": "() => void",
+        "defaultValue": "undefined",
+        "description": "Called once on animationend when the stroke finishes; not when motion resolves to cut mid-draw (that consumes the play: re-enabling motion never replays it, only a new false → true play does)."
+      }
+    ],
+    "subcomponents": [
+      {
+        "name": "inkPencil",
+        "propsType": "(segments: readonly InkSegment[], seed?: number, wobble?: number) => string",
+        "description": "Deterministic pencil construction lines: a pure function of geometry and a fixed seed (mulberry32), identical on server, client and in screenshots."
+      }
+    ],
+    "stateBehavior": "rest (no dash properties: pixel-identical to a plain path) → playing (data-ink=\"a\"|\"b\", keyframes f12InkDrawA/B, poses × --f-pose) → rest. No requestAnimationFrame, no timers, no getTotalLength().",
+    "a11yNotes": [
+      "The art is decorative: wrap it in an <svg aria-hidden=\"true\">; put meaning in HTML captions, which never animate.",
+      "No opacity fades: every intermediate pose has the same stroke contrast as the finished line (>= 3:1 against --f-panel in both themes)."
+    ],
+    "keyboardNotes": [
+      "Not interactive. Trigger play from a real control (a button with aria-pressed)."
+    ],
+    "themeBehavior": "stroke=\"currentColor\" with color from --f-ink, --f-rule (frame) or --f-ink-2 (pencil); CanvasText under forced colors.",
+    "responsiveBehavior": "pathLength=\"1\" normalizes the dash, so resizing mid-draw finishes correctly.",
+    "grammarNotes": [
+      "Motion on twos: each pose is held 83.33ms.",
+      "Tokens only: no hex, no opacity fades."
+    ],
+    "commonErrors": [
+      "<InkStroke play /> (plays on load).",
+      "Animating a <rect> or <polygon> instead of a path."
+    ],
+    "usageTemplate": "import { InkStroke } from '@/components/frame12/ink';\n\nexport function Underline() {\n  const [shown, setShown] = React.useState(false);\n  return (\n    <>\n      <button type=\"button\" aria-pressed={shown} onClick={() => setShown((s) => !s)}>Draw</button>\n      <svg viewBox=\"0 0 200 10\" aria-hidden=\"true\">\n        <InkStroke d=\"M0 5H200\" poses={6} play={shown} />\n      </svg>\n    </>\n  );\n}"
+  },
+  {
+    "slug": "ink-reveal",
+    "title": "InkReveal",
+    "category": "Motion Hooks",
+    "summary": "Inks a Panel or PanelPair frame (6 poses) before its cut number lands (1 pose) and its content appears in one cut. CSS only; the stroke starts top-left (top-right under dir=\"rtl\").",
+    "registryUrl": "https://frame12.dev/r/ink-reveal.json",
+    "sourceFile": "registry/ui/ink-reveal.tsx",
+    "whenToUse": [
+      "On a panel's first user-triggered appearance (a result panel after Run, a detail after a choice)."
+    ],
+    "whenNotToUse": [
+      "On panels present at load, or on every update: only the first user-triggered appearance.",
+      "On panels whose data keeps updating."
+    ],
+    "props": [
+      {
+        "name": "play",
+        "type": "boolean",
+        "defaultValue": "false",
+        "description": "Reveals when it changes to true after mount. True at mount never plays."
+      },
+      {
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "'stepped'",
+        "description": "Resolved against the viewer's tempo; cut shows the panel finished."
+      },
+      {
+        "name": "onEnd",
+        "type": "() => void",
+        "defaultValue": "undefined",
+        "description": "Called exactly once per reveal when the content has appeared (a PanelPair or nested panels still give one call); not when motion resolves to cut mid-reveal (that consumes the play: only a new false → true play reveals again)."
+      },
+      {
+        "name": "children",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "One Panel or PanelPair."
+      }
+    ],
+    "stateBehavior": "Animates only Panel's measured polygon (pathLength=\"1\"), never the SSR viewBox polygon (vector-effect: non-scaling-stroke). At rest the panel is pixel-identical to a plain Panel.",
+    "a11yNotes": [
+      "Content is hidden for 7 poses (583ms) during a reveal and then appears in one cut; it is never faded."
+    ],
+    "keyboardNotes": [
+      "Not interactive; wraps its child in a display: contents element."
+    ],
+    "themeBehavior": "Uses Panel's own frame tokens (--f-rule on --f-panel); forced colors and print show the finished panel.",
+    "responsiveBehavior": "pathLength normalizes the frame, so a resize mid-reveal finishes correctly.",
+    "grammarNotes": [
+      "Frame 6 poses → cut 1 pose → content in one cut (no fade)."
+    ],
+    "commonErrors": [
+      "Wrapping a panel that renders on load and passing play={true}."
+    ],
+    "usageTemplate": "import { Panel } from '@/components/frame12';\nimport { InkReveal } from '@/components/frame12/ink-reveal';\n\nexport function Result({ ready }: { ready: boolean }) {\n  return (\n    <InkReveal play={ready}>\n      <Panel label=\"Result\">…</Panel>\n    </InkReveal>\n  );\n}"
+  },
+  {
+    "slug": "ink-sequence",
+    "title": "InkSequence, InkBeat & InkLand",
+    "category": "Motion Hooks",
+    "summary": "One state machine (rest, playing, scrubbing, still) for multi-beat line art. Beats chain by CSS animation-delay sums; an optional scroll driver uses animation-timeline: view(); Stop always lands on the finished drawing.",
+    "registryUrl": "https://frame12.dev/r/ink-sequence.json",
+    "sourceFile": "registry/ui/ink-sequence.tsx",
+    "whenToUse": [
+      "For one explanatory drawing per page that a user plays (a Play button) or scrolls through."
+    ],
+    "whenNotToUse": [
+      "Never more than one InkSequence per page.",
+      "Never on data that updates.",
+      "Never as decoration that delays the page: the hero comes first."
+    ],
+    "props": [
+      {
+        "name": "beats",
+        "type": "readonly number[]",
+        "defaultValue": "required",
+        "description": "Pose count of each beat in order (integers 1–24)."
+      },
+      {
+        "name": "play",
+        "type": "boolean",
+        "defaultValue": "false",
+        "description": "Plays every beat when it changes to true after mount; false stops and returns to rest (finished)."
+      },
+      {
+        "name": "scroll",
+        "type": "boolean",
+        "defaultValue": "false",
+        "description": "Lets scroll position drive the poses where animation-timeline: view() is supported and motion is not cut. Attached after mount once the drawing has been out of view (hydration never swaps a finished drawing on screen for a scroll pose); the first play detaches it."
+      },
+      {
+        "name": "motion",
+        "type": "MotionMode",
+        "defaultValue": "'stepped'",
+        "description": "Resolved against the viewer's tempo; cut gives the still state."
+      },
+      {
+        "name": "onEnd",
+        "type": "() => void",
+        "defaultValue": "undefined",
+        "description": "Called on animationend of the last beat (the root's clock animation)."
+      },
+      {
+        "name": "onStateChange",
+        "type": "(state: InkSequenceState) => void",
+        "defaultValue": "undefined",
+        "description": "Called whenever the state machine changes state."
+      }
+    ],
+    "subcomponents": [
+      {
+        "name": "InkBeat",
+        "propsType": "InkBeatProps",
+        "description": "<g> for one beat: sets --f12-ink-beat (start pose) and --f12-ink-poses for the strokes inside."
+      },
+      {
+        "name": "InkLand",
+        "propsType": "InkLandProps",
+        "description": "<g> for non-stroke art (screentone, labels): lands in one pose (reveal=\"cut\") or wipes in reading order (reveal=\"wipe\")."
+      }
+    ],
+    "stateBehavior": "rest is the default, SSR and no-JS state (finished). playing is time-driven (data-ink=\"a\"|\"b\"); scrubbing is scroll-driven (data-ink-scroll); still when motion resolves to cut. A tempo or reduced-motion change mid-play finishes the play.",
+    "a11yNotes": [
+      "The art is decorative: wrap it in an <svg aria-hidden=\"true\">; put meaning in HTML captions, which never animate.",
+      "No opacity fades: every intermediate pose has the same stroke contrast as the finished line (>= 3:1 against --f-panel in both themes).",
+      "Play controls should be real buttons with aria-pressed; sequences stay under 5 s so WCAG 2.2.2 is met by design."
+    ],
+    "keyboardNotes": [
+      "Not interactive; drive play from a button."
+    ],
+    "themeBehavior": "Strokes follow InkStroke tokens; forced colors and print show the finished drawing.",
+    "responsiveBehavior": "Wrap any number of <svg> drawings; set --f12-ink-timeline to a named view timeline for a sticky stage.",
+    "grammarNotes": [
+      "No scroll listeners, no scroll-snap: scroll is never stepped or hijacked.",
+      "Beats chain by CSS animation-delay, never timers."
+    ],
+    "commonErrors": [
+      "Two InkSequences on one page.",
+      "Setting play to true in a mount effect (ink-autoplay)."
+    ],
+    "usageTemplate": "import { InkStroke } from '@/components/frame12/ink';\nimport { InkBeat, InkSequence } from '@/components/frame12/ink-sequence';\n\nexport function Story() {\n  const [playing, setPlaying] = React.useState(false);\n  return (\n    <>\n      <button type=\"button\" aria-pressed={playing} onClick={() => setPlaying((p) => !p)}>\n        {playing ? 'Stop' : 'Watch it get made'}\n      </button>\n      <InkSequence beats={[12, 12]} play={playing} onEnd={() => setPlaying(false)}>\n        <svg viewBox=\"0 0 200 100\" aria-hidden=\"true\">\n          <InkBeat beat={0}><InkStroke weight=\"pencil\" d=\"M0 50H200\" /></InkBeat>\n          <InkBeat beat={1}><InkStroke weight=\"frame\" d=\"M10 10H190V90H10Z\" /></InkBeat>\n        </svg>\n      </InkSequence>\n    </>\n  );\n}"
+  },
+  {
     "slug": "exposure-scrubber",
     "title": "ExposureScrubber",
     "category": "Data & Charts",
@@ -3709,3 +3938,9 @@ export function getCatalogEntry(slug: string): CatalogEntry | undefined {
 export function getBlockCatalogEntry(slug: string): BlockCatalogEntry | undefined {
   return BLOCK_CATALOG.find((b) => b.slug === slug);
 }
+
+/**
+ * Components shown on /components (every catalog entry except motion hooks). Derived, so links
+ * and copy that quote it ("Browse N Components") never go stale.
+ */
+export const COMPONENT_COUNT = CATALOG.filter((c) => c.category !== 'Motion Hooks').length;

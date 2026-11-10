@@ -27,6 +27,7 @@ import {
   type MotionMode,
 } from '@/hooks/use-on-twos';
 import { useResolvedMotion, useTempo } from '@/hooks/use-tempo';
+import { InkStroke } from '@/components/frame12/ink';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 import {
   SUMMARIES,
@@ -93,6 +94,22 @@ function PoseStrip({ tweenKey }: { tweenKey: string }) {
           <span className="pose-cell-ms">{pose.ratio}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** One InkStroke drawn on demand: a mitered frame and a rising line, 6 poses each. */
+function InkDemo() {
+  const [drawn, setDrawn] = React.useState(false);
+  return (
+    <div className="f12-row-pair">
+      <Button id="motion-ink-draw" aria-pressed={drawn} onClick={() => setDrawn((d) => !d)}>
+        {drawn ? 'Reset' : 'Draw it'}
+      </Button>
+      <svg viewBox="0 0 240 80" width="240" height="80" aria-hidden="true" focusable="false">
+        <InkStroke weight="frame" d="M4 4H236V76H4Z" poses={6} play={drawn} />
+        <InkStroke d="M16 64L60 48L104 54L148 30L192 36L224 16" poses={6} at={3} play={drawn} />
+      </svg>
     </div>
   );
 }
@@ -439,6 +456,81 @@ export default function MotionPage() {
             <p className="f12-muted-copy">
               Never stepped at any tempo: pointer tracking, dragging, scrolling, typing and focus
               movement. Static HTML reports (@frame12/static) have no motion to set.
+            </p>
+          </div>
+        </Panel>
+      </Scene>
+
+      <Scene gutter="scene" layout="stack">
+        <Panel label="Ink: line art on twos" id="ink">
+          <div className="f12-stack-pair">
+            <div className="f12-row-pair">
+              <Tag>Ink</Tag>
+              <span className="f12-mono-note">InkStroke · InkReveal · InkSequence</span>
+            </div>
+            <h2 className="f12-section-title">Line art drawn on twos, finished at rest</h2>
+            <p className="f12-body-copy">
+              Three opt-in registry items draw SVG line art with CSS alone. Each stroke is a{' '}
+              <code className="f12-code-inline">{'<path pathLength="1">'}</code>; drawing moves
+              its dash offset from 1 to 0 in <code className="f12-code-inline">steps(poses)</code>,
+              one pose every 83.33ms. <strong>InkStroke</strong> draws one line,{' '}
+              <strong>InkReveal</strong> inks a panel&rsquo;s frame (6 poses), lands its cut number
+              (1 pose) and shows the content in one cut, and <strong>InkSequence</strong> plays
+              beats in order from one state machine (rest, playing, scrubbing, still).
+            </p>
+            <InkDemo />
+            <Table>
+              <TableCaption>How ink follows the tempo.</TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Tempo</TableHead>
+                  <TableHead scope="col">Ink</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>12 (on twos, the default)</TableCell>
+                  <TableCell>steps(poses, jump-start) over poses × 83.33ms</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>60 (smooth)</TableCell>
+                  <TableCell>linear, same duration</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>0 (still) or reduced motion</TableCell>
+                  <TableCell>No animation: the finished drawing (a storyboard)</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+            <ul className="f12-body-copy">
+              <li>
+                <strong>Never on load.</strong> <code className="f12-code-inline">play</code>{' '}
+                changes only through a user action; the <code className="f12-code-inline">ink-autoplay</code>{' '}
+                lint rule rejects <code className="f12-code-inline">play</code>,{' '}
+                <code className="f12-code-inline">{'play={true}'}</code> and values constant at mount.
+              </li>
+              <li>
+                <strong>Finished at rest.</strong> Without JavaScript, in print, under forced colors,
+                at tempo 0 and with reduced motion, the drawing is complete: a storyboard of finished
+                panels, never an empty stage. A finished stroke is pixel-identical to a plain path.
+              </li>
+              <li>
+                <strong>Scroll is never hijacked.</strong> Where{' '}
+                <code className="f12-code-inline">animation-timeline: view()</code> is supported the
+                poses can follow the scroll position; there are no scroll listeners and no scroll
+                snapping.
+              </li>
+              <li>
+                <strong>When not to use ink:</strong> never on data that updates, never more than
+                one <code className="f12-code-inline">InkSequence</code> per page, and{' '}
+                <code className="f12-code-inline">InkReveal</code> only on a panel&rsquo;s first
+                user-triggered appearance.
+              </li>
+            </ul>
+            <p className="f12-muted-copy">
+              All FRAME/12 line art is generated from the system&rsquo;s own geometry (columns,
+              gutters, frames, screentone, cut labels). It uses no third-party artwork, so no extra
+              art licence applies.
             </p>
           </div>
         </Panel>

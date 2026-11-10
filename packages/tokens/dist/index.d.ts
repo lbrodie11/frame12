@@ -25,6 +25,8 @@ export interface Frame12Gutters {
 
 export interface Frame12Stroke {
   readonly ink: string;
+  readonly pencil: string;
+  readonly detail: string;
 }
 
 export interface Frame12Motion {

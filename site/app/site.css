@@ -1003,6 +1003,133 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   color: var(--f-ink-2);
 }
 
+/* Home: "How a frame gets made" (pencil → ink → tone → cut). A four-panel storyboard strip that
+   is finished at rest; scroll (where animation-timeline is supported) or "Watch it get made"
+   draws it on twos. The SVGs are aria-hidden; every caption and link is HTML. */
+.home-story {
+  min-width: 0;
+}
+.home-story-track {
+  --f12-ink-timeline: --home-story;
+  view-timeline-name: --home-story;
+  view-timeline-axis: block;
+}
+.home-story-stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--f-gutter-scene);
+  container-type: inline-size;
+  background: var(--f-sheet);
+}
+.home-story-head {
+  align-items: flex-end;
+}
+.home-story-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--f-gutter-scene);
+}
+.home-story-beat {
+  display: flex;
+  min-width: 0;
+}
+.home-story-beat > .f12-panel {
+  flex: 1;
+}
+@container (min-width: 480px) {
+  .home-story-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (min-width: 960px) {
+  .home-story-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.home-story-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: var(--f-ink);
+  background: var(--f-panel);
+}
+.home-story-title {
+  margin: 0;
+  font-family: var(--font-f-display);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.25;
+}
+.home-story-note {
+  font-family: var(--font-f-mono);
+  font-size: 9px;
+  font-weight: 500;
+  fill: var(--f-ink-2);
+  paint-order: stroke;
+  stroke: var(--f-panel);
+  stroke-width: 3px;
+}
+.home-story-cut {
+  font-family: var(--font-f-mono);
+  font-size: 7.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  fill: var(--f-ink);
+}
+.home-story-cut-box {
+  fill: var(--f-panel);
+}
+.home-story-skip {
+  align-self: flex-start;
+  color: var(--f-ink);
+}
+/* Scroll driver layout: where scroll timelines are supported and the strip fits the viewport, the
+   stage sticks inside a track at most 1.5 extra viewport heights tall (the spacer sits inside the
+   content box so the sticky stage can travel through it). It depends on CSS alone, never on JS
+   state or tempo, so hydration and tempo changes never move the page (CLS 0); under `still` the
+   finished storyboard simply stays pinned while you scroll past. Native scroll only. */
+@supports (animation-timeline: view()) {
+  @media (min-width: 1000px) and (min-height: 720px) {
+    .home-story-track::after {
+      content: "";
+      display: block;
+      height: 150svh;
+    }
+    .home-story-stage {
+      position: sticky;
+      top: var(--f-gutter-change);
+    }
+  }
+}
+@media (forced-colors: active) {
+  .home-story-note,
+  .home-story-cut {
+    fill: CanvasText;
+  }
+  .home-story-note {
+    stroke: Canvas;
+  }
+  .home-story-cut-box {
+    fill: Canvas;
+  }
+}
+@media print {
+  .home-story-track::after {
+    display: none !important;
+  }
+  .home-story-stage {
+    position: static !important;
+  }
+  .home-story-skip,
+  #home-story-play {
+    display: none;
+  }
+}
+/* end: How a frame gets made */
+
 /* ExposureScrubber docs: the raw log beside each demo ("find the cause") */
 .f12-xs-demo-log {
   margin: 0;

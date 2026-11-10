@@ -945,6 +945,14 @@ export function renderSingleHtml() {
       ['--yes', 'shadcn', 'add', `http://127.0.0.1:${port}/r/tempo.json`, '--yes', '--overwrite'],
       { cwd: metricDir, env },
     );
+    // Ink items one by one: each brings only what it needs (ink-reveal → ink-stroke + panel).
+    const inkAdd = await runAsync(
+      'npx',
+      ['--yes', 'shadcn', 'add', `http://127.0.0.1:${port}/r/ink-reveal.json`, `http://127.0.0.1:${port}/r/ink-sequence.json`, '--yes', '--overwrite'],
+      { cwd: metricDir, env },
+    );
+    const inkFiles = ['src/components/frame12/ink.tsx', 'src/components/frame12/ink-pencil.ts', 'src/components/frame12/ink-reveal.tsx', 'src/components/frame12/ink-sequence.tsx', 'src/components/frame12/panel.tsx'];
+    const inkMissing = inkFiles.filter((f) => !existsSync(join(metricDir, f)));
     symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(metricDir, 'node_modules'), 'dir');
     writeFileSync(
       join(metricDir, 'src/app/metric-check.tsx'),
@@ -964,10 +972,36 @@ export function useCurrentTempo() {
 }
 `,
     );
+    writeFileSync(
+      join(metricDir, 'src/app/ink-check.tsx'),
+      `import * as React from 'react';
+import { Panel } from '@/components/frame12/panel';
+import { InkStroke } from '@/components/frame12/ink';
+import { InkReveal } from '@/components/frame12/ink-reveal';
+import { InkBeat, InkSequence } from '@/components/frame12/ink-sequence';
+export function InkCheck() {
+  const [play, setPlay] = React.useState(false);
+  return (
+    <>
+      <button type="button" aria-pressed={play} onClick={() => setPlay((p) => !p)}>Draw</button>
+      <InkSequence beats={[6]} play={play}>
+        <svg aria-hidden="true"><InkBeat beat={0}><InkStroke d="M0 0H10" /></InkBeat></svg>
+      </InkSequence>
+      <InkReveal play={play}><Panel label="P" /></InkReveal>
+    </>
+  );
+}
+`,
+    );
     const metricTsc = spawnSync(tscBin, ['--noEmit', '-p', join(metricDir, 'tsconfig.json')], {
       cwd: metricDir,
       encoding: 'utf8',
     });
+    check(
+      inkAdd.status === 0 && inkMissing.length === 0 && metricTsc.status === 0,
+      'Individual install of /r/ink-reveal.json and /r/ink-sequence.json (React 19) brings ink.tsx, ink-pencil.ts and panel.tsx and passes tsc --noEmit',
+      inkMissing.length ? `missing: ${inkMissing.join(', ')}` : '',
+    );
     check(
       metricAdd.status === 0 && missing.length === 0 && tempoAdd.status === 0 && metricTsc.status === 0,
       'Individual install of /r/metric.json alone brings hooks/use-tempo.ts (via use-on-twos and its own registryDependencies); adding /r/tempo.json shares that one module and passes tsc --noEmit',
@@ -1125,6 +1159,9 @@ export function useHeadless() {
         `http://127.0.0.1:${port}/r/developer-console.json`,
         `http://127.0.0.1:${port}/r/workspace-settings.json`,
         `http://127.0.0.1:${port}/r/analytics-dashboard.json`,
+        `http://127.0.0.1:${port}/r/ink-stroke.json`,
+        `http://127.0.0.1:${port}/r/ink-reveal.json`,
+        `http://127.0.0.1:${port}/r/ink-sequence.json`,
         '--yes',
         '--overwrite',
       ],
@@ -1176,6 +1213,32 @@ const XS_FRAMES: ExposureFrame[] = Array.from({ length: 12 }, (_, i) => ({
 import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';
 import { WorkspaceSettings } from '@/components/frame12/blocks/workspace-settings';
 import { AnalyticsDashboard } from '@/components/frame12/blocks/analytics-dashboard';
+import { InkStroke, inkPencil } from '@/components/frame12/ink';
+import { InkReveal } from '@/components/frame12/ink-reveal';
+import { InkBeat, InkLand, InkSequence } from '@/components/frame12/ink-sequence';
+
+function Ink() {
+  const [playing, setPlaying] = React.useState(false);
+  return (
+    <>
+      <Button id="r18-ink-play" aria-pressed={playing} onClick={() => setPlaying((p) => !p)}>
+        {playing ? 'Stop' : 'Watch it get made'}
+      </Button>
+      <InkSequence id="r18-ink" beats={[6, 6]} play={playing} onEnd={() => setPlaying(false)}>
+        <svg viewBox="0 0 200 100" width="200" height="100" aria-hidden="true">
+          <InkBeat beat={0}><InkStroke weight="pencil" d={inkPencil([[10, 50, 190, 50]])} /></InkBeat>
+          <InkBeat beat={1}>
+            <InkStroke weight="frame" d="M10 10H190V90H10Z" />
+            <InkLand at={2}><text x="20" y="30">C-01</text></InkLand>
+          </InkBeat>
+        </svg>
+      </InkSequence>
+      <InkReveal play={playing}>
+        <Panel label="Revealed" cut={false}>Ink reveal</Panel>
+      </InkReveal>
+    </>
+  );
+}
 
 export function App() {
   const [on, setOn] = React.useState(false);
@@ -1224,6 +1287,7 @@ export function App() {
       <DeveloperConsole idPrefix="r18-console" />
       <WorkspaceSettings idPrefix="r18-settings" />
       <AnalyticsDashboard idPrefix="r18-analytics" />
+      <Ink />
     </ToastProvider>
   );
 }
@@ -1389,6 +1453,16 @@ export default {
           const tabs = [...document.querySelectorAll('[role="tablist"][aria-label="React 18 tabs"] [role="tab"]')];
           return tabs[1]?.getAttribute('aria-selected') === 'true';
         });
+        const inkRest = await page.evaluate(() => document.getElementById('r18-ink')?.dataset.inkState);
+        await page.click('#r18-ink-play');
+        const inkPlaying = await page
+          .waitForFunction(() => document.getElementById('r18-ink')?.dataset.inkState === 'playing', null, { timeout: 3000 })
+          .then(() => true, () => false);
+        check(
+          inkRest === 'rest' && inkPlaying && errors.length === 0,
+          'React 18 consumer: ink-stroke, ink-reveal and ink-sequence install, type-check, SSR at rest, build, hydrate and play on a click',
+          JSON.stringify({ inkRest, inkPlaying }),
+        );
         check(
           runtimeVersion === '18.3.1' && dialogOpened && dialogClosed && focusReturned && switchOn && secondTabSelected && errors.length === 0,
           `React 18 consumer: hydrates on react-dom@${runtimeVersion} in Chromium; Dialog open/Escape/focus return, Switch, and Tabs arrow-key selection work with zero console/hydration errors`,

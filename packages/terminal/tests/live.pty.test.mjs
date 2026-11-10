@@ -321,35 +321,73 @@ describe('live view in a real pty', { skip: !pty && !REQUIRED ? 'node-pty is not
     await app.exited;
   });
 
+  // Keypress latency. The requirement is the app's: a key's frame is written within 50 ms (p95).
+  // It is measured on the app's side (key read from stdin → next frame carrying the selection
+  // marker written to stdout, recorded by the fixture's F12_LATENCY_LOG) and held to 50 ms on every
+  // platform. The end-to-end time this harness sees adds the transport: a plain pty on Linux and
+  // macOS (held to the same 50 ms), but ConPTY on Windows, which repaints the console to the pty on
+  // its own render cadence (Windows runners measured p50 ~32 ms end to end against ~13 ms on Linux,
+  // with p95 at 47.7–50.7 ms: no headroom). There the end-to-end bound adds CONPTY_ALLOWANCE_MS,
+  // so a real regression in what Windows users see still fails, but the console's repaint does not.
+  // Two warm-up presses (JIT, first render paths) are not counted.
+  const CONPTY_ALLOWANCE_MS = 35;
+  const p95 = (xs) => [...xs].sort((a, b) => a - b)[Math.ceil(xs.length * 0.95) - 1];
+  const p50 = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
   for (const motion of ['twos', 'ones', 'still']) {
     it(`echoes keys within 50 ms at p95 (${motion})`, async () => {
-      const app = spawnApp(['--scenario', 'hold', '--fixture', 'forty-findings', '--delay', '0'], { env: { FRAME12_MOTION: motion } });
-      await app.waitFor(ready);
-      await app.waitFor(({ screen }) => /› F-01/.test(screen));
-      const samples = [];
-      for (let i = 2; i <= 21; i++) {
-        const target = `› F-${String(i).padStart(2, '0')}`;
-        const t0 = performance.now();
-        const seen = new Promise((resolve) => {
-          const stop = app.onData(() => {
-            app.term.write('', () => {
-              if (app.visible().some((l) => l.startsWith(target))) {
-                stop();
-                resolve();
-              }
+      const { mkdtempSync, readFileSync, rmSync } = await import('node:fs');
+      const { tmpdir } = await import('node:os');
+      const dir = mkdtempSync(path.join(tmpdir(), 'f12-latency-'));
+      const log = path.join(dir, 'latency.json');
+      const app = spawnApp(['--scenario', 'hold', '--fixture', 'forty-findings', '--delay', '0'], {
+        env: { FRAME12_MOTION: motion, F12_LATENCY_LOG: log },
+      });
+      try {
+        await app.waitFor(ready);
+        await app.waitFor(({ screen }) => /› F-01/.test(screen));
+        const WARMUP = 2;
+        const MEASURED = 20;
+        const endToEnd = [];
+        const pressedAt = [];
+        for (let i = 2; i <= 1 + WARMUP + MEASURED; i++) {
+          const target = `› F-${String(i).padStart(2, '0')}`;
+          const t0 = performance.now();
+          const seen = new Promise((resolve) => {
+            const stop = app.onData(() => {
+              app.term.write('', () => {
+                if (app.visible().some((l) => l.startsWith(target))) {
+                  stop();
+                  resolve();
+                }
+              });
             });
           });
+          app.child.write('j');
+          await seen;
+          if (i > 1 + WARMUP) endToEnd.push(performance.now() - t0);
+          pressedAt.push(i);
+        }
+        app.child.write('\u0003');
+        await app.exited;
+        // The app's side: each `j` read, paired with the next frame it wrote.
+        const { keys, frames } = JSON.parse(readFileSync(log, 'utf8'));
+        const jReads = keys.filter((k) => k.key === 'j');
+        assert.equal(jReads.length, WARMUP + MEASURED, `the app read every key once (${jReads.length})`);
+        const appSide = jReads.slice(WARMUP).map(({ t }) => {
+          const frame = frames.find((f) => f >= t);
+          assert.ok(frame !== undefined, 'every key was answered by a frame');
+          return frame - t;
         });
-        app.child.write('j');
-        await seen;
-        samples.push(performance.now() - t0);
+        const bound = 50 + (WIN ? CONPTY_ALLOWANCE_MS : 0);
+        console.log(
+          `keypress-to-frame ${motion}: app p50 ${p50(appSide).toFixed(1)} ms, p95 ${p95(appSide).toFixed(1)} ms; ` +
+            `end to end p50 ${p50(endToEnd).toFixed(1)} ms, p95 ${p95(endToEnd).toFixed(1)} ms (bound ${bound} ms)`,
+        );
+        assert.ok(p95(appSide) <= 50, `app p95 ${p95(appSide).toFixed(1)} ms (requirement: 50 ms)`);
+        assert.ok(p95(endToEnd) <= bound, `end-to-end p95 ${p95(endToEnd).toFixed(1)} ms (bound ${bound} ms)`);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
       }
-      samples.sort((a, b) => a - b);
-      const p95 = samples[Math.ceil(samples.length * 0.95) - 1];
-      console.log(`keypress-to-frame ${motion}: p50 ${samples[9].toFixed(1)} ms, p95 ${p95.toFixed(1)} ms`);
-      assert.ok(p95 <= 50, `p95 ${p95.toFixed(1)} ms`);
-      app.child.write('\u0003');
-      await app.exited;
     });
   }
 
