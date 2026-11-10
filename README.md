@@ -25,6 +25,10 @@ Build expressive dashboards, developer tools, and editorial interfaces with ink-
 | --- | --- |
 | [![Motion on Twos — Light](docs/images/site-motion-light.png)](https://frame12.dev/motion) | [![Motion on Twos — Dark](docs/images/site-motion-dark.png)](https://frame12.dev/motion) |
 
+**How a frame gets made** (the home page story: pencil → ink → tone → cut, drawn on twos by CSS alone; regenerate with `node scripts/story-media.mjs`, [WebM](docs/images/story.webm)):
+
+![Pencil, ink, tone and cut drawn on twos across four storyboard panels](docs/images/story.gif)
+
 ---
 
 ## Install FRAME/12
@@ -224,6 +228,7 @@ FRAME/12 replaces subjective styling feedback with eight explicit rules—**five
 ### Verified by Runtime Hooks, Playwright Tests (`npm test`), and Conventions
 
 6. **Motion on twos (`useOnTwos`):** Discrete state transitions hold each pose for `83.33ms` (`12fps`). Pointer hover, scrolling, typing, and chart crosshairs stay immediate (`0ms`). `prefers-reduced-motion: reduce` switches transitions to instant cuts (`0ms`).
+6b. **Ink (`InkStroke`, `InkReveal`, `InkSequence`; opt-in `@frame12/ink-*` items):** SVG line art drawn on twos with CSS only (`stroke-dashoffset` in `steps(poses)`, no `requestAnimationFrame`). Never on load (the `ink-autoplay` rule in `@frame12/lint`), finished at rest (no JavaScript, print, forced colors, `still`, reduced motion), and pixel-identical to a plain path once drawn. All FRAME/12 line art is generated from the system's own geometry; no third-party artwork is used, so no extra art licence applies. See [`skills/frame12/references/components-and-adapters.md`](skills/frame12/references/components-and-adapters.md#2c-ink-line-art-on-twos-uiinktsx-uiink-revealtsx-uiink-sequencetsx).
 7. **Tempo (`TempoProvider`, `TempoControl`, `@/hooks/use-tempo`):** one viewer preference for every animation: AUTO (each component's own motion), 12 (on twos), 60 (smooth) or 0 (still). OS reduced motion always wins, `still` cannot be undone by a nested provider, and tempo never turns motion on where a component says `cut`. Without a provider nothing changes. See [`skills/frame12/references/components-and-adapters.md`](skills/frame12/references/components-and-adapters.md#2b-tempo-one-motion-preference-hooksuse-tempots-uitempotsx-uitempo-controltsx).
 8. **Flashback dark mode & WCAG AA accessibility:** Dark mode flips the sheet gutters pitch black (`#050505`) while keeping panels elevated (`#19191a`). Verified by automated Playwright + `@axe-core/playwright` audits for WCAG AA contrast, visible `:focus-visible` outlines, keyboard chart navigation, and semantic `<table>` fallbacks.
 9. **Minimal dependencies & craft originality:** Zero external animation or charting libraries—charts, screentone patterns, and stepped animations are built with React, SVG, and CSS. Accessible menu and select primitives use `@radix-ui/react-dropdown-menu` and `@radix-ui/react-select` (while `Dialog` uses native `<dialog>`). The system is inspired by print and cel-animation production craft rather than copied from any named work.
