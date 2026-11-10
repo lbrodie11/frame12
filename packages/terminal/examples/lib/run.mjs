@@ -36,7 +36,7 @@ export function createEmitter(runId, now = () => new Date()) {
  * Starts a run with the app's `--format` and `--record`. Returns the run, an `emit` that builds and
  * pushes an event, and `cut()`, which times one step and reports how it ended.
  */
-export function startApp(argv, { runId, product, onCancel }) {
+export function startApp(argv, { runId, product, onCancel, safety }) {
   const format = option(argv, '--format') ?? 'live';
   if (!FORMATS.includes(format)) {
     process.stderr.write(`--format must be one of ${FORMATS.join(', ')}.\n`);
@@ -45,7 +45,7 @@ export function startApp(argv, { runId, product, onCancel }) {
   const caps = detectCapabilities(process.env, process, argv);
   const { tempo } = resolveTerminalMotion({ argv, env: process.env, caps });
   const record = option(argv, '--record');
-  const run = startLive({ caps, motion: tempo, format, product, ...(record ? { record } : {}), ...(onCancel ? { onCancel } : {}) });
+  const run = startLive({ caps, motion: tempo, format, product, ...(record ? { record } : {}), ...(onCancel ? { onCancel } : {}), ...(safety ? { safety } : {}) });
   const make = createEmitter(runId);
   const emit = (type, payload) => {
     const ev = make(type, payload);
@@ -78,5 +78,5 @@ export function startApp(argv, { runId, product, onCancel }) {
     emit('cut-end', { cut: id, status: 'skipped', durationMs: 0, summary });
     cuts.push({ cut: id, title, status: 'skipped', durationMs: 0, summary });
   };
-  return { run, emit, cut, skip, cuts, format };
+  return { run, emit, cut, skip, cuts, format, caps };
 }
