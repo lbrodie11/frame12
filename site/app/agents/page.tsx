@@ -18,7 +18,6 @@ import {
   TableCell,
   TableCaption,
 } from '@/components/frame12';
-import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 
@@ -122,12 +121,11 @@ const EIGHT_RULES = [
 ];
 
 export default function AgentsPage() {
-  const { motion } = useSiteSettings();
   const [activePrompt, setActivePrompt] = React.useState<PromptKey>('settings');
   const currentPrompt = EXAMPLE_PROMPTS[activePrompt];
 
   return (
-    <Sheet autoCut pegs motion={motion}>
+    <Sheet autoCut pegs>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">

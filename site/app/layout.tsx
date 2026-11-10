@@ -51,7 +51,10 @@ export const metadata: Metadata = {
     'An interface design language built from page composition and cel-animation production craft: ink-framed panels, 12/20/32px gutter grammar, 45° SVG screentone, and motion held on twos (12fps).',
 };
 
-const FOUC_SCRIPT = `try{var s=localStorage.getItem("color-scheme");var d=(s==="light"||s==="dark")?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");var m=document.querySelector('meta[name="color-scheme"]');if(m)m.content=(s==="light"||s==="dark")?s:"light dark";document.documentElement.setAttribute("data-theme",d);}catch(e){}`;
+// Runs before first paint: applies the stored theme, and marks <html data-f12-tempo> with the stored
+// tempo (key `frame12-tempo`, see TEMPO_STORAGE_KEY in site-shell.tsx) so a stored `still` shows no
+// motion even before React hydrates (frame12.css). Invalid values read as `auto`.
+const FOUC_SCRIPT = `try{var s=localStorage.getItem("color-scheme");var d=(s==="light"||s==="dark")?s:(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");var m=document.querySelector('meta[name="color-scheme"]');if(m)m.content=(s==="light"||s==="dark")?s:"light dark";document.documentElement.setAttribute("data-theme",d);}catch(e){}try{var t=localStorage.getItem("frame12-tempo");document.documentElement.setAttribute("data-f12-tempo",(t==="twos"||t==="ones"||t==="still")?t:"auto");}catch(e){document.documentElement.setAttribute("data-f12-tempo","auto");}`;
 
 export default function RootLayout({
   children,

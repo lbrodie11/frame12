@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useResolvedMotion } from '@/hooks/use-tempo';
 import {
   Sheet,
   Scene,
@@ -79,12 +80,18 @@ import { SUMMARIES, fmtMoney, fmtMoneyShort, fmtPP, type RangeDays } from '@/lib
 export interface ComponentPreviewProps {
   slug: string;
   previewTheme: 'light' | 'dark';
-  motion: MotionMode;
+  /** The demo's own motion. The site's tempo (and the OS) resolve it; defaults to on twos. */
+  motion?: MotionMode;
 }
 
 const BREADCRUMB_DEMO_PATH = ['Workspace', 'Storyboards', 'Cut C-04 Ledger'] as const;
 
-export function ComponentPreview({ slug, previewTheme, motion }: ComponentPreviewProps) {
+export function ComponentPreview({
+  slug,
+  previewTheme,
+  motion: baseMotion = 'stepped',
+}: ComponentPreviewProps) {
+  const motion = useResolvedMotion(baseMotion);
   const [range, setRange] = React.useState<RangeDays>(7);
   const [selectedRow, setSelectedRow] = React.useState<string | null>('cart');
   const [channel, setChannel] = React.useState('cart');

@@ -19,16 +19,14 @@ import {
   type RangeDays,
 } from '@/components/frame12/blocks/analytics-dashboard';
 import { REGISTRY_BASE_URL } from '@/lib/config';
-import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
 
 export default function HomePage() {
-  const { motion } = useSiteSettings();
   const [range, setRange] = React.useState<RangeDays>(DEFAULT_RANGE);
   const [focus, setFocus] = React.useState<string | null>(null);
 
   return (
-    <Sheet autoCut pegs motion={motion}>
+    <Sheet autoCut pegs>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -59,7 +57,6 @@ export default function HomePage() {
         range={range}
         focus={focus}
         onSelectFocus={setFocus}
-        motion={motion}
         idPrefix="home"
         chartHeight={320}
       />

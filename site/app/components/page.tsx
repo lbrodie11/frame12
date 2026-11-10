@@ -17,7 +17,6 @@ import {
   TableCaption,
 } from '@/components/frame12';
 import { CATALOG, BLOCK_CATALOG, type ComponentCategory } from '@/lib/catalog';
-import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
 import { REGISTRY_BASE_URL } from '@/lib/config';
 import {
@@ -92,14 +91,13 @@ function CategoryTable({
 }
 
 export default function ComponentsIndexPage() {
-  const { motion } = useSiteSettings();
   const componentCount = CATALOG.filter((c) => c.category !== 'Motion Hooks').length;
   const hookAndAdapterEntries = CATALOG.filter(
     (c) => c.category === 'Motion Hooks' || c.category === 'Primitive Adapters',
   );
 
   return (
-    <Sheet autoCut pegs motion={motion}>
+    <Sheet autoCut pegs>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">

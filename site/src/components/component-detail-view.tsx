@@ -18,7 +18,6 @@ import {
   TableCaption,
 } from '@/components/frame12';
 import type { CatalogEntry } from '@/lib/catalog';
-import { useSiteSettings } from '@/components/site-shell';
 import { ComponentPreview } from '@/components/component-preview';
 import { CopyCommand } from '@/components/copy-command';
 import { resolveReturnTarget } from '@/lib/return-context';
@@ -95,12 +94,11 @@ function PlainBackLink() {
 }
 
 export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
-  const { motion } = useSiteSettings();
   const namespaceInstallCmd = `npx shadcn@latest add @frame12/${entry.slug}`;
   const urlInstallCmd = `npx shadcn@latest add ${entry.registryUrl}`;
 
   return (
-    <Sheet autoCut pegs motion={motion}>
+    <Sheet autoCut pegs>
       <header className="f12-hd">
         <div className="f12-hd-text">
           <p className="f12-eyebrow">
@@ -128,7 +126,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
               </div>
               <span className="f12-mono-note">Interactive preview</span>
             </div>
-            <ComponentPreview slug={entry.slug} previewTheme="light" motion={motion} />
+            <ComponentPreview slug={entry.slug} previewTheme="light" />
           </div>
         </Panel>
 
@@ -141,7 +139,7 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
               </div>
               <span className="f12-mono-note">Interactive preview</span>
             </div>
-            <ComponentPreview slug={entry.slug} previewTheme="dark" motion={motion} />
+            <ComponentPreview slug={entry.slug} previewTheme="dark" />
           </div>
         </Panel>
       </Scene>
