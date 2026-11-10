@@ -89,8 +89,8 @@ export function findingsFor(evaluated) {
  */
 export function ask(question, { stdin = process.stdin, stderr = process.stderr, timeoutMs }) {
   return new Promise((resolve) => {
-    stderr.write(question);
     let done = false;
+    let timer;
     const finish = (approved, how) => {
       if (done) return;
       done = true;
@@ -111,14 +111,18 @@ export function ask(question, { stdin = process.stdin, stderr = process.stderr, 
       else if (key === '\u0003') finish(false, 'Ctrl-C');
       else finish(false, key === '\r' || key === '\n' ? 'Enter (the default is No)' : `"${key === '\u001b' ? 'Esc' : key}"`);
     };
-    const timer = setTimeout(() => finish(false, `no answer within ${Math.round(timeoutMs / 1000)} s`), timeoutMs);
+    // Listen in raw mode before the question appears: a key typed the moment it shows must count.
+    // (Windows' console keeps keys typed in line mode to itself until Enter, so asking first and
+    // switching after would lose them; POSIX terminals happen to hand them over.)
     try {
       stdin.setRawMode?.(true);
     } catch {
       // not a terminal: the caller checked
     }
-    stdin.resume();
     stdin.on('data', onData);
+    stdin.resume();
+    stderr.write(question);
+    timer = setTimeout(() => finish(false, `no answer within ${Math.round(timeoutMs / 1000)} s`), timeoutMs);
   });
 }
 
