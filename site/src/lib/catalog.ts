@@ -2659,6 +2659,171 @@ const RAW_CATALOG: CatalogEntry[] = [
     "usageTemplate": "import { TempoProvider, TempoControl } from '@/components/frame12';\n\nexport function Header() {\n  return (\n    <TempoProvider storageKey=\"my-app-tempo\">\n      <TempoControl idPrefix=\"site-tempo\" />\n    </TempoProvider>\n  );\n}"
   },
   {
+    "slug": "exposure-scrubber",
+    "title": "ExposureScrubber",
+    "category": "Data & Charts",
+    "summary": "Reads a discrete history (an agent run, a CI pipeline, an incident) like an animator's exposure sheet: a semantic X-sheet with a timing column, one marked moment, data-given \"led here from\" links, a native-range transport and three timing modes. Never autoplays. Built on the headless useExposure hook.",
+    "registryUrl": "https://frame12.dev/r/exposure-scrubber.json",
+    "sourceFile": "registry/ui/exposure-scrubber.tsx",
+    "whenToUse": [
+      "To read a finished run (agent tool calls, CI steps, an incident timeline) where the shape matters: where the time went, where it went wrong, and what the data says led there.",
+      "When one moment needs to stand out (the primary marker) and readers need to jump between it and its recorded causes."
+    ],
+    "whenNotToUse": [
+      "For a live stream: appending works, but live streaming is not a feature yet (StreamingLog is planned).",
+      "For a short flat list of log lines with no timing, no marker and no causes: a plain log or Table reads faster.",
+      "For branching or concurrent lanes, zoom or pan: out of scope.",
+      "When you would have to invent causes or durations: order is not causality, and the timing column never makes up data."
+    ],
+    "props": [
+      {
+        "name": "frames",
+        "type": "readonly ExposureFrame[]",
+        "defaultValue": "undefined",
+        "description": "The run, in order. Array order is the truth: missing or non-monotonic times never reorder frames. Up to 5,000 frames (every row stays in the DOM)."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Accessible name, e.g. \"Agent run 042 replay\". Also used in the table caption with the frame count."
+      },
+      {
+        "name": "renderFrame",
+        "type": "(frame: ExposureFrame, index: number, ctx: { scrubbing: boolean; settled: boolean }) => React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Renders the current frame in the detail panel. Must be pure (no side effects in render). `scrubbing` is true mid-drag or mid key-repeat (render a light version); `settled` is true when the frame is resting. Wrapped in a per-frame error boundary."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Controlled current frame id. Selection is by id, never index."
+      },
+      {
+        "name": "defaultValue",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Initial frame id (uncontrolled). Not found → the first frame."
+      },
+      {
+        "name": "onValueChange",
+        "type": "(id: string, info: { index: number; reason: 'keyboard' | 'pointer' | 'row' | 'marker' | 'cause' | 'playback' | 'data' }) => void",
+        "defaultValue": "undefined",
+        "description": "Called with the new frame id and why it changed. Duplicate ids are reported as their internal key (`id#2`)."
+      },
+      {
+        "name": "playing",
+        "type": "boolean",
+        "defaultValue": "undefined",
+        "description": "Controlled playback. There is no autoplay: set it to true only in response to a user action."
+      },
+      {
+        "name": "onPlayingChange",
+        "type": "(playing: boolean, reason: 'user' | 'end' | 'scrub' | 'hidden' | 'data' | 'tempo' | 'rejected') => void",
+        "defaultValue": "undefined",
+        "description": "Called when playback starts or stops, with the reason (user, end, scrub, hidden, data, tempo, rejected)."
+      },
+      {
+        "name": "timing",
+        "type": "'even' | 'elapsed' | 'flipbook'",
+        "defaultValue": "'even'",
+        "description": "even: stepMs × hold ÷ rate per frame. elapsed: the run's real rhythm, clamp(gap, 250, 3000) ÷ rate. flipbook: 12 poses per second × hold (unavailable under reduced motion or a still tempo). A new value resets the in-sheet timing control."
+      },
+      {
+        "name": "rate",
+        "type": "0.5 | 1 | 2 | 4",
+        "defaultValue": "undefined",
+        "description": "Controlled playback rate."
+      },
+      {
+        "name": "defaultRate",
+        "type": "0.5 | 1 | 2 | 4",
+        "defaultValue": "undefined",
+        "description": "Initial playback rate (uncontrolled); 1 when omitted."
+      },
+      {
+        "name": "onRateChange",
+        "type": "(r: 0.5 | 1 | 2 | 4) => void",
+        "defaultValue": "undefined",
+        "description": "Called when the viewer picks a rate."
+      },
+      {
+        "name": "stepMs",
+        "type": "number",
+        "defaultValue": "1000",
+        "description": "Base readable step for even timing. Minimum 250 (clamped); non-finite → 1000."
+      },
+      {
+        "name": "loop",
+        "type": "boolean",
+        "defaultValue": "false",
+        "description": "Wrap to the first frame at the end instead of stopping."
+      },
+      {
+        "name": "primaryMarker",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Id of the marker that gets marker yellow. Default: the first marker in array order. Every other marker gets ink emphasis."
+      },
+      {
+        "name": "emptyState",
+        "type": "React.ReactNode",
+        "defaultValue": "undefined",
+        "description": "Shown in the panel when there are no frames (a default message otherwise)."
+      },
+      {
+        "name": "idPrefix",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "Prefix for element ids (`${idPrefix}-play`, `-range`, …). Defaults to a useId-based prefix."
+      },
+      {
+        "name": "density",
+        "type": "'comfortable' | 'compact'",
+        "defaultValue": "'comfortable'",
+        "description": "Row density of the sheet."
+      },
+      {
+        "name": "variant",
+        "type": "'expressive' | 'quiet'",
+        "defaultValue": "'expressive'",
+        "description": "expressive: 2.5px ink frames and a screentone current row. quiet: 1px rules, no screentone."
+      }
+    ],
+    "stateBehavior": "Selection is by frame id (controlled `value` or uncontrolled `defaultValue`); data changes keep the current id when it survives, otherwise move to the nearest surviving frame at the previous index (reason data, pausing playback). Playback runs one setTimeout per step against performance.now() deadlines, never advances more than one frame per tick, stops at the last frame (unless loop), pauses on any user scrub, on a hidden tab (no auto-resume), when a flipbook loses motion, and when a controlled parent ignores an advance (reason rejected). No timers or rAF while paused or idle.",
+    "a11yNotes": [
+      "Three tab regions in order: the transport (Prev, Play with a constant name and aria-pressed, Next, then a native <input type=\"range\"> with aria-valuetext \"Frame 7 of 42: label, status\", marker steps, rate and timing), the sheet (one roving stop over row buttons), then the panel's content. Step buttons use aria-disabled at the ends so focus is never dropped; following a cause or Back moves focus to the new frame's title.",
+      "The sheet is a <table> laid out with CSS grid (so rows can use content-visibility) with explicit table / rowgroup / row / columnheader / cell roles restored. The current row and its button carry aria-current=\"step\".",
+      "One polite live region per scrubber: announces on settle only (after a drag ends, or 500 ms after the last key), \"Playing\" and \"Paused at frame N of M\" during playback, at most one per second.",
+      "Status is a glyph and a word; markers are glyph + text; the current row has an outline and an inked frame number, all of which survive forced colors.",
+      "Server-rendered as the complete table plus the initial panel; without JavaScript the transport is disabled with \"Replay needs JavaScript\".",
+      "Touch screen readers: a native range is used instead of a custom slider (custom sliders depend on synthesized key events); still verify on a device (docs/ACCESSIBILITY.md)."
+    ],
+    "keyboardNotes": [
+      "Range: ←/→/↑/↓ one frame, PageUp/PageDown ±10, Home/End first/last (native).",
+      "Rows: ↑/↓ move focus and select, Home/End first/last, Enter/Space select.",
+      "Shortcuts while focus is inside the scrubber (never in inputs, contenteditable or the panel's consumer content): j next, k previous, [ / ] previous / next marker, p play/pause. Space keeps its native meaning. No global listeners.",
+      "Playback never moves focus; the roving row follows the current frame so the next Tab into the sheet lands on it."
+    ],
+    "themeBehavior": "Ink frames and rules on --f-panel; the current row inverts its FRAME cell to --f-ink and screentones the ACTION cell (expressive). Exactly one primary marker uses --f-marker as a background under --f-marker-ink; other markers are ink outlines. Light and dark via the theme tokens; forced colors use Highlight / CanvasText.",
+    "responsiveBehavior": "Container-driven (container-type: inline-size). From 640px of container width the sheet and panel sit side by side under the transport; below that the transport and panel come first and the sheet becomes a disclosure (\"Exposure sheet · 42 frames\", open by default and without JavaScript). Works in a 420px drawer, at 320px (reflow), on a landscape phone and at 200%/400% zoom. Print shows the full table and the current frame, without the transport.",
+    "grammarNotes": [
+      "An exposure sheet (X-sheet): FRAME (F-01… zero-padded to the total), ACTION, TIMING (hold ticks in even timing, a log-scaled screentone bar of the real gap otherwise) and MARK columns.",
+      "The panel carries the cut label \"CURRENT CUT / F-04\". Flipbook timing steps the playhead on twos (12 poses per second) while the panel shows a FLIPPING slate and settles where playback stops.",
+      "Motion (useResolvedMotion) governs only transitions; reading speed is the timing mode and rate. Reduced motion limits movement, not intentional progression."
+    ],
+    "commonErrors": [
+      "Inventing causes from order (\"the previous step caused this\"): causes must come from your data.",
+      "Passing raw tool payloads with secrets, tokens or personal data to the client: redact before they reach any client component. Build frames on the server and pass only the redacted result; raw data imported into a 'use client' module ships to the browser even if it is never rendered.",
+      "Side effects inside renderFrame (fetching, logging, setting state): it must be pure.",
+      "Starting playback on mount through a controlled `playing`: there is no autoplay; set it only from a user action.",
+      "Selecting by index: `value` is a frame id, so data changes stay well defined.",
+      "Passing a new `frames` array on every render (an inline literal or `.map()` in render): it re-normalizes the run and re-renders every row. Memoize it (useMemo) or keep it in state."
+    ],
+    "usageTemplate": "import { ExposureScrubber, type ExposureFrame } from '@/components/frame12';\n\nconst frames: ExposureFrame[] = [\n  { id: 'cfg', label: 'read config', kind: 'tool', at: '2026-11-06T14:18:00Z', status: 'ok' },\n  { id: 'plan', label: 'plan refund', kind: 'model', at: '2026-11-06T14:18:02Z', causes: ['cfg'] },\n  { id: 'call', label: 'tool call · payments.issueRefund', kind: 'tool', at: '2026-11-06T14:18:05Z', status: 'error', marker: true, causes: ['plan'] },\n];\n\nexport function RunReplay() {\n  return (\n    <ExposureScrubber\n      label=\"Agent run 042 replay\"\n      frames={frames}\n      renderFrame={(frame, _index, { scrubbing }) =>\n        scrubbing ? <p>{frame.label}</p> : <p>{frame.detail ?? frame.label}</p>\n      }\n    />\n  );\n}"
+  },
+  {
     "slug": "dialog",
     "title": "Dialog",
     "category": "Primitive Adapters",

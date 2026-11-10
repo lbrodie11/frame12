@@ -19,6 +19,11 @@ import {
 } from '@/components/frame12';
 import type { CatalogEntry } from '@/lib/catalog';
 import { ComponentPreview } from '@/components/component-preview';
+import dynamic from 'next/dynamic';
+import type { ExposureDemo } from '@/lib/exposure-demo-data';
+
+// Only /components/exposure-scrubber needs the demos: a separate chunk, not in every page.
+const ExposureDemos = dynamic(() => import('@/components/exposure-demos').then((m) => m.ExposureDemos));
 import { CopyCommand } from '@/components/copy-command';
 import { resolveReturnTarget } from '@/lib/return-context';
 
@@ -93,7 +98,14 @@ function PlainBackLink() {
   );
 }
 
-export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
+export function ComponentDetailView({
+  entry,
+  exposureAgentDemo,
+}: {
+  entry: CatalogEntry;
+  /** Built on the server for /components/exposure-scrubber only (already redacted). */
+  exposureAgentDemo?: ExposureDemo;
+}) {
   const namespaceInstallCmd = `npx shadcn@latest add @frame12/${entry.slug}`;
   const urlInstallCmd = `npx shadcn@latest add ${entry.registryUrl}`;
 
@@ -143,6 +155,8 @@ export function ComponentDetailView({ entry }: { entry: CatalogEntry }) {
           </div>
         </Panel>
       </Scene>
+
+      {entry.slug === 'exposure-scrubber' && exposureAgentDemo && <ExposureDemos agent={exposureAgentDemo} />}
 
       <Scene gutter="scene" layout="equal">
         <Panel variant="quiet" label={`${entry.title} when to use and when not to use`}>
