@@ -21,6 +21,8 @@ export async function generateMetadata({ params }: { params: SlugParams }): Prom
   return {
     title: `${entry.title} (${entry.category})`,
     description: entry.summary,
+    // Canonical without `?from=` so origin tokens never create duplicate URLs for search engines.
+    alternates: { canonical: `/components/${entry.slug}` },
   };
 }
 

@@ -3,17 +3,23 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Panel, Badge, Tag } from '@/components/frame12';
-import { WorkspaceSettings } from '@/components/frame12/blocks/workspace-settings';
+import { WorkspaceSettings, type SettingsSection } from '@/components/frame12/blocks/workspace-settings';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
 import { BlockDocumentationSection } from '@/components/block-doc-footer';
 import { REGISTRY_BASE_URL } from '@/lib/config';
+import { useBlockSection } from '@/lib/use-block-section';
 
-export default function WorkspaceSettingsShowcasePage() {
+export function WorkspaceSettingsShowcase() {
   const { motion, themeOverride } = useSiteSettings();
+
+  const tab = useBlockSection<SettingsSection>('workspace-settings');
 
   return (
     <WorkspaceSettings
+      key={tab.key}
+      defaultSection={tab.section}
+      onSectionChange={tab.onSectionChange}
       idPrefix="ws-settings"
       motion={motion}
       theme={themeOverride}
@@ -112,7 +118,7 @@ export default function WorkspaceSettingsShowcasePage() {
             </div>
           </Panel>
 
-          <BlockDocumentationSection slug="workspace-settings" />
+          <BlockDocumentationSection slug="workspace-settings" section={tab.current} />
         </div>
       }
     />

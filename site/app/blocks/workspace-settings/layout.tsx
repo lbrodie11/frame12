@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  // Canonical without `?section=` so shareable tab URLs never become duplicate pages.
+  alternates: { canonical: '/blocks/workspace-settings' },
   title: 'Workspace Settings Operational Block',
   description:
     'Installable FRAME/12 Quiet-first operational settings block covering operator profile, workspace preferences, alert routing, appearance, motion grammar, team RBAC roles, and danger zone confirmation flows.',

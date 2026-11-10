@@ -4,14 +4,21 @@ import * as React from 'react';
 import Link from 'next/link';
 import { Panel, Tag } from '@/components/frame12';
 import { getBlockCatalogEntry } from '@/lib/catalog';
+import { blockDependenciesAnchorId, blockOriginToken, type BlockSlug } from '@/lib/return-context';
+import { rememberFocusForBack } from '@/lib/history-focus';
 
 export function BlockDocumentationSection({
   slug,
+  section = null,
 }: {
-  slug: 'developer-console' | 'workspace-settings' | 'analytics-dashboard';
+  slug: BlockSlug;
+  /** The block's visible section; dependency links carry it in their origin token. */
+  section?: string | null;
 }) {
   const block = getBlockCatalogEntry(slug);
   if (!block) return null;
+  const headingId = blockDependenciesAnchorId(slug);
+  const from = blockOriginToken(slug, section);
 
   return (
     <div className="f12-stack-scene" id={`block-doc-${block.slug}`}>
@@ -42,18 +49,24 @@ export function BlockDocumentationSection({
                 Installed automatically via @frame12/{block.slug} (or {block.slug}.json)
               </span>
             </div>
-            <h2 className="f12-section-title">Component & hook dependencies</h2>
+            <h2 className="f12-section-title f12-anchor-target" id={headingId} tabIndex={-1}>
+              Component & hook dependencies
+            </h2>
             <div className="f12-row-pair">
-              {block.componentDependencies.map((dep) => (
-                <Link
-                  key={dep}
-                  href={`/components/${dep}`}
-                  className="f12-link-btn"
-                  id={`block-${block.slug}-dep-${dep}`}
-                >
-                  {dep}
-                </Link>
-              ))}
+              {block.componentDependencies.map((dep) => {
+                const linkId = `block-${block.slug}-dep-${dep}`;
+                return (
+                  <Link
+                    key={dep}
+                    href={`/components/${dep}?from=${from}`}
+                    className="f12-link-btn"
+                    id={linkId}
+                    onClick={() => rememberFocusForBack(linkId, headingId)}
+                  >
+                    {dep}
+                  </Link>
+                );
+              })}
             </div>
           </div>
 

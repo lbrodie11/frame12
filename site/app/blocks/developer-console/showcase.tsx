@@ -3,17 +3,23 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Panel, Badge, Tag } from '@/components/frame12';
-import { DeveloperConsole } from '@/components/frame12/blocks/developer-console';
+import { DeveloperConsole, type ConsoleSection } from '@/components/frame12/blocks/developer-console';
 import { useSiteSettings } from '@/components/site-shell';
 import { CopyCommand } from '@/components/copy-command';
 import { BlockDocumentationSection } from '@/components/block-doc-footer';
 import { REGISTRY_BASE_URL } from '@/lib/config';
+import { useBlockSection } from '@/lib/use-block-section';
 
-export default function DeveloperConsoleShowcasePage() {
+export function DeveloperConsoleShowcase() {
   const { motion } = useSiteSettings();
+
+  const tab = useBlockSection<ConsoleSection>('developer-console');
 
   return (
     <DeveloperConsole
+      key={tab.key}
+      defaultSection={tab.section}
+      onSectionChange={tab.onSectionChange}
       idPrefix="dev-console"
       motion={motion}
       footerSlot={
@@ -109,7 +115,7 @@ export default function DeveloperConsoleShowcasePage() {
             </div>
           </Panel>
 
-          <BlockDocumentationSection slug="developer-console" />
+          <BlockDocumentationSection slug="developer-console" section={tab.current} />
         </div>
       }
     />

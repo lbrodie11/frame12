@@ -176,6 +176,36 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   background-color: var(--f-marker);
   color: var(--f-marker-ink);
 }
+/* The exact page (aria-current="page") also carries a text cue, so it never differs from an
+   owning section (aria-current="true", e.g. Components on /components/use-on-twos) by color
+   alone. */
+.site-nav-link.is-page {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.site-nav {
+  position: relative;
+}
+
+/* Overflow cue: hidden unless the nav row actually scrolls (data-overflow-* set from JS). */
+.site-nav-cue {
+  display: none;
+}
+
+/* In-page anchor targets (catalog group and block dependency headings) keep the same breathing
+   room the section tab list uses when scrolled to. */
+.f12-anchor-target {
+  scroll-margin-block-start: var(--f-gutter-scene);
+}
+.f12-anchor-target:focus {
+  outline: none;
+}
+.f12-anchor-target:focus-visible {
+  outline: 2px solid var(--f-focus, var(--f-rule));
+  outline-offset: 3px;
+}
 
 /* Main container */
 .site-main {
@@ -640,6 +670,42 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   }
   .site-nav-list::-webkit-scrollbar {
     display: none;
+  }
+  /* Edge fade + chevron at each edge that still has links beyond it. The fade is a screentone
+     strip (FRAME/12 never uses linear gradients); the chevron is the non-color cue. */
+  /* Keep a focused or snapped link clear of the 28px cue strips. */
+  .site-nav[data-overflow-start] .site-nav-list,
+  .site-nav[data-overflow-end] .site-nav-list {
+    scroll-padding-inline: 32px;
+  }
+  .site-nav[data-overflow-start] .site-nav-cue-start,
+  .site-nav[data-overflow-end] .site-nav-cue-end {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 10px;
+    bottom: 0;
+    width: 28px;
+    pointer-events: none;
+    font-family: var(--font-f-mono);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--f-ink);
+    background-color: var(--f-sheet);
+    background-image: radial-gradient(circle, var(--f-tone) 1.1px, transparent 1.5px);
+    background-size: 4px 4px;
+  }
+  .site-nav-cue-glyph {
+    padding: 2px 1px;
+    background-color: var(--f-sheet);
+  }
+  .site-nav-cue-start {
+    left: 0;
+  }
+  .site-nav-cue-end {
+    right: 0;
   }
   .site-nav-list > li {
     flex: none;
