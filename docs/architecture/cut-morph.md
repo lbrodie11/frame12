@@ -71,7 +71,7 @@ In Firefox and WebKit the pixel answers are therefore recorded as `null`, and th
 
 ## Performance (lab, not field INP)
 
-`registry/scripts/measure-cut-morph-perf.mjs` (raw data in [`cut-morph-perf.json`](cut-morph-perf.json), re-recorded 2026-11-11 after the review fixes and joining) measures The Edit Room's 200-row filter. The machine is a 4-core Xeon at 2.1 GHz. Each configuration is 3 runs × 12 stage changes, compared with the same list without CutMorph (`kind: 'cut'`, unnamed rows).
+`registry/scripts/measure-cut-morph-perf.mjs` (raw data in [`cut-morph-perf.json`](cut-morph-perf.json), re-recorded 2026-11-11 after the element-scope fix) measures The Edit Room's 200-row filter. The machine is a 4-core Xeon at 2.1 GHz. Each configuration is 3 runs × 12 stage changes, compared with the same list without CutMorph (`kind: 'cut'`, unnamed rows).
 
 These are lab numbers from one machine with synthetic clicks. They are not field INP.
 
@@ -79,20 +79,22 @@ On a transition path, "input → next paint" is the frame that captures the old 
 
 | ms (p50 / p95) | Chromium 153 | Chromium 153, 4× CPU | Firefox 157 | WebKit 27.2 |
 |---|---|---|---|---|
-| Input → next paint, with CutMorph | 24.0 / 74.9 | 85.4 / 344.5 | 4 / 9 | 80 / 171 |
-| Input → next paint, without | 14.8 / 31.7 | 52.4 / 141.7 | 18 / 60 | 18 / 37 |
-| **Input → DOM updated, with CutMorph** | **37.5 / 108.6** | **151.2 / 470.7** | **23 / 62** | **39 / 79** |
-| Input → DOM updated, without | 8.6 / 22.8 | 40.8 / 99.5 | 16 / 55 | 16 / 33 |
-| React render + commit, with (`flushSync` in the callback) | 12.3 / 32.3 | 58.8 / 136.4 | 17 / 57 | 14 / 53 |
-| React render + commit, without | 6.5 / 21.2 | 30.0 / 87.8 | 16 / 55 | 12 / 30 |
-| Long tasks > 50 ms per 36 edits (with / without) | 7 (longest 65) / 0 | 121 (longest 403) / 13 (longest 119) | n/a | n/a |
-| Layout shift / scroll jumps | 0 / 0 | 0 / 0 | n/a / 0 | n/a / 0 |
+| Input → next paint, with CutMorph | 26.6 / 183.9 | 72.5 / 837.8 | 3 / 7 | 75 / 146 |
+| Input → next paint, without | 14.8 / 32.0 | 49.2 / 140.9 | 16 / 57 | 17 / 45 |
+| **Input → DOM updated, with CutMorph** | **36.3 / 189.7** | **105.9 / 868.0** | **18 / 67** | **38 / 65** |
+| Input → DOM updated, without | 8.9 / 23.3 | 37.5 / 108.4 | 14 / 53 | 15 / 39 |
+| React render + commit, with (`flushSync` in the callback) | 7.6 / 27.6 | 29.9 / 98.0 | 13 / 63 | 15 / 34 |
+| React render + commit, without | 6.8 / 21.5 | 26.5 / 92.5 | 13 / 52 | 12 / 39 |
+| Long tasks > 50 ms per 36 edits (with / without) | 18 (longest 179) / 0 | 79 (longest 797) / 8 (longest 120) | n/a | n/a |
+| Layout shift (with / without) / scroll jumps | 0 / 0 / 0 | **2.33** / 0 / 0 | n/a / 0 | n/a / 0 |
 
-- **The cost is the snapshots, not the hook.** The Chromium trace attributes CutMorph's long tasks to `UpdateLayoutTree` (about 34–38 ms) and `Paint` (12–18 ms) while building and painting about 200 pseudo-element groups. React's own commit is only a few ms slower inside the callback.
-- **Naming 200 subjects is a stress case.** It is not what the grammar asks for ("animate the subject"). Every transition is document-scoped, so every named subject on the page is captured.
+- **Re-recorded after the element-scope fix.** The Chromium numbers recorded before that fix measured a scoped transition that **aborted** (question 6b), so they were too cheap. These measure the real document transition.
+- **The cost is the snapshots, not the hook.** The Chromium trace attributes CutMorph's long tasks to `UpdateLayoutTree`, 105–149 ms in the worst tasks: the style pass over roughly 345 pseudo-elements for 200 named rows. React's own commit is no slower inside the callback.
+- **Naming 200 subjects is a stress case.** It is what the spec asks the perf test to measure, not what the grammar recommends ("animate the subject"). At 4× CPU the p95 edit takes 868 ms to reach the DOM.
+- **Layout shift at 4× CPU.** Chromium then reports a layout shift of 2.33, against 0 without CutMorph. The likely reason: the filter's own reflow lands more than 500 ms after the click, outside the layout-shift input window, so the browser counts it as unexpected. Match few subjects, or use `kind: 'cut'` for large lists on slow devices.
 - **Firefox and WebKit:** there is no CPU-throttling API, so their 4× columns are not measured, and they don't report long tasks or layout shifts (`null` in the JSON).
 - **Zero added delay on `cut` and the fallbacks (asserted).** Without CutMorph, at tempo `still` and with reduced motion, all 36 of 36 updates were in the DOM before the next animation frame, in all three engines. The script exits non-zero otherwise.
-- **Size (min+gzip):** 2695 B JS + 437 B CSS. Together that is 3069 B, just under the 3 KB budget (3072 B). The review fixes added the class guard, the scoped foreign check, commit-timed promises and joining; some redundant guards were trimmed to stay in budget. Development messages are folded out by the production `NODE_ENV` define.
+- **Size (min+gzip):** 2598 B JS + 437 B CSS. Together that is 2969 B, under the 3 KB budget (3072 B). Development messages are folded out by the production `NODE_ENV` define.
 
 ## The grammar (CSS)
 
