@@ -172,6 +172,33 @@
       },
       "q6_elementScoped": {
         "supported": true,
+        "exits": {
+          "move one (control)": [
+            "ran",
+            "ran",
+            "ran"
+          ],
+          "remove 1 of 3": [
+            "aborted (Prepaint layout check failed)",
+            "aborted (Prepaint layout check failed)",
+            "aborted (Prepaint layout check failed)"
+          ],
+          "remove last of 24": [
+            "aborted (Prepaint layout check failed)",
+            "aborted (Prepaint layout check failed)",
+            "aborted (Prepaint layout check failed)"
+          ],
+          "remove 12 of 24": [
+            "aborted (Prepaint layout check failed)",
+            "aborted (Prepaint layout check failed)",
+            "aborted (Prepaint layout check failed)"
+          ],
+          "hide 1 of 24": [
+            "aborted (Prepaint layout check failed)",
+            "aborted (Prepaint layout check failed)",
+            "aborted (Prepaint layout check failed)"
+          ]
+        },
         "animationTargets": [
           "scope"
         ],
