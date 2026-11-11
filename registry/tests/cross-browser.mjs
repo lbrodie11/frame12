@@ -6,6 +6,12 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { launch, openGallery, getRenderedCuts, check, finish, REPO_ROOT } from './lib.mjs';
+import { askClickThrough, askGrammar, askRootIsolation } from '../scripts/cut-morph-spike.mjs';
+
+// F12-10 spike questions 1–4, re-asked on every run. Every engine below passed the spike
+// (docs/architecture/cut-morph.md), so CutMorph animates in all three; an engine recorded as
+// 'instant' must instead lack the capabilities CutMorph checks for, so the hook updates at once.
+const CUT_MORPH_SPIKE = { chromium: 'animate', firefox: 'animate', webkit: 'animate' };
 
 const updateDocs = process.argv.includes('--update-docs') || process.env.UPDATE_DOCS === '1';
 const screenshotsDir = updateDocs
@@ -786,6 +792,47 @@ for (const browserName of BROWSER_NAMES) {
       );
 
       await ctx.close();
+    }
+
+    // F12-10 CutMorph spike regression (questions 1–4) on the shipped frame12.css.
+    {
+      const expected = CUT_MORPH_SPIKE[browserName] ?? 'instant';
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      const caps = await page.evaluate(() => ({
+        api: typeof document.startViewTransition === 'function',
+        classes: CSS.supports('view-transition-class: a'),
+      }));
+      await ctx.close();
+      if (expected === 'instant') {
+        check(!(caps.api && caps.classes), `[${browserName} CutMorph] recorded as an instant-update engine: no View Transitions with view-transition-class`, JSON.stringify(caps));
+      } else {
+        const g = await askGrammar(browser);
+        check(
+          g.stepped.distinctPoses === 3 && g.stepped.samples.map((x) => x.x).join() === '0,0,100,100,200,200',
+          `[${browserName} CutMorph] Q1 stepped geometry: steps(3, end) over 250ms holds 3 poses`,
+          JSON.stringify(g.stepped.samples),
+        );
+        // Pixel evidence only where the screenshot path paints the paused overlay (the UA crossfade
+        // control is caught: Chromium); elsewhere the computed opacity samples are the evidence.
+        const px = g.control_uaCrossfade.detected;
+        check(
+          g.stepped.partialOpacityFrames === 0 && g.smooth.partialOpacityFrames === 0 && g.stepped.firstFrameShowingNew === 166.7 &&
+            (px ? g.stepped.blendedPixels === 0 && g.smooth.blendedPixels === 0 : g.stepped.blendedPixels === null),
+          `[${browserName} CutMorph] Q2 no blends: old/new never at partial opacity at 60Hz, hard swap at 166.67ms${px ? ', no blended pixels (the UA crossfade control is caught)' : ' (computed styles; this engine\'s screenshots cannot show the paused overlay)'}`,
+          JSON.stringify({ stepped: g.stepped.blendedPixels, smooth: g.smooth.blendedPixels, control: g.control_uaCrossfade }),
+        );
+        const r = await askRootIsolation(browser);
+        const iso = r['excluded (CutMorph)'];
+        check(
+          iso.rootAnimations === 0 && iso.animatedNames.every((n) => n !== 'root') && (px ? iso.staticPixelsChanged === 0 : iso.staticPixelsChanged === null),
+          `[${browserName} CutMorph] Q3 root isolation: no root animation, only named subjects animate${px ? '; borders, screentone and text stay put (pixels)' : ''}`,
+          JSON.stringify(iso),
+        );
+        const c = await askClickThrough(browser);
+        check(c['pointer-events: none (CutMorph)'].reachedTarget && !c['UA default'].reachedTarget,
+          `[${browserName} CutMorph] Q4 click-through: a click mid-transition reaches the live, updated DOM (and would not without pointer-events: none)`, JSON.stringify(c));
+      }
     }
   } finally {
     await browser.close();

@@ -17,6 +17,7 @@
 //   node tests/flash-safety.mjs
 import { launch } from './lib.mjs';
 import { bundlePage, openFixture, REGISTRY_ROOT } from './harness.mjs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 let failures = 0;
@@ -265,7 +266,30 @@ async function runInkJob({ tempo, name }, dec) {
   results.set(`${tempo}/${name}`, { ...verdict(frames), errors });
   await ctx.close();
 }
-async function runJob({ tempo, name }, dec) {
+// The Edit Room (F12-10): the four CutMorph demos at AUTO, 12 and 60, three quick state changes
+// each (333 ms apart, like filtering quickly). View Transition pseudo-element animations are in
+// document.getAnimations(), so the same pause-and-seek capture drives them.
+const edCss = readFileSync(resolve(REGISTRY_ROOT, '../site/src/components/edit-room.css'), 'utf8');
+const edHtml = await bundlePage(resolve(REGISTRY_ROOT, 'tests/fixtures/edit-room-entry.tsx'), { head: `<style>${edCss}</style>` });
+const ED_STEPS = {
+  filter: ['#er-filter-filter-ink', '#er-filter-filter-final', '#er-filter-filter-all'],
+  reorder: ['#er-reorder-sort-length', '#er-reorder-sort-stage', '#er-reorder-sort-cut'],
+  open: ['#er-open-row-s002', '#er-open-row-s005', '#er-open-row-s005'],
+  cut: ['#er-cut-filter-ink', '#er-cut-filter-final', '#er-cut-filter-all'],
+};
+const ED_JOBS = ['auto', 'twos', 'ones'].flatMap((tempo) => Object.keys(ED_STEPS).map((demo) => ({ tempo, name: `edit-room-${demo}`, demo })));
+async function runEditRoomJob({ tempo, name, demo }, dec) {
+  const { ctx, page, errors } = await openFixture(browser, edHtml, { w: VW, h: VH });
+  await page.evaluate(([d, t]) => window.__er.mount({ demo: d, tempo: t }), [demo, tempo]);
+  await page.waitForTimeout(150);
+  const [a, b, c] = ED_STEPS[demo].map((sel) => () => page.evaluate((x) => document.querySelector(x).click(), sel));
+  const frames = await capture(page, dec, { frames: 90, actions: { 0: a, 20: b, 40: c } });
+  const changed = await page.evaluate(() => document.querySelector('[role="status"]')?.textContent ?? '');
+  results.set(`${tempo}/${name}`, { ...verdict(frames), errors, changed });
+  await ctx.close();
+}
+async function runJob({ tempo, name, demo }, dec) {
+  if (demo) return runEditRoomJob({ tempo, name, demo }, dec);
   if (name === 'ink-sequence') return runInkJob({ tempo, name }, dec);
   const { ctx, page, errors } = await openFixture(browser, html, { w: VW, h: VH });
   await page.evaluate(([n, t]) => window.__render('consumers', { only: [n], tempo: t }), [name, tempo]);
@@ -291,7 +315,7 @@ async function runJob({ tempo, name }, dec) {
   await ctx.close();
 }
 const decoders = [decoder, await makeDecoder(browser), await makeDecoder(browser), await makeDecoder(browser)];
-const queue = [...INK_JOBS, ...jobs];
+const queue = [...INK_JOBS, ...ED_JOBS, ...jobs];
 await Promise.all(
   decoders.map(async (dec) => {
     while (queue.length) await runJob(queue.shift(), dec);
@@ -308,6 +332,12 @@ for (const { tempo, name } of INK_JOBS) {
   check(v.general.maxPerSecond <= 3 && v.red.maxPerSecond <= 3 && v.changedFrames > 0 && v.errors.length === 0,
     `flash safety [${tempo}] ink-sequence: full 48-pose play, ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region`,
     { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, errors: v.errors });
+}
+for (const { tempo, name } of ED_JOBS) {
+  const v = results.get(`${tempo}/${name}`);
+  check(v.general.maxPerSecond <= 3 && v.red.maxPerSecond <= 3 && v.changedFrames > 0 && v.errors.length === 0,
+    `flash safety [${tempo}] ${name} (CutMorph): ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region across 3 quick edits`,
+    { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, status: v.changed, errors: v.errors });
 }
 
 // ExposureScrubber flipbook at 4× (F12-09): 48 poses per second on a 200-frame run. Only the

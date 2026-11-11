@@ -291,3 +291,17 @@ export {
   type ExposureValueReason,
   type ExposurePlayingReason,
 } from './exposure-scrubber';
+export {
+  useCutMorph,
+  CutMorphName,
+  withCutMorphMode,
+  isCutMorphName,
+  getCutMorphSupport,
+  type CutMorph,
+  type CutMorphKind,
+  type CutMorphMode,
+  type CutMorphCallOptions,
+  type CutMorphNameProps,
+  type CutMorphSupport,
+  type UseCutMorphOptions,
+} from './cut-morph';

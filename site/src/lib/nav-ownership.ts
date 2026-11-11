@@ -47,6 +47,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
 export const NAV_OWNERSHIP: ReadonlyArray<{ pattern: string; id: NavItemId }> = [
   { pattern: '/', id: 'nav-home' },
   { pattern: '/motion', id: 'nav-motion' },
+  { pattern: '/motion/*', id: 'nav-motion' },
   { pattern: '/components', id: 'nav-components' },
   { pattern: '/components/*', id: 'nav-components' },
   { pattern: '/blocks/developer-console', id: 'nav-developer-console' },

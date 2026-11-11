@@ -403,6 +403,8 @@ export function LedgerTableScreen({ rows }: {
 | Animating hover states with `steps(3)` or running `.f12-enter` on initial mount | Violates Rule 5 (Motion on twos). Hover/focus must be instant; initial mount must render at rest. | Keep hover instant (`0ms`) and gate entrance animations with `const changed = useChanged(key)`. |
 | Building a page-level 12fps / 60fps / Cut switch with `useState<MotionMode>` and threading `motion={motion}` (or hand-writing `className="f12-m-stepped"`) | It doesn't reach components that resolve motion in JS, isn't persisted, and can't respect a `still` ancestor. | Wrap the app in `<TempoProvider storageKey="…">` with a `<TempoControl />`. Components resolve the tempo themselves; your own motion classes emit `` `f12-m-${useResolvedMotion('stepped')}` ``. |
 | Using tempo `twos`/`ones` to turn motion on for `motion="cut"` or a quiet `Metric` | Tempo never turns motion on where a component says none (rule 3 of `resolveMotion`). | Keep `cut` where it is meant; change the component's `motion` prop if it should animate. |
+| Wrapping typing, a drag, a scrubber or every state update in `useCutMorph` | Direct manipulation is never stepped or delayed, and a page full of match cuts is noise: only one subject should carry across an edit. | Call `cutMorph(update)` from discrete actions only (filter, sort, open/close) and wrap only the tracked subject in `CutMorphName`; everything else cuts. |
+| `CutMorphName name={`row-${index}`}` | Index names re-pair different rows after a filter or sort, so the wrong subject "moves". | Name from a stable data id: `` name={`shot-${shot.id}`} ``. |
 
 ---
 

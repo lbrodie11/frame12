@@ -1,0 +1,601 @@
+{
+  "recorded": "2026-11-11",
+  "results": [
+    {
+      "engine": "chromium",
+      "version": "153.0.8010.12",
+      "capabilities": {
+        "startViewTransition": true,
+        "activeViewTransition": true,
+        "elementScoped": true,
+        "viewTransitionClass": true,
+        "nestedGroups": true,
+        "types": true
+      },
+      "q1q2_grammar": {
+        "stepped": {
+          "groupAnimation": {
+            "pe": "::view-transition-group(box)",
+            "name": "-ua-view-transition-group-anim-box",
+            "duration": 250,
+            "easing": "steps(3)",
+            "target": "html"
+          },
+          "imageAnimations": [
+            "::view-transition-new(box) f12VtIn 166.667ms",
+            "::view-transition-old(box) f12VtOut 166.667ms"
+          ],
+          "samples": [
+            {
+              "t": 10,
+              "x": 0
+            },
+            {
+              "t": 75,
+              "x": 0
+            },
+            {
+              "t": 90,
+              "x": 100
+            },
+            {
+              "t": 160,
+              "x": 100
+            },
+            {
+              "t": 175,
+              "x": 200
+            },
+            {
+              "t": 245,
+              "x": 200
+            }
+          ],
+          "distinctPoses": 3,
+          "partialOpacityFrames": 0,
+          "firstFrameShowingNew": 166.7,
+          "blendedPixels": 0,
+          "screenshots": 3
+        },
+        "smooth": {
+          "groupAnimation": {
+            "pe": "::view-transition-group(box)",
+            "name": "-ua-view-transition-group-anim-box",
+            "duration": 260,
+            "easing": "cubic-bezier(0.2, 0.8, 0.2, 1)",
+            "target": "html"
+          },
+          "imageAnimations": [
+            "::view-transition-new(box) f12VtIn 33.8ms",
+            "::view-transition-old(box) f12VtOut 33.8ms"
+          ],
+          "samples": [
+            {
+              "t": 0,
+              "x": 0
+            },
+            {
+              "t": 30,
+              "x": 135.4
+            },
+            {
+              "t": 40,
+              "x": 171.3
+            },
+            {
+              "t": 130,
+              "x": 283.8
+            },
+            {
+              "t": 255,
+              "x": 300
+            }
+          ],
+          "distinctPoses": 4,
+          "partialOpacityFrames": 0,
+          "firstFrameShowingNew": 50,
+          "blendedPixels": 0,
+          "screenshots": 3
+        },
+        "control_uaCrossfade": {
+          "blendedPixels": 5000,
+          "detected": true
+        }
+      },
+      "q2_boundary": {
+        "first (83.33ms)": {
+          "grow 2x": 0.585,
+          "shrink 2x": 0.737
+        },
+        "second (166.67ms)": {
+          "grow 2x": 0.415,
+          "shrink 2x": 0.415
+        }
+      },
+      "q3_rootIsolation": {
+        "excluded (CutMorph)": {
+          "rootAnimations": 0,
+          "animatedNames": [
+            "inner",
+            "box",
+            "sbox",
+            "grow"
+          ],
+          "staticPixelsChanged": 0
+        },
+        "default root (no CutMorph class)": {
+          "rootAnimations": 5,
+          "animatedNames": [
+            "grow",
+            "inner",
+            "root",
+            "box",
+            "sbox"
+          ],
+          "staticPixelsChanged": 0
+        }
+      },
+      "q4_clickThrough": {
+        "pointer-events: none (CutMorph)": {
+          "reachedTarget": true,
+          "clicks": [
+            "target",
+            "doc:target"
+          ]
+        },
+        "UA default": {
+          "reachedTarget": false,
+          "clicks": [
+            "doc:HTML"
+          ]
+        }
+      },
+      "q5_scrollAndClip": {
+        "scroll": {
+          "groupTopBefore": 40,
+          "groupTopAfterScroll30": 30,
+          "liveElementTopAfterScroll": 10,
+          "transitionStillActive": true,
+          "behaviour": "drifts: only the new end re-targets to the live element, so the snapshot moves by the remaining progress and still detaches",
+          "matchesContent": false
+        },
+        "overflow:hidden, no nesting": {
+          "supported": true,
+          "pixelsOutsideClip": 3404,
+          "clipped": false
+        },
+        "nested group (view-transition-group: nearest)": {
+          "supported": true,
+          "pixelsOutsideClip": 0,
+          "clipped": true
+        }
+      },
+      "q6_elementScoped": {
+        "supported": true,
+        "animationTargets": [
+          "scope"
+        ],
+        "rootAnimations": 0,
+        "groupAnimation": {
+          "pe": "::view-transition-group(sbox)",
+          "name": "-ua-view-transition-group-anim-sbox",
+          "duration": 250,
+          "easing": "steps(3)",
+          "target": "scope"
+        },
+        "documentPseudo": "block",
+        "snapshotTopBefore": 330,
+        "snapshotTopAfterScroll30": 300,
+        "followsScroll": true,
+        "snapshotRightmostPixel": 265,
+        "clippedToScope": true,
+        "restOfPageClickable": true,
+        "transitionSurvivedScroll": true
+      },
+      "q7_getAnimations": {
+        "exposed": true,
+        "pseudoElements": [
+          "::view-transition-group(grow)",
+          "::view-transition-group(inner)",
+          "::view-transition-group(box)",
+          "::view-transition-group(sbox)",
+          "::view-transition-new(box)",
+          "::view-transition-old(box)",
+          "::view-transition-new(grow)",
+          "::view-transition-old(grow)",
+          "::view-transition-new(inner)",
+          "::view-transition-old(inner)",
+          "::view-transition-new(sbox)",
+          "::view-transition-old(sbox)"
+        ],
+        "seekable": true
+      }
+    },
+    {
+      "engine": "firefox",
+      "version": "157.0",
+      "capabilities": {
+        "startViewTransition": true,
+        "activeViewTransition": true,
+        "elementScoped": false,
+        "viewTransitionClass": true,
+        "nestedGroups": false,
+        "types": true
+      },
+      "q1q2_grammar": {
+        "stepped": {
+          "groupAnimation": {
+            "pe": "::view-transition-group(box)",
+            "name": "-ua-view-transition-group-anim-box",
+            "duration": 250,
+            "easing": "steps(3)",
+            "target": "html"
+          },
+          "imageAnimations": [
+            "::view-transition-old(box) f12VtOut 166.667007ms",
+            "::view-transition-new(box) f12VtIn 166.667007ms"
+          ],
+          "samples": [
+            {
+              "t": 10,
+              "x": 0
+            },
+            {
+              "t": 75,
+              "x": 0
+            },
+            {
+              "t": 90,
+              "x": 100
+            },
+            {
+              "t": 160,
+              "x": 100
+            },
+            {
+              "t": 175,
+              "x": 200
+            },
+            {
+              "t": 245,
+              "x": 200
+            }
+          ],
+          "distinctPoses": 3,
+          "partialOpacityFrames": 0,
+          "firstFrameShowingNew": 166.7,
+          "blendedPixels": null,
+          "screenshots": 0
+        },
+        "smooth": {
+          "groupAnimation": {
+            "pe": "::view-transition-group(box)",
+            "name": "-ua-view-transition-group-anim-box",
+            "duration": 260,
+            "easing": "cubic-bezier(0.2, 0.8, 0.2, 1)",
+            "target": "html"
+          },
+          "imageAnimations": [
+            "::view-transition-old(box) f12VtOut 33.799999ms",
+            "::view-transition-new(box) f12VtIn 33.799999ms"
+          ],
+          "samples": [
+            {
+              "t": 0,
+              "x": 0
+            },
+            {
+              "t": 30,
+              "x": 135.4
+            },
+            {
+              "t": 40,
+              "x": 171.3
+            },
+            {
+              "t": 130,
+              "x": 283.8
+            },
+            {
+              "t": 255,
+              "x": 300
+            }
+          ],
+          "distinctPoses": 4,
+          "partialOpacityFrames": 0,
+          "firstFrameShowingNew": 50,
+          "blendedPixels": null,
+          "screenshots": 0
+        },
+        "control_uaCrossfade": {
+          "blendedPixels": 0,
+          "detected": false
+        }
+      },
+      "q2_boundary": {
+        "first (83.33ms)": {
+          "grow 2x": 0.585,
+          "shrink 2x": 0.737
+        },
+        "second (166.67ms)": {
+          "grow 2x": 0.415,
+          "shrink 2x": 0.415
+        }
+      },
+      "q3_rootIsolation": {
+        "excluded (CutMorph)": {
+          "rootAnimations": 0,
+          "animatedNames": [
+            "box",
+            "grow",
+            "inner",
+            "sbox"
+          ],
+          "staticPixelsChanged": null
+        },
+        "default root (no CutMorph class)": {
+          "rootAnimations": 5,
+          "animatedNames": [
+            "box",
+            "grow",
+            "inner",
+            "root",
+            "sbox"
+          ],
+          "staticPixelsChanged": null
+        }
+      },
+      "q4_clickThrough": {
+        "pointer-events: none (CutMorph)": {
+          "reachedTarget": true,
+          "clicks": [
+            "target",
+            "doc:target"
+          ]
+        },
+        "UA default": {
+          "reachedTarget": false,
+          "clicks": [
+            "doc:HTML"
+          ]
+        }
+      },
+      "q5_scrollAndClip": {
+        "scroll": {
+          "groupTopBefore": 40,
+          "groupTopAfterScroll30": 40,
+          "liveElementTopAfterScroll": 10,
+          "transitionStillActive": true,
+          "behaviour": "viewport-fixed: the snapshot ignores the scroll and detaches from its content",
+          "matchesContent": false
+        },
+        "overflow:hidden, no nesting": {
+          "supported": false,
+          "pixelsOutsideClip": null,
+          "clipped": false,
+          "basis": "no pixel evidence in this engine; without nested view-transition groups every snapshot is painted in the top-layer ::view-transition tree, outside any overflow clip"
+        },
+        "nested group (view-transition-group: nearest)": {
+          "supported": false,
+          "pixelsOutsideClip": null,
+          "clipped": false,
+          "basis": "no pixel evidence in this engine; without nested view-transition groups every snapshot is painted in the top-layer ::view-transition tree, outside any overflow clip"
+        }
+      },
+      "q6_elementScoped": {
+        "supported": false
+      },
+      "q7_getAnimations": {
+        "exposed": true,
+        "pseudoElements": [
+          "::view-transition-group(box)",
+          "::view-transition-group(grow)",
+          "::view-transition-group(inner)",
+          "::view-transition-group(sbox)",
+          "::view-transition-old(box)",
+          "::view-transition-old(grow)",
+          "::view-transition-old(inner)",
+          "::view-transition-old(sbox)",
+          "::view-transition-new(box)",
+          "::view-transition-new(grow)",
+          "::view-transition-new(inner)",
+          "::view-transition-new(sbox)"
+        ],
+        "seekable": true
+      }
+    },
+    {
+      "engine": "webkit",
+      "version": "27.2",
+      "capabilities": {
+        "startViewTransition": true,
+        "activeViewTransition": true,
+        "elementScoped": false,
+        "viewTransitionClass": true,
+        "nestedGroups": false,
+        "types": true
+      },
+      "q1q2_grammar": {
+        "stepped": {
+          "groupAnimation": {
+            "pe": "::view-transition-group(box)",
+            "name": "-ua-view-transition-group-anim-box",
+            "duration": 250,
+            "easing": "steps(3)",
+            "target": "html"
+          },
+          "imageAnimations": [
+            "::view-transition-old(box) f12VtOut 166.667ms",
+            "::view-transition-new(box) f12VtIn 166.667ms"
+          ],
+          "samples": [
+            {
+              "t": 10,
+              "x": 0
+            },
+            {
+              "t": 75,
+              "x": 0
+            },
+            {
+              "t": 90,
+              "x": 100
+            },
+            {
+              "t": 160,
+              "x": 100
+            },
+            {
+              "t": 175,
+              "x": 200
+            },
+            {
+              "t": 245,
+              "x": 200
+            }
+          ],
+          "distinctPoses": 3,
+          "partialOpacityFrames": 0,
+          "firstFrameShowingNew": 166.7,
+          "blendedPixels": null,
+          "screenshots": 0
+        },
+        "smooth": {
+          "groupAnimation": {
+            "pe": "::view-transition-group(box)",
+            "name": "-ua-view-transition-group-anim-box",
+            "duration": 260,
+            "easing": "cubic-bezier(0.2, 0.8, 0.2, 1)",
+            "target": "html"
+          },
+          "imageAnimations": [
+            "::view-transition-old(box) f12VtOut 33.8ms",
+            "::view-transition-new(box) f12VtIn 33.8ms"
+          ],
+          "samples": [
+            {
+              "t": 0,
+              "x": 0
+            },
+            {
+              "t": 30,
+              "x": 135.4
+            },
+            {
+              "t": 40,
+              "x": 171.3
+            },
+            {
+              "t": 130,
+              "x": 283.8
+            },
+            {
+              "t": 255,
+              "x": 300
+            }
+          ],
+          "distinctPoses": 4,
+          "partialOpacityFrames": 0,
+          "firstFrameShowingNew": 50,
+          "blendedPixels": null,
+          "screenshots": 0
+        },
+        "control_uaCrossfade": {
+          "blendedPixels": 0,
+          "detected": false
+        }
+      },
+      "q2_boundary": {
+        "first (83.33ms)": {
+          "grow 2x": 0.585,
+          "shrink 2x": 0.737
+        },
+        "second (166.67ms)": {
+          "grow 2x": 0.415,
+          "shrink 2x": 0.415
+        }
+      },
+      "q3_rootIsolation": {
+        "excluded (CutMorph)": {
+          "rootAnimations": 0,
+          "animatedNames": [
+            "box",
+            "grow",
+            "inner",
+            "sbox"
+          ],
+          "staticPixelsChanged": null
+        },
+        "default root (no CutMorph class)": {
+          "rootAnimations": 5,
+          "animatedNames": [
+            "root",
+            "box",
+            "grow",
+            "inner",
+            "sbox"
+          ],
+          "staticPixelsChanged": null
+        }
+      },
+      "q4_clickThrough": {
+        "pointer-events: none (CutMorph)": {
+          "reachedTarget": true,
+          "clicks": [
+            "target",
+            "doc:target"
+          ]
+        },
+        "UA default": {
+          "reachedTarget": false,
+          "clicks": [
+            "doc:HTML"
+          ]
+        }
+      },
+      "q5_scrollAndClip": {
+        "scroll": {
+          "groupTopBefore": 40,
+          "groupTopAfterScroll30": 30,
+          "liveElementTopAfterScroll": 10,
+          "transitionStillActive": true,
+          "behaviour": "drifts: only the new end re-targets to the live element, so the snapshot moves by the remaining progress and still detaches",
+          "matchesContent": false
+        },
+        "overflow:hidden, no nesting": {
+          "supported": false,
+          "pixelsOutsideClip": null,
+          "clipped": false,
+          "basis": "no pixel evidence in this engine; without nested view-transition groups every snapshot is painted in the top-layer ::view-transition tree, outside any overflow clip"
+        },
+        "nested group (view-transition-group: nearest)": {
+          "supported": false,
+          "pixelsOutsideClip": null,
+          "clipped": false,
+          "basis": "no pixel evidence in this engine; without nested view-transition groups every snapshot is painted in the top-layer ::view-transition tree, outside any overflow clip"
+        }
+      },
+      "q6_elementScoped": {
+        "supported": false
+      },
+      "q7_getAnimations": {
+        "exposed": true,
+        "pseudoElements": [
+          "::view-transition-group(box)",
+          "::view-transition-old(box)",
+          "::view-transition-new(box)",
+          "::view-transition-group(grow)",
+          "::view-transition-old(grow)",
+          "::view-transition-new(grow)",
+          "::view-transition-group(inner)",
+          "::view-transition-old(inner)",
+          "::view-transition-new(inner)",
+          "::view-transition-group(sbox)",
+          "::view-transition-old(sbox)",
+          "::view-transition-new(sbox)"
+        ],
+        "seekable": true
+      }
+    }
+  ]
+}

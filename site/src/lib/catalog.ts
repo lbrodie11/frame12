@@ -3053,6 +3053,71 @@ const RAW_CATALOG: CatalogEntry[] = [
     "usageTemplate": "import { ExposureScrubber, type ExposureFrame } from '@/components/frame12';\n\nconst frames: ExposureFrame[] = [\n  { id: 'cfg', label: 'read config', kind: 'tool', at: '2026-11-06T14:18:00Z', status: 'ok' },\n  { id: 'plan', label: 'plan refund', kind: 'model', at: '2026-11-06T14:18:02Z', causes: ['cfg'] },\n  { id: 'call', label: 'tool call · payments.issueRefund', kind: 'tool', at: '2026-11-06T14:18:05Z', status: 'error', marker: true, causes: ['plan'] },\n];\n\nexport function RunReplay() {\n  return (\n    <ExposureScrubber\n      label=\"Agent run 042 replay\"\n      frames={frames}\n      renderFrame={(frame, _index, { scrubbing }) =>\n        scrubbing ? <p>{frame.label}</p> : <p>{frame.detail ?? frame.label}</p>\n      }\n    />\n  );\n}"
   },
   {
+    "slug": "cut-morph",
+    "title": "CutMorph",
+    "category": "Motion Hooks",
+    "summary": "State changes as film edits on the platform's View Transitions: a cut (instant) or a match cut (one named subject keeps its identity, on twos, with a hard image swap and no crossfade). useCutMorph is interruption-safe and opt-in; CutMorphName names the subject; withCutMorphMode gives React 19.3 <ViewTransition> the same grammar.",
+    "registryUrl": "https://frame12.dev/r/cut-morph.json",
+    "sourceFile": "registry/ui/cut-morph.tsx",
+    "whenToUse": [
+      "A discrete change where the reader follows one subject: rows that stay after a filter, a sort, a row that opens into a detail panel.",
+      "When you want the change to read as a deliberate edit (FRAME/12's grammar) instead of a jump, at the viewer's tempo."
+    ],
+    "whenNotToUse": [
+      "Typing, pointer drag, scrolling, focus movement, playback or continuous scrubbing (ExposureScrubber's included): direct manipulation is never stepped or delayed.",
+      "Page navigations and cross-document transitions: not supported.",
+      "Everything at once: match only the subject the reader tracks; let the rest cut.",
+      "Subjects inside scroll or overflow: hidden containers: Firefox and WebKit do not clip the snapshots."
+    ],
+    "props": [
+      {
+        "name": "name",
+        "type": "string",
+        "defaultValue": "undefined",
+        "description": "The view-transition-name, from a stable data id (never an array index): ^[a-z][a-z0-9-]{0,63}$; none, auto, match-element, root, default and the CSS-wide keywords are rejected (development error, rendered unchanged). Unique among live elements."
+      },
+      {
+        "name": "className",
+        "type": "'f12-match' | string",
+        "defaultValue": "'f12-match'",
+        "description": "The view-transition-class list, not the DOM class (the child's own className is kept): f12-match (moves on twos, hard swap) or f12-cut (changes at once). Other classes are added to f12-match, never instead of it."
+      },
+      {
+        "name": "children",
+        "type": "React.ReactElement",
+        "defaultValue": "undefined",
+        "description": "One DOM host element, or a component that forwards style and ref to one. Its style, className, ref and handlers are kept."
+      }
+    ],
+    "stateBehavior": "useCutMorph() returns cutMorph(update, { kind }). kind 'match' (default) resolves the motion from the calling component's tempo: reduced motion, still or a still ancestor, no View Transitions, SSR, a hidden document, or a transition CutMorph does not own → update() at once; 12 → a View Transition keyed f12-vt-stepped (250ms steps(3, end): 3 held poses); 60 → f12-vt-smooth (260ms). kind 'cut' always updates at once without flushSync. Each update runs exactly once, in call order: a call that arrives before the running edit has applied its update (same root and mode) joins it, so the viewer sees one edit to the final state; otherwise a new call runs any earlier update that has not run, skips the earlier transition and starts its own. One owner per document (Symbol.for('frame12.cutmorph')) is shared by every React root and copy. The promise resolves once the edit is committed (when the transition finishes, or after the calling component's next commit on the immediate paths; superseded calls resolve) and rejects only with what update threw. A page scroll, resize, pointer press, wheel, touch-move or PageUp/PageDown, reduced motion or tempo 0 mid-transition skip it; the DOM is already updated. Scrolls the update itself causes (focus() in a nested scroller) do not.",
+    "a11yNotes": [
+      "Reduced motion and tempo 0 are instant cuts in JavaScript, and the CSS sets every f12 view-transition animation to none under prefers-reduced-motion even if something forces a mode.",
+      "::view-transition has pointer-events: none during CutMorph transitions, so clicks and keys reach the updated DOM at once; the page outside the named subjects stays live (the root is not captured).",
+      "Live regions updated in the same update announce at once: the transition never delays them.",
+      "CutMorph never moves focus. Move it in the same update (a layout effect): to the new panel's heading when opening, back to the trigger when closing; leave it on the control for filters and sorts.",
+      "No frame is ever a partial-opacity blend: old and new images swap in one frame (flash-safe at every tempo)."
+    ],
+    "keyboardNotes": [
+      "No keyboard handling of its own: the controls that call cutMorph keep their native keyboard behaviour.",
+      "Keys pressed during a transition reach the updated DOM; the next discrete action supersedes the running edit."
+    ],
+    "themeBehavior": "No colours of its own: the snapshots are the elements as rendered in the current theme, light, dark or forced colors.",
+    "responsiveBehavior": "Geometry comes from the browser's snapshots, so it follows any layout. Where Element.startViewTransition exists (Chromium), pass scope to keep a transition inside one container (it scrolls and clips with it); elsewhere it is document-scoped and a scroll during the edit lands it at once.",
+    "grammarNotes": [
+      "Animate the subject, not the page: a match cut for the one subject the reader follows, a cut for everything else.",
+      "Stepped: the group holds 3 poses of 83.33ms (on twos); the old image shows for poses 1–2 and the new image from the second pose boundary (166.67ms). Smooth: 260ms, swap where the curve crosses its midpoint (33.8ms). Never a crossfade.",
+      "f12-match / f12-cut are view-transition classes; f12-vt-stepped / f12-vt-smooth are transition-scoped mode keys. Every rule needs both, so other view transitions are never restyled."
+    ],
+    "commonErrors": [
+      "Names from array indexes (row-0, row-1): after a filter or sort the wrong rows pair up. Use a stable data id.",
+      "An async update (await inside it): update must be synchronous; await first, then call cutMorph.",
+      "Wrapping typing, a drag or a scrubber: direct manipulation must never wait for a transition.",
+      "Two live elements with the same name: the browser skips the transition (a development warning names both).",
+      "A suspending update through the hook: flushSync shows the fallback at once. Preload, or use React 19.3 <ViewTransition> with withCutMorphMode."
+    ],
+    "usageTemplate": "import { CutMorphName, useCutMorph } from '@/components/frame12/cut-morph';\nimport { SegmentedControl } from '@/components/frame12';\n\nexport function ShotList({ shots }: { shots: Shot[] }) {\n  const [stage, setStage] = React.useState<'all' | Shot['stage']>('all');\n  const cutMorph = useCutMorph();\n  return (\n    <>\n      <SegmentedControl\n        ariaLabel=\"Filter by stage\"\n        options={STAGES}\n        value={stage}\n        onChange={(v) => cutMorph(() => setStage(v))}\n      />\n      <ul>\n        {shots\n          .filter((s) => stage === 'all' || s.stage === stage)\n          .map((s) => (\n            <CutMorphName key={s.id} name={`shot-${s.id}`}>\n              <li>{s.title}</li>\n            </CutMorphName>\n          ))}\n      </ul>\n    </>\n  );\n}"
+  },
+  {
     "slug": "dialog",
     "title": "Dialog",
     "category": "Primitive Adapters",

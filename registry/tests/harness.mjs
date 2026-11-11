@@ -78,7 +78,7 @@ const HOST_RESET =
 /** Bundles `entry` for the browser and returns a complete HTML document. */
 export async function bundlePage(
   entry,
-  { react = 18, nodeEnv = 'production', head = '', dirs = {}, returnJs = false, cssPath } = {},
+  { react = 18, nodeEnv = 'production', head = '', dirs = {}, returnJs = false, cssPath, plugins = [] } = {},
 ) {
   const res = await build({
     entryPoints: [entry],
@@ -89,7 +89,8 @@ export async function bundlePage(
     target: ['es2020'],
     legalComments: 'none',
     define: { 'process.env.NODE_ENV': JSON.stringify(nodeEnv) },
-    plugins: [aliasPlugin(react, dirs)],
+    // Extra plugins run first, so a test can stand in for one import (a spy) before the aliases.
+    plugins: [...plugins, aliasPlugin(react, dirs)],
     logLevel: 'silent',
   });
   if (returnJs) return res.outputFiles[0].text;

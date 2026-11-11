@@ -243,6 +243,7 @@ async function focusMissesAll(page) {
 const ROUTES = [
   '/',
   '/motion',
+  '/motion/edit-room',
   '/components',
   '/components/panel',
   '/components/tone-area-chart',

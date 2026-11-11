@@ -74,6 +74,9 @@ function stripTokenBlock(css) {
 }
 
 function keepSelector(sel, classSet, attrSet) {
+  // Static pages never start a View Transition, and `::view-transition-*(*.f12-cut)` names a
+  // view-transition-class (CutMorph), not the `.f12-cut` element class.
+  if (sel.includes('::view-transition')) return false;
   const { classes, negated, attributes } = selectorRefs(sel);
   for (const a of attributes) if (!attrSet.has(a)) return false;
   for (const c of classes) if (!classSet.has(c)) return false;
