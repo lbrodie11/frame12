@@ -504,7 +504,7 @@ export function ConsumerSmokeTest() {
     `import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ConsumerSmokeTest } from './consumer-check';
-import { Dialog, DialogTrigger, TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/frame12';
+import { Dialog, DialogTrigger, TooltipProvider, Tooltip, TooltipTrigger, TooltipContent, CutMorphName } from '@/components/frame12';
 
 let dlgPropsRefRead = 0;
 let tipPropsRefRead = 0;
@@ -547,6 +547,7 @@ const html = renderToStaticMarkup(
     React.Fragment,
     null,
     React.createElement(ConsumerSmokeTest),
+    React.createElement(CutMorphName, { name: 'smoke-row' }, React.createElement('li', null, 'Smoke row')),
     React.createElement(
       Dialog,
       null,
@@ -569,7 +570,7 @@ if (dlgPropsRefRead === 0 || tipPropsRefRead === 0 || dlgR19.didAccessLegacyRef(
     \`React 19 props.ref check failed: dlgPropsRefRead=\${dlgPropsRefRead} tipPropsRefRead=\${tipPropsRefRead} dlgLegacy=\${dlgR19.didAccessLegacyRef()} tipLegacy=\${tipR19.didAccessLegacyRef()}\`,
   );
 }
-if (!html.includes('C-01') || !html.includes('R19 Child') || !html.includes('Smoke run replay · 2 frames') || !html.includes('Replay needs JavaScript')) {
+if (!html.includes('C-01') || !html.includes('R19 Child') || !html.includes('Smoke run replay · 2 frames') || !html.includes('Replay needs JavaScript') || !/view-transition-name:\s*smoke-row/.test(html)) {
   throw new Error('Unexpected SSR output: ' + html.slice(0, 200));
 }
 if (!React.version.startsWith('19.')) {
@@ -1070,6 +1071,61 @@ export function useHeadless() {
     rmSync(xsDir, { recursive: true, force: true });
   }
 
+  // 7d. `cut-morph` installed ALONE (F12-10): registryDependencies must bring use-tempo and the
+  // styles (the grammar CSS); the hook, CutMorphName and withCutMorphMode type-check.
+  const cmDir = mkdtempSync(join(tmpdir(), 'frame12-cm-only-'));
+  try {
+    mkdirSync(join(cmDir, 'src/app'), { recursive: true });
+    mkdirSync(join(cmDir, '.shim-bin'), { recursive: true });
+    writeFileSync(join(cmDir, '.shim-bin/npm'), '#!/bin/sh\nexit 0\n');
+    chmodSync(join(cmDir, '.shim-bin/npm'), 0o755);
+    writeFileSync(join(cmDir, 'src/app/globals.css'), '/* host globals */\n');
+    writeFileSync(join(cmDir, 'src/global.d.ts'), CSS_MODULE_DECL);
+    for (const f of ['package.json', 'package-lock.json', 'tsconfig.json', 'components.json']) {
+      writeFileSync(join(cmDir, f), readFileSync(join(tempDir, f), 'utf8'));
+    }
+    const env = { ...process.env, CI: 'true', PATH: `${join(cmDir, '.shim-bin')}:${process.env.PATH || ''}` };
+    const cmAdd = await runAsync(
+      'npx',
+      ['--yes', 'shadcn', 'add', `http://127.0.0.1:${port}/r/cut-morph.json`, '--yes', '--overwrite'],
+      { cwd: cmDir, env },
+    );
+    const cmFiles = ['src/components/frame12/cut-morph.tsx', 'src/hooks/use-tempo.ts', 'src/styles/frame12.css'];
+    const cmMissing = cmFiles.filter((f) => !existsSync(join(cmDir, f)));
+    const cmCss = existsSync(join(cmDir, 'src/styles/frame12.css')) ? readFileSync(join(cmDir, 'src/styles/frame12.css'), 'utf8') : '';
+    symlinkSync(resolve(REPO_ROOT, 'node_modules'), join(cmDir, 'node_modules'), 'dir');
+    writeFileSync(
+      join(cmDir, 'src/app/cm-check.tsx'),
+      `import * as React from 'react';
+import { startTransition } from 'react';
+import { CutMorphName, useCutMorph, withCutMorphMode, type CutMorphKind } from '@/components/frame12/cut-morph';
+import { useResolvedMotion } from '@/hooks/use-tempo';
+export function CmCheck({ ids, kind }: { ids: string[]; kind?: CutMorphKind }) {
+  const [order, setOrder] = React.useState(ids);
+  const cutMorph = useCutMorph();
+  const mode = useResolvedMotion('stepped');
+  const reverse = () => void cutMorph(() => setOrder((o) => [...o].reverse()), { kind });
+  const viaReact = () => (mode === 'cut' ? setOrder([...ids]) : withCutMorphMode(mode, () => startTransition(() => setOrder([...ids]))));
+  return (
+    <>
+      <button type="button" onClick={reverse}>Reverse</button>
+      <button type="button" onClick={viaReact}>Reset</button>
+      <ul>{order.map((id) => <CutMorphName key={id} name={'row-' + id}><li>{id}</li></CutMorphName>)}</ul>
+    </>
+  );
+}
+`,
+    );
+    const cmTsc = spawnSync(tscBin, ['--noEmit', '-p', join(cmDir, 'tsconfig.json')], { cwd: cmDir, encoding: 'utf8' });
+    check(
+      cmAdd.status === 0 && cmMissing.length === 0 && cmCss.includes('f12-vt-stepped') && cmTsc.status === 0,
+      'Individual install of /r/cut-morph.json alone brings use-tempo and the styles (with the view-transition grammar), and passes tsc --noEmit',
+      cmMissing.length ? `missing: ${cmMissing.join(', ')}` : cmTsc.status !== 0 ? `${cmTsc.stdout}\n${cmTsc.stderr}` : '',
+    );
+  } finally {
+    rmSync(cmDir, { recursive: true, force: true });
+  }
+
   // 8. React 18 consumer (Vite). The repo hoists React 19, so React 18 support is proven in an
   // isolated project with its own real React 18 install: shadcn add (full kit + 3 blocks) →
   // tsc --noEmit against @types/react 18 → react-dom/server 18 SSR → vite build → hydrateRoot in
@@ -1204,8 +1260,25 @@ import {
   Sheet, Scene, Panel, Button, Tabs, TabsList, TabsTrigger, TabsContent,
   Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Metric, Switch, ToastProvider,
-  ExposureScrubber, type ExposureFrame,
+  ExposureScrubber, type ExposureFrame, CutMorphName, useCutMorph,
 } from '@/components/frame12';
+
+function CutMorphRows() {
+  const [order, setOrder] = React.useState(['a', 'b', 'c']);
+  const cutMorph = useCutMorph();
+  return (
+    <div id="r18-cm">
+      <Button id="r18-cm-reverse" onClick={() => void cutMorph(() => setOrder((o) => [...o].reverse()))}>Reverse</Button>
+      <ol id="r18-cm-list">
+        {order.map((id) => (
+          <CutMorphName key={id} name={'r18-row-' + id}>
+            <li data-id={id}>{id}</li>
+          </CutMorphName>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 const XS_FRAMES: ExposureFrame[] = Array.from({ length: 12 }, (_, i) => ({
   id: 's' + (i + 1),
@@ -1289,6 +1362,7 @@ export function App() {
         defaultValue="s8"
         renderFrame={(f) => <p id="r18-xs-detail">{f.label}</p>}
       />
+      <CutMorphRows />
       <DeveloperConsole idPrefix="r18-console" />
       <WorkspaceSettings idPrefix="r18-settings" />
       <AnalyticsDashboard idPrefix="r18-analytics" />
@@ -1493,6 +1567,23 @@ export default {
           xsReady && xs?.rows === 12 && xs.vt === 'Frame 9 of 12: step 9, ok' && xs.cur === 'F-09' && errors.length === 0,
           'React 18 consumer: ExposureScrubber server-renders 12 rows, hydrates (transport enabled), and the range scrubs to frame 9 with aria-valuetext and aria-current="step"',
           JSON.stringify({ xsReady, xs, errors: errors.slice(0, 3) }),
+        );
+        // CutMorph (F12-10): a real View Transition on React 18.3 (flushSync inside the callback).
+        const cmBefore = await page.evaluate(() => [...document.querySelectorAll('#r18-cm-list li')].map((li) => li.style.viewTransitionName).join());
+        await page.click('#r18-cm-reverse');
+        const cm = await page
+          .waitForFunction(() => {
+            const vt = document.activeViewTransition;
+            const order = [...document.querySelectorAll('#r18-cm-list li')].map((li) => li.dataset.id).join('');
+            return vt && order === 'cba' ? { running: true, cls: document.documentElement.className, order } : false;
+          }, null, { timeout: 3000, polling: 'raf' })
+          .then((h) => h.jsonValue(), () => null);
+        await page.waitForFunction(() => !document.activeViewTransition, null, { timeout: 3000 }).catch(() => {});
+        const cmAfter = await page.evaluate(() => document.documentElement.className);
+        check(
+          cmBefore === 'r18-row-a,r18-row-b,r18-row-c' && cm?.running && /f12-vt-stepped/.test(cm.cls) && !/f12-vt-/.test(cmAfter) && errors.length === 0,
+          'React 18 consumer: CutMorphName server-renders its names; useCutMorph runs a stepped View Transition on react-dom 18.3 and cleans up its mode class',
+          JSON.stringify({ cmBefore, cm, cmAfter, errors: errors.slice(0, 3) }),
         );
       } finally {
         await browser.close();
