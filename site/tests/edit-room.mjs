@@ -70,6 +70,11 @@ const INIT = `(() => {
       window.__pending++;
       const done = () => { window.__pending--; };
       vt.finished.then(done, done);
+      // Whether the transition really ran: a rejected ready means the engine aborted it (the
+      // update still lands, but nothing animates).
+      const rec = { ready: 'pending' };
+      (window.__ready = window.__ready || []).push(rec);
+      vt.ready.then(() => { rec.ready = 'ok'; }, (e) => { rec.ready = e.name + ': ' + e.message; });
       window.__vt.push({ scope: this === document ? 'document' : this.getAttribute('data-er-demo') || this.tagName, at: performance.now() });
       return vt;
     };
@@ -120,12 +125,14 @@ try {
         // the next frame, after the old state is captured, not when the animation ends).
         const live = await whileRunning(page, "() => /· Ink/.test(document.getElementById('er-filter-status').textContent)");
         const mid = await page.evaluate(() => ({ status: document.getElementById('er-filter-status').textContent, vt: window.__vt.slice() }));
+        await idle(page);
+        mid.ready = await page.evaluate(() => window.__ready.map((r) => r.ready));
         mid.runningWhenAnnounced = live.running;
         await idle(page);
         const after = await page.evaluate(() => ({ rows: document.querySelectorAll('#er-filter-list li').length, focus: document.activeElement?.id, named: getComputedStyle(document.querySelector('#er-filter-list li')).viewTransitionName }));
         const scope = mid.vt[0]?.scope;
-        check(/Showing \d+ of 200 shots · Ink/.test(mid.status) && mid.runningWhenAnnounced && mid.vt.length === 1 && (engine === 'chromium' ? scope === 'er-filter' : scope === 'document') && after.rows < 200 && after.focus?.startsWith('er-filter-filter') && /^er-filter-s\d{3}$/.test(after.named),
-          `${E} filter: Enter on a stage runs one ${engine === 'chromium' ? 'element-scoped' : 'document'} match cut; the live region updates at once; focus stays on the control`, { mid, after });
+        check(/Showing \d+ of 200 shots · Ink/.test(mid.status) && mid.runningWhenAnnounced && mid.vt.length === 1 && scope === 'document' && mid.ready.join() === 'ok' && after.rows < 200 && after.focus?.startsWith('er-filter-filter') && /^er-filter-s\d{3}$/.test(after.named),
+          `${E} filter: Enter on a stage runs one document match cut that really animates (ready resolves, 165 subjects exit); the live region updates at once; focus stays on the control`, { mid, after });
         // Filter quickly three times: every change lands, in order; nothing unhandled.
         for (const l of ['Key', 'Color', 'Final']) await stageButton(page, 'filter', l).click();
         await idle(page);
@@ -142,9 +149,9 @@ try {
         await whileRunning(page, "() => /longest/.test(document.getElementById('er-reorder-status').textContent)");
         const during = await page.evaluate(() => document.activeElement?.textContent);
         await idle(page);
-        const r = await page.evaluate(() => ({ focus: document.activeElement?.textContent, status: document.getElementById('er-reorder-status').textContent, first: document.querySelector('#er-reorder-list li .er-len').textContent, frames: [...document.querySelectorAll('#er-reorder-list li .er-len')].map((e) => parseInt(e.textContent, 10)) }));
+        const r = await page.evaluate(() => ({ ready: window.__ready.map((x) => x.ready).join(), focus: document.activeElement?.textContent, status: document.getElementById('er-reorder-status').textContent, first: document.querySelector('#er-reorder-list li .er-len').textContent, frames: [...document.querySelectorAll('#er-reorder-list li .er-len')].map((e) => parseInt(e.textContent, 10)) }));
         const sortedDesc = r.frames.every((f, i, a) => i === 0 || a[i - 1] >= f);
-        check(/^Length/.test(during) && /^Length/.test(r.focus) && /longest first/.test(r.status) && sortedDesc && errors.length === 0,
+        check(r.ready === 'ok' && /^Length/.test(during) && /^Length/.test(r.focus) && /longest first/.test(r.status) && sortedDesc && errors.length === 0,
           `${E} reorder: sorting by Length keeps focus on the sort control, during and after the transition`, r);
         await ctx.close();
       });
@@ -159,8 +166,8 @@ try {
         await page.keyboard.press('Tab');
         const tabbed = await page.evaluate(() => document.activeElement?.id);
         await idle(page);
-        const open1 = await page.evaluate(() => ({ expanded: document.getElementById('er-open-row-s002').getAttribute('aria-expanded'), heading: document.getElementById('er-open-detail-title')?.textContent, shared: getComputedStyle(document.getElementById('er-open-detail')).viewTransitionName, slot: getComputedStyle(document.getElementById('er-open-row-s002')).viewTransitionName }));
-        check(moved.running && focusNow === 'er-open-detail-title' && tabbed === 'er-open-close' && open1.expanded === 'true' && open1.shared === 'er-open-s002' && open1.slot === 'er-open-s002-slot',
+        const open1 = await page.evaluate(() => ({ ready: window.__ready.map((x) => x.ready).join(), expanded: document.getElementById('er-open-row-s002').getAttribute('aria-expanded'), heading: document.getElementById('er-open-detail-title')?.textContent, shared: getComputedStyle(document.getElementById('er-open-detail')).viewTransitionName, slot: getComputedStyle(document.getElementById('er-open-row-s002')).viewTransitionName }));
+        check(moved.running && open1.ready === 'ok' && focusNow === 'er-open-detail-title' && tabbed === 'er-open-close' && open1.expanded === 'true' && open1.shared === 'er-open-s002' && open1.slot === 'er-open-s002-slot',
           `${E} open: Enter on a row match-cuts it into the panel (shared name); focus moves to the panel heading (the demo's job); Tab works mid-transition`, { runningWhenFocused: moved.running, focusNow, tabbed, ...open1 });
         await page.keyboard.press('Escape');
         await page.waitForFunction(() => document.activeElement?.id === 'er-open-row-s002', null, { timeout: 5000 });

@@ -51,8 +51,7 @@ export function FilterDemo({
 }) {
   const shots = React.useMemo(() => buildShots(count), [count]);
   const [stage, setStage] = React.useState<ShotStage | 'all'>('all');
-  const scope = React.useRef<HTMLDivElement>(null);
-  const cutMorph = useCutMorph({ scope });
+  const cutMorph = useCutMorph();
   const visible = filterShots(shots, stage);
   const options = SHOT_STAGES.map((o) => ({
     value: o.value,
@@ -61,7 +60,7 @@ export function FilterDemo({
   }));
   const stageLabel = SHOT_STAGES.find((o) => o.value === stage)?.label ?? 'All';
   return (
-    <div className="er-demo" ref={scope} data-er-demo={idPrefix}>
+    <div className="er-demo" data-er-demo={idPrefix}>
       <div className="er-controls">
         <SegmentedControl
           idPrefix={`${idPrefix}-filter`}
@@ -106,12 +105,11 @@ export function ReorderDemo({
 }) {
   const shots = React.useMemo(() => buildShots(count), [count]);
   const [by, setBy] = React.useState<ShotSort>('cut');
-  const scope = React.useRef<HTMLDivElement>(null);
-  const cutMorph = useCutMorph({ scope });
+  const cutMorph = useCutMorph();
   const sorted = sortShots(shots, by);
   const word = by === 'length' ? 'length, longest first' : by === 'stage' ? 'pipeline stage' : 'cut order';
   return (
-    <div className="er-demo" ref={scope} data-er-demo={idPrefix}>
+    <div className="er-demo" data-er-demo={idPrefix}>
       <div className="er-controls">
         <SegmentedControl
           idPrefix={`${idPrefix}-sort`}
@@ -145,12 +143,11 @@ export function ReorderDemo({
 export function OpenDemo({ idPrefix, count = 8 }: { idPrefix: string; count?: number }) {
   const shots = React.useMemo(() => buildShots(count), [count]);
   const [open, setOpen] = React.useState<string | null>(null);
-  const scope = React.useRef<HTMLDivElement>(null);
   const heading = React.useRef<HTMLHeadingElement>(null);
   // The focus intent names its target state, so a close followed quickly by an open (whose
   // pending close commits first) never spends the open's intent on the wrong commit.
   const focusNext = React.useRef<{ to: 'panel' | 'row'; id: string } | null>(null);
-  const cutMorph = useCutMorph({ scope });
+  const cutMorph = useCutMorph();
   const detailId = `${idPrefix}-detail`;
 
   // Runs in the same commit as the update (inside the transition's update callback), so the new
@@ -179,7 +176,7 @@ export function OpenDemo({ idPrefix, count = 8 }: { idPrefix: string; count?: nu
   const current = shots.find((s) => s.id === open) ?? null;
 
   return (
-    <div className="er-demo er-open" ref={scope} data-er-demo={idPrefix}>
+    <div className="er-demo er-open" data-er-demo={idPrefix}>
       <ul className="er-open-list" aria-label="Shots">
         {shots.map((s) => (
           <li key={s.id}>

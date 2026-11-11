@@ -48,7 +48,7 @@ function EngineLine() {
     <p className="f12-mono-note" id="er-engine">
       This browser:{' '}
       {s.viewTransitions
-        ? `match cuts animate${s.elementScoped ? ', element-scoped (each demo is its own scope)' : ', document-scoped with the page held still'}`
+        ? 'match cuts animate; the rest of the page stays live'
         : 'no View Transitions with view-transition-class, so every edit is an instant cut'}
       .
     </p>
@@ -201,7 +201,7 @@ export default function EditRoomPage() {
                   <tr>
                     <th scope="col">Engine</th>
                     <th scope="col">Match cuts</th>
-                    <th scope="col">scope option</th>
+                    <th scope="col">Element-scoped</th>
                     <th scope="col">Scroll mid-edit</th>
                     <th scope="col">overflow: hidden</th>
                   </tr>
