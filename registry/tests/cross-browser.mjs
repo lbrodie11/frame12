@@ -6,7 +6,7 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { launch, openGallery, getRenderedCuts, check, finish, REPO_ROOT } from './lib.mjs';
-import { askClickThrough, askGrammar, askRootIsolation } from '../scripts/cut-morph-spike.mjs';
+import { askClickThrough, askGrammar, askRootIsolation, askScoped } from '../scripts/cut-morph-spike.mjs';
 
 // F12-10 spike questions 1–4, re-asked on every run. Every engine below passed the spike
 // (docs/architecture/cut-morph.md), so CutMorph animates in all three; an engine recorded as
@@ -832,6 +832,15 @@ for (const browserName of BROWSER_NAMES) {
         const c = await askClickThrough(browser);
         check(c['pointer-events: none (CutMorph)'].reachedTarget && !c['UA default'].reachedTarget,
           `[${browserName} CutMorph] Q4 click-through: a click mid-transition reaches the live, updated DOM (and would not without pointer-events: none)`, JSON.stringify(c));
+        // Q6b: CutMorph keeps element-scoped transitions off because, where they exist, they
+        // abort when a named subject exits. If an engine fixes that, this fails: re-run the spike
+        // and consider enabling `scope` (registry/ui/cut-morph.tsx, docs/architecture/cut-morph.md).
+        const sc = await askScoped(browser);
+        if (sc.supported) {
+          const exits = Object.entries(sc.exits).filter(([k]) => !k.includes('control'));
+          check(sc.exits['move one (control)'].every((x) => x === 'ran') && exits.every(([, v]) => v.some((x) => x.startsWith('aborted'))),
+            `[${browserName} CutMorph] Q6b element-scoped transitions still abort when a named subject exits (why CutMorph does not use scope)`, JSON.stringify(sc.exits));
+        }
       }
     }
   } finally {

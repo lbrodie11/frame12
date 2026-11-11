@@ -22,10 +22,10 @@ export type CutMorphMode = 'stepped' | 'smooth';
 
 export interface UseCutMorphOptions {
   /**
-   * Run element-scoped transitions on this element where the engine supports
-   * `Element.prototype.startViewTransition` (Chromium): the snapshots then scroll and clip with
-   * it and the rest of the page is untouched. Elsewhere, a document transition with the root
-   * excluded.
+   * Accepted for compatibility and currently unused: every CutMorph edit is a document
+   * transition with the root excluded. Chromium 153's element-scoped transitions abort
+   * ("Prepaint layout check failed") when the update removes or hides a named subject, which is
+   * what filters do, so CutMorph does not start them (docs/architecture/cut-morph.md).
    */
   scope?: React.RefObject<HTMLElement | null>;
 }
@@ -58,7 +58,7 @@ export interface CutMorphNameProps {
 export interface CutMorphSupport {
   /** Same-document View Transitions with `view-transition-class`: CutMorph animates. */
   viewTransitions: boolean;
-  /** `Element.prototype.startViewTransition`: `scope` runs element-scoped transitions. */
+  /** The engine has `Element.prototype.startViewTransition` (CutMorph does not use it yet). */
   elementScoped: boolean;
   /** `document.activeViewTransition`: transitions CutMorph does not own are detected and left alone. */
   activeViewTransition: boolean;
@@ -91,7 +91,6 @@ interface CutMorphEntry {
 interface CutMorphRecord {
   gen: number;
   root: Element;
-  scoped: boolean;
   mode: 'stepped' | 'smooth';
   /**
    * The updates this transition commits, in call order. Calls that arrive before its update
@@ -156,7 +155,7 @@ function setModeClass(root: Element, cls: string, gen: number): void {
     if (prev.cls !== cls) root.classList.remove(prev.cls);
   }
   root.classList.add(cls);
-  // The root's className may be React-managed (a scope element, or <html> in some frameworks):
+  // The root's className may be React-managed (<html> in some frameworks):
   // if a render rewrites it mid-transition, put the key back before the next frame (observer
   // callbacks are microtasks, so this lands before the browser captures or paints).
   let observer: MutationObserver | undefined;
@@ -276,7 +275,6 @@ function run(
   update: () => void,
   kind: CutMorphKind,
   mode: 'stepped' | 'smooth' | 'cut',
-  scopeEl: HTMLElement | null,
   hook: object,
   afterCommit: (done: () => void) => void,
 ): Promise<void> {
@@ -286,7 +284,7 @@ function run(
   const immediate = (): Promise<void> => {
     // Earlier edits first (exactly once, in order), then the latest edit supersedes them.
     flushPending(owner, false);
-    skipOwned(owner, (rec) => rec.scoped && rec.root !== scopeEl);
+    skipOwned(owner, () => false);
     try {
       callUpdate(update);
     } catch (e) {
@@ -309,10 +307,7 @@ function run(
   const owned = (vt: VtLike | null | undefined) => !vt || owner.active.some((rec) => rec.vt === vt);
   if (!owned((document as unknown as ActiveVt).activeViewTransition)) return immediate();
 
-  const scoped = !!scopeEl && support.elementScoped && scopeEl.isConnected;
-  const root: Element = scoped ? (scopeEl as Element) : document.documentElement;
-  // document.activeViewTransition does not report element-scoped transitions: check the scope.
-  if (scoped && !owned((root as unknown as ActiveVt).activeViewTransition)) return immediate();
+  const root: Element = document.documentElement;
 
   // Join the latest owned transition while its update callback has not run yet (same root and
   // mode, nothing else pending): its callback runs every queued update in call order inside one
@@ -334,16 +329,14 @@ function run(
   }
 
   flushPending(owner, true);
-  // A new document transition supersedes every owned one; a scoped one supersedes the document
-  // transition and any on the same scope. Scoped transitions on other scopes keep running.
-  skipOwned(owner, (rec) => scoped && rec.scoped && rec.root !== root);
+  // A new transition supersedes every owned one.
+  skipOwned(owner, () => false);
 
   const entry: CutMorphEntry = { update, error: null };
   let markDone: () => void = () => {};
   const rec: CutMorphRecord = {
     gen,
     root,
-    scoped,
     mode,
     entries: [entry],
     updateRan: false,
@@ -372,7 +365,7 @@ function run(
   let vt: VtLike;
   owner.starting = true;
   try {
-    vt = ((scoped ? root : document) as unknown as Required<VtStarter>).startViewTransition(onUpdate);
+    vt = (document as unknown as Required<VtStarter>).startViewTransition(onUpdate);
   } catch {
     finish(rec);
     markDone();
@@ -412,7 +405,7 @@ function run(
   vt.updateCallbackDone.catch(() => {});
   vt.ready.then(
     () => {
-      if (settled || scoped) return;
+      if (settled) return;
       // Document snapshots stay where they were captured: a page scroll, resize, pointer press
       // or scrolling input would detach them from the content, so the edit lands at once (the
       // DOM is already updated). Scrolls the update itself caused (a focus() inside a nested
@@ -472,7 +465,6 @@ function run(
 export function useCutMorph(opts?: UseCutMorphOptions): CutMorph {
   const mode = useResolvedMotion('stepped');
   const modeRef = React.useRef(mode);
-  const scopeRef = React.useRef(opts?.scope);
   const [hook] = React.useState(() => ({}));
   // Immediate paths resolve after this component's next commit (the update is on screen then).
   const waiters = React.useRef<Array<() => void>>([]);
@@ -483,7 +475,6 @@ export function useCutMorph(opts?: UseCutMorphOptions): CutMorph {
   };
   useIsoLayoutEffect(() => {
     modeRef.current = mode;
-    scopeRef.current = opts?.scope;
     drain();
     // Tempo became still (or reduced motion turned on) here: this component's edits land now.
     if (mode === 'cut') {
@@ -504,7 +495,6 @@ export function useCutMorph(opts?: UseCutMorphOptions): CutMorph {
         update,
         callOpts?.kind ?? 'match',
         modeRef.current,
-        scopeRef.current?.current ?? null,
         hook,
         (done) => {
           // Not mounted (the server, or after unmount): nothing will commit here, resolve now.

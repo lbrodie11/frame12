@@ -180,7 +180,7 @@ Use it when the run is finished and its shape matters (where the time went, the 
 State changes are edits: a **cut** (instant) by default, a **match cut** only for one subject the reader is following. Install `@frame12/cut-morph`.
 
 - **Opt-in only.** Never add CutMorph to a component or page that didn't ask for animation, and never wrap a whole page or app state in it.
-- **Match one subject.** Wrap only the elements the reader tracks in `CutMorphName`, with names from stable data ids (`` `shot-${shot.id}` ``), never array indexes. Everything else cuts.
+- **Match one subject.** Wrap only the elements the reader tracks in `CutMorphName`, with names from stable data ids (`` `shot-${shot.id}` ``), never array indexes. Everything else cuts. Every named subject costs a snapshot: 200 named rows took up to 190 ms (p95) to reach the DOM in Chromium in the lab, 868 ms at 4× CPU, so for big lists match only the few rows that matter or use `{ kind: 'cut' }`.
 - **Never for direct manipulation:** typing, pointer drag, scrolling, focus movement, playback or continuous scrubbing (ExposureScrubber included). Call it from discrete actions (a filter pick, a sort, open/close).
 - `update` is synchronous (await data first, then call). Move focus yourself in the same update. Reduced motion and tempo 0 already make it an instant cut; don't add your own checks.
 - Spike and engine support: `docs/architecture/cut-morph.md`; demos: `/motion/edit-room`.

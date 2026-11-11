@@ -3102,7 +3102,7 @@ const RAW_CATALOG: CatalogEntry[] = [
       "Keys pressed during a transition reach the updated DOM; the next discrete action supersedes the running edit."
     ],
     "themeBehavior": "No colours of its own: the snapshots are the elements as rendered in the current theme, light, dark or forced colors.",
-    "responsiveBehavior": "Geometry comes from the browser's snapshots, so it follows any layout. Where Element.startViewTransition exists (Chromium), pass scope to keep a transition inside one container (it scrolls and clips with it); elsewhere it is document-scoped and a scroll during the edit lands it at once.",
+    "responsiveBehavior": "Geometry comes from the browser's snapshots, so it follows any layout. Every edit is a document transition with the root excluded, so a page scroll during the edit lands it at once. The scope option is accepted but unused: Chromium's element-scoped transitions abort when a named subject exits.",
     "grammarNotes": [
       "Animate the subject, not the page: a match cut for the one subject the reader follows, a cut for everything else.",
       "Stepped: the group holds 3 poses of 83.33ms (on twos); the old image shows for poses 1–2 and the new image from the second pose boundary (166.67ms). Smooth: 260ms, swap where the curve crosses its midpoint (33.8ms). Never a crossfade.",
