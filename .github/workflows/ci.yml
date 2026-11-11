@@ -23,10 +23,10 @@ jobs:
   verify:
     name: Build, Lint, Accessibility & Smoke Install
     runs-on: ubuntu-latest
-    # A stall guard, not a budget: a healthy run takes ~30 min (npm test alone ~28 min since the
-    # ink and story suites joined it in three engines); 40 still stops a hung run well short of the
-    # 60+ min stalls noted above.
-    timeout-minutes: 40
+    # A stall guard, not a budget: a healthy run takes ~35–38 min since the CutMorph suites joined
+    # (three engines, plus The Edit Room's flash captures), and slow runners have needed just over
+    # 40; 50 still stops a hung run well short of the 60+ min stalls noted above.
+    timeout-minutes: 50
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
       options: --user 1001 --ipc=host
