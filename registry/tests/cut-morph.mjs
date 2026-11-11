@@ -733,49 +733,55 @@ for (const engine of BROWSERS) {
       await ctx.close();
     });
 
-    // ============================================================================ element scope
-    await section(`${E} element-scoped`, async () => {
-      const { ctx, page } = await open(browser, html, { mount: { tempo: 'twos', scoped: true } });
-      const has = await page.evaluate(() => typeof Element.prototype.startViewTransition === 'function');
-      await page.evaluate(() => void window.__cm.stages.a.cut('SC', { x: 300 }));
-      if (!has) {
+    // ================================================================= scope (unused) and exits
+    // Chromium 153's element-scoped transitions abort ("Prepaint layout check failed") when the
+    // update removes or hides a named subject, so `scope` is accepted but every edit is a
+    // document transition. The case that slipped through before: an edit whose subjects EXIT.
+    await section(`${E} scope and exits`, async () => {
+      {
+        const { ctx, page } = await open(browser, html, { mount: { tempo: 'twos', scoped: true } });
+        await page.evaluate(() => {
+          window.__docCalls = 0;
+          const o = Document.prototype.startViewTransition;
+          Document.prototype.startViewTransition = function (...a) { window.__docCalls++; return o.apply(this, a); };
+        });
+        await page.evaluate(() => void window.__cm.stages.a.cut('EX', { x: 300, rows: ['r1'] }));
+        const ready = await page.evaluate(() => window.__ready());
+        const anims = await page.evaluate(() => window.__pause());
+        const pes = new Set(anims.map((a) => a.pe));
+        const cls = await page.evaluate(() => document.documentElement.className);
+        await page.evaluate(() => window.__play());
         await settle(page, 1);
         const s = await cm(page);
-        check(s.vtCalls === 1 && s.results[0]?.status === 'resolved', `${E} element-scoped: no Element.startViewTransition → a document transition with the root excluded`, s);
+        const docCalls = await page.evaluate(() => window.__docCalls);
+        const ok = ready && docCalls === 1 && s.vtCalls === 1 && pes.has('::view-transition-old(a-r2)') && pes.has('::view-transition-old(a-r3)') &&
+          cls.includes('f12-vt-stepped') && s.results[0]?.status === 'resolved' && (await label(page)) === 'EX';
+        check(ok, `${E} scope + exits: with a scope given, CutMorph runs one document transition, and an edit that removes named subjects cuts them out on the swap (ready resolves; their old images animate)`,
+          { ready, docCalls, vtCalls: s.vtCalls, exits: [...pes].filter((p) => /a-r[23]/.test(p)), label: s.log, cls });
         await ctx.close();
-        return;
       }
-      await page.waitForFunction(() => window.__vtAnims().length > 0, null, { timeout: 3000 });
-      const anims = await page.evaluate(() => window.__pause());
-      // The stage's className is React-managed and changed in this update: the key must survive.
-      const cls = await page.evaluate(() => ({ html: document.documentElement.className, stage: document.getElementById('stage-a').className, docActive: !!document.activeViewTransition }));
-      await page.evaluate(() => window.scrollBy(0, 30));
-      await flush(page, 2);
-      const stillPaused = await page.evaluate(() => window.__p.some((a) => a.playState === 'paused'));
-      await page.evaluate(() => window.__play());
-      await page.waitForFunction(() => window.__cm.results.length === 1, null, { timeout: 3000 });
-      const g = anims.find((a) => a.pe === '::view-transition-group(a-mover)');
-      check(g?.target === 'stage-a' && g.dur === 250 && cls.stage.includes('f12-vt-stepped') && !cls.html.includes('f12-vt-') && stillPaused,
-        `${E} element-scoped: scope → transition on the scope element (mode key on it, not <html>, kept although React rewrote its className); a page scroll does not skip it`, { g, cls, stillPaused });
-      await ctx.close();
-      // A foreign element-scoped transition on the same scope is never cancelled.
       {
-        const { ctx: c2, page: p2 } = await open(browser, html, { mount: { tempo: 'twos', scoped: true } });
-        const r = await p2.evaluate(async () => {
-          const el = document.getElementById('stage-a');
-          const foreign = el.startViewTransition(() => { el.dataset.foreign = '1'; });
-          let skipped = false;
-          foreign.ready.catch(() => { skipped = true; });
-          await foreign.ready.catch(() => {});
-          const t0 = performance.now();
-          window.__cm.stages.a.cut('SF', { x: 300 });
-          const log = window.__cm.log.slice();
-          await foreign.finished;
-          return { log, skipped, ranFor: Math.round(performance.now() - t0) };
-        });
-        check(r.log.join() === 'SF' && !r.skipped && r.ranFor > 100,
-          `${E} element-scoped: a foreign transition already running on the scope is left alone; CutMorph updates at once`, r);
-        await c2.close();
+        const { ctx, page } = await open(browser, html, { mount: { tempo: 'twos', scoped: true } });
+        const has = await page.evaluate(() => typeof Element.prototype.startViewTransition === 'function');
+        if (has) {
+          // A foreign element-scoped transition running on the scope is never cancelled.
+          const r = await page.evaluate(async () => {
+            const el = document.getElementById('stage-a');
+            const foreign = el.startViewTransition(() => { el.dataset.foreign = '1'; });
+            let skipped = false;
+            foreign.ready.catch(() => { skipped = true; });
+            await foreign.ready.catch(() => {});
+            const t0 = performance.now();
+            const p = window.__cm.stages.a.cut('SF', { x: 300 });
+            await foreign.finished;
+            const ranFor = Math.round(performance.now() - t0);
+            await p;
+            return { skipped, ranFor, log: window.__cm.log.slice() };
+          });
+          check(!r.skipped && r.ranFor > 100 && r.log.join() === 'SF',
+            `${E} scope + exits: a foreign element-scoped transition already running is left alone while CutMorph's edit lands`, r);
+        }
+        await ctx.close();
       }
     });
 

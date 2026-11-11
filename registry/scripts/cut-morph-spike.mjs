@@ -345,8 +345,36 @@ export async function askScoped(browser) {
   const stillActive = await page.evaluate(() => window.__paused.some((a) => a.playState === 'paused'));
   await page.evaluate(() => window.__end());
   await ctx.close();
+  // Q6b (added after release): subjects that EXIT. Remove named rows from a scoped list, five
+  // shapes, and record whether `ready` resolves (the transition ran) or rejects (aborted).
+  const exits = {};
+  {
+    const ctx2 = await browser.newContext({ viewport: { width: 800, height: 600 } });
+    const p2 = await ctx2.newPage();
+    for (const [label, update] of [
+      ['move one (control)', 's.prepend(s.lastElementChild)'],
+      ['remove 1 of 3', 's.children[1].remove()'],
+      ['remove last of 24', 's.lastElementChild.remove()'],
+      ['remove 12 of 24', '[...s.children].forEach((c, i) => i % 2 && c.remove())'],
+      ['hide 1 of 24', "s.firstElementChild.style.display = 'none'"],
+    ]) {
+      const n = label.includes('of 3') ? 3 : 24;
+      const runs = [];
+      for (let k = 0; k < 3; k++) {
+        await p2.setContent(`<!doctype html><style>#s{display:grid;gap:4px;width:300px}.r{height:20px;background:#ccc}</style><div id="s">${Array.from({ length: n }, (_, i) => `<div class="r" style="view-transition-name:r${i}">${i}</div>`).join('')}</div>`);
+        runs.push(await p2.evaluate(async (u) => {
+          const s = document.getElementById('s');
+          const vt = s.startViewTransition(() => new Function('s', u)(s));
+          try { await vt.ready; return 'ran'; } catch (e) { return `aborted (${e.message.replace(/^.*\. /, '')})`; }
+        }, update));
+      }
+      exits[label] = runs;
+    }
+    await ctx2.close();
+  }
   return {
     supported: true,
+    exits,
     animationTargets: [...new Set(anims.map((a) => a.target))],
     rootAnimations: anims.filter((a) => a.pe.includes('(root)')).length,
     groupAnimation: anims.find((a) => a.pe === '::view-transition-group(sbox)'),
