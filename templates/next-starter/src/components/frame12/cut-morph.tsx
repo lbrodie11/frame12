@@ -37,14 +37,18 @@ export interface CutMorphCallOptions {
 
 /**
  * Runs `update` (synchronous; it must not return a promise) exactly once, in call order. Resolves
- * once the edit is on screen; rejects only with what `update` threw.
+ * once the edit is committed: when the View Transition finishes, or, on the immediate paths, after
+ * the calling component's next commit. Rejects only with what `update` threw.
  */
 export type CutMorph = (update: () => void, opts?: CutMorphCallOptions) => Promise<void>;
 
 export interface CutMorphNameProps {
   /** The `view-transition-name`: `^[a-z][a-z0-9-]{0,63}$`, from a stable data id (never an array index). */
   name: string;
-  /** The `view-transition-class`: `f12-match` (default), `f12-cut`, or your own space-separated classes. */
+  /**
+   * The `view-transition-class` list, NOT the DOM class (the child's own `className` is kept):
+   * `f12-match` (default) or `f12-cut`; other classes are added to `f12-match`, never instead.
+   */
   className?: 'f12-match' | string;
   /** One DOM host element, or a component that forwards `style` and `ref` to one. */
   children: React.ReactElement;
@@ -95,8 +99,14 @@ interface CutMorphOwner {
   gen: number;
   /** Owned transitions in flight, oldest first. */
   active: CutMorphRecord[];
-  /** Which generation set the mode class on a transition root. */
-  classes: WeakMap<Element, { gen: number; cls: string }>;
+  /** Which generation set the mode class on a transition root (and the observer holding it). */
+  classes: WeakMap<Element, { gen: number; cls: string; observer?: MutationObserver }>;
+  /** True while run() itself calls startViewTransition (withCutMorphMode must not adopt it). */
+  starting?: boolean;
+  /** withCutMorphMode's open window: the mode key the next transition React starts gets. */
+  pending?: { gen: number; cls: string; timer: ReturnType<typeof setTimeout> } | null;
+  /** The document's own-property startViewTransition wrapper while a window is open. */
+  wrapper?: (...args: unknown[]) => VtLike;
   /** Development only: live CutMorphName registrations by name. */
   names: Map<string, Array<{ stack: string }>>;
 }
@@ -116,15 +126,34 @@ function getOwner(): CutMorphOwner {
     owner = { version: 1, gen: 0, active: [], classes: new WeakMap(), names: new Map() };
     g[OWNER_KEY] = owner;
   }
+  // A record created by another copy (or version) of this file may lack a field: fill it in.
+  if (typeof owner.gen !== 'number') owner.gen = 0;
+  if (!Array.isArray(owner.active)) owner.active = [];
+  if (!(owner.classes instanceof WeakMap)) owner.classes = new WeakMap();
+  if (!(owner.names instanceof Map)) owner.names = new Map();
   return owner;
 }
 
 function setModeClass(root: Element, cls: string, gen: number): void {
   const owner = getOwner();
   const prev = owner.classes.get(root);
-  if (prev && prev.cls !== cls) root.classList.remove(prev.cls);
+  if (prev) {
+    prev.observer?.disconnect();
+    if (prev.cls !== cls) root.classList.remove(prev.cls);
+  }
   root.classList.add(cls);
-  owner.classes.set(root, { gen, cls });
+  // The root's className may be React-managed (a scope element, or <html> in some frameworks):
+  // if a render rewrites it mid-transition, put the key back before the next frame (observer
+  // callbacks are microtasks, so this lands before the browser captures or paints).
+  let observer: MutationObserver | undefined;
+  if (typeof MutationObserver === 'function') {
+    observer = new MutationObserver(() => {
+      const cur = owner.classes.get(root);
+      if (cur && cur.gen === gen && !root.classList.contains(cls)) root.classList.add(cls);
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+  }
+  owner.classes.set(root, { gen, cls, observer });
 }
 
 /** Generation-guarded: a stale `finally` never strips a newer generation's class. */
@@ -132,6 +161,7 @@ function clearModeClass(root: Element, gen: number): void {
   const owner = getOwner();
   const cur = owner.classes.get(root);
   if (!cur || cur.gen !== gen) return;
+  cur.observer?.disconnect();
   root.classList.remove(cur.cls);
   owner.classes.delete(root);
 }
@@ -202,12 +232,15 @@ function finish(rec: CutMorphRecord): void {
   clearModeClass(rec.root, rec.gen);
 }
 
+type ActiveVt = { activeViewTransition?: VtLike | null };
+
 function run(
   update: () => void,
   kind: CutMorphKind,
   mode: 'stepped' | 'smooth' | 'cut',
   scopeEl: HTMLElement | null,
   hook: object,
+  afterCommit: (done: () => void) => void,
 ): Promise<void> {
   const owner = getOwner();
   const gen = ++owner.gen;
@@ -218,10 +251,11 @@ function run(
     skipOwned(owner, (rec) => rec.scoped && rec.root !== scopeEl);
     try {
       callUpdate(update);
-      return Promise.resolve();
     } catch (e) {
       return Promise.reject(e);
     }
+    // No flushSync here: the promise resolves once the calling component has committed.
+    return new Promise<void>((resolve) => afterCommit(resolve));
   };
 
   const support = getCutMorphSupport();
@@ -234,12 +268,13 @@ function run(
     return immediate();
   }
   // Never cancel a transition CutMorph does not own (React's <ViewTransition>, a router, the app).
-  const current = (document as unknown as { activeViewTransition?: VtLike | null })
-    .activeViewTransition;
-  if (current && !owner.active.some((rec) => rec.vt === current)) return immediate();
+  const owned = (vt: VtLike | null | undefined) => !vt || owner.active.some((rec) => rec.vt === vt);
+  if (!owned((document as unknown as ActiveVt).activeViewTransition)) return immediate();
 
   const scoped = !!scopeEl && support.elementScoped && scopeEl.isConnected;
   const root: Element = scoped ? (scopeEl as Element) : document.documentElement;
+  // document.activeViewTransition does not report element-scoped transitions: check the scope.
+  if (scoped && !owned((root as unknown as ActiveVt).activeViewTransition)) return immediate();
 
   flushPending(owner, true);
   // A new document transition supersedes every owned one; a scoped one supersedes the document
@@ -277,16 +312,19 @@ function run(
   };
 
   let vt: VtLike;
+  owner.starting = true;
   try {
     vt = scoped
       ? (root as unknown as Required<VtStarter>).startViewTransition(onUpdate)
       : (document as unknown as Required<VtStarter>).startViewTransition(onUpdate);
   } catch {
+    owner.starting = false;
     finish(rec);
     if (rec.updateRan) return rec.error ? Promise.reject(rec.error.value) : Promise.resolve();
     rec.updateRan = true;
     return immediate();
   }
+  owner.starting = false;
   rec.vt = vt;
 
   const skip = () => {
@@ -319,24 +357,33 @@ function run(
     vt.ready.then(
       () => {
         if (settled || scoped) return;
-        // Document snapshots stay where they were captured: a scroll, resize or pointer drag
-        // would detach them from the content, so the edit lands at once (the DOM is updated).
+        // Document snapshots stay where they were captured: a page scroll, resize, pointer press
+        // or scrolling input would detach them from the content, so the edit lands at once (the
+        // DOM is already updated). Scrolls the update itself caused (a focus() inside a nested
+        // scroller, the page clamping to a shorter document) happened before this baseline or
+        // inside an element, and do not skip it.
         const sx = window.scrollX;
         const sy = window.scrollY;
-        const onScroll = (e: Event) => {
-          const t = e.target;
-          if (t === document || t === window || t === document.documentElement) {
-            if (window.scrollX !== sx || window.scrollY !== sy) skip();
-          } else skip();
+        const onScroll = () => {
+          if (window.scrollX !== sx || window.scrollY !== sy) skip();
+        };
+        const onKey = (e: KeyboardEvent) => {
+          if (e.key === 'PageUp' || e.key === 'PageDown') skip();
         };
         const opts = { capture: true, passive: true } as const;
-        window.addEventListener('scroll', onScroll, opts);
+        window.addEventListener('scroll', onScroll, { passive: true });
         window.addEventListener('resize', skip);
         window.addEventListener('pointerdown', skip, opts);
+        window.addEventListener('wheel', skip, opts);
+        window.addEventListener('touchmove', skip, opts);
+        window.addEventListener('keydown', onKey, true);
         listeners.push(() => {
-          window.removeEventListener('scroll', onScroll, opts);
+          window.removeEventListener('scroll', onScroll);
           window.removeEventListener('resize', skip);
           window.removeEventListener('pointerdown', skip, opts);
+          window.removeEventListener('wheel', skip, opts);
+          window.removeEventListener('touchmove', skip, opts);
+          window.removeEventListener('keydown', onKey, true);
         });
       },
       () => {
@@ -360,22 +407,39 @@ function run(
  * | `match` | `stepped`                                            | View Transition, 3 poses on twos   |
  * | `match` | `smooth`                                             | View Transition, 260ms smooth      |
  *
- * Never wrap pointer drag, typing, focus movement, playback or continuous scrubbing.
+ * Never wrap pointer drag, typing, focus movement, playback or continuous scrubbing. Call it
+ * from discrete actions (event handlers): from a layout effect, React refuses the `flushSync`
+ * that orders a pending earlier edit (it still lands, one commit later).
  */
 export function useCutMorph(opts?: UseCutMorphOptions): CutMorph {
   const mode = useResolvedMotion('stepped');
   const modeRef = React.useRef(mode);
   const scopeRef = React.useRef(opts?.scope);
   const [hook] = React.useState(() => ({}));
+  // Immediate paths resolve after this component's next commit (the update is on screen then).
+  const waiters = React.useRef<Array<() => void>>([]);
+  const mounted = React.useRef(false);
+  const [, bump] = React.useReducer((n: number) => n + 1, 0);
+  const drain = () => {
+    for (const done of waiters.current.splice(0)) done();
+  };
   useIsoLayoutEffect(() => {
     modeRef.current = mode;
     scopeRef.current = opts?.scope;
+    drain();
     // Tempo became still (or reduced motion turned on) here: this component's edits land now.
     if (mode === 'cut') {
       const owner = getOwner();
       skipOwned(owner, (rec) => rec.hook !== hook);
     }
   });
+  useIsoLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      drain();
+    };
+  }, []);
   return React.useCallback<CutMorph>(
     (update, callOpts) =>
       run(
@@ -384,54 +448,74 @@ export function useCutMorph(opts?: UseCutMorphOptions): CutMorph {
         modeRef.current,
         scopeRef.current?.current ?? null,
         hook,
+        (done) => {
+          // Not mounted (the server, or after unmount): nothing will commit here, resolve now.
+          if (!mounted.current) return done();
+          waiters.current.push(done);
+          bump();
+        },
       ),
     [hook],
   );
 }
 
 /**
- * For React 19.3 `<ViewTransition default="f12-match">` users: sets the CutMorph mode key on
- * `<html>` around `fn` (which calls `startTransition`) and removes it when the transition React
- * starts has finished (or after ~1s if none starts). Pass the mode from `useResolvedMotion`; when
- * it resolves to `cut`, update outside a Transition instead.
+ * For React 19.3 `<ViewTransition default="f12-match">` users: the next View Transition started
+ * after this call (the one React starts for `fn`'s `startTransition`, within ~1s) gets the
+ * CutMorph mode key on `<html>` from the moment it starts until it finishes. Nothing is restyled
+ * before it starts, and only that one transition is adopted. Pass the mode from
+ * `useResolvedMotion`; when it resolves to `cut`, update outside a Transition instead.
  */
 export function withCutMorphMode<T>(mode: 'stepped' | 'smooth', fn: () => T): T {
   if (typeof document === 'undefined' || !MODE_CLASS[mode]) return fn();
   const owner = getOwner();
+  const doc = document as unknown as { startViewTransition?: (...a: unknown[]) => VtLike };
+  if (typeof doc.startViewTransition !== 'function') return fn();
+  if (owner.pending) clearTimeout(owner.pending.timer);
   const gen = ++owner.gen;
-  const root = document.documentElement;
-  const before = (document as unknown as { activeViewTransition?: VtLike | null })
-    .activeViewTransition;
-  setModeClass(root, MODE_CLASS[mode], gen);
-  let result: T;
+  // One own-property wrapper on this document while a window is open; removed when it is used
+  // or when the window closes unused.
+  const unwrap = () => {
+    if (owner.wrapper && doc.startViewTransition === owner.wrapper) delete doc.startViewTransition;
+    owner.wrapper = undefined;
+  };
+  const close = () => {
+    if (owner.pending?.gen !== gen) return;
+    owner.pending = null;
+    unwrap();
+  };
+  owner.pending = { gen, cls: MODE_CLASS[mode], timer: setTimeout(close, 1000) };
+  if (!owner.wrapper || doc.startViewTransition !== owner.wrapper) {
+    const original = doc.startViewTransition;
+    const wrapper = (...args: unknown[]): VtLike => {
+      if (owner.starting) return original.apply(document, args);
+      const win = owner.pending;
+      owner.pending = null;
+      unwrap();
+      if (!win) return original.apply(document, args);
+      clearTimeout(win.timer);
+      const root = document.documentElement;
+      setModeClass(root, win.cls, win.gen);
+      let vt: VtLike;
+      try {
+        vt = original.apply(document, args);
+      } catch (e) {
+        clearModeClass(root, win.gen);
+        throw e;
+      }
+      const done = () => clearModeClass(root, win.gen);
+      vt.finished.then(done, done);
+      return vt;
+    };
+    owner.wrapper = wrapper;
+    doc.startViewTransition = wrapper;
+  }
   try {
-    result = fn();
+    return fn();
   } catch (e) {
-    clearModeClass(root, gen);
+    close();
     throw e;
   }
-  let frames = 0;
-  const raf =
-    typeof requestAnimationFrame === 'function'
-      ? requestAnimationFrame
-      : (cb: () => void) => setTimeout(cb, 16);
-  const tick = () => {
-    if (owner.classes.get(root)?.gen !== gen) return;
-    const vt = (document as unknown as { activeViewTransition?: VtLike | null })
-      .activeViewTransition;
-    if (vt && vt !== before) {
-      const done = () => clearModeClass(root, gen);
-      vt.finished.then(done, done);
-      return;
-    }
-    if (++frames > 60) {
-      clearModeClass(root, gen);
-      return;
-    }
-    raf(tick);
-  };
-  raf(tick);
-  return result;
 }
 
 // ------------------------------------------------------------------------------------- names
@@ -462,6 +546,9 @@ function classList(value: string): string | null {
   for (const p of parts) {
     if (!/^-?[a-z_][a-z0-9_-]*$/i.test(p) || p === 'none' || RESERVED_NAMES.has(p)) return null;
   }
+  // Your own classes are added to the grammar, never instead of it (without f12-match or
+  // f12-cut the browser's default crossfade would play).
+  if (!parts.includes('f12-match') && !parts.includes('f12-cut')) parts.unshift('f12-match');
   return parts.join(' ');
 }
 

@@ -9,10 +9,10 @@ import { useCutMorph, withCutMorphMode } from '@/components/frame12/cut-morph';
 
 declare global {
   interface Window {
-    __r19: { move: () => void; cut: (label: string) => void; log: string[]; results: string[] };
+    __r19: { move: () => void; cut: (label: string) => void; log: string[]; results: string[]; withMode: typeof withCutMorphMode };
   }
 }
-window.__r19 = { move: () => {}, cut: () => {}, log: [], results: [] };
+window.__r19 = { move: () => {}, cut: () => {}, log: [], results: [], withMode: withCutMorphMode };
 
 function Recipe() {
   const [x, setX] = React.useState(0);

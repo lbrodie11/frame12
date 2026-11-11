@@ -26,6 +26,8 @@ export interface CallOpts {
   kind?: CutMorphKind;
   throws?: boolean;
   asyncUpdate?: boolean;
+  /** The update also focuses a button inside a small nested scroller (scrolling it). */
+  focusDeep?: boolean;
 }
 
 interface Cm {
@@ -106,6 +108,7 @@ function Stage({ id, scoped, initial }: { id: string; scoped?: boolean; initial?
             cm.log.push(label);
             if (opts.throws) throw new Error(`boom-${label}`);
             setSt((s) => ({ ...s, ...next, label }));
+            if (opts.focusDeep) document.getElementById(`${id}-deep`)?.focus();
             if (opts.asyncUpdate) return Promise.resolve();
             return undefined;
           }) as () => void,
@@ -126,7 +129,9 @@ function Stage({ id, scoped, initial }: { id: string; scoped?: boolean; initial?
     };
   }, [cut, id]);
   return (
-    <div id={`stage-${id}`} ref={scope} className="stage" data-label={st.label}>
+    // The className changes with every update, so a scoped transition's mode key on this element
+    // is rewritten by React mid-transition (CutMorph must hold it).
+    <div id={`stage-${id}`} ref={scope} className={`stage stage-${st.label}`} data-label={st.label}>
       <CutMorphName name={`${id}-mover`}>
         <div className="mover" id={`${id}-mover`} style={{ left: st.x, background: st.color }} />
       </CutMorphName>
@@ -153,6 +158,12 @@ function Stage({ id, scoped, initial }: { id: string; scoped?: boolean; initial?
         </React.Suspense>
       ) : null}
       <Boundary>{st.explode ? <Explode /> : <span id={`${id}-fine`}>fine</span>}</Boundary>
+      <div className="scroller" id={`${id}-scroller`}>
+        <div className="scroller-pad" />
+        <button type="button" id={`${id}-deep`}>
+          deep
+        </button>
+      </div>
     </div>
   );
 }
@@ -226,6 +237,12 @@ function Names({ variant }: { variant: string }) {
             data-n={n}
             onClick={() => setN((x) => x + 1)}
           />
+        </CutMorphName>
+      );
+    case 'custom':
+      return (
+        <CutMorphName name="custom-me" className="hero">
+          <div id="custom" className="own" />
         </CutMorphName>
       );
     case 'forward':

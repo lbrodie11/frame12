@@ -55,6 +55,8 @@ body{min-height:3000px}
 .late{position:absolute;left:400px;top:200px;width:120px;height:40px}
 .stage [role=status]{position:absolute;top:150px;left:0;margin:0}
 #root2 .stage{margin-top:0}
+.scroller{position:absolute;left:600px;top:80px;width:80px;height:40px;overflow:auto}
+.scroller-pad{height:200px}
 </style>`;
 
 const INIT = (opts = {}) => `(() => {
@@ -70,7 +72,7 @@ const INIT = (opts = {}) => `(() => {
   if (${!!opts.hidden}) Object.defineProperty(document, 'visibilityState', { get: () => 'hidden' });
   const live = [];
   const add = window.addEventListener, rem = window.removeEventListener;
-  const tracked = ['scroll', 'resize', 'pointerdown'];
+  const tracked = ['scroll', 'resize', 'pointerdown', 'wheel', 'touchmove', 'keydown'];
   window.addEventListener = function (t, fn, o) { if (tracked.includes(t)) live.push([t, fn]); return add.call(this, t, fn, o); };
   window.removeEventListener = function (t, fn, o) { const i = live.findIndex(([lt, lf]) => lt === t && lf === fn); if (i >= 0) live.splice(i, 1); return rem.call(this, t, fn, o); };
   window.__liveListeners = () => live.length;
@@ -325,11 +327,13 @@ for (const engine of BROWSERS) {
         window.__cm.stages.a.cut('RA', { x: 100 });
         window.__cm.stages.b.cut('RB', { x: 200 });
       });
-      const owners = await page.evaluate(() => window.__owner().active.length);
+      // Records of skipped transitions are removed when their finished settles, which WebKit does a
+      // rendering step later; what must hold is that exactly one owned record is the active one.
+      const owners = await page.evaluate(() => window.__owner().active.filter((r) => r.vt && r.vt === document.activeViewTransition).length);
       await settle(page, 2);
       const s = await cm(page);
       check(s.log.join() === 'RA,RB' && owners === 1 && (await label(page, 'a')) === 'RA' && (await label(page, 'b')) === 'RB' && s.unhandled.length === 0,
-        `${E} coexistence: two React roots share one owner (one active transition); both updates land once, in order`, { owners, ...s });
+        `${E} coexistence: two React roots share one owner (exactly one owned transition is active); both updates land once, in order`, { owners, ...s });
       await ctx.close();
     });
     await section(`${E} coexistence: module copies`, async () => {
@@ -339,7 +343,7 @@ for (const engine of BROWSERS) {
       const { ctx, page } = await openFixture(browser, copies, { clock: false, init: INIT() });
       await page.waitForFunction(() => !!window.__copies.a && !!window.__copies.b);
       await page.evaluate(() => { window.__copies.a('CA'); window.__copies.b('CB'); });
-      const owners = await page.evaluate(() => window.__owner().active.length);
+      const owners = await page.evaluate(() => window.__owner().active.filter((r) => r.vt && r.vt === document.activeViewTransition).length);
       await page.waitForFunction(() => window.__copies.results.length === 2, null, { timeout: 5000 });
       const r = await page.evaluate(() => ({ ...window.__copies, unhandled: window.__unhandled }));
       check(!r.sameHook && r.log.join() === 'CA,CB' && owners === 1 && r.results.sort().join() === 'CA:resolved,CB:resolved' && r.unhandled.length === 0,
@@ -367,7 +371,21 @@ for (const engine of BROWSERS) {
         await settle(page, 1);
         await ctx.close();
       }
+      {
+        const { ctx, page } = await open(browser, html, { mount: { tempo: 'twos' } });
+        await page.evaluate(() => void window.__cm.stages.a.cut('NS', { x: 300 }, { focusDeep: true }));
+        await page.evaluate(() => window.__ready());
+        await page.evaluate(() => window.__pause());
+        await flush(page, 4);
+        const r = await page.evaluate(() => ({ scrolled: document.getElementById('a-scroller').scrollTop, focus: document.activeElement?.id, running: !!document.activeViewTransition }));
+        await page.evaluate(() => window.__play());
+        await settle(page, 1);
+        check(r.scrolled > 0 && r.focus === 'a-deep' && r.running,
+          `${E} isolation: a scroll the update itself causes (focus() inside a nested scroller) does not skip the transition`, r);
+        await ctx.close();
+      }
       for (const [what, act] of [
+        ['wheel', async (page) => { await page.mouse.move(300, 300); await page.mouse.wheel(0, 40); }],
         ['scroll', (page) => page.evaluate(() => window.scrollBy(0, 40))],
         ['resize', (page) => page.setViewportSize({ width: 880, height: 690 })],
         ['pointerdown', async (page) => { await page.mouse.move(800, 600); await page.mouse.down(); await page.mouse.up(); }],
@@ -483,7 +501,7 @@ for (const engine of BROWSERS) {
         await settle(page, 1);
         const s = await cm(page);
         const after = await page.evaluate(() => window.__liveListeners());
-        check(during === before + 3 && after === before && s.results[0]?.status === 'resolved' && !s.html.includes('f12-vt-') && errors.length === 0 && s.unhandled.length === 0,
+        check(during === before + 6 && after === before && s.results[0]?.status === 'resolved' && !s.html.includes('f12-vt-') && errors.length === 0 && s.unhandled.length === 0,
           `${E} lifecycle: unmount mid-transition → finishes cleanly, no errors, no leaked class or listener`, { before, during, after, errors, ...s });
         await ctx.close();
       }
@@ -524,6 +542,20 @@ for (const engine of BROWSERS) {
         check(s.results[0]?.status === 'resolved' && s.results[0]?.logAtSettle === 1, `${E} promises: fallback calls resolve after update ran`, s);
         await ctx.close();
       }
+      for (const [what, opts] of [
+        ['reduced motion', { reduced: 'reduce', mount: { tempo: 'twos' } }],
+        ['kind cut', { mount: { tempo: 'twos' } }],
+      ]) {
+        // Called outside a React event (a plain task), so React commits later: the promise must
+        // still only resolve once the DOM shows the update.
+        const { ctx, page } = await open(browser, html, opts);
+        const seen = await page.evaluate(async (k) => {
+          await window.__cm.stages.a.cut('AW', { x: 300 }, { kind: k });
+          return document.getElementById('stage-a').dataset.label;
+        }, what === 'kind cut' ? 'cut' : undefined);
+        check(seen === 'AW', `${E} promises: on the immediate path (${what}) the promise resolves only after the DOM is committed`, { seen });
+        await ctx.close();
+      }
       {
         const { ctx, page, warnings } = await open(browser, htmlDev, { mount: { tempo: 'twos' } });
         await page.evaluate(() => void window.__cm.stages.a.cut('AS', { x: 300 }, { asyncUpdate: true, kind: 'cut' }));
@@ -545,6 +577,11 @@ for (const engine of BROWSERS) {
       const merged = await page.evaluate(() => ({ n: document.getElementById('merge').dataset.n, ref: window.__refOk }));
       check(m?.name === 'merge-me' && m.cls === 'f12-match extra' && m.color === 'rgb(1, 2, 3)' && m.className === 'own' && merged.n === '1' && merged.ref,
         `${E} names: style, className, ref and handlers of the child are merged, not replaced`, { m, merged });
+      await page.evaluate(() => window.__cm.names('custom'));
+      await flush(page, 2);
+      const cu = await style('custom');
+      check(cu?.name === 'custom-me' && cu.cls === 'f12-match hero' && cu.className === 'own',
+        `${E} names: a custom className is added to f12-match (the view-transition-class), never instead of it; the DOM class is untouched`, cu);
       await page.evaluate(() => window.__cm.names('forward'));
       await flush(page, 2);
       const f = await style('fwd');
@@ -680,6 +717,7 @@ for (const engine of BROWSERS) {
       }
       await page.waitForFunction(() => window.__vtAnims().length > 0, null, { timeout: 3000 });
       const anims = await page.evaluate(() => window.__pause());
+      // The stage's className is React-managed and changed in this update: the key must survive.
       const cls = await page.evaluate(() => ({ html: document.documentElement.className, stage: document.getElementById('stage-a').className, docActive: !!document.activeViewTransition }));
       await page.evaluate(() => window.scrollBy(0, 30));
       await flush(page, 2);
@@ -688,8 +726,27 @@ for (const engine of BROWSERS) {
       await page.waitForFunction(() => window.__cm.results.length === 1, null, { timeout: 3000 });
       const g = anims.find((a) => a.pe === '::view-transition-group(a-mover)');
       check(g?.target === 'stage-a' && g.dur === 250 && cls.stage.includes('f12-vt-stepped') && !cls.html.includes('f12-vt-') && stillPaused,
-        `${E} element-scoped: scope → transition on the scope element (mode key on it, not <html>); a page scroll does not skip it`, { g, cls, stillPaused });
+        `${E} element-scoped: scope → transition on the scope element (mode key on it, not <html>, kept although React rewrote its className); a page scroll does not skip it`, { g, cls, stillPaused });
       await ctx.close();
+      // A foreign element-scoped transition on the same scope is never cancelled.
+      {
+        const { ctx: c2, page: p2 } = await open(browser, html, { mount: { tempo: 'twos', scoped: true } });
+        const r = await p2.evaluate(async () => {
+          const el = document.getElementById('stage-a');
+          const foreign = el.startViewTransition(() => { el.dataset.foreign = '1'; });
+          let skipped = false;
+          foreign.ready.catch(() => { skipped = true; });
+          await foreign.ready.catch(() => {});
+          const t0 = performance.now();
+          window.__cm.stages.a.cut('SF', { x: 300 });
+          const log = window.__cm.log.slice();
+          await foreign.finished;
+          return { log, skipped, ranFor: Math.round(performance.now() - t0) };
+        });
+        check(r.log.join() === 'SF' && !r.skipped && r.ranFor > 100,
+          `${E} element-scoped: a foreign transition already running on the scope is left alone; CutMorph updates at once`, r);
+        await c2.close();
+      }
     });
 
     // =========================================================================== React 19.3
@@ -720,6 +777,22 @@ for (const engine of BROWSERS) {
       check(react !== null && r.log.join() === 'X' && r.same && after.results.join() === 'X:resolved' && after.label === 'X' && after.unhandled.length === 0,
         `${E} React 19.3: a CutMorph call while React's transition is in flight updates at once and never cancels React's transition`, { r, after });
       check(!after.cls.includes('f12-vt-') && errors.length === 0, `${E} React 19.3: withCutMorphMode removes the mode key once React's transition finished`, { after, errors });
+      // A window with no transition restyles nothing, and closes: a later foreign transition
+      // keeps the browser defaults (its root animates).
+      const w = await page.evaluate(async () => {
+        window.__r19.withMode('stepped', () => {});
+        const during = document.documentElement.className;
+        await new Promise((r) => setTimeout(r, 1200));
+        const own = Object.prototype.hasOwnProperty.call(document, 'startViewTransition');
+        const vt = document.startViewTransition(() => {});
+        await vt.ready.catch(() => {});
+        const rootAnims = window.__vtAnims().filter((a) => a.effect.pseudoElement.includes('(root)')).length;
+        const cls = document.documentElement.className;
+        await vt.finished.catch(() => {});
+        return { during, own, rootAnims, cls };
+      });
+      check(!w.during.includes('f12-vt-') && !w.own && w.rootAnims > 0 && !w.cls.includes('f12-vt-'),
+        `${E} React 19.3: a withCutMorphMode window that starts no transition restyles nothing and closes after ~1 s (a later foreign transition keeps its defaults)`, w);
       await ctx.close();
     });
   } finally {
