@@ -78,7 +78,7 @@ export const ENGINE_SUPPORT: ReadonlyArray<{
   scroll: string;
   clip: string;
 }> = [
-  { engine: 'Chromium', version: '153', animates: 'Yes: 3 poses, hard swap', scoped: 'Exists, not used: aborts when a subject exits', scroll: 'Snapshot drifts: skipped', clip: 'Not clipped (nested groups can)' },
+  { engine: 'Chromium', version: '153', animates: 'Yes: 3 poses, hard swap', scoped: 'Exists, not used: 153 aborts when a subject exits (156 does not)', scroll: 'Snapshot drifts: skipped', clip: 'Not clipped (nested groups can)' },
   { engine: 'Firefox', version: '157', animates: 'Yes: 3 poses, hard swap', scoped: 'No', scroll: 'Snapshot fixed: skipped', clip: 'Not clipped' },
   { engine: 'WebKit (Safari)', version: '27.2', animates: 'Yes: 3 poses, hard swap', scoped: 'No', scroll: 'Snapshot drifts: skipped', clip: 'Not clipped' },
 ];
