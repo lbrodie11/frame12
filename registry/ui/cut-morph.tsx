@@ -82,15 +82,29 @@ interface VtLike {
 }
 type VtStarter = { startViewTransition?: (cb: () => void) => VtLike };
 
+/** One cutMorph call's update, and what it threw. */
+interface CutMorphEntry {
+  update: () => void;
+  error: { value: unknown } | null;
+}
+
 interface CutMorphRecord {
   gen: number;
   root: Element;
   scoped: boolean;
-  update: () => void;
+  mode: 'stepped' | 'smooth';
+  /**
+   * The updates this transition commits, in call order. Calls that arrive before its update
+   * callback has run (same root and mode) join it instead of superseding it: one edit to the
+   * final state, and no flushSync outside the browser's callback.
+   */
+  entries: CutMorphEntry[];
   updateRan: boolean;
-  error: { value: unknown } | null;
   vt: VtLike | null;
-  hook: object;
+  /** The hooks whose calls are in this transition (tempo → still in any of them skips it). */
+  hooks: Set<object>;
+  /** Settles (never rejects) when the transition is over and the record is finished. */
+  done: Promise<void>;
   detach: () => void;
 }
 
@@ -127,10 +141,10 @@ function getOwner(): CutMorphOwner {
     g[OWNER_KEY] = owner;
   }
   // A record created by another copy (or version) of this file may lack a field: fill it in.
-  if (typeof owner.gen !== 'number') owner.gen = 0;
-  if (!Array.isArray(owner.active)) owner.active = [];
-  if (!(owner.classes instanceof WeakMap)) owner.classes = new WeakMap();
-  if (!(owner.names instanceof Map)) owner.names = new Map();
+  owner.gen ??= 0;
+  owner.active ??= [];
+  owner.classes ??= new WeakMap();
+  owner.names ??= new Map();
   return owner;
 }
 
@@ -167,21 +181,16 @@ function clearModeClass(root: Element, gen: number): void {
 }
 
 export function getCutMorphSupport(): CutMorphSupport {
-  if (typeof document === 'undefined' || typeof window === 'undefined') {
+  // `document` implies `window` and `Element` (not `CSS`: jsdom has no CSS object).
+  if (typeof document === 'undefined') {
     return { viewTransitions: false, elementScoped: false, activeViewTransition: false };
   }
-  let classes = false;
-  try {
-    classes = typeof CSS !== 'undefined' && CSS.supports('view-transition-class', 'f12-match');
-  } catch {
-    classes = false;
-  }
+  // CSS.supports(property, value) never throws.
+  const classes = typeof CSS !== 'undefined' && CSS.supports('view-transition-class', 'f12-match');
   const doc = document as unknown as VtStarter;
   return {
     viewTransitions: typeof doc.startViewTransition === 'function' && classes,
-    elementScoped:
-      typeof Element !== 'undefined' &&
-      typeof (Element.prototype as unknown as VtStarter).startViewTransition === 'function',
+    elementScoped: typeof (Element.prototype as unknown as VtStarter).startViewTransition === 'function',
     activeViewTransition: 'activeViewTransition' in document,
   };
 }
@@ -199,17 +208,46 @@ function callUpdate(update: () => void): void {
   }
 }
 
+/**
+ * Runs a record's updates once, in call order. Each update's own throw is kept on its entry (the
+ * others still run); a render error React rethrows from flushSync fails the whole batch. Returns
+ * the first error, if any.
+ */
+function runEntries(rec: CutMorphRecord, sync: boolean): { value: unknown } | null {
+  rec.updateRan = true;
+  let first: { value: unknown } | null = null;
+  const all = () => {
+    for (const entry of rec.entries) {
+      try {
+        callUpdate(entry.update);
+      } catch (e) {
+        entry.error = { value: e };
+        first ??= entry.error;
+      }
+    }
+  };
+  try {
+    if (sync) flushSync(all);
+    else all();
+  } catch (e) {
+    const error = { value: e };
+    for (const entry of rec.entries) entry.error ??= error;
+    first ??= error;
+  }
+  return first;
+}
+
+/** A call's promise: settles with its transition and rejects only with its own update's throw. */
+function outcome(rec: CutMorphRecord, entry: CutMorphEntry): Promise<void> {
+  return rec.done.then(() => {
+    if (entry.error) throw entry.error.value;
+  });
+}
+
 /** Runs every owned update that has not run yet, oldest first, so call order is kept. */
 function flushPending(owner: CutMorphOwner, sync: boolean): void {
   for (const rec of owner.active) {
-    if (rec.updateRan) continue;
-    rec.updateRan = true;
-    try {
-      if (sync) flushSync(() => callUpdate(rec.update));
-      else callUpdate(rec.update);
-    } catch (e) {
-      rec.error = { value: e };
-    }
+    if (!rec.updateRan) runEntries(rec, sync);
   }
 }
 
@@ -276,20 +314,44 @@ function run(
   // document.activeViewTransition does not report element-scoped transitions: check the scope.
   if (scoped && !owned((root as unknown as ActiveVt).activeViewTransition)) return immediate();
 
+  // Join the latest owned transition while its update callback has not run yet (same root and
+  // mode, nothing else pending): its callback runs every queued update in call order inside one
+  // flushSync, so no update is flushed from the caller's context (which React refuses inside a
+  // render or an effect) and the viewer sees one edit to the final state.
+  const last = owner.active[owner.active.length - 1];
+  if (
+    last &&
+    !last.updateRan &&
+    last.vt &&
+    last.root === root &&
+    last.mode === mode &&
+    owner.active.every((rec) => rec === last || rec.updateRan)
+  ) {
+    const entry: CutMorphEntry = { update, error: null };
+    last.entries.push(entry);
+    last.hooks.add(hook);
+    return outcome(last, entry);
+  }
+
   flushPending(owner, true);
   // A new document transition supersedes every owned one; a scoped one supersedes the document
   // transition and any on the same scope. Scoped transitions on other scopes keep running.
   skipOwned(owner, (rec) => scoped && rec.scoped && rec.root !== root);
 
+  const entry: CutMorphEntry = { update, error: null };
+  let markDone: () => void = () => {};
   const rec: CutMorphRecord = {
     gen,
     root,
     scoped,
-    update,
+    mode,
+    entries: [entry],
     updateRan: false,
-    error: null,
     vt: null,
-    hook,
+    hooks: new Set([hook]),
+    done: new Promise<void>((resolve) => {
+      markDone = resolve;
+    }),
     detach: () => {},
   };
   const listeners: Array<() => void> = [];
@@ -302,29 +364,24 @@ function run(
 
   const onUpdate = () => {
     if (rec.updateRan) return;
-    rec.updateRan = true;
-    try {
-      flushSync(() => callUpdate(update));
-    } catch (e) {
-      rec.error = { value: e };
-      throw e;
-    }
+    // A throw makes the browser skip the transition (the DOM may be half-updated).
+    const error = runEntries(rec, true);
+    if (error) throw error.value;
   };
 
   let vt: VtLike;
   owner.starting = true;
   try {
-    vt = scoped
-      ? (root as unknown as Required<VtStarter>).startViewTransition(onUpdate)
-      : (document as unknown as Required<VtStarter>).startViewTransition(onUpdate);
+    vt = ((scoped ? root : document) as unknown as Required<VtStarter>).startViewTransition(onUpdate);
   } catch {
-    owner.starting = false;
     finish(rec);
-    if (rec.updateRan) return rec.error ? Promise.reject(rec.error.value) : Promise.resolve();
+    markDone();
+    if (rec.updateRan) return outcome(rec, entry);
     rec.updateRan = true;
     return immediate();
+  } finally {
+    owner.starting = false;
   }
-  owner.starting = false;
   rec.vt = vt;
 
   const skip = () => {
@@ -340,58 +397,56 @@ function run(
     const onChange = () => {
       if (mq.matches) skip();
     };
-    mq.addEventListener?.('change', onChange);
-    listeners.push(() => mq.removeEventListener?.('change', onChange));
+    // Every engine with View Transitions has MediaQueryList.addEventListener.
+    mq.addEventListener('change', onChange);
+    listeners.push(() => mq.removeEventListener('change', onChange));
   }
 
-  return new Promise<void>((resolve, reject) => {
-    let settled = false;
-    const settle = () => {
-      if (settled) return;
-      settled = true;
-      finish(rec);
-      if (rec.error) reject(rec.error.value);
-      else resolve();
-    };
-    vt.updateCallbackDone.catch(() => {});
-    vt.ready.then(
-      () => {
-        if (settled || scoped) return;
-        // Document snapshots stay where they were captured: a page scroll, resize, pointer press
-        // or scrolling input would detach them from the content, so the edit lands at once (the
-        // DOM is already updated). Scrolls the update itself caused (a focus() inside a nested
-        // scroller, the page clamping to a shorter document) happened before this baseline or
-        // inside an element, and do not skip it.
-        const sx = window.scrollX;
-        const sy = window.scrollY;
-        const onScroll = () => {
-          if (window.scrollX !== sx || window.scrollY !== sy) skip();
-        };
-        const onKey = (e: KeyboardEvent) => {
-          if (e.key === 'PageUp' || e.key === 'PageDown') skip();
-        };
-        const opts = { capture: true, passive: true } as const;
-        window.addEventListener('scroll', onScroll, { passive: true });
-        window.addEventListener('resize', skip);
-        window.addEventListener('pointerdown', skip, opts);
-        window.addEventListener('wheel', skip, opts);
-        window.addEventListener('touchmove', skip, opts);
-        window.addEventListener('keydown', onKey, true);
-        listeners.push(() => {
-          window.removeEventListener('scroll', onScroll);
-          window.removeEventListener('resize', skip);
-          window.removeEventListener('pointerdown', skip, opts);
-          window.removeEventListener('wheel', skip, opts);
-          window.removeEventListener('touchmove', skip, opts);
-          window.removeEventListener('keydown', onKey, true);
-        });
-      },
-      () => {
-        /* skipped (superseded, duplicate name, hidden document): not an error */
-      },
-    );
-    vt.finished.then(settle, settle);
-  });
+  let settled = false;
+  const settle = () => {
+    if (settled) return;
+    settled = true;
+    finish(rec);
+    markDone();
+  };
+  vt.updateCallbackDone.catch(() => {});
+  vt.ready.then(
+    () => {
+      if (settled || scoped) return;
+      // Document snapshots stay where they were captured: a page scroll, resize, pointer press
+      // or scrolling input would detach them from the content, so the edit lands at once (the
+      // DOM is already updated). Scrolls the update itself caused (a focus() inside a nested
+      // scroller, the page clamping to a shorter document) happened before this baseline or
+      // inside an element, and do not skip it.
+      const sx = window.scrollX;
+      const sy = window.scrollY;
+      const onScroll = () => {
+        if (window.scrollX !== sx || window.scrollY !== sy) skip();
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'PageUp' || e.key === 'PageDown') skip();
+      };
+      const opts = { capture: true, passive: true };
+      const on: Array<[string, (e: never) => void, AddEventListenerOptions | boolean]> = [
+        ['scroll', onScroll, { passive: true }],
+        ['resize', skip, false],
+        ['pointerdown', skip, opts],
+        ['wheel', skip, opts],
+        ['touchmove', skip, opts],
+        ['keydown', onKey, true],
+      ];
+      for (const [type, fn, o] of on) window.addEventListener(type, fn as EventListener, o);
+      listeners.push(() => {
+        for (const [type, fn, o] of on) window.removeEventListener(type, fn as EventListener, o);
+      });
+    },
+    () => {
+      /* skipped (superseded, duplicate name, hidden document): not an error */
+    },
+  );
+  vt.finished.then(settle, settle);
+  // Superseded and skipped transitions resolve; each call rejects only with its own throw.
+  return outcome(rec, entry);
 }
 
 /**
@@ -407,9 +462,12 @@ function run(
  * | `match` | `stepped`                                            | View Transition, 3 poses on twos   |
  * | `match` | `smooth`                                             | View Transition, 260ms smooth      |
  *
- * Never wrap pointer drag, typing, focus movement, playback or continuous scrubbing. Call it
- * from discrete actions (event handlers): from a layout effect, React refuses the `flushSync`
- * that orders a pending earlier edit (it still lands, one commit later).
+ * Calls that arrive before the running edit's update has been applied (same root and mode: two
+ * quick clicks in one frame, or two calls from one effect) join that edit, so the viewer sees one
+ * cut to the final state; later calls supersede it. Either way every update runs exactly once, in
+ * call order. Call it from discrete actions (event handlers, a subscription callback where data
+ * arrives), not from an effect reacting to state. Never wrap pointer drag, typing, focus
+ * movement, playback or continuous scrubbing.
  */
 export function useCutMorph(opts?: UseCutMorphOptions): CutMorph {
   const mode = useResolvedMotion('stepped');
@@ -430,7 +488,7 @@ export function useCutMorph(opts?: UseCutMorphOptions): CutMorph {
     // Tempo became still (or reduced motion turned on) here: this component's edits land now.
     if (mode === 'cut') {
       const owner = getOwner();
-      skipOwned(owner, (rec) => rec.hook !== hook);
+      skipOwned(owner, (rec) => !rec.hooks.has(hook));
     }
   });
   useIsoLayoutEffect(() => {

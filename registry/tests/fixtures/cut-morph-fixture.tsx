@@ -39,6 +39,8 @@ interface Cm {
       cut: (label: string, next: Partial<StageState>, opts?: CallOpts) => Promise<void>;
       set: (next: Partial<StageState>) => void;
       setTransition: (next: Partial<StageState>) => void;
+      /** Calls cut once per label from inside a useLayoutEffect (React's commit phase). */
+      burst: (labels: string[]) => void;
     }
   >;
   clicks: string[];
@@ -97,6 +99,11 @@ class Boundary extends React.Component<{ children: React.ReactNode }, { error: b
 
 function Stage({ id, scoped, initial }: { id: string; scoped?: boolean; initial?: Partial<StageState> }) {
   const [st, setSt] = React.useState<StageState>({ ...INITIAL, ...initial });
+  const [burst, setBurst] = React.useState<string[] | null>(null);
+  React.useLayoutEffect(() => {
+    if (!burst) return;
+    burst.forEach((label, i) => void cm.stages[id].cut(label, { x: 100 * (i + 1) }));
+  }, [burst, id]);
   const scope = React.useRef<HTMLDivElement>(null);
   const cut = useCutMorph(scoped ? { scope } : undefined);
   cm.renders++;
@@ -123,6 +130,7 @@ function Stage({ id, scoped, initial }: { id: string; scoped?: boolean; initial?
       },
       set: (next) => setSt((s) => ({ ...s, ...next })),
       setTransition: (next) => React.startTransition(() => setSt((s) => ({ ...s, ...next }))),
+      burst: (labels) => setBurst(labels),
     };
     return () => {
       delete cm.stages[id];

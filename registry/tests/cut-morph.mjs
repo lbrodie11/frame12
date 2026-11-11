@@ -249,6 +249,9 @@ for (const engine of BROWSERS) {
 
     // ============================================================================ interruption
     await section(`${E} interruption`, async () => {
+      // Three calls in one task: B and C arrive before A's update callback has run, so they join
+      // A's transition. One View Transition, one flushSync (in the browser's callback), every
+      // update exactly once, in order.
       {
         const { ctx, page } = await open(browser, html, { mount: { tempo: 'twos' } });
         await page.evaluate(() => {
@@ -257,21 +260,36 @@ for (const engine of BROWSERS) {
           s.cut('B', { x: 200, rows: ['r2', 'r1'] });
           s.cut('C', { x: 300, rows: ['r1', 'r4'] });
         });
+        await settle(page, 3);
+        const s = await cm(page);
+        const rows = await page.evaluate(() => [...document.querySelectorAll('#stage-a .row')].map((r) => r.dataset.id).join());
+        check(s.log.join() === 'A,B,C' && (await label(page)) === 'C' && rows === 'r1,r4' && s.vtCalls === 1 && s.flushSync === 1,
+          `${E} interruption: three rapid calls run each update exactly once, in order A, B, C, as one edit (one View Transition, one flushSync); final DOM is C`, { log: s.log, rows, vtCalls: s.vtCalls, flushSync: s.flushSync });
+        check(s.results.map((r) => `${r.label}:${r.status}`).sort().join() === 'A:resolved,B:resolved,C:resolved' && s.unhandled.length === 0 && !s.html.includes('f12-vt-'),
+          `${E} interruption: every joined call resolves; no unhandled rejections; the mode class is removed`, s);
+        await ctx.close();
+      }
+      // Superseding (each earlier update has already run): A, then B, then C, each started after
+      // the previous update landed. A's and B's cleanup must leave C's mode class.
+      {
+        const { ctx, page } = await open(browser, html, { mount: { tempo: 'twos' } });
+        await page.evaluate(async () => {
+          const s = window.__cm.stages.a;
+          s.cut('A', { x: 100 });
+          await document.activeViewTransition.updateCallbackDone;
+          s.cut('B', { x: 200 });
+          await document.activeViewTransition.updateCallbackDone;
+          s.cut('C', { x: 300 });
+        });
         await page.evaluate(() => window.__ready());
         await page.evaluate(() => window.__pause());
-        // While C runs, A and B have settled (superseded); their cleanup must leave C's class.
         await page.waitForFunction(() => window.__cm.results.length >= 2, null, { timeout: 3000 });
         const midClass = await page.evaluate(() => document.documentElement.className);
         await page.evaluate(() => window.__play());
         await settle(page, 3);
         const s = await cm(page);
-        const rows = await page.evaluate(() => [...document.querySelectorAll('#stage-a .row')].map((r) => r.dataset.id).join());
-        check(s.log.join() === 'A,B,C' && (await label(page)) === 'C' && rows === 'r1,r4',
-          `${E} interruption: three rapid calls run each update exactly once, in order A, B, C; final DOM is C`, { log: s.log, rows });
-        check(s.results.map((r) => `${r.label}:${r.status}`).sort().join() === 'A:resolved,B:resolved,C:resolved' && s.unhandled.length === 0,
-          `${E} interruption: superseded calls resolve; no unhandled rejections`, s);
-        check(midClass.includes('f12-vt-stepped') && !s.html.includes('f12-vt-'),
-          `${E} interruption: a stale generation's cleanup leaves C's mode class; C's own cleanup removes it`, { midClass, after: s.html });
+        check(s.log.join() === 'A,B,C' && s.vtCalls === 3 && midClass.includes('f12-vt-stepped') && !s.html.includes('f12-vt-') && s.results.every((r) => r.status === 'resolved') && s.unhandled.length === 0,
+          `${E} interruption: superseded transitions resolve; a stale generation's cleanup leaves C's mode class; C's own cleanup removes it`, { midClass, ...s });
         await ctx.close();
       }
       // A's callback has already run when B arrives: B must not run A again.
@@ -288,19 +306,31 @@ for (const engine of BROWSERS) {
           `${E} interruption: A's callback already ran when B arrives → A is not run again; order A, B`, s);
         await ctx.close();
       }
-      // A's callback has not run yet when B arrives: B runs it first (flushSync), then its own.
+      // A's callback has not run yet when B arrives: B joins A's transition. Nothing runs in the
+      // caller's context; A then B run in the browser's callback.
       {
         const { ctx, page } = await open(browser, html, { mount: { tempo: 'twos' } });
         const atB = await page.evaluate(() => {
           window.__cm.stages.a.cut('A', { x: 100 });
-          const before = window.__cm.log.slice();
           window.__cm.stages.a.cut('B', { x: 200 });
-          return { before, after: window.__cm.log.slice(), label: document.getElementById('stage-a').dataset.label };
+          return { after: window.__cm.log.slice(), label: document.getElementById('stage-a').dataset.label, flushSync: window.__flushSync || 0 };
         });
         await settle(page, 2);
         const s = await cm(page);
-        check(atB.before.length === 0 && atB.after.join() === 'A' && atB.label === 'A' && s.log.join() === 'A,B' && (await label(page)) === 'B',
-          `${E} interruption: A's callback not yet run when B arrives → B runs A now (committed synchronously), then B; exactly once each`, { atB, log: s.log });
+        check(atB.after.length === 0 && atB.label === 'A0' && atB.flushSync === 0 && s.log.join() === 'A,B' && (await label(page)) === 'B' && s.vtCalls === 1 && s.flushSync === 1,
+          `${E} interruption: A's callback not yet run when B arrives → B joins A's transition (nothing flushed from the caller); A then B, exactly once each`, { atB, log: s.log, vtCalls: s.vtCalls, flushSync: s.flushSync });
+        await ctx.close();
+      }
+      // Two calls from one useLayoutEffect (React's commit phase): no flushSync from inside a
+      // lifecycle (React refuses it with a development error), one edit, order kept.
+      {
+        const { ctx, page, errors } = await open(browser, htmlDev, { mount: { tempo: 'twos' } });
+        await page.evaluate(() => window.__cm.stages.a.burst(['L1', 'L2']));
+        await settle(page, 2);
+        const s = await cm(page);
+        const lifecycle = errors.filter((e) => /flushSync was called from inside a lifecycle/.test(e));
+        check(lifecycle.length === 0 && errors.length === 0 && s.log.join() === 'L1,L2' && (await label(page)) === 'L2' && s.vtCalls === 1 && s.results.every((r) => r.status === 'resolved'),
+          `${E} interruption: two calls from one layout effect join one transition, in order, with no "flushSync inside a lifecycle" error`, { errors, log: s.log, vtCalls: s.vtCalls });
         await ctx.close();
       }
       // A transition, then a cut: the cut runs A first, without flushSync.
