@@ -114,15 +114,24 @@ Other libraries' transitions and the app's own are never restyled.
 
 `useCutMorph(opts?)` resolves the motion mode from the **calling component's** context with `useResolvedMotion('stepped')`. A nested `TempoProvider value="still"` therefore stays still even when the page is at 60.
 
-One owner record per document lives on `globalThis[Symbol.for('frame12.cutmorph')]`, so two React roots or two copied-in copies share it. Each call gets a generation number. A new call while a CutMorph transition is in flight:
+One owner record per document lives on `globalThis[Symbol.for('frame12.cutmorph')]`, so two React roots or two copied-in copies share it. Each call gets a generation number. Each owned transition record holds a queue of updates. A new `match` call while a CutMorph transition is in flight takes one of two paths:
 
-1. runs every earlier update that has not run yet, in order (inside `flushSync` on the transition path, plainly on the immediate path) and marks it done; the browser's own later invocation becomes a no-op;
-2. skips the old transition;
-3. starts the new one, or updates at once.
+- **Join (the earlier update has not run yet).** This is the case when the call comes before the browser has called the transition's update callback: two clicks in one frame, or several calls from one effect. If the call has the same root and the same mode, it is appended to that transition's queue. The callback then runs every queued update in call order inside one `flushSync`, and the viewer sees one edit to the final state. Each call's promise settles when that transition does; each rejects only with its own throw.
+- **Supersede (the earlier update has already run, or the root or mode differs):**
+  1. Any earlier update that has not run is run now, in order: inside `flushSync` on the transition path, plainly on the immediate path. The browser's own later invocation becomes a no-op.
+  2. The old transition is skipped.
+  3. The new one starts, or the update lands at once.
+
+**Deviation from the spec's step 1.** The F12-10 prompt says a new call runs the old update "now, inside `flushSync`", then skips and restarts. Joining keeps every guarantee behind that rule (each update exactly once, in call order, never dropped) without its cost:
+
+- When the second call comes from a layout or passive effect, React refuses a `flushSync` made inside its commit ("flushSync was called from inside a lifecycle method"), and the earlier update landed a commit late.
+- The skipped transition's capture was thrown away.
+
+A test calls twice from one `useLayoutEffect` and asserts no such error, one transition, and order L1 then L2. Against the previous engine it fails with exactly that React error.
 
 Mode classes are generation-guarded, so a stale `finally` never strips a newer class. `ready`, `updateCallbackDone` and `finished` all get handlers: skips are not errors. If `update` throws, the call rejects once with that error.
 
-**`flushSync`.** The transition path runs `update` inside `flushSync`, so the new DOM exists when the browser captures it. This commits Suspense fallbacks at once (tested). Preload what the update reveals, or use React 19.3's `<ViewTransition>`, which waits for Suspense. The `cut` and fallback paths never call `flushSync`.
+**`flushSync`.** The transition path runs `update` inside `flushSync`, so the new DOM exists when the browser captures it. With joining, the only `flushSync` outside the browser's callback is the rare supersede step 1 above: an earlier update that never ran, on a different root or mode. This commits Suspense fallbacks at once (tested). Preload what the update reveals, or use React 19.3's `<ViewTransition>`, which waits for Suspense. The `cut` and fallback paths never call `flushSync`.
 
 ## React 19.3 recipe
 
