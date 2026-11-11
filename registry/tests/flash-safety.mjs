@@ -14,7 +14,8 @@
 // direction on the same frame. A flash is a pair of opposing region transitions. The gate fails
 // at more than 3 flashes in any 1-second window. Intentionally failing fixtures (a large
 // luminance flip and a saturated-red flash) must be caught; a small-area flicker must not.
-//   node tests/flash-safety.mjs
+//   node tests/flash-safety.mjs                    the whole suite
+//   FLASH_SHARD=1/2 node tests/flash-safety.mjs    one of n parallel CI shards (scripts/ci-shard.mjs)
 import { launch } from './lib.mjs';
 import { bundlePage, openFixture, REGISTRY_ROOT } from './harness.mjs';
 import { readFileSync } from 'node:fs';
@@ -25,6 +26,17 @@ function check(ok, label, detail = '') {
   if (!ok) failures++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? `  ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`);
 }
+
+// Shards: every group of checks below (fixtures, the capture queue, the AUTO checks, the
+// flipbook widths) is dealt round-robin, so each check runs in exactly one of the n shards.
+const [SHARD, SHARDS] = (() => {
+  const raw = process.env.FLASH_SHARD || '1/1';
+  const m = /^(\d+)\/(\d+)$/.exec(raw);
+  if (!m || Number(m[1]) < 1 || Number(m[1]) > Number(m[2])) throw new Error(`FLASH_SHARD must be k/n with 1 ≤ k ≤ n, got "${raw}"`);
+  return [Number(m[1]), Number(m[2])];
+})();
+const mine = (list) => list.filter((_, i) => i % SHARDS === SHARD - 1);
+if (SHARDS > 1) console.log(`flash-safety shard ${SHARD}/${SHARDS}`);
 
 const VW = 1024;
 const VH = 768;
@@ -223,7 +235,7 @@ const FIXTURES = {
   'small-area flicker (60×60 black/white, 6 Hz)': { css: 'width:60px;height:60px', a: '#000', b: '#fff', hz: 6, expect: 'none' },
   'slow luminance flip (600×400, 1 Hz)': { css: 'width:600px;height:400px', a: '#000', b: '#fff', hz: 1, expect: 'none' },
 };
-for (const [name, f] of Object.entries(FIXTURES)) {
+for (const [name, f] of mine(Object.entries(FIXTURES))) {
   const html = `<!doctype html><html><body style="margin:0;background:#fff"><div id="x" style="${f.css};background:${f.a}"></div><script>
     let on = false; setInterval(() => { on = !on; document.getElementById('x').style.background = on ? '${f.b}' : '${f.a}'; }, ${1000 / f.hz / 2});
   </script></body></html>`;
@@ -319,32 +331,35 @@ async function runJob({ tempo, name, demo }, dec) {
   await ctx.close();
 }
 const decoders = [decoder, await makeDecoder(browser), await makeDecoder(browser), await makeDecoder(browser)];
-const queue = [...INK_JOBS, ...ED_JOBS, ...jobs];
+// The longest captures are queued first; dealing the queue round-robin splits them across shards.
+const queue = mine([...INK_JOBS, ...ED_JOBS, ...jobs]);
+const queued = new Set(queue.map((j) => `${j.tempo}/${j.name}`));
+const ran = (list) => list.filter((j) => queued.has(`${j.tempo}/${j.name}`));
 await Promise.all(
   decoders.map(async (dec) => {
     while (queue.length) await runJob(queue.shift(), dec);
   }),
 );
-for (const { tempo, name } of jobs) {
+for (const { tempo, name } of ran(jobs)) {
   const v = results.get(`${tempo}/${name}`);
   check(v.general.maxPerSecond <= 3 && v.red.maxPerSecond <= 3 && v.errors.length === 0,
     `flash safety [${tempo}] ${name}: ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region across 3 state changes`,
     { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, errors: v.errors });
 }
-for (const { tempo, name } of INK_JOBS) {
+for (const { tempo, name } of ran(INK_JOBS)) {
   const v = results.get(`${tempo}/${name}`);
   check(v.general.maxPerSecond <= 3 && v.red.maxPerSecond <= 3 && v.changedFrames > 0 && v.errors.length === 0,
     `flash safety [${tempo}] ink-sequence: full 48-pose play, ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region`,
     { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, errors: v.errors });
 }
-for (const { tempo, name } of ED_JOBS) {
+for (const { tempo, name } of ran(ED_JOBS)) {
   const v = results.get(`${tempo}/${name}`);
   check(v.general.maxPerSecond <= 3 && v.red.maxPerSecond <= 3 && v.changedFrames > 0 && v.errors.length === 0,
     `flash safety [${tempo}] ${name} (CutMorph): ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region across 3 quick edits`,
     { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, status: v.changed, errors: v.errors });
 }
 // AUTO is not captured: it must start the same stepped transition that the [twos] captures cover.
-for (const demo of ['filter', 'reorder', 'open']) {
+for (const demo of mine(['filter', 'reorder', 'open'])) {
   const { ctx, page, errors } = await openFixture(browser, edHtml, { w: VW, h: VH });
   await page.evaluate((d) => window.__er.mount({ demo: d, tempo: 'auto' }), demo);
   await page.waitForTimeout(150);
@@ -366,7 +381,7 @@ for (const demo of ['filter', 'reorder', 'open']) {
 // pages by whole screens; the gate must hold at the fastest rate.
 {
   const xsHtml = await bundlePage(resolve(REGISTRY_ROOT, 'tests/fixtures/exposure-fixture.tsx'));
-  for (const width of [1024, 420]) {
+  for (const width of mine([1024, 420])) {
     const { ctx, page, errors } = await openFixture(browser, xsHtml, { w: VW, h: VH });
     await page.evaluate(
       (w) => window.__xs({ n: 200, width: w, genOpts: { statuses: true, markers: [40, 120], holds: [1, 1, 2] }, props: { timing: 'flipbook', defaultRate: 4 } }),
@@ -389,5 +404,6 @@ for (const demo of ['filter', 'reorder', 'open']) {
 await Promise.all(decoders.slice(1).map((d) => d.close()));
 await decoder.close();
 await browser.close();
-console.log(failures ? `\n${failures} flash-safety check(s) failed` : '\nAll flash-safety checks passed (an approximation of WCAG 2.3.1, not a certification)');
+const scope = SHARDS > 1 ? ` in shard ${SHARD}/${SHARDS}` : '';
+console.log(failures ? `\n${failures} flash-safety check(s) failed${scope}` : `\nAll flash-safety checks passed${scope} (an approximation of WCAG 2.3.1, not a certification)`);
 process.exit(failures ? 1 : 0);

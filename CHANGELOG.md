@@ -4,6 +4,19 @@ All notable changes to **FRAME/12** are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **CI runs the verification suite as 7 parallel shards (about 10 min instead of about 37).** `scripts/ci-shard.mjs` defines the shards:
+  - `packages`: repo checks plus every unsplit workspace;
+  - `registry`: the registry core;
+  - `flash-1` and `flash-2`: flash safety, dealt round-robin with `FLASH_SHARD=k/n`;
+  - `site-pages` and `site-motion`;
+  - `release`: gallery PNGs, smoke install and the dry-run release.
+
+  `node scripts/ci-shard.mjs --check` runs inside `npm run test:checks` and fails if the shards stop matching `npm test`. That covers a split workspace's `test` that is no longer the composition of its parts, a missing part, and a workflow matrix that leaves out a shard. New workspaces join the `packages` shard automatically.
+
+  The `Build, Lint, Accessibility & Smoke Install` check now aggregates the shards and keeps its name. Pull request runs superseded by a newer push are cancelled. Locally, `npm test` still runs everything, now as `test:checks` and then each workspace; the registry and site `test` scripts are now `test:core && test:flash` and `test:pages && test:motion`.
+
 ### Fixed
 
 - **CutMorph: the Filter demo never animated in Chromium (found on frame12.dev after the #45 deploy).** With `scope`, CutMorph ran an element-scoped transition in Chromium. Chromium 153 aborts those (`InvalidStateError`, "Prepaint layout check failed") whenever the update removes or hides a named subject, which is what a filter does. The update still landed, but as a plain cut. The spike's question 6 had only tested a move; question 6b now records the abort (every exit shape, 3/3 runs). Every CutMorph edit is now a document transition with the root excluded, in every engine. `scope` is still accepted and unused, so the API is unchanged. Size is now 2969 B min+gzip.
