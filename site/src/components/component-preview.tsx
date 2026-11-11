@@ -763,7 +763,7 @@ export function ComponentPreview({
         return (
           <div className="f12-preview-sheet">
             <div className="f12-stack-pair">
-              <ReorderDemo idPrefix={`${pfx}-cm`} count={6} />
+              <ReorderDemo idPrefix={`${pfx}-cm`} count={6} label={`CutMorph preview (${previewTheme})`} />
               <p className="f12-mono-note">
                 Four more demos and a pose inspector: <Link href="/motion/edit-room">The Edit Room</Link>.
               </p>

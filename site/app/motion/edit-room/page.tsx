@@ -124,8 +124,8 @@ export default function EditRoomPage() {
             <h2 className="f12-section-title">Pose inspector</h2>
             <p className="f12-body-copy">
               Pauses a live stepped edit through <code className="f12-code-inline">document.getAnimations()</code>: C-01
-              before, the three held poses (83.33 ms each), the hard image swap at the second pose boundary, then C-02.
-              Docs only; not part of the registry item.
+              (pose 1 holds it), poses 2 and 3 (83.33 ms each, the hard image swap at the second pose boundary), then
+              C-02. Docs only; not part of the registry item.
             </p>
             <PoseInspector idPrefix="er-inspect" />
           </div>
@@ -166,7 +166,7 @@ export default function EditRoomPage() {
             <p className="f12-body-copy">
               <code className="f12-code-inline">useCutMorph()</code> runs each update exactly once, in call order, even
               when calls interrupt each other. It never cancels a transition it does not own, and its promise resolves
-              when the edit is on screen.
+              once the edit is committed.
             </p>
             <pre className="f12-cmd-pre" tabIndex={0} role="region" aria-label="useCutMorph example">
               <code>{HOOK_RECIPE}</code>

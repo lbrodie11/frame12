@@ -168,6 +168,17 @@ try {
         await idle(page);
         const closed = await page.evaluate(() => ({ detail: !!document.getElementById('er-open-detail'), focus: document.activeElement?.id }));
         check(back === 'er-open-row-s002' && !closed.detail && closed.focus === 'er-open-row-s002' && errors.length === 0, `${E} open: Escape closes it and returns focus to the row`, { back, ...closed, errors });
+        // Close, then open another row before the close's update has run: focus still lands on
+        // the new panel's heading.
+        await page.locator('#er-open-row-s002').click();
+        await idle(page);
+        await page.evaluate(() => {
+          document.getElementById('er-open-close').click();
+          document.getElementById('er-open-row-s003').click();
+        });
+        await idle(page);
+        const quick = await page.evaluate(() => ({ focus: document.activeElement?.id, heading: document.getElementById('er-open-detail-title')?.textContent }));
+        check(quick.focus === 'er-open-detail-title' && /^C-003/.test(quick.heading ?? ''), `${E} open: close then open another row in quick succession moves focus to the new panel's heading`, quick);
         await ctx.close();
       });
 
@@ -214,6 +225,21 @@ try {
         const step = (x2 - x0);
         check(/Pose 2/.test(s2) && step > 0 && Math.abs((x3 - x0) - 2 * step) < 1 && swap[0] === '0' && swap[1] === '1' && end.subject === 'C-02' && !/f12-vt-/.test(end.cls) && errors.length === 0,
           `${E} inspector: pauses a live edit at each pose via getAnimations (even steps, new image on pose 3), releases to C-02, cleans up`, { x0, x2, x3, swap, end, errors });
+        // Again, by keyboard: the same edit (C-01 → C-02, not backwards), focus never dropped.
+        const focusAfterRelease = await page.evaluate(() => document.activeElement?.id);
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(() => /Paused at C-01/.test(document.getElementById('er-inspect-status').textContent), null, { timeout: 5000 });
+        const focusPaused = await page.evaluate(() => document.activeElement?.id);
+        const y0 = await xAt();
+        await page.keyboard.press('Tab');
+        await page.keyboard.press('Enter');
+        const y2 = await xAt();
+        const second = await page.evaluate(() => ({ subject: document.querySelector('.er-subject').textContent, status: document.getElementById('er-inspect-status').textContent }));
+        await page.click('#er-inspect-stop-c02');
+        await page.waitForFunction(() => document.getElementById('er-inspect-stop-c01').disabled, null, { timeout: 5000 });
+        const focusEnd = await page.evaluate(() => document.activeElement?.id);
+        check(focusAfterRelease === 'er-inspect-inspect' && focusPaused === 'er-inspect-stop-c01' && y0 === x0 && y2 === x2 && second.subject === 'C-02' && /Pose 2/.test(second.status) && focusEnd === 'er-inspect-inspect',
+          `${E} inspector: a second inspection plays the same edit C-01 → C-02; keyboard focus moves to the first stop and back to Inspect, never to the page`, { focusAfterRelease, focusPaused, y0, y2, second, focusEnd });
         await ctx.close();
       });
 

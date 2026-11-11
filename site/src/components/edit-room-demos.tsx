@@ -94,7 +94,16 @@ export function FilterDemo({
 }
 
 /** C-02: sort by a column. Focus stays on the sort control. */
-export function ReorderDemo({ idPrefix, count = 16 }: { idPrefix: string; count?: number }) {
+export function ReorderDemo({
+  idPrefix,
+  count = 16,
+  label = 'Reorder demo',
+}: {
+  idPrefix: string;
+  count?: number;
+  /** Accessible-name prefix: two demos on one page (light and dark previews) need distinct names. */
+  label?: string;
+}) {
   const shots = React.useMemo(() => buildShots(count), [count]);
   const [by, setBy] = React.useState<ShotSort>('cut');
   const scope = React.useRef<HTMLDivElement>(null);
@@ -106,7 +115,7 @@ export function ReorderDemo({ idPrefix, count = 16 }: { idPrefix: string; count?
       <div className="er-controls">
         <SegmentedControl
           idPrefix={`${idPrefix}-sort`}
-          ariaLabel="Sort shots by"
+          ariaLabel={`${label}: sort shots by`}
           options={SHOT_SORTS.map((o) => ({ ...o }))}
           value={by}
           onChange={(v) => void cutMorph(() => setBy(v))}
@@ -115,7 +124,7 @@ export function ReorderDemo({ idPrefix, count = 16 }: { idPrefix: string; count?
       <p role="status" className="f12-mono-note" id={`${idPrefix}-status`}>
         Sorted by {word}
       </p>
-      <ol className="er-list er-list-table" aria-label={`Shots sorted by ${word}`} id={`${idPrefix}-list`}>
+      <ol className="er-list er-list-table" aria-label={`${label}: shots sorted by ${word}`} id={`${idPrefix}-list`}>
         {sorted.map((s) => (
           <CutMorphName key={s.id} name={`${idPrefix}-${s.id}`}>
             <li className="er-row" data-id={s.id}>
@@ -138,7 +147,9 @@ export function OpenDemo({ idPrefix, count = 8 }: { idPrefix: string; count?: nu
   const [open, setOpen] = React.useState<string | null>(null);
   const scope = React.useRef<HTMLDivElement>(null);
   const heading = React.useRef<HTMLHeadingElement>(null);
-  const focusNext = React.useRef<{ to: 'panel' } | { to: 'row'; id: string } | null>(null);
+  // The focus intent names its target state, so a close followed quickly by an open (whose
+  // pending close commits first) never spends the open's intent on the wrong commit.
+  const focusNext = React.useRef<{ to: 'panel' | 'row'; id: string } | null>(null);
   const cutMorph = useCutMorph({ scope });
   const detailId = `${idPrefix}-detail`;
 
@@ -146,14 +157,18 @@ export function OpenDemo({ idPrefix, count = 8 }: { idPrefix: string; count?: nu
   // snapshot already shows the focus ring where it belongs.
   React.useLayoutEffect(() => {
     const f = focusNext.current;
-    focusNext.current = null;
     if (!f) return;
-    if (f.to === 'panel') heading.current?.focus();
-    else document.getElementById(`${idPrefix}-row-${f.id}`)?.focus();
+    if (f.to === 'panel' && open === f.id) {
+      focusNext.current = null;
+      heading.current?.focus();
+    } else if (f.to === 'row' && open !== f.id) {
+      focusNext.current = null;
+      document.getElementById(`${idPrefix}-row-${f.id}`)?.focus();
+    }
   }, [open, idPrefix]);
 
   const openShot = (id: string) => {
-    focusNext.current = { to: 'panel' };
+    focusNext.current = { to: 'panel', id };
     void cutMorph(() => setOpen(id));
   };
   const close = () => {
@@ -230,8 +245,13 @@ const STOPS = [
   { key: 'c01', label: 'C-01', note: 'before (pose 1 holds it, 0–83 ms)', t: 0 },
   { key: 'p2', label: 'Pose 2', note: '83–167 ms, old image', t: 125 },
   { key: 'p3', label: 'Pose 3', note: '167–250 ms, new image: the hard swap is at 166.67 ms', t: 208 },
-  { key: 'c02', label: 'C-02', note: 'after', t: 250 },
+  { key: 'c02', label: 'C-02', note: 'after: plays the edit to the end', t: 250 },
 ] as const;
+const RECORDED = [
+  'the red block (old image) where it started',
+  'the red block (old image) one third of the way across',
+  'the blue block (new image) two thirds of the way across',
+];
 
 type VtHandle = { finished: Promise<unknown>; ready: Promise<unknown>; skipTransition(): void };
 
@@ -245,7 +265,12 @@ export function PoseInspector({ idPrefix }: { idPrefix: string }) {
   const [live, setLive] = React.useState<boolean | null>(null);
   const [slot, setSlot] = React.useState<0 | 1>(0);
   const [stop, setStop] = React.useState<number | null>(null);
+  const [ended, setEnded] = React.useState(false);
   const run = React.useRef<{ vt: VtHandle; anims: Animation[] } | null>(null);
+  // Set at the click, before the transition is ready: a second activation cannot start another.
+  const busy = React.useRef(false);
+  const stops = React.useRef<HTMLDivElement>(null);
+  const prevStop = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     setLive(getCutMorphSupport().viewTransitions && typeof document.getAnimations === 'function');
@@ -259,11 +284,34 @@ export function PoseInspector({ idPrefix }: { idPrefix: string }) {
 
   React.useEffect(() => {
     if (stop === null) return;
-    // A paused document snapshot would detach from its content on scroll: end the inspection.
-    const onScroll = () => release();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    // A paused document snapshot would detach from its content on scroll or resize: end it.
+    window.addEventListener('scroll', release, { passive: true });
+    window.addEventListener('resize', release);
+    return () => {
+      window.removeEventListener('scroll', release);
+      window.removeEventListener('resize', release);
+    };
   }, [stop, release]);
+
+  // Tempo 0 or reduced motion while paused: the edit lands at once.
+  React.useEffect(() => {
+    if (motion === 'cut') release();
+  }, [motion, release]);
+
+  // Keyboard focus follows the inspection: Inspect disables itself while paused, so focus moves
+  // to the first stop; when the edit ends (the stops disable), it returns to Inspect.
+  React.useLayoutEffect(() => {
+    const prev = prevStop.current;
+    prevStop.current = stop;
+    if (prev === null && stop !== null) {
+      document.getElementById(`${idPrefix}-stop-c01`)?.focus();
+    } else if (prev !== null && stop === null) {
+      const a = document.activeElement;
+      if (!a || a === document.body || stops.current?.contains(a)) {
+        document.getElementById(`${idPrefix}-inspect`)?.focus();
+      }
+    }
+  }, [stop, idPrefix]);
 
   const seek = (i: number) => {
     const r = run.current;
@@ -273,14 +321,21 @@ export function PoseInspector({ idPrefix }: { idPrefix: string }) {
   };
 
   const inspect = () => {
-    if (run.current || motion === 'cut') return;
+    if (busy.current || run.current || motion === 'cut') return;
+    busy.current = true;
+    setEnded(false);
+    // Every inspection is the same edit, C-01 → C-02: put C-01 back first, as a plain cut.
+    flushSync(() => setSlot(0));
     const doc = document as unknown as { startViewTransition: (cb: () => void) => VtHandle };
     let vt: VtHandle | null = null;
     withCutMorphMode('stepped', () => {
-      vt = doc.startViewTransition(() => flushSync(() => setSlot((s) => (s === 0 ? 1 : 0))));
+      vt = doc.startViewTransition(() => flushSync(() => setSlot(1)));
     });
     const started = vt as VtHandle | null;
-    if (!started) return;
+    if (!started) {
+      busy.current = false;
+      return;
+    }
     started.ready.then(
       () => {
         const anims = document
@@ -297,7 +352,9 @@ export function PoseInspector({ idPrefix }: { idPrefix: string }) {
     );
     const done = () => {
       run.current = null;
+      busy.current = false;
       setStop(null);
+      setEnded(true);
     };
     started.finished.then(done, done);
   };
@@ -307,7 +364,9 @@ export function PoseInspector({ idPrefix }: { idPrefix: string }) {
     stop === null
       ? off
         ? 'Motion is off (tempo 0 or reduced motion): this edit is a cut. Recorded frames below.'
-        : 'Press Inspect to pause a live edit at each pose.'
+        : ended
+          ? 'At C-02: the edit has landed. Inspect it again from C-01.'
+          : 'Press Inspect to pause a live edit at each pose.'
       : `Paused at ${STOPS[stop].label}: ${STOPS[stop].note}.`;
 
   return (
@@ -323,7 +382,7 @@ export function PoseInspector({ idPrefix }: { idPrefix: string }) {
         <Button id={`${idPrefix}-inspect`} variant="marker" size="sm" onClick={inspect} disabled={off || live === false || stop !== null}>
           Inspect an edit
         </Button>
-        <div className="er-stops" role="group" aria-label="Poses">
+        <div className="er-stops" role="group" aria-label="Poses" ref={stops}>
           {STOPS.map((s, i) => (
             <button
               key={s.key}
@@ -352,11 +411,14 @@ export function PoseInspector({ idPrefix }: { idPrefix: string }) {
                 src={`/edit-room/pose-${i + 1}.png`}
                 width={420}
                 height={50}
-                alt={`Pose ${i + 1} at ${t} ms: the subject ${i === 2 ? 'two thirds of the way, new image' : i === 1 ? 'one third of the way, old image' : 'where it started, old image'}`}
+                alt={`Recorded pose ${i + 1} at ${t} ms: ${RECORDED[i]}`}
               />
             ))}
           </div>
-          <figcaption className="f12-mono-note">Recorded screenshots (Chromium 153, the F12-10 spike), not this browser.</figcaption>
+          <figcaption className="f12-mono-note">
+            Recorded in Chromium 153 by the F12-10 spike, not in this browser: a red block (the old image)
+            moves right on twos and becomes blue (the new image) at the second pose boundary.
+          </figcaption>
         </figure>
       ) : null}
     </div>
