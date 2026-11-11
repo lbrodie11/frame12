@@ -38,6 +38,7 @@ export async function GET() {
     '',
     `- [Overview & Interactive Recovery Dashboard](${SITE_URL}/): Interactive demo dashboard demonstrating \`<Sheet autoCut>\`, \`Scene\`, \`Panel\`, \`PanelPair\`, \`Metric\`, \`ToneAreaChart\`, and \`ToneBarList\`.`,
     `- [Motion on Twos Studio](${SITE_URL}/motion): Side-by-side 12fps stepped vs 60fps smooth vs instant cut timing comparison.`,
+    `- [The Edit Room](${SITE_URL}/motion/edit-room): CutMorph state changes as film edits (cut vs match cut on View Transitions): filter, reorder, open and cut demos with a live pose inspector (\`${REGISTRY_BASE_URL}/cut-morph.json\`).`,
     `- [Component Catalog](${SITE_URL}/components): Interactive previews, prop tables, and install commands for all ${COMPONENT_COUNT} components and adapters.`,
     `- [Developer Console Flagship Block](${SITE_URL}/blocks/developer-console): Installable API & webhook control-plane console (\`${REGISTRY_BASE_URL}/developer-console.json\`) combining Expressive hero telemetry with Quiet operational views for services, masked API keys, and request logs.`,
     `- [Workspace Settings Operational Block](${SITE_URL}/blocks/workspace-settings): Installable Quiet-first operational settings experience (\`${REGISTRY_BASE_URL}/workspace-settings.json\`) covering profile, workspace preferences, notification routing, appearance, motion grammar, team RBAC directory, and danger zone confirmation flows.`,
