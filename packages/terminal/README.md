@@ -4,10 +4,10 @@ FRAME/12's interface language for the command line. A long-running command reads
 of **cuts** (`C-01`, `C-02`…), the finding that matters comes first as a **frame** (`F-01`), and
 every claim carries **receipts** (`E-01`).
 
-> **Status: 0.1.0 in progress (F12-13 PRs 1–5).** The core, the zero-dependency linear renderers
-> (`./render`), the Director, the live Ink view (`./ink`), `spawnLogged` (`./process`), the
-> `frame12-term` CLI with `.f12rec` recordings, and three reference apps
-> ([`examples/`](examples/)) are in.
+> **Status: 0.1.0, prepared and not yet published.** The core, the zero-dependency linear
+> renderers (`./render`), the Director, the live Ink view (`./ink`), `spawnLogged` (`./process`),
+> the `frame12-term` CLI with `.f12rec` recordings, and three reference apps
+> ([`examples/`](examples/)). Docs and a real recorded run: [frame12.dev/terminal](https://frame12.dev/terminal).
 
 ```sh
 npm install @frame12/terminal
@@ -409,22 +409,31 @@ stays styled.
 
 ### Environment variables and flags
 
+Every environment variable the package reads, and the flag that overrides it. A flag beats a
+variable; among flags, the last one wins.
+
+<!-- env-table:start -->
 | Variable / flag | Effect |
 | --- | --- |
-| `--color` / `--no-color` | Force color on (terminal's depth) or off. The last one wins. |
+| `--color` / `--no-color` | Force color on (terminal's depth) or off. |
 | `NO_COLOR` (non-empty) | No color ([no-color.org](https://no-color.org)). Bold, dim, inverse and underline remain on a TTY. |
 | `NODE_DISABLE_COLORS` (non-empty, not `0`) | No color. |
 | `FORCE_COLOR` | `0`/`false` off, `1`/`true` 16 colors, `2` 256, `3` truecolor; honored on pipes. |
-| `TERM=dumb` | No color, ASCII glyphs, no links, no motion, not interactive. |
-| `COLORTERM`, `TERM_PROGRAM`, `WT_SESSION`, `TERM=*256color` | Color depth. |
-| `--ascii` / `--unicode`, `FRAME12_ASCII=1` | ASCII twins for every glyph, or force Unicode. Otherwise Unicode follows the locale (`LC_ALL`, `LC_CTYPE`, `LANG`) and known terminals; legacy Windows console gets ASCII. |
-| `FRAME12_AMBIGUOUS_WIDE=1` / `0` | Treat East Asian ambiguous-width characters as 2 cells (on by default for `ja`, `zh`, `ko` locales). |
-| `--links` / `--no-links`, `FRAME12_LINKS=1` / `0` | OSC 8 hyperlinks. Default on only for TTYs in terminals known to support them, never in CI, pipes or `TERM=dumb`, and off inside tmux and screen unless `FRAME12_LINKS=1`. `FORCE_HYPERLINK` is also read. |
+| `TERM` | `dumb`: no color, ASCII glyphs, no links, no motion, not interactive. `*256color`: 256 colors. `xterm-kitty`, `foot`, `wezterm`, `alacritty`, `xterm-ghostty`: known terminals. `tmux*`, `screen*`: a multiplexer. |
+| `COLORTERM`, `TERM_PROGRAM`, `WT_SESSION`, `KITTY_WINDOW_ID`, `KONSOLE_VERSION`, `VTE_VERSION`, `ConEmuANSI` | Identify the terminal: color depth, Unicode, link support and whether it re-wraps on resize. |
+| `--ascii` / `--unicode`, `FRAME12_ASCII=1` | ASCII twins for every glyph, or force Unicode. Otherwise Unicode follows the locale and known terminals; legacy Windows console gets ASCII. |
+| `LC_ALL`, `LC_CTYPE`, `LANG` | The locale (first non-empty wins): UTF-8 enables Unicode; `ja`, `zh`, `ko` turn on ambiguous-wide. |
+| `FRAME12_AMBIGUOUS_WIDE=1` / `0` | Treat East Asian ambiguous-width characters as 2 cells, or 1. |
+| `--links` / `--no-links`, `FRAME12_LINKS=1` / `0`, `FORCE_HYPERLINK=1` / `0` | OSC 8 hyperlinks. Default on only for TTYs in terminals known to support them; never in CI, pipes or `TERM=dumb`; off inside tmux and screen unless forced. |
+| `TMUX`, `STY` | Inside tmux or GNU screen: no links by default, no resize re-wrap cleanup. |
 | `--columns N`, `--rows N`, `COLUMNS`, `LINES` | Size. A TTY's own size wins over `COLUMNS`/`LINES`. Clamped to 20–400 columns and 5–200 rows. |
 | `--screen-reader`, `FRAME12_SCREEN_READER=1`, `INK_SCREEN_READER=true` | Screen-reader mode: append-only plain lines, no cursor movement, no motion. |
-| `CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BUILDKITE`, `CIRCLECI`, `JENKINS_URL`, `TF_BUILD`, … | CI: not interactive, no links, no motion. |
-| `--motion auto\|twos\|ones\|still`, `FRAME12_MOTION` | Tempo (below). |
+| `CI`, `CONTINUOUS_INTEGRATION`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BUILDKITE`, `CIRCLECI`, `TRAVIS`, `JENKINS_URL`, `TEAMCITY_VERSION`, `TF_BUILD`, `BUILD_BUILDID`, `BITBUCKET_BUILD_NUMBER`, `APPVEYOR`, `DRONE`, `CODEBUILD_BUILD_ID`, `SEMAPHORE` | CI (any non-empty value except `false`): not interactive, no links, no motion. |
+| `--motion auto\|twos\|ones\|still`, `FRAME12_MOTION` | Tempo ([Motion](#motion)). |
 | `NO_MOTION`, `REDUCED_MOTION` (non-empty, not `0`) | No animation. |
+| `FRAME12_REFLOW=1` / `0` | Whether the terminal re-wraps its screen when it gets narrower (the live view's resize cleanup). Detected for known terminals; unknown ones are assumed not to. |
+| `NODE_ENV` | The live view warns once about direct `stdout` writes unless `NODE_ENV=production` (`devWarnings` overrides). |
+<!-- env-table:end -->
 
 ## Motion
 
@@ -500,13 +509,17 @@ an injected clock), `fakeStreams`, `toNdjson`, and seven v1 fixtures: `success`,
 
 ## Compatibility
 
+<!-- compat-table:start -->
 | | Target | Verified in this release |
 | --- | --- | --- |
 | Node | 22, 24 | 22 and 24 on ubuntu, macOS and Windows (CI `terminal` job) |
-| OS | macOS 14+ (Terminal.app, iTerm2, Ghostty, WezTerm, kitty), Linux (GNOME Terminal/VTE, Konsole, xterm, Alacritty), Windows 11 (Windows Terminal, VS Code; legacy conhost: `plain` only) | Detection rules only (table tests); renderers arrive in PR 2 |
+| Linear renderers (`rich`, `plain`, `json`) | Any stream: TTY, pipe, file, CI log | Golden gallery (6 fixtures × 40/80/120 columns × mono/16/256/truecolor, plus plain and JSON) checked on all three OSes; core and `./render` installed from the tarball with no React |
+| Live view (`./ink`) | `ink@8.0.x` + `react@19.3.x` | `ink@8.0.0` + `react@19.3.1`: real-pty tests (node-pty + @xterm/headless) on ubuntu, macOS and Windows (ConPTY; POSIX-signal tests skipped there); installed from the tarball with exactly one React |
+| Terminals | macOS 14+ (Terminal.app, iTerm2, Ghostty, WezTerm, kitty), Linux (GNOME Terminal/VTE, Konsole, xterm, Alacritty), Windows 11 (Windows Terminal, VS Code; legacy conhost: `plain` only) | Detection rules (table tests) and xterm.js emulation. Recordings in real terminals (the VHS tapes in `examples/`): not run yet, a human step |
 | Multiplexers | tmux 3.x, GNU screen (no links by default) | Detection rules only |
-| Remote and CI | SSH; GitHub Actions, GitLab CI and Buildkite logs (non-interactive) | Detection rules only |
-| Ink adapter | `ink@8.0.x` + `react@19.3.x` | `ink@8.0.0` + `react@19.3.1`, with real-pty tests (node-pty + @xterm/headless) on ubuntu, macOS and Windows (ConPTY; POSIX-signal tests skipped there) |
+| Remote and CI | SSH; GitHub Actions, GitLab CI and Buildkite logs (non-interactive) | Detection rules; the linear paths run non-interactively in GitHub Actions |
+| Producers | Anything that prints NDJSON | The Python, Go and Rust emitters below run through `frame12-term render --strict` on ubuntu CI |
+<!-- compat-table:end -->
 
 Bun and Deno: best effort, not guaranteed.
 

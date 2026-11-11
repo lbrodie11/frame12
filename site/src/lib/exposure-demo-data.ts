@@ -2,18 +2,20 @@
 // Pure and deterministic (no Date.now, no locale), so server and first client render match.
 // The agent-run demo lives in exposure-agent-demo.ts and is built on the server only.
 //
-// CI RUN: ILLUSTRATIVE. @frame12/terminal defines the event contract (and validates it) but
-//    cannot record a run yet, and none of this repository's scripts emit terminal events, so
-//    there is no real captured log to commit. The events below follow the contract exactly
-//    (registry/tests/exposure.mjs validates them with @frame12/terminal's validateEvent) and
-//    are labelled "illustrative" wherever they appear.
+// CI RUN: RECORDED. A real failing run of @frame12/terminal's build-pipeline reference app with
+//    `--break test`, recorded with `--record` (packages/terminal/examples/build-pipeline/fixtures/
+//    break-test.f12rec, copied into ci-run.generated.json by site/scripts/build-terminal-run.mjs).
+//    Lint and typecheck pass, the test step fails, and the build is skipped. Nothing is edited.
 import type { ExposureFrame } from '@/components/frame12';
+import ciRun from './ci-run.generated.json';
 
 export interface ExposureDemo {
   id: string;
   title: string;
   label: string;
   illustrative: boolean;
+  /** True when the data is a recorded run (a `.f12rec`), not fixtures. */
+  recorded?: boolean;
   source: string;
   frames: ExposureFrame[];
   /** The raw log, one record per line, exactly what the sheet was built from (redacted). */
@@ -25,40 +27,17 @@ export interface ExposureDemo {
   defaultValue?: string;
 }
 
-// ------------------------------------------------------------------------------- CI run (illustrative)
-type CiEvent = Record<string, unknown> & { type: string; seq: number; ts: string; id: string };
+// ------------------------------------------------------------------------------- CI run (recorded)
+/** A @frame12/terminal v1 event, as far as the frames need it. */
+export type CiEvent = Record<string, unknown> & { type: string; seq: number; ts: string; id: string };
 
-const RUN = 'ci-illustrative-001';
-const base = (type: string, seq: number, ts: string, id: string) => ({ schemaVersion: 1, type, runId: RUN, seq, ts, id });
-
-/** ILLUSTRATIVE terminal events in the @frame12/terminal v1 contract (not a captured run). */
-export const CI_ILLUSTRATIVE_EVENTS: CiEvent[] = [
-  { ...base('run-start', 1, '2026-11-10T09:00:00.000Z', 'run'), title: 'npm test (illustrative)', command: 'npm test' },
-  { ...base('scene-start', 2, '2026-11-10T09:00:00.050Z', 'scene-checks'), scene: 'checks', title: 'Repository checks' },
-  { ...base('cut-start', 3, '2026-11-10T09:00:00.100Z', 'cs-sync'), cut: 'sync', title: 'sync:check', scene: 'checks' },
-  { ...base('cut-end', 4, '2026-11-10T09:00:01.900Z', 'ce-sync'), cut: 'sync', status: 'ok', summary: '64 files + 49 registry payloads verified', durationMs: 1800 },
-  { ...base('cut-start', 5, '2026-11-10T09:00:02.000Z', 'cs-doc'), cut: 'doc', title: 'doc:check', scene: 'checks' },
-  { ...base('warning', 6, '2026-11-10T09:00:03.200Z', 'w-doc'), cut: 'doc', message: 'catalog entry has no preview screenshot yet', code: 'doc-preview' },
-  { ...base('cut-end', 7, '2026-11-10T09:00:04.100Z', 'ce-doc'), cut: 'doc', status: 'warning', summary: '37 catalog entries, 1 warning', durationMs: 2100 },
-  { ...base('cut-start', 8, '2026-11-10T09:00:04.200Z', 'cs-lint'), cut: 'lint', title: 'lint:frame12', scene: 'checks' },
-  {
-    ...base('finding', 9, '2026-11-10T09:00:05.400Z', 'f-marker'),
-    cut: 'lint',
-    finding: {
-      id: 'marker-misuse-1',
-      title: 'Marker yellow used as a text color',
-      status: 'danger',
-      prominence: 'hero',
-      subject: [{ kind: 'file', label: 'registry/ui/example-badge.tsx' }],
-      summary: 'rule marker-misuse: --f-marker may only be a background under --f-marker-ink',
-    },
-  },
-  { ...base('cut-end', 10, '2026-11-10T09:00:05.900Z', 'ce-lint'), cut: 'lint', status: 'error', summary: '1 violation', durationMs: 1700 },
-  { ...base('cut-start', 11, '2026-11-10T09:00:06.000Z', 'cs-unit'), cut: 'unit', title: 'registry unit tests', scene: 'checks' },
-  { ...base('cut-end', 12, '2026-11-10T09:00:06.000Z', 'ce-unit'), cut: 'unit', status: 'skipped', summary: 'skipped after a failed check' },
-  { ...base('scene-end', 13, '2026-11-10T09:00:06.050Z', 'se-checks'), scene: 'checks' },
-  { ...base('run-end', 14, '2026-11-10T09:00:06.100Z', 'run-end'), status: 'failed', error: 'lint:frame12 failed' },
-];
+/** The recorded run's events, in order (the `.f12rec` header line dropped). */
+export const CI_RECORDED_EVENTS: CiEvent[] = (ciRun as { recordingNdjson: string }).recordingNdjson
+  .trim()
+  .split('\n')
+  .slice(1)
+  .map((line) => (JSON.parse(line) as { event: CiEvent }).event);
+export const CI_RECORDING_FILE: string = (ciRun as { recordingPath: string }).recordingPath;
 
 /** Maps terminal events to frames: ts → at; findings and warnings → status; cuts → labels.
  * Causes only from the contract's own links (an event's `cut` → that cut's start; a cut's end
@@ -114,6 +93,18 @@ export function ciEventsToFrames(events: readonly CiEvent[]): ExposureFrame[] {
         f.detail = fd.summary;
         break;
       }
+      case 'metric': {
+        const m = e.metric as { name: string; label?: string; value: number | string; unit?: string };
+        f.label = `${cut ? `${cutLabel} · ` : ''}metric · ${m.label ?? m.name}`;
+        f.detail = `${m.label ?? m.name}: ${String(m.value)}${m.unit ? ` ${m.unit}` : ''}`;
+        break;
+      }
+      case 'snapshot': {
+        const snap = e.snapshot as { findings?: unknown[]; status?: string };
+        f.label = `snapshot · ${snap.findings?.length ?? 0} findings`;
+        f.detail = `The result every renderer draws from (run ${String(snap.status)}).`;
+        break;
+      }
       case 'run-end':
         f.label = `run end · ${String(e.status)}`;
         f.status = e.status === 'completed' ? 'ok' : 'error';
@@ -133,21 +124,25 @@ export function ciEventsToFrames(events: readonly CiEvent[]): ExposureFrame[] {
 }
 
 export function buildCiRunDemo(): ExposureDemo {
-  const frames = ciEventsToFrames(CI_ILLUSTRATIVE_EVENTS);
-  const hero = CI_ILLUSTRATIVE_EVENTS.find(
-    (e) => e.type === 'finding' && (e.finding as { prominence?: string }).prominence === 'hero',
-  );
+  const events = CI_RECORDED_EVENTS;
+  const frames = ciEventsToFrames(events);
+  const runId = String(events[0]?.runId ?? '');
+  const hero = events.find((e) => e.type === 'finding' && (e.finding as { prominence?: string }).prominence === 'hero');
+  const failedCut = events.find((e) => e.type === 'cut-end' && e.status === 'error');
+  const failedNo = frames.findIndex((f) => f.id === failedCut?.id);
+  const cutLabel = failedNo >= 0 ? frames[failedNo]!.label.split(' · ')[0] : '';
+  const finding = hero?.finding as { title: string; receipts?: { value: string }[] } | undefined;
   return {
     id: 'ci-run',
-    title: 'CI / terminal run (illustrative)',
-    label: 'CI run ci-illustrative-001 replay (illustrative)',
-    illustrative: true,
-    source: 'ILLUSTRATIVE: @frame12/terminal v1 events written by hand (the package cannot record a run yet)',
+    title: 'CI / terminal run (recorded)',
+    label: `CI run ${runId} replay (recorded)`,
+    illustrative: false,
+    recorded: true,
+    source: `RECORDED: the build-pipeline reference app with --break test (${CI_RECORDING_FILE.split('/').pop()})`,
     frames,
-    rawLog: CI_ILLUSTRATIVE_EVENTS.map((e) => JSON.stringify(e)).join('\n'),
+    rawLog: events.map((e) => JSON.stringify(e)).join('\n'),
     question: 'Which earlier step led to the failure?',
-    answer:
-      'The lint:frame12 cut (C-03): its finding “Marker yellow used as a text color” ends the cut with an error, and run end names that failure. The doc:check warning before it is unrelated to the failure.',
+    answer: `The test step (${cutLabel}): it ends with an error, and its finding “${finding?.title ?? ''}” names the failing test and its evidence (${(finding?.receipts ?? []).map((r) => r.value).join('; ')}). Lint and typecheck passed before it; the build was skipped because of it, and run end reports the failure.`,
     primaryMarker: hero?.id,
     defaultValue: frames[frames.length - 1]?.id,
   };

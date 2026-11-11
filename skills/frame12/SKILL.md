@@ -203,7 +203,7 @@ the event contract (`validateEvent`, `createStreamValidator`), `detectCapabiliti
 `resolveTerminalMotion`, `createSanitizer`, the width helpers (`stringWidth`,
 `truncateMiddle`, `wrap`), and the linear renderers in `@frame12/terminal/render`
 (`createLinearWriter`, `renderRich`, `renderPlain`, `renderJson`). A tool in another language prints
-NDJSON events and pipes them to `npx -p @frame12/terminal frame12-term render`. See [references/terminal.md](references/terminal.md).
+NDJSON events and pipes them to `npx -p @frame12/terminal frame12-term render`. See [references/terminal.md](references/terminal.md) and [frame12.dev/terminal/docs](https://frame12.dev/terminal/docs).
 
 - Sanitize every untrusted string (commit subjects, paths, tool output, log lines) with
   `createSanitizer()` before printing. It removes escape sequences (including OSC 8 and OSC 52),

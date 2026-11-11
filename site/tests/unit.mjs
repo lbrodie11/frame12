@@ -2,6 +2,8 @@
 //   - src/lib/nav-ownership.ts   route → nav item ownership table
 //   - src/lib/return-context.ts  `?from=` origin-token grammar and return-target table
 //   - src/lib/history-focus.ts   focus-record parsing
+//   - src/lib/ansi.ts            ANSI → styled segments for /terminal
+//   - src/lib/terminal-run.ts    /terminal's data, from the committed recording
 import { build } from 'esbuild';
 import { mkdirSync, readdirSync } from 'node:fs';
 import { resolve, dirname, relative, sep } from 'node:path';
@@ -35,6 +37,8 @@ async function load(rel) {
 const nav = await load('src/lib/nav-ownership.ts');
 const ret = await load('src/lib/return-context.ts');
 const hf = await load('src/lib/history-focus.ts');
+const ansi = await load('src/lib/ansi.ts');
+const term = await load('src/lib/terminal-run.ts');
 
 // ---------------------------------------------------------------- nav ownership (table-driven)
 {
@@ -57,6 +61,9 @@ const hf = await load('src/lib/history-focus.ts');
     ['/experiments', null, null],
     ['/experiments/other', null, null],
     ['/static', 'nav-static', 'page'],
+    ['/terminal', 'nav-terminal', 'page'],
+    ['/terminal/docs', 'nav-terminal', 'true'],
+    ['/terminal/docs/extra', null, null],
     ['/static/report.html', null, null],
     ['/style-sheet', 'nav-style-sheet', 'page'],
     ['/get-started', 'nav-get-started', 'page'],
@@ -75,8 +82,8 @@ const hf = await load('src/lib/history-focus.ts');
 
   const ids = new Set(nav.NAV_ITEMS.map((n) => n.id));
   check(
-    nav.NAV_ITEMS.length === 10 && nav.NAV_OWNERSHIP.every((r) => ids.has(r.id)),
-    'nav-ownership: 10 nav items, every ownership row points at a real nav item',
+    nav.NAV_ITEMS.length === 11 && nav.NAV_OWNERSHIP.every((r) => ids.has(r.id)),
+    'nav-ownership: 11 nav items, every ownership row points at a real nav item',
   );
   check(
     nav.NAV_ITEMS.every((item) => nav.resolveNavOwnership(item.href)?.current === 'page'),
@@ -269,6 +276,71 @@ const hf = await load('src/lib/history-focus.ts');
     bad.every((s) => hf.readFocusRecord(s) === null),
     'history-focus: malformed records are ignored',
   );
+}
+
+// ---------------------------------------------------------------- /terminal: ANSI → segments
+{
+  const E = '\u001b';
+  const r = ansi.ansiToLines(`${E}[2mC-01 · ${E}[22m${E}[1mREAD${E}[22m\n${E}[1;103;30m F-01 ${E}[22;39;49m  x\n`);
+  check(
+    JSON.stringify(r.lines) ===
+      JSON.stringify([
+        [{ dim: true, text: 'C-01 · ' }, { bold: true, text: 'READ' }],
+        [{ bold: true, bg: 103, fg: 30, text: ' F-01 ' }, { text: '  x' }],
+      ]) && r.unsupported.length === 0,
+    'ansi: SGR attributes and 16 colors become segments; a final newline adds no empty line',
+    JSON.stringify(r),
+  );
+  const hostile = ansi.ansiToLines(`a${E}]8;;https://evil.example${E}\\link${E}]8;;${E}\\b${E}]52;c;ZXZpbA==\u0007c${E}[2Jd${E}[?25le\u0008f\u009b31mg<script>`);
+  const text = hostile.lines.map((l) => l.map((s) => s.text).join('')).join('\n');
+  check(
+    text === 'alinkbcdef31mg<script>' && hostile.lines[0].every((s) => Object.keys(s).length === 1),
+    'ansi: OSC links and clipboard writes, cursor CSI, C0/C1 controls are removed, never interpreted; markup stays text',
+    JSON.stringify(text),
+  );
+  const unterminated = ansi.ansiToLines(`a${E}]0;title\nb`);
+  check(unterminated.lines.map((l) => l.map((s) => s.text).join('')).join('|') === 'a|b', 'ansi: an unterminated OSC ends at the line break');
+  const rgb = ansi.ansiToLines(`${E}[38;5;220;1mx${E}[48;2;1;2;3my`);
+  check(
+    rgb.unsupported.join(',') === '38;5;220,48;2;1;2;3' && rgb.lines[0][0].bold === true && rgb.lines[0][0].fg === undefined,
+    'ansi: 256-color and truecolor parameters are consumed (not read as codes) and reported',
+    JSON.stringify(rgb),
+  );
+  check(
+    ansi.segmentClass({ bold: true, dim: true, bg: 103 }) === 'f12-term-b f12-term-d f12-term-bg103' && ansi.segmentClass({}) === undefined,
+    'ansi: segment classes',
+  );
+}
+
+// ---------------------------------------------------------------- /terminal: the recorded run
+{
+  const steps = term.watchSteps();
+  const all = steps.flatMap((s) => s.lines.map((l) => l.map((x) => x.text).join(''))).join('\n');
+  check(
+    steps.length > 3 && steps.every((s) => s.waitMs >= 0 && s.waitMs <= 1100) && steps.some((s) => s.stream === 'stderr') && steps.at(-1).stream === 'stdout',
+    'terminal: Watch is narration (stderr) then results (stdout), with the CLI’s capped waits',
+  );
+  check(/REPLAY · FRAME\/12/.test(all) && /F-01 +src\/helper\/ssg\/index\.ts usually changes with/.test(all), 'terminal: Watch is the replay of the hono run, labelled REPLAY');
+  check(!/\/(home|tmp|Users|root)\//.test(all + term.HELLO_NDJSON), 'terminal: no local paths reach the page');
+  check(term.watchUnsupportedSgr().length === 0, 'terminal: every SGR parameter in Watch is styled', term.watchUnsupportedSgr().join(','));
+  // Every color the data uses has a rule in site.css (only the marker chip has one).
+  const css = (await import('node:fs')).readFileSync(resolve(SITE_ROOT, 'app/site.css'), 'utf8');
+  const colors = new Set(steps.flatMap((s) => s.lines.flat().flatMap((x) => [x.fg === 30 && x.bg === 103 ? undefined : x.fg !== undefined ? `fg${x.fg}` : undefined, x.bg !== undefined ? `bg${x.bg}` : undefined])).filter(Boolean));
+  const unstyled = [...colors].filter((c) => !css.includes(`.f12-term-${c} {`));
+  check(unstyled.length === 0, 'terminal: every color in Watch has a .f12-term-* rule', unstyled.join(','));
+
+  const ex = term.exploreDemo();
+  const events = term.recordingEvents();
+  check(
+    ex.frames.length === events.length && ex.frames.every((f, i) => f.id === events[i].id) && ex.primaryMarker === events.find((e) => e.type === 'finding').id,
+    'terminal: Explore has one frame per recorded event, marked at the top finding',
+  );
+  check(
+    ex.topFinding.evidence === 3 && Math.abs(ex.topFinding.strength.value - 0.5128) < 0.001,
+    'terminal: the top finding’s evidence count and strength come from the snapshot',
+    JSON.stringify(ex.topFinding),
+  );
+  check(term.HELLO_NDJSON.trim().split('\n').length === 12, 'terminal: the Build example is twelve lines');
 }
 
 console.log(failures ? `\n${failures} unit check(s) failed` : '\nAll site unit checks passed');

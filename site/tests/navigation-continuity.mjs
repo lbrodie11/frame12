@@ -694,8 +694,10 @@ async function runEngine(engineName, engine) {
       const atStart = await cue();
       // Every nav link is reachable by keyboard and scrolls into the row when focused.
       await page.evaluate(() => document.activeElement?.blur());
+      // Every nav item, however many there are (11 since the Terminal item).
+      const linkCount = await page.$$eval('.site-nav-list .site-nav-link', (els) => els.length);
       const reached = [];
-      for (let i = 0; i < 40 && reached.length < 10; i++) {
+      for (let i = 0; i < 40 && reached.length < linkCount; i++) {
         await page.keyboard.press('Tab');
         // Focus scrolling inside the row can land a frame later (scroll snapping).
         await page.waitForTimeout(120);
@@ -726,8 +728,8 @@ async function runEngine(engineName, engine) {
         JSON.stringify({ atActive, activeInView, atStart, atEnd }),
       );
       check(
-        reached.length === 10 && reached.every((r) => r.inRow),
-        T(`mobile ${label}: all 10 nav links reachable by keyboard, scrolled into the row and clear of the cue`),
+        linkCount === 11 && reached.length === linkCount && reached.every((r) => r.inRow),
+        T(`mobile ${label}: all ${linkCount} nav links reachable by keyboard, scrolled into the row and clear of the cue`),
         JSON.stringify(reached),
       );
       await ctx.close();

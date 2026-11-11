@@ -16,7 +16,7 @@ function renderDemoFrame(frame: ExposureFrame, _index: number, ctx: { scrubbing:
 }
 
 /**
- * A compact scrubber for the light/dark preview panels (the illustrative CI run). The page renders
+ * A compact scrubber for the light/dark preview panels (the recorded CI run). The page renders
  * one per theme, so the theme is part of its accessible name: two landmarks with the same name
  * cannot be told apart (axe landmark-unique).
  */
@@ -43,7 +43,13 @@ function DemoPair({ demo, idPrefix }: { demo: ExposureDemo; idPrefix: string }) 
       <Panel label={`${demo.title}: exposure sheet`}>
         <div className="f12-stack-pair">
           <div className="f12-row-pair">
-            {demo.illustrative ? <Tag status="warning">Illustrative</Tag> : <Tag status="info">From fixtures</Tag>}
+            {demo.illustrative ? (
+              <Tag status="warning">Illustrative</Tag>
+            ) : demo.recorded ? (
+              <Tag status="info">Recorded run</Tag>
+            ) : (
+              <Tag status="info">From fixtures</Tag>
+            )}
             <span className="f12-mono-note">{demo.source}</span>
           </div>
           <h2 className="f12-section-title">{demo.title}</h2>

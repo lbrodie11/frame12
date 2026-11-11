@@ -1133,3 +1133,57 @@ html[data-theme="dark"] .site-root:not([data-hydrated="true"]) #site-theme-dark 
   font-size: 12px;
   font-weight: 700;
 }
+
+/* /terminal "Watch": the rich renderer's ANSI output as styled, selectable text (src/lib/ansi.ts).
+   Ink is the page's own ink, as it is the terminal's own foreground; only the marker chip has a
+   color, and it sets both its background and its text. Lines not yet written during a replay
+   keep their space, so nothing below them moves. */
+.f12-term-out {
+  margin: 0;
+  max-height: 560px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--f-rule);
+  background: var(--f-panel);
+  color: var(--f-ink);
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 4;
+}
+.f12-term-step[data-pending] {
+  visibility: hidden;
+}
+.f12-term-b {
+  font-weight: 700;
+}
+.f12-term-d {
+  color: var(--f-ink-2);
+}
+.f12-term-i {
+  font-style: italic;
+}
+.f12-term-u {
+  text-decoration: underline;
+}
+.f12-term-inv {
+  background: var(--f-ink);
+  color: var(--f-panel);
+}
+.f12-term-bg103 {
+  background: var(--f-marker);
+  color: var(--f-marker-ink);
+}
+.f12-term-toc ol {
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.f12-term-toc a {
+  display: inline-block;
+  min-height: 24px;
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+}

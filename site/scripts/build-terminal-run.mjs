@@ -1,0 +1,161 @@
+#!/usr/bin/env node
+/**
+ * Builds src/lib/terminal-run.generated.json (and src/lib/ci-run.generated.json, the real failing
+ * run on /components/exposure-scrubber) for /terminal from a real recording (and the 12-line
+ * example, packages/terminal/examples/hello.ndjson): the Repo
+ * Archaeology reference app run against honojs/hono at 61f7c59 with repo-archaeology 0.10.0
+ * (packages/terminal/examples/repo-archaeology/fixtures/hono-61f7c59.f12rec).
+ *
+ * "Watch" is what `frame12-term render --from <rec> --replay --speed 1 --format rich --color
+ * --unicode --no-links --columns 88` writes, captured from the package's own CLI with an injected
+ * clock: each step is the wait the CLI took (at most 1 s) and the ANSI it wrote after it. Nothing
+ * is re-rendered or edited here; the page converts the ANSI to styled text (src/lib/ansi.ts).
+ *
+ *   node scripts/build-terminal-run.mjs           # write
+ *   node scripts/build-terminal-run.mjs --check   # fail if the committed file is stale
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const SITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const REPO = path.resolve(SITE, '..');
+export const RECORDING_REL = 'packages/terminal/examples/repo-archaeology/fixtures/hono-61f7c59.f12rec';
+export const HELLO_REL = 'packages/terminal/examples/hello.ndjson';
+/** A real failing run for /components/exposure-scrubber: build-pipeline with --break test. */
+export const CI_RECORDING_REL = 'packages/terminal/examples/build-pipeline/fixtures/break-test.f12rec';
+const CI_OUT = path.join(SITE, 'src/lib/ci-run.generated.json');
+export const COMMAND = `frame12-term render --from ${path.basename(RECORDING_REL)} --replay --speed 1 --format rich --color --unicode --no-links --columns 88`;
+// JSON, not TypeScript: it is data (commit titles such as "(#4599)" are not colors), and
+// src/lib/terminal-run.ts gives it its types.
+const OUT = path.join(SITE, 'src/lib/terminal-run.generated.json');
+
+/** Runs the package's CLI on the recording and returns the steps it wrote. */
+export async function captureWatch(recordingPath) {
+  const { main } = await import(path.join(REPO, 'packages/terminal/dist/cli/main.js'));
+  const steps = [{ waitMs: 0, chunks: [] }];
+  const sink = (stream) => ({
+    isTTY: false,
+    write(chunk) {
+      steps.at(-1).chunks.push({ stream, text: String(chunk) });
+      return true;
+    },
+    on() {
+      return this;
+    },
+    once() {
+      return this;
+    },
+    off() {
+      return this;
+    },
+    end() {},
+  });
+  const argv = ['render', '--from', recordingPath, ...COMMAND.split(' ').slice(4)];
+  const code = await main(argv, {
+    stdin: { isTTY: false, on() {}, once() {}, off() {}, pause() {}, resume() {} },
+    stdout: sink('stdout'),
+    stderr: sink('stderr'),
+    env: {},
+    sleep: async (ms) => {
+      steps.push({ waitMs: ms, chunks: [] });
+    },
+    handleSignals: false,
+    exit() {},
+  });
+  if (code !== 0) throw new Error(`frame12-term exited ${code} on ${recordingPath}`);
+  // Waits with no output in between add up; a step is "wait, then these lines appear".
+  const merged = [];
+  let pending = 0;
+  for (const s of steps) {
+    pending += s.waitMs;
+    if (s.chunks.length === 0) continue;
+    for (const c of s.chunks) {
+      const prev = merged.at(-1);
+      if (prev && prev.waitMs === 0 && prev.stream === c.stream) prev.ansi += c.text;
+      else merged.push({ waitMs: Math.round(pending * 100) / 100, stream: c.stream, ansi: c.text });
+      pending = 0;
+    }
+  }
+  return merged;
+}
+
+/** The rows of a README table between `<!-- name:start -->` and `<!-- name:end -->`, as raw cells. */
+export function readmeTable(readme, name) {
+  const m = new RegExp(`<!-- ${name}:start -->([\\s\\S]*?)<!-- ${name}:end -->`).exec(readme);
+  if (!m) throw new Error(`packages/terminal/README.md has no ${name} markers`);
+  const rows = m[1]
+    .trim()
+    .split('\n')
+    .filter((l) => l.startsWith('|'))
+    .map((l) =>
+      l
+        .slice(1, -1)
+        .split(/(?<!\\)\|/)
+        .map((c) => c.trim().replace(/\\\|/g, '|')),
+    );
+  const [header, , ...body] = rows;
+  return { header, rows: body };
+}
+
+/** The README's emitter for a language: the fenced block after `<!-- emitter: <lang> -->`. */
+export function readmeEmitter(readme, lang) {
+  const m = new RegExp(`<!-- emitter: ${lang} -->\\n\`\`\`${lang}\\n([\\s\\S]*?)\\n\`\`\``).exec(readme);
+  if (!m) throw new Error(`packages/terminal/README.md has no ${lang} emitter`);
+  return m[1];
+}
+
+export async function generate() {
+  const recordingPath = path.join(REPO, RECORDING_REL);
+  const ndjson = fs.readFileSync(recordingPath, 'utf8');
+  const watch = await captureWatch(recordingPath);
+  const hello = fs.readFileSync(path.join(REPO, HELLO_REL), 'utf8');
+  const readme = fs.readFileSync(path.join(REPO, 'packages/terminal/README.md'), 'utf8');
+  const data = {
+    $comment: `GENERATED by site/scripts/build-terminal-run.mjs from ${RECORDING_REL}, ${HELLO_REL} and packages/terminal/README.md. Do not edit.`,
+    recordingFile: path.basename(RECORDING_REL),
+    recordingPath: RECORDING_REL,
+    watchCommand: COMMAND,
+    recordingNdjson: ndjson,
+    helloNdjson: hello,
+    watchSteps: watch,
+    // The README's tables, so the docs page and the README cannot disagree.
+    envTable: readmeTable(readme, 'env-table'),
+    compatTable: readmeTable(readme, 'compat-table'),
+    // The emitters the package's tests run through `frame12-term render --strict`.
+    emitters: { python: readmeEmitter(readme, 'python'), go: readmeEmitter(readme, 'go') },
+  };
+  return `${JSON.stringify(data, null, 2)}\n`;
+}
+
+/** The ExposureScrubber page's CI run: small, because that page's demo module is client code. */
+export function generateCi() {
+  const data = {
+    $comment: `GENERATED by site/scripts/build-terminal-run.mjs from ${CI_RECORDING_REL}. Do not edit.`,
+    recordingFile: path.basename(CI_RECORDING_REL),
+    recordingPath: CI_RECORDING_REL,
+    recordingNdjson: fs.readFileSync(path.join(REPO, CI_RECORDING_REL), 'utf8'),
+  };
+  return `${JSON.stringify(data, null, 2)}\n`;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const outputs = [
+    [OUT, await generate(), RECORDING_REL],
+    [CI_OUT, generateCi(), CI_RECORDING_REL],
+  ];
+  let stale = false;
+  for (const [file, text, source] of outputs) {
+    if (process.argv.includes('--check')) {
+      const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+      if (current !== text) {
+        console.error(`${path.relative(REPO, file)} is stale: run node site/scripts/build-terminal-run.mjs`);
+        stale = true;
+      } else console.log(`PASS  ${path.relative(REPO, file)} matches ${source}`);
+    } else {
+      fs.writeFileSync(file, text);
+      console.log(`Wrote ${path.relative(REPO, file)}`);
+    }
+  }
+  if (stale) process.exit(1);
+}
