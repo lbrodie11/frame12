@@ -70,7 +70,7 @@ In Firefox and WebKit the pixel answers are therefore recorded as `null`, and th
 
 ## Performance (lab, not field INP)
 
-`registry/scripts/measure-cut-morph-perf.mjs` (raw data in [`cut-morph-perf.json`](cut-morph-perf.json), recorded 2026-11-11) measures The Edit Room's 200-row filter. The machine is a 4-core Xeon at 2.1 GHz. Each configuration is 3 runs × 12 stage changes, compared with the same list without CutMorph (`kind: 'cut'`, unnamed rows).
+`registry/scripts/measure-cut-morph-perf.mjs` (raw data in [`cut-morph-perf.json`](cut-morph-perf.json), re-recorded 2026-11-11 after the review fixes) measures The Edit Room's 200-row filter. The machine is a 4-core Xeon at 2.1 GHz. Each configuration is 3 runs × 12 stage changes, compared with the same list without CutMorph (`kind: 'cut'`, unnamed rows).
 
 These are lab numbers from one machine with synthetic clicks. They are not field INP.
 
@@ -78,20 +78,20 @@ On a transition path, "input → next paint" is the frame that captures the old 
 
 | ms (p50 / p95) | Chromium 153 | Chromium 153, 4× CPU | Firefox 157 | WebKit 27.2 |
 |---|---|---|---|---|
-| Input → next paint, with CutMorph | 23.6 / 77.1 | 71.4 / 248.1 | 3 / 7 | 63 / 147 |
-| Input → next paint, without | 14.5 / 26.6 | 47.3 / 139.7 | 16 / 48 | 16 / 44 |
-| **Input → DOM updated, with CutMorph** | **36.3 / 105.7** | **127 / 340.8** | **18 / 48** | **37 / 75** |
-| Input → DOM updated, without | 8.4 / 20.2 | 36.5 / 104.9 | 13 / 46 | 12 / 40 |
-| React render + commit, with (`flushSync` in the callback) | 10.9 / 30.9 | 45.4 / 123.5 | 14 / 44 | 13 / 46 |
-| React render + commit, without | 6.1 / 17.5 | 27.3 / 87.6 | 12 / 45 | 10 / 37 |
-| Long tasks > 50 ms per 36 edits (with / without) | 12 (longest 91) / 0 | 96 (longest 371) / 10 (longest 125) | n/a | n/a |
+| Input → next paint, with CutMorph | 25.1 / 77.4 | 83.8 / 368.7 | 4 / 9 | 84 / 220 |
+| Input → next paint, without | 14.7 / 32.9 | 59.8 / 135.4 | 19 / 65 | 18 / 55 |
+| **Input → DOM updated, with CutMorph** | **38.4 / 100.9** | **147.1 / 487.9** | **23 / 71** | **42 / 90** |
+| Input → DOM updated, without | 8.9 / 24.0 | 45.8 / 96.6 | 17 / 60 | 15 / 49 |
+| React render + commit, with (`flushSync` in the callback) | 13.2 / 34.5 | 63.9 / 133.9 | 17 / 67 | 16 / 56 |
+| React render + commit, without | 6.7 / 22.1 | 37.6 / 86.4 | 15 / 58 | 12 / 46 |
+| Long tasks > 50 ms per 36 edits (with / without) | 10 (longest 92) / 0 | 100 (longest 413) / 16 (longest 167) | n/a | n/a |
 | Layout shift / scroll jumps | 0 / 0 | 0 / 0 | n/a / 0 | n/a / 0 |
 
-- **The cost is the snapshots, not the hook.** The Chromium trace attributes CutMorph's long tasks to `UpdateLayoutTree` (38–51 ms) and `Paint` (11–19 ms) while building and painting about 200 pseudo-element groups. React's own commit is only a few ms slower inside the callback.
+- **The cost is the snapshots, not the hook.** The Chromium trace attributes CutMorph's long tasks to `UpdateLayoutTree` (about 37–39 ms) and `Paint` (17–27 ms) while building and painting about 200 pseudo-element groups. React's own commit is only a few ms slower inside the callback.
 - **Naming 200 subjects is a stress case.** It is not what the grammar asks for ("animate the subject"). With element scope (Chromium) only the demo's own subtree is captured.
 - **Firefox and WebKit:** there is no CPU-throttling API, so their 4× columns are not measured, and they don't report long tasks or layout shifts (`null` in the JSON).
 - **Zero added delay on `cut` and the fallbacks (asserted).** Without CutMorph, at tempo `still` and with reduced motion, all 36 of 36 updates were in the DOM before the next animation frame, in all three engines. The script exits non-zero otherwise.
-- **Size (min+gzip):** 2121 B JS + 437 B CSS. Together that is 2486 B, under the 3 KB budget. Development messages are folded out by the production `NODE_ENV` define.
+- **Size (min+gzip):** 2580 B JS + 437 B CSS. Together that is 2952 B, under the 3 KB budget (the review fixes added the class guard, the scoped foreign check and commit-timed promises). Development messages are folded out by the production `NODE_ENV` define.
 
 ## The grammar (CSS)
 

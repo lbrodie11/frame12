@@ -2,7 +2,7 @@
 
 [![Release: v0.2.0](https://img.shields.io/badge/Release-v0.2.0_·_Experimental-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://github.com/lbrodie11/frame12/releases/tag/v0.2.0)
 [![React 18 & 19](https://img.shields.io/badge/React-18_%26_19_·_TypeScript-121212?style=flat-square&labelColor=121212&color=ffffff)](registry/)
-[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-35_Components_·_52_Registry_Items-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
+[![shadcn Registry](https://img.shields.io/badge/shadcn_Registry-35_Components_·_53_Registry_Items-ffd60a?style=flat-square&labelColor=121212&color=ffd60a)](https://frame12.dev/components)
 [![License: MIT](https://img.shields.io/badge/License-MIT-121212?style=flat-square&labelColor=121212&color=ffffff)](LICENSE)
 
 **A React design system that makes interfaces look like comic pages and move like hand-drawn animation.**

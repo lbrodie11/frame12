@@ -15,115 +15,70 @@
       "with-cutmorph": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 23.6,
-          "p75": 29.4,
-          "p95": 77.1
+          "p50": 25.1,
+          "p75": 29,
+          "p95": 77.4
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 36.3,
-          "p75": 49.1,
-          "p95": 105.7
+          "p50": 38.4,
+          "p75": 49.7,
+          "p95": 100.9
         },
         "reactCommit": {
           "n": 36,
-          "p50": 10.9,
-          "p75": 17.3,
-          "p95": 30.9
+          "p50": 13.2,
+          "p75": 17.7,
+          "p95": 34.5
         },
         "longTasksOver50ms": {
-          "count": 12,
-          "longest": 91
+          "count": 10,
+          "longest": 92
         },
         "attribution": [
           {
-            "ms": 78.2,
+            "ms": 98.7,
             "top": [
-              "Receive mojo message 78.2ms",
-              "V8.StackGuard 76.7ms",
-              "V8.HandleInterrupts 76.7ms",
-              "V8.InvokeApiInterruptCallbacks 76.7ms"
+              "Receive mojo message 98.6ms",
+              "V8.StackGuard 96.9ms",
+              "V8.HandleInterrupts 96.9ms",
+              "V8.InvokeApiInterruptCallbacks 96.9ms"
             ],
             "harness": true
           },
           {
-            "ms": 65.3,
-            "top": [
-              "UpdateLayoutTree 40.6ms",
-              "Paint 19.0ms",
-              "PrePaint 6.9ms",
-              "Layout 2.6ms"
-            ]
-          },
-          {
-            "ms": 70.4,
+            "ms": 78.9,
             "top": []
           },
           {
-            "ms": 68.8,
+            "ms": 62.5,
             "top": [
-              "UpdateLayoutTree 47.6ms",
-              "PrePaint 13.0ms",
-              "Layout 2.5ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 0.0ms"
-            ]
-          },
-          {
-            "ms": 91.5,
-            "top": [
-              "UpdateLayoutTree 60.8ms",
-              "Paint 17.3ms",
-              "Layerize 9.3ms",
+              "UpdateLayoutTree 38.6ms",
+              "Paint 17.4ms",
+              "Layerize 6.4ms",
               "PrePaint 2.7ms"
             ]
           },
           {
-            "ms": 53.2,
+            "ms": 63.8,
             "top": [
-              "UpdateLayoutTree 39.4ms",
-              "Layerize 3.8ms",
-              "Commit 2.4ms",
-              "EventDispatch 0.5ms"
+              "UpdateLayoutTree 36.7ms",
+              "Paint 27.1ms",
+              "PrePaint 8.7ms",
+              "Layout 2.6ms"
             ]
           },
           {
-            "ms": 64.2,
-            "top": [
-              "UpdateLayoutTree 31.2ms",
-              "EventDispatch 17.3ms",
-              "FunctionCall 5.7ms",
-              "PrePaint 3.1ms"
-            ]
-          },
-          {
-            "ms": 58.6,
-            "top": [
-              "UpdateLayoutTree 35.2ms",
-              "Paint 19.7ms",
-              "PrePaint 8.2ms",
-              "Layout 2.7ms"
-            ]
-          },
-          {
-            "ms": 71.9,
+            "ms": 70,
             "top": []
           },
           {
-            "ms": 56.2,
+            "ms": 64.8,
             "top": [
-              "UpdateLayoutTree 46.1ms",
-              "PrePaint 4.3ms",
-              "Layout 1.6ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 0.0ms"
-            ]
-          },
-          {
-            "ms": 60.9,
-            "top": [
-              "UpdateLayoutTree 38.8ms",
-              "Paint 11.3ms",
-              "Layerize 6.1ms",
-              "PrePaint 2.2ms"
+              "UpdateLayoutTree 36.7ms",
+              "Paint 30.0ms",
+              "Layerize 5.5ms",
+              "PrePaint 2.8ms"
             ]
           }
         ],
@@ -134,21 +89,21 @@
       "without-cutmorph": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 14.5,
-          "p75": 15.1,
-          "p95": 26.6
+          "p50": 14.7,
+          "p75": 15.7,
+          "p95": 32.9
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 8.4,
-          "p75": 12.2,
-          "p95": 20.2
+          "p50": 8.9,
+          "p75": 12.4,
+          "p95": 24
         },
         "reactCommit": {
           "n": 36,
-          "p50": 6.1,
-          "p75": 8.1,
-          "p95": 17.5
+          "p50": 6.7,
+          "p75": 8.8,
+          "p95": 22.1
         },
         "longTasksOver50ms": {
           "count": 0,
@@ -156,12 +111,12 @@
         },
         "attribution": [
           {
-            "ms": 77.2,
+            "ms": 105.8,
             "top": [
-              "Receive mojo message 77.2ms",
-              "V8.StackGuard 75.8ms",
-              "V8.HandleInterrupts 75.7ms",
-              "V8.InvokeApiInterruptCallbacks 75.7ms"
+              "Receive mojo message 105.7ms",
+              "V8.StackGuard 103.6ms",
+              "V8.HandleInterrupts 103.6ms",
+              "V8.InvokeApiInterruptCallbacks 103.6ms"
             ],
             "harness": true
           }
@@ -173,383 +128,444 @@
       "with-cutmorph-4x": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 71.4,
-          "p75": 95.9,
-          "p95": 248.1
+          "p50": 83.8,
+          "p75": 126,
+          "p95": 368.7
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 127,
-          "p75": 170.7,
-          "p95": 340.8
+          "p50": 147.1,
+          "p75": 216.3,
+          "p95": 487.9
         },
         "reactCommit": {
           "n": 36,
-          "p50": 45.4,
-          "p75": 76.2,
-          "p95": 123.5
+          "p50": 63.9,
+          "p75": 89.2,
+          "p95": 133.9
         },
         "longTasksOver50ms": {
-          "count": 96,
-          "longest": 371
+          "count": 100,
+          "longest": 413
         },
         "attribution": [
           {
-            "ms": 418,
+            "ms": 534.5,
             "top": [
-              "Receive mojo message 418.0ms",
-              "V8.StackGuard 412.4ms",
-              "V8.HandleInterrupts 412.4ms",
-              "V8.InvokeApiInterruptCallbacks 412.4ms"
+              "Receive mojo message 534.4ms",
+              "V8.StackGuard 526.0ms",
+              "V8.HandleInterrupts 526.0ms",
+              "V8.InvokeApiInterruptCallbacks 526.0ms"
             ],
             "harness": true
           },
           {
-            "ms": 56.3,
+            "ms": 372.1,
             "top": [
-              "LatencyInfo.Flow 56.3ms",
-              "EventDispatch 36.9ms",
-              "FunctionCall 33.5ms",
-              "PrePaint 9.3ms"
+              "UpdateLayoutTree 180.3ms",
+              "Paint 121.0ms",
+              "LatencyInfo.Flow 76.2ms",
+              "EventDispatch 51.4ms"
             ]
           },
           {
-            "ms": 239.6,
+            "ms": 131.7,
             "top": [
-              "UpdateLayoutTree 139.9ms",
-              "Paint 94.1ms",
-              "PrePaint 26.8ms",
-              "Layout 12.2ms"
+              "FunctionCall 130.2ms",
+              "UpdateLayoutTree 85.1ms",
+              "Layout 7.7ms",
+              "V8.StackGuard 1.7ms"
             ]
           },
           {
-            "ms": 111.7,
+            "ms": 105,
             "top": [
-              "FunctionCall 110.7ms",
-              "UpdateLayoutTree 74.2ms",
-              "Layout 6.0ms",
-              "V8.StackGuard 3.2ms"
+              "SimpleWatcher::OnHandleReady 105.0ms",
+              "Receive mojo message 104.7ms"
             ]
           },
           {
-            "ms": 69.4,
+            "ms": 174,
+            "top": [
+              "UpdateLayoutTree 131.4ms",
+              "Layout 11.2ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 8.7ms",
+              "RunMicrotasks 8.7ms"
+            ]
+          },
+          {
+            "ms": 91.3,
             "top": []
           },
           {
-            "ms": 100,
+            "ms": 88.3,
             "top": [
-              "UpdateLayoutTree 75.0ms",
-              "Layout 6.3ms",
-              "Paint 4.2ms",
-              "PrePaint 3.3ms"
+              "UpdateLayoutTree 54.2ms",
+              "PrePaint 10.7ms",
+              "Layout 5.2ms",
+              "Paint 5.2ms"
             ]
           },
           {
-            "ms": 112.2,
+            "ms": 79.1,
             "top": [
-              "RunMicrotasks 60.7ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 60.6ms",
-              "UpdateLayoutTree 56.9ms",
-              "FunctionCall 49.8ms"
+              "UpdateLayoutTree 42.5ms",
+              "Paint 31.8ms",
+              "PrePaint 5.5ms",
+              "Layout 5.0ms"
             ]
           },
           {
-            "ms": 59,
+            "ms": 235.9,
             "top": [
-              "UpdateLayoutTree 29.8ms",
-              "Paint 18.4ms",
+              "RunMicrotasks 126.3ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 126.2ms",
+              "UpdateLayoutTree 119.4ms",
+              "FunctionCall 108.7ms"
+            ]
+          },
+          {
+            "ms": 130.9,
+            "top": [
+              "UpdateLayoutTree 66.7ms",
+              "Paint 55.2ms",
+              "Layerize 20.2ms",
+              "Commit 4.7ms"
+            ]
+          },
+          {
+            "ms": 54.6,
+            "top": [
+              "EventDispatch 18.9ms",
+              "FunctionCall 10.2ms",
+              "Layerize 6.6ms",
+              "PrePaint 5.4ms"
+            ]
+          },
+          {
+            "ms": 60.7,
+            "top": [
+              "UpdateLayoutTree 30.1ms",
+              "Paint 24.4ms",
+              "PrePaint 7.3ms",
+              "Layerize 3.0ms"
+            ]
+          },
+          {
+            "ms": 128.6,
+            "top": [
+              "RunMicrotasks 74.1ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 74.0ms",
+              "UpdateLayoutTree 71.7ms",
+              "FunctionCall 54.4ms"
+            ]
+          },
+          {
+            "ms": 79.3,
+            "top": [
+              "UpdateLayoutTree 45.6ms",
+              "Paint 22.0ms",
               "Layerize 8.7ms",
-              "EventDispatch 2.0ms"
-            ]
-          },
-          {
-            "ms": 131.1,
-            "top": [
-              "FunctionCall 67.6ms",
-              "RunMicrotasks 66.7ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 63.3ms",
-              "UpdateLayoutTree 60.4ms"
-            ]
-          },
-          {
-            "ms": 81.9,
-            "top": [
-              "UpdateLayoutTree 43.4ms",
-              "Paint 34.2ms",
-              "Layerize 10.7ms",
-              "Commit 3.7ms"
-            ]
-          },
-          {
-            "ms": 94.8,
-            "top": [
-              "UpdateLayoutTree 51.4ms",
-              "Paint 35.0ms",
-              "PrePaint 10.8ms",
-              "Layout 5.2ms"
-            ]
-          },
-          {
-            "ms": 68.2,
-            "top": [
-              "FunctionCall 68.0ms",
-              "UpdateLayoutTree 31.9ms",
-              "Layout 13.4ms",
-              "RunMicrotasks 0.1ms"
-            ]
-          },
-          {
-            "ms": 53.3,
-            "top": [
-              "UpdateLayoutTree 26.7ms",
-              "Paint 21.0ms",
-              "PrePaint 8.1ms",
-              "Layout 2.4ms"
-            ]
-          },
-          {
-            "ms": 132,
-            "top": [
-              "UpdateLayoutTree 71.0ms",
-              "RunMicrotasks 70.0ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 68.9ms",
-              "FunctionCall 61.5ms"
-            ]
-          },
-          {
-            "ms": 85.1,
-            "top": [
-              "UpdateLayoutTree 47.2ms",
-              "Paint 30.5ms",
-              "Layerize 10.2ms",
-              "PrePaint 3.4ms"
-            ]
-          },
-          {
-            "ms": 61.1,
-            "top": [
-              "UpdateLayoutTree 36.6ms",
-              "Paint 24.5ms",
-              "PrePaint 6.1ms",
-              "Layout 2.5ms"
-            ]
-          },
-          {
-            "ms": 371.4,
-            "top": [
-              "RunMicrotasks 243.4ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 243.3ms",
-              "UpdateLayoutTree 214.3ms",
-              "FunctionCall 128.0ms"
-            ]
-          },
-          {
-            "ms": 356.1,
-            "top": [
-              "UpdateLayoutTree 204.2ms",
-              "Paint 87.3ms",
-              "Layerize 36.1ms",
-              "PrePaint 17.2ms"
-            ]
-          },
-          {
-            "ms": 128.2,
-            "top": [
-              "UpdateLayoutTree 51.0ms",
-              "EventDispatch 35.1ms",
-              "FunctionCall 17.8ms",
               "Commit 2.6ms"
             ]
           },
           {
-            "ms": 132.6,
+            "ms": 52.8,
             "top": [
-              "UpdateLayoutTree 44.9ms",
-              "EventDispatch 25.7ms",
-              "PrePaint 13.0ms",
-              "Layerize 11.9ms"
+              "UpdateLayoutTree 28.9ms",
+              "Paint 17.6ms",
+              "PrePaint 5.5ms",
+              "Layout 2.8ms"
             ]
           },
           {
-            "ms": 85.2,
+            "ms": 164.3,
             "top": [
-              "UpdateLayoutTree 38.6ms",
-              "Layerize 11.5ms",
-              "Commit 7.7ms",
-              "EventDispatch 6.1ms"
+              "UpdateLayoutTree 91.7ms",
+              "RunMicrotasks 88.1ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 87.8ms",
+              "FunctionCall 73.8ms"
             ]
           },
           {
-            "ms": 58.4,
+            "ms": 100.2,
             "top": [
-              "Paint 25.6ms",
-              "UpdateLayoutTree 22.5ms",
-              "Layerize 8.3ms",
-              "PrePaint 7.0ms"
+              "UpdateLayoutTree 60.1ms",
+              "Paint 28.6ms",
+              "Layerize 14.7ms",
+              "Commit 3.7ms"
             ]
           },
           {
-            "ms": 217.9,
+            "ms": 111.5,
             "top": [
-              "UpdateLayoutTree 129.7ms",
-              "Paint 84.7ms",
-              "PrePaint 26.4ms",
-              "Layout 9.5ms"
+              "UpdateLayoutTree 67.5ms",
+              "Paint 39.7ms",
+              "PrePaint 9.7ms",
+              "Layout 6.8ms"
             ]
           },
           {
-            "ms": 93.5,
+            "ms": 188.5,
             "top": [
-              "FunctionCall 92.5ms",
-              "UpdateLayoutTree 68.7ms",
-              "Layout 4.2ms",
-              "V8.StackGuard 1.2ms"
+              "FunctionCall 188.3ms",
+              "Layout 70.8ms",
+              "UpdateLayoutTree 65.3ms",
+              "V8.StackGuard 6.3ms"
             ]
           },
           {
-            "ms": 61,
+            "ms": 156.2,
             "top": [
-              "SimpleWatcher::OnHandleReady 61.0ms",
-              "Receive mojo message 60.7ms"
+              "UpdateLayoutTree 54.9ms",
+              "Paint 51.5ms",
+              "PrePaint 23.4ms",
+              "Layout 18.3ms"
             ]
           },
           {
-            "ms": 71.2,
+            "ms": 225.6,
+            "top": [
+              "UpdateLayoutTree 172.2ms",
+              "PrePaint 22.0ms",
+              "Layout 7.8ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 0.1ms"
+            ]
+          },
+          {
+            "ms": 374.4,
+            "top": [
+              "UpdateLayoutTree 195.8ms",
+              "Paint 66.2ms",
+              "Layerize 45.1ms",
+              "EventDispatch 28.2ms"
+            ]
+          },
+          {
+            "ms": 73.2,
+            "top": [
+              "Commit 12.0ms",
+              "Layerize 0.0ms",
+              "PrePaint 0.0ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 0.0ms"
+            ]
+          },
+          {
+            "ms": 134.7,
+            "top": [
+              "UpdateLayoutTree 59.3ms",
+              "EventDispatch 45.4ms",
+              "FunctionCall 20.0ms",
+              "Commit 2.3ms"
+            ]
+          },
+          {
+            "ms": 172.7,
+            "top": [
+              "UpdateLayoutTree 76.6ms",
+              "EventDispatch 35.5ms",
+              "FunctionCall 17.6ms",
+              "PrePaint 15.1ms"
+            ]
+          },
+          {
+            "ms": 111.5,
+            "top": [
+              "UpdateLayoutTree 63.6ms",
+              "Commit 13.5ms",
+              "EventDispatch 6.5ms",
+              "FunctionCall 2.8ms"
+            ]
+          },
+          {
+            "ms": 80.6,
+            "top": [
+              "Paint 44.0ms",
+              "FireAnimationFrame 35.3ms",
+              "FunctionCall 35.3ms",
+              "UpdateLayoutTree 33.8ms"
+            ]
+          },
+          {
+            "ms": 265.7,
+            "top": [
+              "UpdateLayoutTree 157.0ms",
+              "Paint 105.0ms",
+              "PrePaint 28.5ms",
+              "Layout 13.2ms"
+            ]
+          },
+          {
+            "ms": 92.5,
+            "top": [
+              "FunctionCall 91.8ms",
+              "UpdateLayoutTree 61.2ms",
+              "Layout 6.5ms",
+              "RunMicrotasks 0.9ms"
+            ]
+          },
+          {
+            "ms": 92.3,
+            "top": [
+              "SimpleWatcher::OnHandleReady 92.3ms",
+              "Receive mojo message 91.6ms"
+            ]
+          },
+          {
+            "ms": 121,
+            "top": [
+              "UpdateLayoutTree 92.8ms",
+              "Layout 7.6ms",
+              "Paint 4.9ms",
+              "PrePaint 4.2ms"
+            ]
+          },
+          {
+            "ms": 83,
             "top": []
           },
           {
-            "ms": 94.9,
+            "ms": 91.1,
             "top": [
-              "UpdateLayoutTree 75.8ms",
-              "Layout 4.8ms",
-              "Paint 4.1ms",
-              "PrePaint 3.3ms"
+              "FunctionCall 54.4ms",
+              "UpdateLayoutTree 42.3ms",
+              "RunMicrotasks 37.3ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 36.6ms"
             ]
           },
           {
-            "ms": 69.2,
+            "ms": 54,
             "top": [
-              "UpdateLayoutTree 42.5ms",
-              "Paint 14.8ms",
-              "PrePaint 6.3ms",
-              "Commit 1.9ms"
+              "UpdateLayoutTree 30.2ms",
+              "Paint 20.3ms",
+              "Layerize 6.1ms",
+              "EventDispatch 2.0ms"
             ]
           },
           {
-            "ms": 90.7,
+            "ms": 51.1,
             "top": [
-              "UpdateLayoutTree 56.4ms",
-              "RunMicrotasks 55.5ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 55.5ms",
-              "FunctionCall 34.4ms"
+              "UpdateLayoutTree 32.6ms",
+              "PrePaint 8.5ms",
+              "Layout 5.4ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 0.0ms"
             ]
           },
           {
-            "ms": 57.8,
+            "ms": 68.9,
             "top": [
-              "UpdateLayoutTree 34.2ms",
-              "Paint 8.8ms",
-              "Layerize 7.9ms",
-              "PrePaint 2.5ms"
+              "UpdateLayoutTree 40.6ms",
+              "Paint 20.7ms",
+              "Layerize 5.3ms",
+              "Commit 5.2ms"
             ]
           },
           {
-            "ms": 106.8,
+            "ms": 98.7,
             "top": [
-              "RunMicrotasks 66.4ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 65.3ms",
-              "UpdateLayoutTree 62.9ms",
-              "FunctionCall 40.4ms"
+              "UpdateLayoutTree 54.1ms",
+              "Paint 44.7ms",
+              "PrePaint 10.4ms",
+              "Layout 5.5ms"
             ]
           },
           {
-            "ms": 84.8,
+            "ms": 81.8,
             "top": [
-              "UpdateLayoutTree 49.8ms",
-              "Paint 27.9ms",
-              "Layerize 8.8ms",
-              "PrePaint 3.5ms"
+              "FunctionCall 80.8ms",
+              "UpdateLayoutTree 31.2ms",
+              "Layout 26.6ms",
+              "V8.StackGuard 6.1ms"
             ]
           },
           {
-            "ms": 62.1,
+            "ms": 56.2,
             "top": [
-              "UpdateLayoutTree 34.1ms",
-              "Paint 27.3ms",
-              "PrePaint 5.5ms",
-              "Layout 3.9ms"
+              "UpdateLayoutTree 18.4ms",
+              "Paint 14.3ms",
+              "Layout 10.5ms",
+              "PrePaint 8.3ms"
             ]
           },
           {
-            "ms": 122.5,
+            "ms": 101,
             "top": [
-              "RunMicrotasks 82.5ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 81.7ms",
-              "UpdateLayoutTree 81.6ms",
-              "FunctionCall 40.8ms"
+              "RunMicrotasks 61.8ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 61.3ms",
+              "UpdateLayoutTree 58.3ms",
+              "FunctionCall 39.6ms"
             ]
           },
           {
-            "ms": 95,
+            "ms": 108.1,
             "top": [
-              "UpdateLayoutTree 59.5ms",
-              "Paint 27.5ms",
-              "Layerize 10.5ms",
-              "PrePaint 3.0ms"
+              "UpdateLayoutTree 56.6ms",
+              "Paint 46.5ms",
+              "Layerize 9.8ms",
+              "V8.GC_MC_INCREMENTAL 5.5ms"
             ]
           },
           {
-            "ms": 98.2,
+            "ms": 279.3,
             "top": [
-              "UpdateLayoutTree 61.9ms",
-              "Paint 33.6ms",
-              "PrePaint 8.9ms",
-              "Layout 5.1ms"
+              "RunMicrotasks 189.1ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 189.0ms",
+              "UpdateLayoutTree 157.2ms",
+              "FunctionCall 89.3ms"
             ]
           },
           {
-            "ms": 124.4,
+            "ms": 399.3,
             "top": [
-              "FunctionCall 123.6ms",
-              "UpdateLayoutTree 50.4ms",
-              "Layout 41.1ms",
-              "RunMicrotasks 0.8ms"
+              "UpdateLayoutTree 215.7ms",
+              "Paint 80.2ms",
+              "Layerize 56.7ms",
+              "PrePaint 20.0ms"
             ]
           },
           {
-            "ms": 103.6,
+            "ms": 73.8,
             "top": [
-              "Paint 51.5ms",
-              "UpdateLayoutTree 37.2ms",
-              "PrePaint 11.4ms",
-              "Layerize 11.1ms"
+              "Commit 6.5ms",
+              "Layerize 0.0ms",
+              "PrePaint 0.0ms",
+              "BlinkScheduler_PerformMicrotaskCheckpoint 0.0ms"
             ]
           },
           {
-            "ms": 249.2,
+            "ms": 96.1,
             "top": [
-              "UpdateLayoutTree 160.9ms",
-              "PrePaint 38.6ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 11.0ms",
-              "RunMicrotasks 11.0ms"
+              "UpdateLayoutTree 47.3ms",
+              "EventDispatch 28.2ms",
+              "FunctionCall 12.9ms",
+              "Commit 2.5ms"
             ]
           },
           {
-            "ms": 274.8,
+            "ms": 105.9,
             "top": [
-              "UpdateLayoutTree 172.1ms",
-              "Paint 46.1ms",
-              "Layerize 25.9ms",
-              "PrePaint 11.2ms"
+              "UpdateLayoutTree 63.0ms",
+              "Layerize 13.1ms",
+              "Paint 6.7ms",
+              "Commit 6.3ms"
             ]
           },
           {
-            "ms": 50.4,
+            "ms": 244.6,
             "top": [
-              "Commit 9.5ms",
-              "UpdateLayoutTree 0.9ms",
-              "BlinkScheduler_PerformMicrotaskCheckpoint 0.0ms",
-              "PrePaint 0.0ms"
+              "UpdateLayoutTree 129.4ms",
+              "EventDispatch 31.6ms",
+              "Layerize 13.6ms",
+              "FunctionCall 12.7ms"
+            ]
+          },
+          {
+            "ms": 82.9,
+            "top": [
+              "Paint 35.8ms",
+              "UpdateLayoutTree 33.2ms",
+              "Layerize 11.8ms",
+              "PrePaint 9.3ms"
             ]
           }
         ],
@@ -560,80 +576,107 @@
       "without-cutmorph-4x": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 47.3,
-          "p75": 68.2,
-          "p95": 139.7
+          "p50": 59.8,
+          "p75": 81.9,
+          "p95": 135.4
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 36.5,
-          "p75": 53.5,
-          "p95": 104.9
+          "p50": 45.8,
+          "p75": 66,
+          "p95": 96.6
         },
         "reactCommit": {
           "n": 36,
-          "p50": 27.3,
-          "p75": 35.4,
-          "p95": 87.6
+          "p50": 37.6,
+          "p75": 42.3,
+          "p95": 86.4
         },
         "longTasksOver50ms": {
-          "count": 10,
-          "longest": 125
+          "count": 16,
+          "longest": 167
         },
         "attribution": [
           {
-            "ms": 380.2,
+            "ms": 436.2,
             "top": [
-              "Receive mojo message 380.1ms",
-              "V8.StackGuard 373.2ms",
-              "V8.HandleInterrupts 373.2ms",
-              "V8.InvokeApiInterruptCallbacks 373.2ms"
+              "Receive mojo message 435.8ms",
+              "V8.StackGuard 427.5ms",
+              "V8.HandleInterrupts 427.5ms",
+              "V8.InvokeApiInterruptCallbacks 427.5ms"
             ],
             "harness": true
           },
           {
-            "ms": 70.7,
+            "ms": 77.8,
             "top": [
-              "LatencyInfo.Flow 69.4ms",
-              "EventDispatch 62.9ms",
-              "FunctionCall 58.7ms",
-              "RunMicrotasks 36.2ms"
+              "LatencyInfo.Flow 77.4ms",
+              "EventDispatch 70.0ms",
+              "FunctionCall 64.4ms",
+              "RunMicrotasks 39.7ms"
             ]
           },
           {
-            "ms": 52.8,
+            "ms": 72.7,
             "top": [
-              "LatencyInfo.Flow 52.8ms",
-              "EventDispatch 46.7ms",
-              "FunctionCall 45.4ms",
-              "RunMicrotasks 42.2ms"
+              "LatencyInfo.Flow 73.2ms",
+              "EventDispatch 66.7ms",
+              "FunctionCall 62.0ms",
+              "RunMicrotasks 53.0ms"
             ]
           },
           {
-            "ms": 125,
+            "ms": 54.1,
             "top": [
-              "LatencyInfo.Flow 125.0ms",
-              "EventDispatch 103.2ms",
-              "FunctionCall 101.2ms",
-              "RunMicrotasks 95.5ms"
+              "LatencyInfo.Flow 54.1ms",
+              "EventDispatch 49.3ms",
+              "FunctionCall 46.1ms",
+              "RunMicrotasks 41.1ms"
             ]
           },
           {
-            "ms": 68.1,
+            "ms": 64.7,
             "top": [
-              "LatencyInfo.Flow 68.4ms",
-              "EventDispatch 60.1ms",
-              "FunctionCall 59.5ms",
-              "RunMicrotasks 49.9ms"
+              "LatencyInfo.Flow 64.6ms",
+              "EventDispatch 54.9ms",
+              "FunctionCall 52.5ms",
+              "RunMicrotasks 47.7ms"
             ]
           },
           {
-            "ms": 114.3,
+            "ms": 167.3,
             "top": [
-              "LatencyInfo.Flow 113.3ms",
-              "EventDispatch 100.3ms",
-              "FunctionCall 97.2ms",
-              "RunMicrotasks 91.2ms"
+              "LatencyInfo.Flow 167.2ms",
+              "EventDispatch 149.4ms",
+              "FunctionCall 147.0ms",
+              "RunMicrotasks 136.9ms"
+            ]
+          },
+          {
+            "ms": 89.5,
+            "top": [
+              "LatencyInfo.Flow 88.9ms",
+              "EventDispatch 80.7ms",
+              "FunctionCall 75.1ms",
+              "RunMicrotasks 68.7ms"
+            ]
+          },
+          {
+            "ms": 58,
+            "top": [
+              "LatencyInfo.Flow 57.2ms",
+              "EventDispatch 47.6ms",
+              "FunctionCall 45.2ms",
+              "RunMicrotasks 41.9ms"
+            ]
+          },
+          {
+            "ms": 109.3,
+            "top": [
+              "LatencyInfo.Flow 109.2ms",
+              "EventDispatch 94.5ms",
+              "FunctionCall 89.0ms",
+              "RunMicrotasks 85.7ms"
             ]
           }
         ],
@@ -644,21 +687,21 @@
       "fallback-still": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 14.9,
-          "p75": 15.9,
-          "p95": 31.2
+          "p50": 14.6,
+          "p75": 16.2,
+          "p95": 37.5
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 8.5,
-          "p75": 12.6,
-          "p95": 24.5
+          "p50": 9.8,
+          "p75": 12.9,
+          "p95": 28
         },
         "reactCommit": {
           "n": 36,
-          "p50": 7,
-          "p75": 9.4,
-          "p95": 23.1
+          "p50": 7.7,
+          "p75": 9.3,
+          "p95": 26.6
         },
         "longTasksOver50ms": {
           "count": 0,
@@ -671,25 +714,25 @@
       "fallback-reduced-motion": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 14.8,
-          "p75": 15.5,
-          "p95": 34.5
+          "p50": 14.9,
+          "p75": 18.4,
+          "p95": 29.1
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 9.1,
-          "p75": 10.6,
-          "p95": 25.3
+          "p50": 10.5,
+          "p75": 13,
+          "p95": 22.2
         },
         "reactCommit": {
           "n": 36,
-          "p50": 6.9,
-          "p75": 8.5,
-          "p95": 23.6
+          "p50": 8.5,
+          "p75": 10.4,
+          "p95": 20.4
         },
         "longTasksOver50ms": {
-          "count": 0,
-          "longest": 0
+          "count": 1,
+          "longest": 63
         },
         "layoutShift": 0,
         "scrollJumps": 0,
@@ -701,21 +744,21 @@
       "with-cutmorph": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 3,
-          "p75": 4,
-          "p95": 7
+          "p50": 4,
+          "p75": 5,
+          "p95": 9
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 18,
-          "p75": 23,
-          "p95": 48
+          "p50": 23,
+          "p75": 33,
+          "p95": 71
         },
         "reactCommit": {
           "n": 36,
-          "p50": 14,
-          "p75": 15,
-          "p95": 44
+          "p50": 17,
+          "p75": 26,
+          "p95": 67
         },
         "longTasksOver50ms": {
           "count": 0,
@@ -728,21 +771,21 @@
       "without-cutmorph": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 16,
-          "p75": 18,
-          "p95": 48
+          "p50": 19,
+          "p75": 23,
+          "p95": 65
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 13,
-          "p75": 16,
-          "p95": 46
+          "p50": 17,
+          "p75": 20,
+          "p95": 60
         },
         "reactCommit": {
           "n": 36,
-          "p50": 12,
-          "p75": 14,
-          "p95": 45
+          "p50": 15,
+          "p75": 19,
+          "p95": 58
         },
         "longTasksOver50ms": {
           "count": 0,
@@ -757,21 +800,21 @@
       "fallback-still": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 17,
-          "p75": 21,
-          "p95": 57
+          "p50": 20,
+          "p75": 24,
+          "p95": 70
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 15,
-          "p75": 20,
-          "p95": 51
+          "p50": 18,
+          "p75": 23,
+          "p95": 64
         },
         "reactCommit": {
           "n": 36,
-          "p50": 14,
-          "p75": 18,
-          "p95": 51
+          "p50": 17,
+          "p75": 22,
+          "p95": 64
         },
         "longTasksOver50ms": {
           "count": 0,
@@ -784,21 +827,21 @@
       "fallback-reduced-motion": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 17,
-          "p75": 20,
-          "p95": 47
+          "p50": 20,
+          "p75": 27,
+          "p95": 72
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 15,
-          "p75": 19,
-          "p95": 44
+          "p50": 19,
+          "p75": 24,
+          "p95": 67
         },
         "reactCommit": {
           "n": 36,
-          "p50": 14,
-          "p75": 18,
-          "p95": 43
+          "p50": 17,
+          "p75": 22,
+          "p95": 66
         },
         "longTasksOver50ms": {
           "count": 0,
@@ -814,21 +857,21 @@
       "with-cutmorph": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 63,
-          "p75": 126,
-          "p95": 147
+          "p50": 84,
+          "p75": 157,
+          "p95": 220
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 37,
-          "p75": 58,
-          "p95": 75
+          "p50": 42,
+          "p75": 65,
+          "p95": 90
         },
         "reactCommit": {
           "n": 36,
-          "p50": 13,
-          "p75": 16,
-          "p95": 46
+          "p50": 16,
+          "p75": 20,
+          "p95": 56
         },
         "longTasksOver50ms": {
           "count": 0,
@@ -841,21 +884,21 @@
       "without-cutmorph": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 16,
-          "p75": 18,
-          "p95": 44
+          "p50": 18,
+          "p75": 22,
+          "p95": 55
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 12,
-          "p75": 15,
-          "p95": 40
+          "p50": 15,
+          "p75": 18,
+          "p95": 49
         },
         "reactCommit": {
           "n": 36,
-          "p50": 10,
-          "p75": 12,
-          "p95": 37
+          "p50": 12,
+          "p75": 15,
+          "p95": 46
         },
         "longTasksOver50ms": {
           "count": 0,
@@ -870,20 +913,20 @@
       "fallback-still": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 21,
-          "p75": 25,
+          "p50": 22,
+          "p75": 30,
           "p95": 60
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 15,
-          "p75": 18,
-          "p95": 54
+          "p50": 17,
+          "p75": 24,
+          "p95": 55
         },
         "reactCommit": {
           "n": 36,
-          "p50": 12,
-          "p75": 15,
+          "p50": 14,
+          "p75": 19,
           "p95": 51
         },
         "longTasksOver50ms": {
@@ -897,21 +940,21 @@
       "fallback-reduced-motion": {
         "inputToNextPaint": {
           "n": 36,
-          "p50": 20,
-          "p75": 24,
-          "p95": 42
+          "p50": 23,
+          "p75": 27,
+          "p95": 59
         },
         "inputToDomUpdated": {
           "n": 36,
-          "p50": 15,
-          "p75": 19,
-          "p95": 38
+          "p50": 18,
+          "p75": 21,
+          "p95": 55
         },
         "reactCommit": {
           "n": 36,
-          "p50": 12,
-          "p75": 16,
-          "p95": 36
+          "p50": 13,
+          "p75": 17,
+          "p95": 52
         },
         "longTasksOver50ms": {
           "count": 0,
@@ -980,11 +1023,11 @@
     }
   ],
   "size": {
-    "jsMinBytes": 4807,
-    "jsMinGzipBytes": 2121,
+    "jsMinBytes": 6239,
+    "jsMinGzipBytes": 2580,
     "cssMinBytes": 2055,
     "cssMinGzipBytes": 437,
-    "togetherMinGzipBytes": 2486,
+    "togetherMinGzipBytes": 2952,
     "budgetBytes": 3072,
     "withinBudget": true
   }
