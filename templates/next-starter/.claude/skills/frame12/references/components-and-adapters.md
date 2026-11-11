@@ -1,6 +1,6 @@
 # FRAME/12 Components, Hooks & Primitive Adapters
 
-Complete API reference for `@/components/frame12`, `@/hooks/use-on-twos` and `@/hooks/use-tempo`.
+Complete API reference for `@/components/frame12` (including `cut-morph`), `@/hooks/use-on-twos` and `@/hooks/use-tempo`.
 
 ---
 
@@ -201,6 +201,61 @@ export interface InkLandProps extends React.SVGProps<SVGGElement> {
 - **Panel:** the measured frame polygon carries `pathLength="1"` (additive). The SSR `viewBox` polygon (`vector-effect: non-scaling-stroke`) is never dashed.
 
 ---
+
+## 2d. CutMorph: state changes as film edits (`ui/cut-morph.tsx`)
+
+Opt-in match cuts on the platform's same-document View Transitions. A **cut** changes the shot at once; a **match cut** keeps one subject's identity from one shot to the next. Install `@frame12/cut-morph` (it pulls `frame12-styles` and `use-tempo`). Nothing in FRAME/12 animates through it unless you call it.
+
+- `useCutMorph(opts?)` → `cutMorph(update, { kind })`. `kind` defaults to `'match'` (calling the hook is the opt-in); `'cut'` updates at once with no View Transition and no `flushSync`. `update` must be **synchronous** (dev warning if it returns a promise). Every update runs **exactly once, in call order**, even when calls interrupt each other.
+- Resolution comes from the **calling component's** tempo (`useResolvedMotion('stepped')`): reduced motion, `still` or a `still` ancestor → immediate update; 12 → `f12-vt-stepped` (250ms `steps(3, end)`, 3 held poses); 60 → `f12-vt-smooth` (260ms `cubic-bezier(0.2, 0.8, 0.2, 1)`). No View Transitions / no `view-transition-class` / SSR / hidden document → immediate update. A transition CutMorph does not own (`document.activeViewTransition`) → immediate update; it is **never** cancelled.
+- `scope` (a ref): element-scoped transition where `Element.prototype.startViewTransition` exists (Chromium); elsewhere a document transition with the root excluded.
+- The promise resolves when the edit is on screen (superseded and skipped transitions resolve too) and rejects only with what `update` threw.
+- Old/new images never crossfade: one hard swap at the second pose boundary (166.67ms). The root never animates; `::view-transition` has `pointer-events: none`, so clicks reach the updated DOM. A scroll, resize or pointer drag during a document transition skips it (the DOM is already updated).
+- `flushSync` runs `update` on the transition path, so a suspending update shows its fallback at once: preload, or use React 19.3 `<ViewTransition>` with `withCutMorphMode`.
+- **Focus is yours.** Move it in the same update (a layout effect), as `/motion/edit-room` does.
+
+```tsx
+export type CutMorphKind = 'match' | 'cut';
+export type CutMorphMode = 'stepped' | 'smooth';
+export interface UseCutMorphOptions {
+  scope?: React.RefObject<HTMLElement | null>;
+}
+export interface CutMorphCallOptions {
+  kind?: CutMorphKind;
+}
+export type CutMorph = (update: () => void, opts?: CutMorphCallOptions) => Promise<void>;
+export interface CutMorphSupport {
+  viewTransitions: boolean;
+  elementScoped: boolean;
+  activeViewTransition: boolean;
+}
+export function useCutMorph(opts?: UseCutMorphOptions): CutMorph;
+export function withCutMorphMode<T>(mode: 'stepped' | 'smooth', fn: () => T): T;
+export function isCutMorphName(name: unknown): name is string;
+export function getCutMorphSupport(): CutMorphSupport;
+
+export interface CutMorphNameProps {
+  name: string;                       // ^[a-z][a-z0-9-]{0,63}$ from a stable data id; not none, auto, match-element, root, default or a CSS-wide keyword
+  className?: 'f12-match' | string;   // the view-transition-class; default 'f12-match'
+  children: React.ReactElement;       // ONE host element (or a component forwarding style + ref)
+}
+```
+
+`CutMorphName` sets `view-transition-name` and `view-transition-class` on its single host child, merging the child's `style`, `className`, `ref` and handlers. Fragment, text or array children and invalid names are a development error and render unchanged in production. A duplicate **live** name warns in development with both owners' stacks; in production the browser skips the transition (the update still lands). Names are removed on unmount.
+
+```tsx
+const cutMorph = useCutMorph();
+<SegmentedControl options={STAGES} value={stage} onChange={(v) => cutMorph(() => setStage(v))} />
+<ul>
+  {shots.filter(byStage(stage)).map((s) => (
+    <CutMorphName key={s.id} name={`shot-${s.id}`}>
+      <li>{s.title}</li>
+    </CutMorphName>
+  ))}
+</ul>
+```
+
+React 19.3 `<ViewTransition>` plays the same grammar: `<ViewTransition name={`shot-${id}`} default="f12-match">`, started with `withCutMorphMode(mode, () => startTransition(() => setX(…)))` where `mode = useResolvedMotion('stepped')` (update outside a Transition when it is `'cut'`). Never use CutMorph for pointer drag, typing, focus movement, playback or continuous scrubbing (ExposureScrubber's included), and don't name subjects inside scroll or `overflow: hidden` containers (Firefox and WebKit don't clip the snapshots). Spike, decisions and per-engine support: `docs/architecture/cut-morph.md`.
 
 ## 3. Layout Components
 

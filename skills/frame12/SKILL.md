@@ -161,6 +161,7 @@ When you installed the full kit (`frame12.json`) or started from `templates/next
 | Action menu | `DropdownMenu` (`DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuLabel`, `DropdownMenuSeparator`) | Raw Radix DropdownMenu |
 | Structured tabular ledger | `Table` (`TableHeader`, `TableBody`, `TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`) | Unstyled `<table>` or data-grid libraries |
 | Replay of a finished run (agent tool calls, CI steps, incident timeline) | `ExposureScrubber` (`frames`, `label`, `renderFrame`, `timing="even" \| "elapsed" \| "flipbook"`, `primaryMarker`); headless engine `useExposure` from `@/hooks/use-exposure` | Scrolling log `<div>`s, custom `role="slider"` scrubbers, autoplaying timelines |
+| A state change where one subject should keep its identity (a row that moves, a row that opens) | `useCutMorph` + `CutMorphName` from `@/components/frame12/cut-morph` (or React 19.3 `<ViewTransition default="f12-match">` + `withCutMorphMode`) | FLIP/animation libraries, crossfades, hand-rolled `document.startViewTransition` |
 
 ### Replaying a run (`ExposureScrubber`)
 
@@ -173,6 +174,16 @@ Use it when the run is finished and its shape matters (where the time went, the 
 - **`renderFrame` is pure** (no fetching, logging or state updates); render a light version when `ctx.scrubbing` is true.
 - **Keep `frames` stable** (`useMemo` or state): a new array every render re-normalizes the run and re-renders every row.
 - Deep-link a frame with a controlled `value` and `history.replaceState` (skip `reason === 'playback'`); URL syncing is not built in.
+
+### Match cuts (`CutMorph`)
+
+State changes are edits: a **cut** (instant) by default, a **match cut** only for one subject the reader is following. Install `@frame12/cut-morph`.
+
+- **Opt-in only.** Never add CutMorph to a component or page that didn't ask for animation, and never wrap a whole page or app state in it.
+- **Match one subject.** Wrap only the elements the reader tracks in `CutMorphName`, with names from stable data ids (`` `shot-${shot.id}` ``), never array indexes. Everything else cuts.
+- **Never for direct manipulation:** typing, pointer drag, scrolling, focus movement, playback or continuous scrubbing (ExposureScrubber included). Call it from discrete actions (a filter pick, a sort, open/close).
+- `update` is synchronous (await data first, then call). Move focus yourself in the same update. Reduced motion and tempo 0 already make it an instant cut; don't add your own checks.
+- Spike and engine support: `docs/architecture/cut-morph.md`; demos: `/motion/edit-room`.
 
 ### Static HTML without React (`@frame12/static`)
 

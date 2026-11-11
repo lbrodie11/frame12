@@ -58,6 +58,7 @@ const PRIMARY_INTERFACE_BY_SLUG = {
   'ink-reveal': 'InkRevealProps',
   'ink-sequence': 'InkSequenceProps',
   'exposure-scrubber': 'ExposureScrubberProps',
+  'cut-morph': 'CutMorphNameProps',
   'developer-console': 'DeveloperConsoleProps',
   'workspace-settings': 'WorkspaceSettingsProps',
   'analytics-dashboard': 'AnalyticsDashboardProps',
