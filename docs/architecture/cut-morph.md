@@ -50,6 +50,8 @@ It runs against the real `frame12.css`. The raw answers are in [`cut-morph-spike
 
 In Firefox and WebKit the pixel answers are therefore recorded as `null`, and the computed-style samples are the evidence. We could not tell from headless capture whether a real WebKit paint also shows the live element during a transition. That is a human check (see the PR).
 
+**WebKit crash found by the Edit Room tests.** In WebKit 27.2, calling `document.getAnimations()` on every frame during a document transition with many exiting groups (the 200-row filter) terminates the web process. CutMorph never calls `getAnimations()`. The pose inspector calls it once, after `ready`, which is safe. The tests wait on a pending-transition counter instead of polling. This is worth reporting to WebKit with a reduced case.
+
 ### Decisions
 
 - **Every engine animates.** All three pass questions 1–3, so the decision rule's instant fallback is not used anywhere. The hook still falls back to an instant update without `startViewTransition`, without `view-transition-class` support (without it the grammar could not apply, and the UA crossfade would play), during SSR, and in a hidden document.

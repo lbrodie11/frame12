@@ -11,9 +11,10 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "node tests/unit.mjs",
     "test:navigation": "node tests/navigation-continuity.mjs",
+    "test:edit-room": "node tests/edit-room.mjs",
     "test:tempo": "node tests/tempo.mjs",
     "build:favicon": "node scripts/build-favicon.mjs",
-    "test": "node scripts/build-favicon.mjs --check && node scripts/build-terminal-run.mjs --check && npm run build && npm run typecheck && node ../scripts/check-frame12.mjs src app && npm run test:unit && node tests/site-verify.mjs && npm run test:tempo && npm run test:story && npm run test:navigation",
+    "test": "node scripts/build-favicon.mjs --check && node scripts/build-terminal-run.mjs --check && npm run build && npm run typecheck && node ../scripts/check-frame12.mjs src app && npm run test:unit && node tests/site-verify.mjs && npm run test:tempo && npm run test:story && npm run test:navigation && npm run test:edit-room",
     "test:story": "node tests/home-story.mjs",
     "build:terminal-run": "node scripts/build-terminal-run.mjs"
   },

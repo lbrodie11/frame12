@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   Sheet,
   Scene,
@@ -179,6 +180,13 @@ export default function MotionPage() {
             In hand-drawn animation, most action is shot &ldquo;on twos&rdquo;—each drawing is held
             for two frames at 24fps (12 poses per second, 83.33ms per pose). FRAME/12 applies the
             same spacing chart to discrete UI state changes while keeping pointer tracking instant.
+          </p>
+          <p className="f12-muted-copy">
+            State changes as film edits (cut or match cut):{' '}
+            <Link href="/motion/edit-room" id="motion-edit-room-link">
+              The Edit Room
+            </Link>
+            .
           </p>
         </div>
 

@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import { Analytics } from '@vercel/analytics/next';
 import '@/styles/frame12.css';
 import './site.css';
+import '@/components/edit-room.css';
 import { SiteShell } from '@/components/site-shell';
 import { STORED_TEMPOS, TEMPO_STORAGE_KEY } from '@/lib/tempo-storage';
 

@@ -82,6 +82,8 @@ import {
   type MotionMode,
 } from '@/hooks/use-on-twos';
 import { SUMMARIES, fmtMoney, fmtMoneyShort, fmtPP, type RangeDays } from '@/lib/data';
+import Link from 'next/link';
+import { ReorderDemo } from '@/components/edit-room-demos';
 
 export interface ComponentPreviewProps {
   slug: string;
@@ -753,6 +755,19 @@ export function ComponentPreview({
                 </div>
               </div>
             </TempoProvider>
+          </div>
+        );
+
+      case 'cut-morph':
+        // Names are prefixed per preview (light and dark render side by side): no duplicates.
+        return (
+          <div className="f12-preview-sheet">
+            <div className="f12-stack-pair">
+              <ReorderDemo idPrefix={`${pfx}-cm`} count={6} />
+              <p className="f12-mono-note">
+                Four more demos and a pose inspector: <Link href="/motion/edit-room">The Edit Room</Link>.
+              </p>
+            </div>
           </div>
         );
 

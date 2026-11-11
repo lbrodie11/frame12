@@ -1,0 +1,235 @@
+/* The Edit Room demos (/motion/edit-room). Also inlined by the registry fixtures. Gutters are the
+   grammar's 12 / 20 px; every colour is a token. */
+.er-demo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+/* The stage filter has six options: on a narrow column it scrolls sideways instead of widening
+   the page (its buttons are focusable, so the strip stays keyboard reachable). */
+.er-controls {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.er-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.er-list-table {
+  grid-template-columns: 1fr;
+}
+.er-row,
+.er-open-row {
+  display: grid;
+  grid-template-columns: 5.5ch minmax(0, 1fr) 6ch 4.5ch;
+  gap: 12px;
+  align-items: baseline;
+  min-height: 28px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--f-rule);
+  background: var(--f-panel);
+  color: var(--f-ink);
+  font: 13px/1.4 var(--font-f-body);
+}
+.er-cut,
+.er-len,
+.er-stage {
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+}
+.er-len {
+  text-align: end;
+}
+.er-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.er-open {
+  grid-template-columns: minmax(0, 1fr);
+}
+.er-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+}
+@container (min-width: 560px) {
+  .er-open {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.er-open-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.er-open-row {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--f-rule);
+  text-align: start;
+  cursor: pointer;
+}
+.er-open-row[aria-expanded="true"] {
+  outline: 2.5px solid var(--f-ink);
+  outline-offset: -2.5px;
+}
+.er-open-row:focus-visible,
+.er-stop:focus-visible,
+.er-detail h3:focus-visible {
+  outline: 3px solid var(--f-ink);
+  outline-offset: 2px;
+}
+.er-detail {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 2.5px solid var(--f-ink);
+  background: var(--f-panel);
+  color: var(--f-ink);
+}
+.er-detail h3 {
+  margin: 0;
+}
+.er-facts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  font: 13px/1.4 var(--font-f-body);
+}
+.er-facts > div {
+  display: grid;
+  grid-template-columns: 8ch 1fr;
+  gap: 12px;
+}
+.er-facts dt {
+  font-family: var(--font-f-mono);
+  font-size: 12px;
+}
+.er-facts dd {
+  margin: 0;
+}
+.er-inspector {
+  display: grid;
+  gap: 12px;
+}
+.er-stage-strip {
+  position: relative;
+  height: 96px;
+  border: 1px solid var(--f-rule);
+  background: var(--f-panel);
+}
+.er-slot {
+  position: absolute;
+  top: 20px;
+  height: 56px;
+  border: 1px dashed var(--f-rule);
+}
+.er-slot-a {
+  left: 12px;
+  width: 72px;
+}
+.er-slot-b {
+  right: 12px;
+  width: 144px;
+}
+.er-subject {
+  position: absolute;
+  top: 20px;
+  display: grid;
+  place-items: center;
+  height: 56px;
+  border: 2.5px solid var(--f-ink);
+  background: var(--f-ink);
+  color: var(--f-panel);
+  font: 700 14px/1 var(--font-f-mono);
+}
+.er-subject-0 {
+  left: 12px;
+  width: 72px;
+}
+.er-subject-1 {
+  right: 12px;
+  width: 144px;
+  background: var(--f-panel);
+  color: var(--f-ink);
+}
+.er-stops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.er-stop {
+  min-height: 28px;
+  padding: 2px 12px;
+  border: 1px solid var(--f-rule);
+  background: var(--f-panel);
+  color: var(--f-ink);
+  font: 12px/1.4 var(--font-f-mono);
+}
+.er-stop[aria-pressed="true"] {
+  background: var(--f-ink);
+  color: var(--f-panel);
+}
+.er-stop:disabled {
+  opacity: 0.55;
+}
+.er-recorded {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+.er-recorded-row {
+  display: grid;
+  gap: 12px;
+}
+.er-recorded img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--f-rule);
+}
+.er-rules {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-inline-start: 20px;
+}
+.er-table-wrap {
+  overflow-x: auto;
+}
+.er-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 13px/1.4 var(--font-f-body);
+}
+.er-table th,
+.er-table td {
+  padding: 4px 12px 4px 0;
+  border-bottom: 1px solid var(--f-rule);
+  text-align: start;
+  vertical-align: top;
+}
+.er-table caption {
+  text-align: start;
+  padding-bottom: 12px;
+}
+@media (forced-colors: active) {
+  .er-row,
+  .er-open-row,
+  .er-detail,
+  .er-subject,
+  .er-stop {
+    forced-color-adjust: auto;
+    border-color: CanvasText;
+  }
+  .er-stop[aria-pressed="true"],
+  .er-open-row[aria-expanded="true"] {
+    outline: 2px solid Highlight;
+  }
+}
