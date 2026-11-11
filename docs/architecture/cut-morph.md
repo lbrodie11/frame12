@@ -65,7 +65,7 @@ In Firefox and WebKit the pixel answers are therefore recorded as `null`, and th
   At the second boundary each image is only shown within one third of the move from its own size, so neither is stretched more than the other. That is also where the stepped geometry crosses the midpoint. Smooth mode uses the same rule: it swaps at 33.8 ms, where `cubic-bezier(0.2, 0.8, 0.2, 1)` crosses 0.5.
 - **The root is unnamed rather than set to `animation: none`.** `html.f12-vt-* { view-transition-name: none }` means there is no root snapshot at all. Everything except the named subjects stays live DOM during the transition: hover, focus rings, live regions and text. `::view-transition-group(root) { animation: none }` is kept as a guard for transitions that name the root anyway.
 - **Element scope only where it exists.** With `scope`, Chromium runs `scopeEl.startViewTransition()`, and the mode key goes on the scope element. This fixes questions 3–5 for a contained demo: snapshots scroll and clip with the scope, and the rest of the page is untouched. Firefox and WebKit get a document transition with the root excluded.
-- **Skip on scroll, resize and pointer drag (document scope).** Question 5a shows that document snapshots detach from their content in every engine, each in its own way. The DOM is already updated when the transition is skipped, so nothing is lost. Element-scoped transitions follow the scroll, so they are not skipped.
+- **Skip on page scroll, resize, pointer press and scrolling input (document scope).** Question 5a shows that document snapshots detach from their content in every engine, each in its own way. The DOM is already updated when the transition is skipped, so nothing is lost. Element-scoped transitions follow the scroll, so they are not skipped.
 - **Clipping is the caller's job.** Don't put named subjects inside scroll or `overflow: hidden` containers in Firefox or WebKit. Chromium can clip them with nested groups, but CutMorph does not ship that, because it would only work in one engine.
 
 ## Performance (lab, not field INP)
@@ -136,7 +136,7 @@ const select = (id: string) =>
 <ViewTransition name={`shot-${id}`} default="f12-match">…</ViewTransition>
 ```
 
-`withCutMorphMode` sets the mode key on `<html>` and removes it when the transition React starts has finished. If none starts within about 60 frames, it removes the key then. React 19.3 adds its own 0 ms `::view-transition-group(root)` animation, a size fixup, which does not move anything.
+`withCutMorphMode` opens a window of about 1 s: the next View Transition started in it (React's, for the `startTransition` inside `fn`) gets the mode key on `<html>` from the moment it starts until it finishes. Nothing is restyled before that, and only one transition is adopted. A Suspense-delayed transition that starts after the window plays React's default, so preload what it reveals. React 19.3 adds its own 0 ms `::view-transition-group(root)` animation, a size fixup, which does not move anything.
 
 ## Not supported
 

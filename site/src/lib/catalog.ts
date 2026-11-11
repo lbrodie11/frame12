@@ -3080,7 +3080,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "name": "className",
         "type": "'f12-match' | string",
         "defaultValue": "'f12-match'",
-        "description": "The view-transition-class list: f12-match (moves on twos, hard swap) or f12-cut (changes at once), plus your own classes."
+        "description": "The view-transition-class list, not the DOM class (the child's own className is kept): f12-match (moves on twos, hard swap) or f12-cut (changes at once). Other classes are added to f12-match, never instead of it."
       },
       {
         "name": "children",
@@ -3089,7 +3089,7 @@ const RAW_CATALOG: CatalogEntry[] = [
         "description": "One DOM host element, or a component that forwards style and ref to one. Its style, className, ref and handlers are kept."
       }
     ],
-    "stateBehavior": "useCutMorph() returns cutMorph(update, { kind }). kind 'match' (default) resolves the motion from the calling component's tempo: reduced motion, still or a still ancestor, no View Transitions, SSR, a hidden document, or a transition CutMorph does not own → update() at once; 12 → a View Transition keyed f12-vt-stepped (250ms steps(3, end): 3 held poses); 60 → f12-vt-smooth (260ms). kind 'cut' always updates at once without flushSync. Each update runs exactly once, in call order: a new call first runs any earlier update that has not run, skips the earlier transition and starts its own. One owner per document (Symbol.for('frame12.cutmorph')) is shared by every React root and copy. The promise resolves when the edit is on screen (superseded calls resolve) and rejects only with what update threw. Scroll, resize, pointer drag, reduced motion or tempo 0 mid-transition skip it; the DOM is already updated.",
+    "stateBehavior": "useCutMorph() returns cutMorph(update, { kind }). kind 'match' (default) resolves the motion from the calling component's tempo: reduced motion, still or a still ancestor, no View Transitions, SSR, a hidden document, or a transition CutMorph does not own → update() at once; 12 → a View Transition keyed f12-vt-stepped (250ms steps(3, end): 3 held poses); 60 → f12-vt-smooth (260ms). kind 'cut' always updates at once without flushSync. Each update runs exactly once, in call order: a new call first runs any earlier update that has not run, skips the earlier transition and starts its own. One owner per document (Symbol.for('frame12.cutmorph')) is shared by every React root and copy. The promise resolves once the edit is committed (when the transition finishes, or after the calling component's next commit on the immediate paths; superseded calls resolve) and rejects only with what update threw. A page scroll, resize, pointer press, wheel, touch-move or PageUp/PageDown, reduced motion or tempo 0 mid-transition skip it; the DOM is already updated. Scrolls the update itself causes (focus() in a nested scroller) do not.",
     "a11yNotes": [
       "Reduced motion and tempo 0 are instant cuts in JavaScript, and the CSS sets every f12 view-transition animation to none under prefers-reduced-motion even if something forces a mode.",
       "::view-transition has pointer-events: none during CutMorph transitions, so clicks and keys reach the updated DOM at once; the page outside the named subjects stays live (the root is not captured).",

@@ -209,8 +209,8 @@ Opt-in match cuts on the platform's same-document View Transitions. A **cut** ch
 - `useCutMorph(opts?)` → `cutMorph(update, { kind })`. `kind` defaults to `'match'` (calling the hook is the opt-in); `'cut'` updates at once with no View Transition and no `flushSync`. `update` must be **synchronous** (dev warning if it returns a promise). Every update runs **exactly once, in call order**, even when calls interrupt each other.
 - Resolution comes from the **calling component's** tempo (`useResolvedMotion('stepped')`): reduced motion, `still` or a `still` ancestor → immediate update; 12 → `f12-vt-stepped` (250ms `steps(3, end)`, 3 held poses); 60 → `f12-vt-smooth` (260ms `cubic-bezier(0.2, 0.8, 0.2, 1)`). No View Transitions / no `view-transition-class` / SSR / hidden document → immediate update. A transition CutMorph does not own (`document.activeViewTransition`) → immediate update; it is **never** cancelled.
 - `scope` (a ref): element-scoped transition where `Element.prototype.startViewTransition` exists (Chromium); elsewhere a document transition with the root excluded.
-- The promise resolves when the edit is on screen (superseded and skipped transitions resolve too) and rejects only with what `update` threw.
-- Old/new images never crossfade: one hard swap at the second pose boundary (166.67ms). The root never animates; `::view-transition` has `pointer-events: none`, so clicks reach the updated DOM. A scroll, resize or pointer drag during a document transition skips it (the DOM is already updated).
+- The promise resolves once the edit is committed: when the transition finishes, or on the immediate paths after the calling component's next commit (superseded and skipped transitions resolve too). It rejects only with what `update` threw.
+- Old/new images never crossfade: one hard swap at the second pose boundary (166.67ms). The root never animates; `::view-transition` has `pointer-events: none`, so clicks reach the updated DOM. A page scroll, resize, pointer press, wheel, touch-move or PageUp/PageDown during a document transition skips it (the DOM is already updated); scrolls the update itself causes do not. A transition CutMorph does not own (also on the `scope` element) is never cancelled.
 - `flushSync` runs `update` on the transition path, so a suspending update shows its fallback at once: preload, or use React 19.3 `<ViewTransition>` with `withCutMorphMode`.
 - **Focus is yours.** Move it in the same update (a layout effect), as `/motion/edit-room` does.
 
@@ -241,7 +241,7 @@ export interface CutMorphNameProps {
 }
 ```
 
-`CutMorphName` sets `view-transition-name` and `view-transition-class` on its single host child, merging the child's `style`, `className`, `ref` and handlers. Fragment, text or array children and invalid names are a development error and render unchanged in production. A duplicate **live** name warns in development with both owners' stacks; in production the browser skips the transition (the update still lands). Names are removed on unmount.
+`CutMorphName` sets `view-transition-name` and `view-transition-class` on its single host child. Its `className` prop is the **view-transition-class**, not the DOM class: your own classes are added to `f12-match` (never instead of it, or the browser's crossfade would play); pass `f12-cut` for a subject that changes at once. It keeps the child's own `style`, `className`, `ref` and handlers. Fragment, text or array children and invalid names are a development error and render unchanged in production. A duplicate **live** name warns in development with both owners' stacks; in production the browser skips the transition (the update still lands). Names are removed on unmount.
 
 ```tsx
 const cutMorph = useCutMorph();
