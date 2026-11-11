@@ -103,8 +103,10 @@ console.log('\n=== @frame12/lint Test Suite ===\n');
   check(
     // The exact number of lintable files the default run scans (F12-09 added 5: ExposureScrubber,
     // its template copy, and the docs demo modules; F12-14 added 8: the ink primitives, their
-    // template copies and the home story modules). Update it when lintable files are added.
-    repoWrapperOut === 'PASS  check-frame12: 111 file(s) checked, 0 violations.\n' &&
+    // template copies and the home story modules; F12-13 PR 6 added 10: the /terminal and
+    // /terminal/docs route files, their three components and two lib modules). Update it when
+    // lintable files are added.
+    repoWrapperOut === 'PASS  check-frame12: 121 file(s) checked, 0 violations.\n' &&
       repoBinOut === repoWrapperOut,
     'CLI parity: repo default check output is byte-identical to baseline',
     `Got: ${JSON.stringify(repoWrapperOut)}`,
