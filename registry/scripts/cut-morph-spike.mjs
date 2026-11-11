@@ -104,9 +104,32 @@ async function open(browser, extraCss) {
   return { ctx, page, errors };
 }
 
+// Pixel evidence needs a screenshot path that paints the paused View Transition overlay as the
+// page would. The control: the UA default crossfade, paused mid-way, must show red+blue blended
+// pixels. Measured: Chromium's does; Firefox's paints the overlay at its end state (the
+// animation's current value is ignored) and WebKit's paints the live element under the overlay.
+// Where the control fails, pixel answers are reported as null and the computed-style answers
+// (getComputedStyle on the pseudo-elements, document.getAnimations()) are the evidence.
+const evidenceCache = new WeakMap();
+export async function pixelEvidence(browser) {
+  if (evidenceCache.has(browser)) return evidenceCache.get(browser);
+  const { ctx, page } = await open(browser);
+  await page.evaluate(() => window.__start(null, () => document.getElementById('box').classList.add('moved')));
+  await page.evaluate(() => window.__seek(125));
+  const png = PNG.read(await page.screenshot({ clip: { x: 0, y: 40, width: 420, height: 50 } }));
+  let blended = 0;
+  for (let y = 0; y < png.height; y++) for (let x = 0; x < png.width; x++) if (isBlend(px(png, x, y))) blended++;
+  await page.evaluate(() => window.__end());
+  await ctx.close();
+  const r = { blendedPixels: blended, detected: blended > 0 };
+  evidenceCache.set(browser, r);
+  return r;
+}
+
 /** Q1/Q2: stepped and smooth group geometry, old/new opacity at 60 Hz, swap boundary. */
 export async function askGrammar(browser) {
   const out = {};
+  const evidence = await pixelEvidence(browser);
   for (const mode of ['stepped', 'smooth']) {
     const { ctx, page } = await open(browser);
     const anims = await page.evaluate((m) => window.__start(m, () => document.getElementById('box').classList.add('moved')), mode);
@@ -129,13 +152,13 @@ export async function askGrammar(browser) {
     // Pixel check: every pixel of the moving block is pure red (old) or pure blue (new), never a blend.
     let blended = 0;
     let shots = 0;
-    for (const t of mode === 'stepped' ? [40, 120, 200] : [20, 60, 200]) {
+    for (const t of evidence.detected ? (mode === 'stepped' ? [40, 120, 200] : [20, 60, 200]) : []) {
       await page.evaluate((x) => window.__seek(x), t);
       const buf = await page.screenshot({ clip: { x: 0, y: 40, width: 420, height: 50 } });
       const png = PNG.read(buf);
       for (let y = 0; y < png.height; y++) for (let x = 0; x < png.width; x++) if (isBlend(px(png, x, y))) blended++;
       shots++;
-      if (browser.browserType().name() === 'chromium' || updateDocs) {
+      if (updateDocs || browser.browserType().name() === 'chromium') {
         writeFileSync(resolve(IMG_DIR, `${browser.browserType().name()}-q2-${mode}-${t}ms.png`), buf);
       }
     }
@@ -150,23 +173,12 @@ export async function askGrammar(browser) {
       distinctPoses: distinctX.length,
       partialOpacityFrames: swaps.length,
       firstFrameShowingNew: firstNew,
-      blendedPixels: blended,
+      blendedPixels: evidence.detected ? blended : null,
       screenshots: shots,
     };
     await ctx.close();
   }
-  // Control: the UA default (no CutMorph mode key) crossfades, and the same pixel check catches it.
-  {
-    const { ctx, page } = await open(browser);
-    await page.evaluate(() => window.__start(null, () => document.getElementById('box').classList.add('moved')));
-    await page.evaluate(() => window.__seek(125));
-    const png = PNG.read(await page.screenshot({ clip: { x: 0, y: 40, width: 420, height: 50 } }));
-    let blended = 0;
-    for (let y = 0; y < png.height; y++) for (let x = 0; x < png.width; x++) if (isBlend(px(png, x, y))) blended++;
-    await page.evaluate(() => window.__end());
-    out.control_uaCrossfade = { blendedPixels: blended, detected: blended > 0 };
-    await ctx.close();
-  }
+  out.control_uaCrossfade = evidence;
   return out;
 }
 
@@ -201,6 +213,7 @@ export async function askBoundary(browser) {
 /** Q3: with the root excluded, only named elements animate and the page stays put. */
 export async function askRootIsolation(browser) {
   const out = {};
+  const evidence = await pixelEvidence(browser);
   for (const [label, mode] of [['excluded (CutMorph)', 'stepped'], ['default root (no CutMorph class)', null]]) {
     const { ctx, page } = await open(browser);
     const before = await page.screenshot({ clip: { x: 0, y: 190, width: 420, height: 90 } });
@@ -212,13 +225,13 @@ export async function askRootIsolation(browser) {
       const a = PNG.read(before);
       const b = PNG.read(during);
       for (let i = 0; i < a.data.length; i += 4) if (Math.abs(a.data[i] - b.data[i]) > 8 || Math.abs(a.data[i + 1] - b.data[i + 1]) > 8) staticChanged++;
-      if (mode && t === 120) writeFileSync(resolve(IMG_DIR, `${browser.browserType().name()}-q3-pose2.png`), await page.screenshot({ clip: { x: 0, y: 0, width: 620, height: 290 } }));
+      if (mode && t === 120 && evidence.detected) writeFileSync(resolve(IMG_DIR, `${browser.browserType().name()}-q3-pose2.png`), await page.screenshot({ clip: { x: 0, y: 0, width: 620, height: 290 } }));
     }
     await page.evaluate(() => window.__end());
     out[label] = {
       rootAnimations: anims.filter((a) => a.pe.includes('(root)')).length,
       animatedNames: [...new Set(anims.map((a) => a.pe.replace(/^::view-transition-[a-z-]+\((.*)\)$/, '$1')))],
-      staticPixelsChanged: staticChanged,
+      staticPixelsChanged: evidence.detected ? staticChanged : null,
     };
     await ctx.close();
   }
@@ -276,6 +289,7 @@ export async function askScrollAndClip(browser) {
     ['nested group (view-transition-group: nearest)', '#clip{view-transition-name:clipper;view-transition-class:f12-cut}#inner{view-transition-group:nearest}.f12-vt-stepped::view-transition-group-children(clipper){overflow:clip}'],
   ]) {
     const { ctx, page } = await open(browser, css);
+    const evidence = await pixelEvidence(browser);
     const supported = await page.evaluate(() => CSS.supports('view-transition-group: nearest'));
     await page.evaluate(() => window.__start('stepped', () => document.getElementById('inner').classList.add('moved')));
     await page.evaluate(() => window.__seek(120));
@@ -287,9 +301,16 @@ export async function askScrollAndClip(browser) {
       const inClip = x + 480 >= 500 && x + 480 < 580 && y + 20 >= 40 && y + 20 < 120;
       if (!inClip && g > 240 && r < 10 && b < 10) outside++;
     }
-    if (label.startsWith('overflow')) writeFileSync(resolve(IMG_DIR, `${browser.browserType().name()}-q5-clip.png`), PNG.write(png));
+    if (label.startsWith('overflow') && evidence.detected) writeFileSync(resolve(IMG_DIR, `${browser.browserType().name()}-q5-clip.png`), PNG.write(png));
     await page.evaluate(() => window.__end());
-    out[label] = { supported, pixelsOutsideClip: outside, clipped: outside === 0 };
+    out[label] = evidence.detected
+      ? { supported, pixelsOutsideClip: outside, clipped: outside === 0 }
+      : {
+          supported,
+          pixelsOutsideClip: null,
+          clipped: supported ? null : false,
+          basis: 'no pixel evidence in this engine; without nested view-transition groups every snapshot is painted in the top-layer ::view-transition tree, outside any overflow clip',
+        };
     await ctx.close();
   }
   return out;
