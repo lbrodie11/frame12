@@ -70,7 +70,7 @@ In Firefox and WebKit the pixel answers are therefore recorded as `null`, and th
 
 ## Performance (lab, not field INP)
 
-`registry/scripts/measure-cut-morph-perf.mjs` (raw data in [`cut-morph-perf.json`](cut-morph-perf.json), re-recorded 2026-11-11 after the review fixes) measures The Edit Room's 200-row filter. The machine is a 4-core Xeon at 2.1 GHz. Each configuration is 3 runs × 12 stage changes, compared with the same list without CutMorph (`kind: 'cut'`, unnamed rows).
+`registry/scripts/measure-cut-morph-perf.mjs` (raw data in [`cut-morph-perf.json`](cut-morph-perf.json), re-recorded 2026-11-11 after the review fixes and joining) measures The Edit Room's 200-row filter. The machine is a 4-core Xeon at 2.1 GHz. Each configuration is 3 runs × 12 stage changes, compared with the same list without CutMorph (`kind: 'cut'`, unnamed rows).
 
 These are lab numbers from one machine with synthetic clicks. They are not field INP.
 
@@ -78,20 +78,20 @@ On a transition path, "input → next paint" is the frame that captures the old 
 
 | ms (p50 / p95) | Chromium 153 | Chromium 153, 4× CPU | Firefox 157 | WebKit 27.2 |
 |---|---|---|---|---|
-| Input → next paint, with CutMorph | 25.1 / 77.4 | 83.8 / 368.7 | 4 / 9 | 84 / 220 |
-| Input → next paint, without | 14.7 / 32.9 | 59.8 / 135.4 | 19 / 65 | 18 / 55 |
-| **Input → DOM updated, with CutMorph** | **38.4 / 100.9** | **147.1 / 487.9** | **23 / 71** | **42 / 90** |
-| Input → DOM updated, without | 8.9 / 24.0 | 45.8 / 96.6 | 17 / 60 | 15 / 49 |
-| React render + commit, with (`flushSync` in the callback) | 13.2 / 34.5 | 63.9 / 133.9 | 17 / 67 | 16 / 56 |
-| React render + commit, without | 6.7 / 22.1 | 37.6 / 86.4 | 15 / 58 | 12 / 46 |
-| Long tasks > 50 ms per 36 edits (with / without) | 10 (longest 92) / 0 | 100 (longest 413) / 16 (longest 167) | n/a | n/a |
+| Input → next paint, with CutMorph | 24.0 / 74.9 | 85.4 / 344.5 | 4 / 9 | 80 / 171 |
+| Input → next paint, without | 14.8 / 31.7 | 52.4 / 141.7 | 18 / 60 | 18 / 37 |
+| **Input → DOM updated, with CutMorph** | **37.5 / 108.6** | **151.2 / 470.7** | **23 / 62** | **39 / 79** |
+| Input → DOM updated, without | 8.6 / 22.8 | 40.8 / 99.5 | 16 / 55 | 16 / 33 |
+| React render + commit, with (`flushSync` in the callback) | 12.3 / 32.3 | 58.8 / 136.4 | 17 / 57 | 14 / 53 |
+| React render + commit, without | 6.5 / 21.2 | 30.0 / 87.8 | 16 / 55 | 12 / 30 |
+| Long tasks > 50 ms per 36 edits (with / without) | 7 (longest 65) / 0 | 121 (longest 403) / 13 (longest 119) | n/a | n/a |
 | Layout shift / scroll jumps | 0 / 0 | 0 / 0 | n/a / 0 | n/a / 0 |
 
-- **The cost is the snapshots, not the hook.** The Chromium trace attributes CutMorph's long tasks to `UpdateLayoutTree` (about 37–39 ms) and `Paint` (17–27 ms) while building and painting about 200 pseudo-element groups. React's own commit is only a few ms slower inside the callback.
+- **The cost is the snapshots, not the hook.** The Chromium trace attributes CutMorph's long tasks to `UpdateLayoutTree` (about 34–38 ms) and `Paint` (12–18 ms) while building and painting about 200 pseudo-element groups. React's own commit is only a few ms slower inside the callback.
 - **Naming 200 subjects is a stress case.** It is not what the grammar asks for ("animate the subject"). With element scope (Chromium) only the demo's own subtree is captured.
 - **Firefox and WebKit:** there is no CPU-throttling API, so their 4× columns are not measured, and they don't report long tasks or layout shifts (`null` in the JSON).
 - **Zero added delay on `cut` and the fallbacks (asserted).** Without CutMorph, at tempo `still` and with reduced motion, all 36 of 36 updates were in the DOM before the next animation frame, in all three engines. The script exits non-zero otherwise.
-- **Size (min+gzip):** 2580 B JS + 437 B CSS. Together that is 2952 B, under the 3 KB budget (the review fixes added the class guard, the scoped foreign check and commit-timed promises). Development messages are folded out by the production `NODE_ENV` define.
+- **Size (min+gzip):** 2695 B JS + 437 B CSS. Together that is 3069 B, just under the 3 KB budget (3072 B). The review fixes added the class guard, the scoped foreign check, commit-timed promises and joining; some redundant guards were trimmed to stay in budget. Development messages are folded out by the production `NODE_ENV` define.
 
 ## The grammar (CSS)
 
