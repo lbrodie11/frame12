@@ -228,10 +228,17 @@ await section('demo data', async () => {
   check(!agent.rawLog.includes('INDIRECT PROMPT INJECTION') && !agent.rawLog.includes('<script>') && agent.frames.every((f) => !JSON.stringify(f).includes('<script>')), 'agent demo: the tool input\'s untrusted memo is redacted from frames and the raw log');
   const { mod: term } = await loadServerModule(resolve(REGISTRY_ROOT, '../packages/terminal/src/index.ts'));
   const sv = term.createStreamValidator();
-  const bad = demo.CI_ILLUSTRATIVE_EVENTS.map((e) => sv.push(e)).filter((r) => !r.ok);
+  const bad = demo.CI_RECORDED_EVENTS.map((e) => sv.push(e)).filter((r) => !r.ok);
   const fin = sv.finish();
   const ci = demo.buildCiRunDemo();
-  check(bad.length === 0 && fin.length === 0 && ci.illustrative && /illustrative/i.test(ci.title) && /illustrative/i.test(ci.label) && hook.normalizeExposureFrames(ci.frames).issues.length === 0, 'CI demo: labelled illustrative; every event validates against @frame12/terminal\'s v1 stream validator', { bad: bad.slice(0, 2), fin });
+  const failedEnd = demo.CI_RECORDED_EVENTS.find((e) => e.type === 'cut-end' && e.status === 'error');
+  const runEnd = ci.frames.find((f) => f.kind === 'run-end');
+  check(
+    bad.length === 0 && fin.length === 0 && !ci.illustrative && ci.recorded && /recorded/i.test(ci.title) && /break-test\.f12rec/.test(ci.source) &&
+      hook.normalizeExposureFrames(ci.frames).issues.length === 0 && failedEnd?.cut === 'test' && runEnd?.causes?.[0] === failedEnd.id && ci.frames.find((f) => f.id === ci.primaryMarker)?.kind === 'finding',
+    'CI demo: the recorded build-pipeline run; every event validates against @frame12/terminal\'s v1 stream validator; run end points at the failing test cut; the marker is its finding',
+    { bad: bad.slice(0, 2), fin },
+  );
 });
 
 const browser = await launch('chromium');

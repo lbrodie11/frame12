@@ -224,6 +224,19 @@ describe('examples: the committed recording and the 12-line example', () => {
     assert.match(r.stdout, /Finding F-01 pair-e9d61976 \(top finding/);
   });
 
+  it('build-pipeline/fixtures/break-test.f12rec is a real failing run with no local paths, accepted by --strict', () => {
+    const file = 'examples/build-pipeline/fixtures/break-test.f12rec';
+    const text = fs.readFileSync(path.join(PKG, file), 'utf8');
+    assert.doesNotMatch(text, /\/(home|tmp|Users|root|opt)\/|[A-Z]:\\/, 'no absolute paths');
+    const snap = JSON.parse(text.trim().split('\n').at(-1)).event.snapshot;
+    assert.equal(snap.status, 'failed');
+    assert.deepEqual(snap.cuts.map((c) => `${c.cut}:${c.status}`), ['lint:ok', 'typecheck:ok', 'test:error', 'build:skipped']);
+    assert.deepEqual(snap.findings[0].receipts.map((r) => r.value), ['totals line items with quantities', 'Expected values to be strictly equal:', 'expected: 1000', 'actual: 1500']);
+    const r = render(['--from', file, '--strict', '--format', 'plain']);
+    assert.equal(r.status, 1, 'a failed run exits 1');
+    assert.match(r.stdout, /Finding F-01 step-test-failed \(top finding, danger\)/);
+  });
+
   it('hello.ndjson is 12 lines, one complete run, accepted by --strict', () => {
     const lines = fs.readFileSync(path.join(EX, 'hello.ndjson'), 'utf8').trim().split('\n');
     assert.equal(lines.length, 12);

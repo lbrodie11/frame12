@@ -64,6 +64,9 @@ A failing step ends its cut as `error` and becomes a `danger` finding. Its recei
 evidence: the failing test names and the assertion's expected and actual values, or the lint or
 syntax error. They're a keypress away in the live view's Inspector. Later steps are skipped.
 
+**Recording.** `fixtures/break-test.f12rec` is a real run with `--break test --record` (no local
+paths). It is the CI run on frame12.dev's `/components/exposure-scrubber` page.
+
 ## Agent approval
 
 ```sh
