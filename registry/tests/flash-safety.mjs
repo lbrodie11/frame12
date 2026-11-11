@@ -266,9 +266,11 @@ async function runInkJob({ tempo, name }, dec) {
   results.set(`${tempo}/${name}`, { ...verdict(frames), errors });
   await ctx.close();
 }
-// The Edit Room (F12-10): the four CutMorph demos at AUTO, 12 and 60, three quick state changes
-// each (333 ms apart, like filtering quickly). View Transition pseudo-element animations are in
-// document.getAnimations(), so the same pause-and-seek capture drives them.
+// The Edit Room (F12-10): the CutMorph demos at 12 and 60, three quick state changes each (333 ms
+// apart, like filtering quickly). View Transition pseudo-element animations are in
+// document.getAnimations(), so the same pause-and-seek capture drives them. No capture repeats
+// another: AUTO resolves to the demos' stepped base, the same transitions as 12 (asserted below
+// without a capture), and the Cut demo never starts a transition, so one tempo covers it.
 const edCss = readFileSync(resolve(REGISTRY_ROOT, '../site/src/components/edit-room.css'), 'utf8');
 const edHtml = await bundlePage(resolve(REGISTRY_ROOT, 'tests/fixtures/edit-room-entry.tsx'), { head: `<style>${edCss}</style>` });
 const ED_STEPS = {
@@ -277,7 +279,9 @@ const ED_STEPS = {
   open: ['#er-open-row-s002', '#er-open-row-s005', '#er-open-row-s005'],
   cut: ['#er-cut-filter-ink', '#er-cut-filter-final', '#er-cut-filter-all'],
 };
-const ED_JOBS = ['auto', 'twos', 'ones'].flatMap((tempo) => Object.keys(ED_STEPS).map((demo) => ({ tempo, name: `edit-room-${demo}`, demo })));
+const ED_JOBS = ['twos', 'ones']
+  .flatMap((tempo) => ['filter', 'reorder', 'open'].map((demo) => ({ tempo, name: `edit-room-${demo}`, demo })))
+  .concat({ tempo: 'twos', name: 'edit-room-cut', demo: 'cut' });
 async function runEditRoomJob({ tempo, name, demo }, dec) {
   const { ctx, page, errors } = await openFixture(browser, edHtml, { w: VW, h: VH });
   await page.evaluate(([d, t]) => window.__er.mount({ demo: d, tempo: t }), [demo, tempo]);
@@ -338,6 +342,23 @@ for (const { tempo, name } of ED_JOBS) {
   check(v.general.maxPerSecond <= 3 && v.red.maxPerSecond <= 3 && v.changedFrames > 0 && v.errors.length === 0,
     `flash safety [${tempo}] ${name} (CutMorph): ≤ 3 general and ≤ 3 red flashes per second in any 341×256 region across 3 quick edits`,
     { general: v.general.maxPerSecond, red: v.red.maxPerSecond, changedFrames: v.changedFrames, status: v.changed, errors: v.errors });
+}
+// AUTO is not captured: it must start the same stepped transition that the [twos] captures cover.
+for (const demo of ['filter', 'reorder', 'open']) {
+  const { ctx, page, errors } = await openFixture(browser, edHtml, { w: VW, h: VH });
+  await page.evaluate((d) => window.__er.mount({ demo: d, tempo: 'auto' }), demo);
+  await page.waitForTimeout(150);
+  const modes = await page.evaluate((sel) => {
+    const seen = [];
+    const start = document.startViewTransition.bind(document);
+    // CutMorph sets its mode class on <html> before it starts the transition.
+    document.startViewTransition = (cb) => (seen.push(document.documentElement.className), start(cb));
+    document.querySelector(sel).click();
+    return seen;
+  }, ED_STEPS[demo][0]);
+  check(modes.length === 1 && /\bf12-vt-stepped\b/.test(modes[0]) && errors.length === 0,
+    `flash safety [auto] edit-room-${demo} (CutMorph): AUTO starts the stepped transition the [twos] capture covers`, { modes, errors });
+  await ctx.close();
 }
 
 // ExposureScrubber flipbook at 4× (F12-09): 48 poses per second on a 200-frame run. Only the
