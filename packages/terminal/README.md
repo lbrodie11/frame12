@@ -4,7 +4,7 @@ FRAME/12's interface language for the command line. A long-running command reads
 of **cuts** (`C-01`, `C-02`…), the finding that matters comes first as a **frame** (`F-01`), and
 every claim carries **receipts** (`E-01`).
 
-> **Status: 0.1.0, prepared and not yet published.** The core, the zero-dependency linear
+> **Status: 0.1.0.** The core, the zero-dependency linear
 > renderers (`./render`), the Director, the live Ink view (`./ink`), `spawnLogged` (`./process`),
 > the `frame12-term` CLI with `.f12rec` recordings, and three reference apps
 > ([`examples/`](examples/)). Docs and a real recorded run: [frame12.dev/terminal](https://frame12.dev/terminal).
