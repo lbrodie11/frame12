@@ -64,13 +64,9 @@ export interface CutMorphSupport {
 // browser-only TypeScript consumers without @types/node still compile (as in panel.tsx).
 declare const process: { env: { NODE_ENV?: string } };
 
-const isDev = (): boolean => {
-  try {
-    return process.env.NODE_ENV !== 'production';
-  } catch {
-    return false;
-  }
-};
+// Development checks test `process.env.NODE_ENV` inline and unguarded, so a bundler's production
+// define folds them away with their messages. Safe wherever React from npm runs: React's own
+// entry point reads process.env.NODE_ENV unguarded too.
 
 const useIsoLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
 
@@ -163,7 +159,7 @@ export function getCutMorphSupport(): CutMorphSupport {
 function callUpdate(update: () => void): void {
   const result: unknown = update();
   if (
-    isDev() &&
+    process.env.NODE_ENV !== 'production' &&
     result != null &&
     typeof (result as { then?: unknown }).then === 'function'
   ) {
@@ -492,7 +488,6 @@ export function CutMorphName({
   className = 'f12-match',
   children,
 }: CutMorphNameProps): React.ReactElement {
-  const dev = isDev();
   const isHost =
     React.isValidElement(children) && (children as React.ReactElement).type !== React.Fragment;
   const validName = isCutMorphName(name);
@@ -500,10 +495,10 @@ export function CutMorphName({
   const usable = isHost && validName && vtClass !== null;
 
   const stackRef = React.useRef('');
-  if (dev && !stackRef.current) stackRef.current = captureStack();
+  if (process.env.NODE_ENV !== 'production' && !stackRef.current) stackRef.current = captureStack();
   const registered = usable ? name : null;
   React.useEffect(() => {
-    if (!dev || !registered) return;
+    if (process.env.NODE_ENV === 'production' || !registered) return;
     const owner = getOwner();
     const list = owner.names.get(registered) ?? [];
     const entry = { stack: stackRef.current };
@@ -521,10 +516,10 @@ export function CutMorphName({
       if (i >= 0) cur.splice(i, 1);
       if (cur.length === 0) owner.names.delete(registered);
     };
-  }, [dev, registered]);
+  }, [registered]);
 
   if (!usable) {
-    if (dev) {
+    if (process.env.NODE_ENV !== 'production') {
       if (!isHost) {
         console.error(
           '[frame12] CutMorphName needs one DOM host element child (or a component that forwards `style` and `ref`), not a Fragment, text or an array.',
