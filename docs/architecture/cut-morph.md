@@ -150,6 +150,19 @@ const select = (id: string) =>
 
 `withCutMorphMode` opens a window of about 1 s: the next View Transition started in it (React's, for the `startTransition` inside `fn`) gets the mode key on `<html>` from the moment it starts until it finishes. Nothing is restyled before that, and only one transition is adopted. A Suspense-delayed transition that starts after the window plays React's default, so preload what it reveals. React 19.3 adds its own 0 ms `::view-transition-group(root)` animation, a size fixup, which does not move anything.
 
+## Known engine issues
+
+**WebKit 27.2: `document.getAnimations()` after a transition can crash the page** (Playwright's WebKit build, found 2026-11-11 while verifying frame12.dev).
+- **Trigger:** a page that sets an author `animation-name` on `::view-transition-new(...)` runs a same-document transition. It finishes cleanly. A later `document.getAnimations()` call, about 1.5 s afterwards, crashes the page ("Target crashed").
+- **Minimal repro, no FRAME/12 code:** 24 rows, each with its own `view-transition-name`; `::view-transition-new(*) { animation-name: anyName }`; remove two rows in three inside `document.startViewTransition`; await `finished`; call `document.getAnimations()`.
+- **Doesn't crash:** the same `animation-name` on `::view-transition-old`; timing-only overrides (duration, timing function, fill mode); no transition at all. Chromium 153 and Firefox 157 are unaffected.
+- **In FRAME/12,** the trigger is the grammar's `::view-transition-new(*.f12-match) { animation-name: f12VtIn }`, isolated by bisecting the CutMorph CSS.
+- **Why the grammar keeps the rule:** it replaces the browser's default `animation-name` list on the new image. Without it, the spec's dynamic `plus-lighter` blend can brighten the image after the hard swap, and that can only be checked in pixels in Chromium.
+- **Impact:**
+  - CutMorph itself never calls `getAnimations()`.
+  - The docs-only Pose inspector calls it while its own transition is `ready`. That was verified safe after a Filter edit, three times in a row.
+  - Consumers' WebKit visual tests are affected. Playwright's `page.screenshot({ animations: 'disabled' })` calls `getAnimations()`, so after a match cut it crashes the page. Take those screenshots with `animations: 'allow'`, or on a fresh page. Default screenshots are unaffected.
+
 ## Not supported
 
 - Cross-document transitions.
