@@ -112,6 +112,26 @@ const SCROLL_SPY = `(() => {
 })()`;
 
 const storyState = (page) => page.evaluate(() => document.getElementById('home-story').dataset.inkState);
+// `networkidle` does not mean hydrated. On a cold server WebKit hydrated seconds later, after this
+// suite had read the story's state and resized and scrolled the page, so the story's first
+// IntersectionObserver report saw the drawing in view and (correctly) kept the finished drawing.
+// Wait for the site shell's hydration mark, then for the story to leave its server-rendered
+// state: `scrubbing` when the engine supports scroll timelines (the drawing starts below the
+// fold), else `rest` at once. The checks still assert the state; this only stops them reading it
+// before the page has decided.
+const settle = async (page) => {
+  await page.waitForSelector('.site-root[data-hydrated="true"]', { timeout: 15000 });
+  await page
+    .waitForFunction(
+      () => {
+        const s = document.getElementById('home-story')?.dataset.inkState;
+        return CSS.supports('animation-timeline: view()') ? s === 'scrubbing' : s === 'rest';
+      },
+      null,
+      { timeout: 5000 },
+    )
+    .catch(() => {});
+};
 const seek = (page, t) =>
   page.evaluate((t) => {
     for (const a of document.getAnimations()) {
@@ -177,6 +197,7 @@ try {
     {
       const { ctx, page, errors } = await newPage();
       await page.goto(`${base}/`, { waitUntil: 'networkidle' });
+      await settle(page);
       const supports = await page.evaluate(() => CSS.supports('animation-timeline: view()'));
       const state = await storyState(page);
       const timeAnims = await page.evaluate(() => document.getAnimations().filter((a) => a.timeline === document.timeline && a.effect?.target?.closest?.('#home-story')).length);
@@ -309,6 +330,7 @@ try {
     {
       const { ctx, page, errors } = await newPage();
       await page.goto(`${base}/`, { waitUntil: 'networkidle' });
+      await settle(page);
       // Start mid-scroll, so scroll-linked animations exist when Play takes over.
       await scrollToProgress(page, 0.5);
       await page.waitForTimeout(100);
@@ -408,6 +430,7 @@ try {
         CSS.supports = (...a) => (String(a.join(' ')).includes('animation-timeline') ? false : orig(...a));
       });
       await page.goto(`${base}/`, { waitUntil: 'networkidle' });
+      await settle(page);
       await scrollToProgress(page, 0.4);
       await page.waitForTimeout(100);
       const f = await finished(page);
