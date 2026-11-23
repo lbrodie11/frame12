@@ -17,6 +17,8 @@ All notable changes to **FRAME/12** are documented in this file.
 
   The `Build, Lint, Accessibility & Smoke Install` check now aggregates the shards and keeps its name. Pull request runs superseded by a newer push are cancelled. Locally, `npm test` still runs everything, now as `test:checks` and then each workspace; the registry and site `test` scripts are now `test:core && test:flash` and `test:pages && test:motion`.
 
+- **Docs: a WebKit 27.2 crash after View Transitions.** In WebKit 27.2, `document.getAnimations()` after a transition crashes the page whenever `::view-transition-new` has an author `animation-name`, which CutMorph's grammar sets. That includes Playwright's `screenshot({ animations: 'disabled' })`. It reproduces with no FRAME/12 code. The repro, the scope, why the grammar keeps the rule, and the workaround (`animations: 'allow'`) are in `docs/architecture/cut-morph.md` and the skill.
+
 ### Fixed
 
 - **CutMorph: the Filter demo never animated in Chromium (found on frame12.dev after the #45 deploy).** With `scope`, CutMorph ran an element-scoped transition in Chromium. Chromium 153 aborts those (`InvalidStateError`, "Prepaint layout check failed") whenever the update removes or hides a named subject, which is what a filter does. The update still landed, but as a plain cut. The spike's question 6 had only tested a move; question 6b now records the abort (every exit shape, 3/3 runs). Every CutMorph edit is now a document transition with the root excluded, in every engine. `scope` is still accepted and unused, so the API is unchanged. Size is now 2969 B min+gzip.
